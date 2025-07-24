@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CusomMapOSM_Commons\CusomMapOSM_Commons.csproj" />
+    <ProjectReference Include="..\CusomMapOSM_Commons\CusomMapOSM_Shared.csproj" />
     <ProjectReference Include="..\CusomMapOSM_Domain\CusomMapOSM_Domain.csproj" />
   </ItemGroup>
 
