@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CusomMapOSM_Application\CusomMapOSM_Application.csproj" />
+    <ProjectReference Include="..\CusomMapOSM_Commons\CusomMapOSM_Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="BackgroundJobs\" />
+    <Folder Include="Databases\Configurations\" />
+    <Folder Include="Databases\Repositories\" />
+    <Folder Include="Options\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.7" />
+    <PackageReference Include="Polly" Version="8.6.2" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
+  </ItemGroup>
+
+</Project>

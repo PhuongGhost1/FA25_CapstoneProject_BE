@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+
+  # cusommaposm_api:
+  #   image: cusommaposmapi
+  #   container_name: cusommaposm_api
+  #   build:
+  #       context: .
+  #       dockerfile: src/CusomMapOSM_API/Dockerfile
+  #   networks:
+  #     - backend
+
+networks:
+  backend:
+    driver: bridge
