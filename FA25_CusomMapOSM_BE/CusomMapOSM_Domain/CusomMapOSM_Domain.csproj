@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <Folder Include="BusinessRules\" />
-    <Folder Include="Entities\" />
   </ItemGroup>
 
 </Project>

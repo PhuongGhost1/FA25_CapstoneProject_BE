@@ -1,0 +1,41 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using CusomMapOSM_Domain.Entities.Maps;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace CusomMapOSM_Infrastructure.Databases.Configurations.MapConfig;
+
+internal class MapHistoryConfiguration : IEntityTypeConfiguration<MapHistory>
+{
+       public void Configure(EntityTypeBuilder<MapHistory> builder)
+       {
+              builder.ToTable("map_histories");
+
+              builder.HasKey(mh => mh.VersionId);
+
+              builder.Property(mh => mh.VersionId)
+                     .HasColumnName("version_id")
+                     .ValueGeneratedOnAdd();
+
+              builder.Property(mh => mh.MapId)
+                     .HasColumnName("map_id")
+                     .IsRequired();
+
+              builder.Property(mh => mh.UserId)
+                     .HasColumnName("user_id")
+                     .IsRequired();
+
+              builder.Property(mh => mh.SnapshotData)
+                     .HasColumnName("snapshot_data")
+                     .IsRequired();
+
+              builder.Property(mh => mh.CreatedAt)
+                     .HasColumnName("created_at")
+                     .HasColumnType("datetime")
+                     .IsRequired();
+       }
+}
