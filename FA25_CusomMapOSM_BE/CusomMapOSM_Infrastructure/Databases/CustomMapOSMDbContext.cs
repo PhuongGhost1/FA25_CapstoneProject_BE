@@ -1,4 +1,20 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using CusomMapOSM_Domain.Entities.AccessTools;
+using CusomMapOSM_Domain.Entities.Advertisements;
+using CusomMapOSM_Domain.Entities.Annotations;
+using CusomMapOSM_Domain.Entities.Bookmarks;
+using CusomMapOSM_Domain.Entities.Collaborations;
+using CusomMapOSM_Domain.Entities.Comments;
+using CusomMapOSM_Domain.Entities.Exports;
+using CusomMapOSM_Domain.Entities.Faqs;
+using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Maps;
+using CusomMapOSM_Domain.Entities.Memberships;
+using CusomMapOSM_Domain.Entities.Notifications;
+using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Tickets;
+using CusomMapOSM_Domain.Entities.Transactions;
+using CusomMapOSM_Domain.Entities.Users;
+using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases;
 
@@ -7,12 +23,50 @@ public class CustomMapOSMDbContext : DbContext
     public CustomMapOSMDbContext(DbContextOptions<CustomMapOSMDbContext> options) : base(options) { }
 
     public CustomMapOSMDbContext()
-    {    
+    {
     }
 
     // DbSet properties for your entities here
     #region DbSet Properties
-
+    public DbSet<AccessTool> AccessTools { get; set; }
+    public DbSet<Advertisement> Advertisements { get; set; }
+    public DbSet<Annotation> Annotations { get; set; }
+    public DbSet<AnnotationType> AnnotationTypes { get; set; }
+    public DbSet<Bookmark> Bookmarks { get; set; }
+    public DbSet<DataSourceBookmark> DataSourceBookmarks { get; set; }
+    public DbSet<Collaboration> Collaborations { get; set; }
+    public DbSet<CollaborationPermission> CollaborationPermissions { get; set; }
+    public DbSet<CollaborationTargetType> CollaborationTargetTypes { get; set; }
+    public DbSet<Comment> Comments { get; set; }
+    public DbSet<Export> Exports { get; set; }
+    public DbSet<ExportType> ExportTypes { get; set; }
+    public DbSet<Faq> Faqs { get; set; }
+    public DbSet<Layer> Layers { get; set; }
+    public DbSet<LayerSource> LayerSources { get; set; }
+    public DbSet<LayerType> LayerTypes { get; set; }
+    public DbSet<Map> Maps { get; set; }
+    public DbSet<MapHistory> MapHistories { get; set; }
+    public DbSet<MapLayer> MapLayers { get; set; }
+    public DbSet<MapTemplate> MapTemplates { get; set; }
+    public DbSet<Membership> Memberships { get; set; }
+    public DbSet<MembershipStatus> MembershipStatuses { get; set; }
+    public DbSet<Plan> Plans { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Organization> Organizations { get; set; }
+    public DbSet<OrganizationLocation> OrganizationLocations { get; set; }
+    public DbSet<OrganizationLocationStatus> OrganizationLocationStatuses { get; set; }
+    public DbSet<OrganizationMember> OrganizationMembers { get; set; }
+    public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
+    public DbSet<SupportTicket> SupportTickets { get; set; }
+    public DbSet<TicketStatus> TicketStatuses { get; set; }
+    public DbSet<Transactions> Transactions { get; set; }
+    public DbSet<PaymentGateway> PaymentGateways { get; set; }
+    public DbSet<User> Users { get; set; }
+    public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<AccountStatus> AccountStatuses { get; set; }
+    public DbSet<UserAccessTool> UserAccessTools { get; set; }
+    public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
+    public DbSet<UserPreference> UserPreferences { get; set; }
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -24,5 +78,8 @@ public class CustomMapOSMDbContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
+
+        optionsBuilder.EnableSensitiveDataLogging();
+        optionsBuilder.EnableDetailedErrors();
     }
 }

@@ -1,5 +1,8 @@
 ﻿using CusomMapOSM_Application.Interfaces.Services.Cache;
+using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Services;
+using CusomMapOSM_Shared.Constant;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
@@ -26,11 +29,10 @@ public static class DependencyInjections
     public static IServiceCollection AddPersistance(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext for the application
-        //services.AddDbContext<DiamondShopDbContext>(opt =>
-        //{
-        //    opt.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-        //        ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
-        //});
+        services.AddDbContext<CustomMapOSMDbContext>(opt =>
+        {
+            opt.UseMySql(MySqlDatabase.CONNECTION_STRING, ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING));
+        });
 
         // Register Repositories
 

@@ -24,6 +24,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Application", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_API", "CusomMapOSM_API\CusomMapOSM_API.csproj", "{3B638CC9-C27B-4404-92F2-A0B30AA52BF1}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "QGIS", "QGIS", "{F7C3DBD4-9794-484B-B9B8-35EB339CB95F}"
+	ProjectSection(SolutionItems) = preProject
+		export_map.py = export_map.py
+		..\..\..\Documents\Maps\vietnam_map_project.qgz = ..\..\..\Documents\Maps\vietnam_map_project.qgz
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,6 +66,7 @@ Global
 		{6BC7E44B-6FBE-47C7-A76F-1AB6FC8C363B} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
 		{45E2808E-0D0B-4709-A9B5-AA1B66F35DED} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
 		{3B638CC9-C27B-4404-92F2-A0B30AA52BF1} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
+		{F7C3DBD4-9794-484B-B9B8-35EB339CB95F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B08CEEBE-A528-41BD-9DC5-38E6EEF78908}
