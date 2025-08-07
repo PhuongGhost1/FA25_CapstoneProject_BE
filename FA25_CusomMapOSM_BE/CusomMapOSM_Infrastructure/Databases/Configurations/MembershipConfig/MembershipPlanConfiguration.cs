@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Memberships;
+using CusomMapOSM_Domain.Entities.Memberships.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -93,7 +94,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             new Plan
             {
                 PlanId = 1,
-                PlanName = "Free",
+                PlanName = MembershipPlanTypeEnum.Free.ToString(),
                 Description = "Basic features for individual users",
                 PriceMonthly = 0.00m,
                 DurationMonths = 1,
@@ -112,7 +113,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             new Plan
             {
                 PlanId = 2,
-                PlanName = "Basic",
+                PlanName = MembershipPlanTypeEnum.Basic.ToString(),
                 Description = "Essential features for small teams",
                 PriceMonthly = 9.99m,
                 DurationMonths = 1,
@@ -131,7 +132,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             new Plan
             {
                 PlanId = 3,
-                PlanName = "Pro",
+                PlanName = MembershipPlanTypeEnum.Pro.ToString(),
                 Description = "Advanced features for growing businesses",
                 PriceMonthly = 29.99m,
                 DurationMonths = 1,
@@ -150,7 +151,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             new Plan
             {
                 PlanId = 4,
-                PlanName = "Enterprise",
+                PlanName = MembershipPlanTypeEnum.Enterprise.ToString(),
                 Description = "Full-featured solution for large organizations",
                 PriceMonthly = 99.99m,
                 DurationMonths = 1,

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Collaborations;
+using CusomMapOSM_Domain.Entities.Collaborations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -43,7 +44,7 @@ internal class CollaborationTargetTypeConfiguration : IEntityTypeConfiguration<C
                      new CollaborationTargetType
                      {
                             TargetTypeId = SeedDataConstants.MapTargetTypeId,
-                            TypeName = "Map",
+                            TypeName = CollaborationTargetTypeEnum.Map.ToString(),
                             Description = "Share entire maps with team members",
                             IsActive = true,
                             CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
@@ -51,7 +52,7 @@ internal class CollaborationTargetTypeConfiguration : IEntityTypeConfiguration<C
                      new CollaborationTargetType
                      {
                             TargetTypeId = SeedDataConstants.LayerTargetTypeId,
-                            TypeName = "Layer",
+                            TypeName = CollaborationTargetTypeEnum.Layer.ToString(),
                             Description = "Share specific layers with team members",
                             IsActive = true,
                             CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
@@ -59,7 +60,7 @@ internal class CollaborationTargetTypeConfiguration : IEntityTypeConfiguration<C
                      new CollaborationTargetType
                      {
                             TargetTypeId = SeedDataConstants.OrganizationTargetTypeId,
-                            TypeName = "Organization",
+                            TypeName = CollaborationTargetTypeEnum.Organization.ToString(),
                             Description = "Share organization resources",
                             IsActive = true,
                             CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)

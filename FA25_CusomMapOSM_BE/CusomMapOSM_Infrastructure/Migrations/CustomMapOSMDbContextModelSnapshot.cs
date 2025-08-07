@@ -236,7 +236,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             TypeId = new Guid("00000000-0000-0000-0000-000000000013"),
-                            TypeName = "Text Label"
+                            TypeName = "TextLabel"
                         });
                 });
 
@@ -805,12 +805,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             SourceTypeId = new Guid("00000000-0000-0000-0000-000000000026"),
-                            Name = "User Upload"
+                            Name = "UserUploaded"
                         },
                         new
                         {
                             SourceTypeId = new Guid("00000000-0000-0000-0000-000000000027"),
-                            Name = "External API"
+                            Name = "ExternalAPI"
                         },
                         new
                         {
@@ -820,7 +820,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             SourceTypeId = new Guid("00000000-0000-0000-0000-000000000029"),
-                            Name = "Web Service"
+                            Name = "WebMapService"
                         });
                 });
 
@@ -887,7 +887,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             Description = "Points of Interest including amenities and landmarks",
                             IconUrl = "/icons/poi.svg",
                             IsActive = true,
-                            TypeName = "POIs"
+                            TypeName = "POI"
                         },
                         new
                         {
@@ -896,7 +896,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             Description = "User uploaded GeoJSON data layers",
                             IconUrl = "/icons/geojson.svg",
                             IsActive = true,
-                            TypeName = "GeoJSON"
+                            TypeName = "GEOJSON"
                         },
                         new
                         {
@@ -1277,7 +1277,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000033"),
-                            Name = "Pending Payment"
+                            Name = "PendingPayment"
                         },
                         new
                         {
@@ -1680,12 +1680,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000037"),
-                            Name = "Under Construction"
+                            Name = "UnderConstruction"
                         },
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000038"),
-                            Name = "Temporary Closed"
+                            Name = "TemporaryClosed"
                         });
                 });
 
@@ -1850,12 +1850,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000044"),
-                            Name = "In Progress"
+                            Name = "InProgress"
                         },
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000045"),
-                            Name = "Waiting for Customer"
+                            Name = "WaitingForCustomer"
                         },
                         new
                         {
@@ -1905,7 +1905,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             GatewayId = new Guid("00000000-0000-0000-0000-000000000051"),
-                            Name = "Bank Transfer"
+                            Name = "BankTransfer"
                         });
                 });
 
@@ -2008,7 +2008,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             StatusId = new Guid("00000000-0000-0000-0000-000000000007"),
-                            Name = "Pending Verification"
+                            Name = "PendingVerification"
                         });
                 });
 
@@ -2192,12 +2192,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             RoleId = new Guid("00000000-0000-0000-0000-000000000002"),
-                            Name = "Registered User"
+                            Name = "RegisteredUser"
                         },
                         new
                         {
                             RoleId = new Guid("00000000-0000-0000-0000-000000000003"),
-                            Name = "Administrator"
+                            Name = "Admin"
                         });
                 });
 

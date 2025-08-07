@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Layers.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,11 +29,11 @@ internal class LayerSourceConfiguration : IEntityTypeConfiguration<LayerSource>
 
         // Sample data for layer sources
         builder.HasData(
-            new LayerSource { SourceTypeId = SeedDataConstants.OpenStreetMapSourceTypeId, Name = "OpenStreetMap" },
-            new LayerSource { SourceTypeId = SeedDataConstants.UserUploadSourceTypeId, Name = "User Upload" },
-            new LayerSource { SourceTypeId = SeedDataConstants.ExternalApiSourceTypeId, Name = "External API" },
-            new LayerSource { SourceTypeId = SeedDataConstants.DatabaseSourceTypeId, Name = "Database" },
-            new LayerSource { SourceTypeId = SeedDataConstants.WebServiceSourceTypeId, Name = "Web Service" }
+            new LayerSource { SourceTypeId = SeedDataConstants.OpenStreetMapSourceTypeId, Name = LayerSourceEnum.OpenStreetMap.ToString() },
+            new LayerSource { SourceTypeId = SeedDataConstants.UserUploadSourceTypeId, Name = LayerSourceEnum.UserUploaded.ToString() },
+            new LayerSource { SourceTypeId = SeedDataConstants.ExternalApiSourceTypeId, Name = LayerSourceEnum.ExternalAPI.ToString() },
+            new LayerSource { SourceTypeId = SeedDataConstants.DatabaseSourceTypeId, Name = LayerSourceEnum.Database.ToString() },
+            new LayerSource { SourceTypeId = SeedDataConstants.WebServiceSourceTypeId, Name = LayerSourceEnum.WebMapService.ToString() }
         );
     }
 }

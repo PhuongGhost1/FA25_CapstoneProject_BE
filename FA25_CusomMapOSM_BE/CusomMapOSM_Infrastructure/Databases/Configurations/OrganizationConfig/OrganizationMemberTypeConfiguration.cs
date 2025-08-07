@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -25,10 +26,10 @@ internal class OrganizationMemberTypeConfiguration : IEntityTypeConfiguration<Or
 
         // Sample data for organization member types
         builder.HasData(
-            new OrganizationMemberType { TypeId = SeedDataConstants.OwnerOrganizationMemberTypeId, Name = "Owner" },
-            new OrganizationMemberType { TypeId = SeedDataConstants.AdminOrganizationMemberTypeId, Name = "Admin" },
-            new OrganizationMemberType { TypeId = SeedDataConstants.MemberOrganizationMemberTypeId, Name = "Member" },
-            new OrganizationMemberType { TypeId = SeedDataConstants.ViewerOrganizationMemberTypeId, Name = "Viewer" }
+            new OrganizationMemberType { TypeId = SeedDataConstants.OwnerOrganizationMemberTypeId, Name = OrganizationMemberTypeEnum.Owner.ToString() },
+            new OrganizationMemberType { TypeId = SeedDataConstants.AdminOrganizationMemberTypeId, Name = OrganizationMemberTypeEnum.Admin.ToString() },
+            new OrganizationMemberType { TypeId = SeedDataConstants.MemberOrganizationMemberTypeId, Name = OrganizationMemberTypeEnum.Member.ToString() },
+            new OrganizationMemberType { TypeId = SeedDataConstants.ViewerOrganizationMemberTypeId, Name = OrganizationMemberTypeEnum.Viewer.ToString() }
         );
     }
 }

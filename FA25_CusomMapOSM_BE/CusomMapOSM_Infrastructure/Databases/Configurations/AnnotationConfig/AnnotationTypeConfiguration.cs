@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Annotations;
+using CusomMapOSM_Domain.Entities.Annotations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,12 +29,12 @@ internal class AnnotationTypeConfiguration : IEntityTypeConfiguration<Annotation
 
         // Sample data based on URD annotation requirements (markers/lines/polygons)
         builder.HasData(
-            new AnnotationType { TypeId = SeedDataConstants.MarkerTypeId, TypeName = "Marker" },
-            new AnnotationType { TypeId = SeedDataConstants.LineTypeId, TypeName = "Line" },
-            new AnnotationType { TypeId = SeedDataConstants.PolygonTypeId, TypeName = "Polygon" },
-            new AnnotationType { TypeId = SeedDataConstants.CircleTypeId, TypeName = "Circle" },
-            new AnnotationType { TypeId = SeedDataConstants.RectangleTypeId, TypeName = "Rectangle" },
-            new AnnotationType { TypeId = SeedDataConstants.TextLabelTypeId, TypeName = "Text Label" }
+            new AnnotationType { TypeId = SeedDataConstants.MarkerTypeId, TypeName = AnnotationTypeEnum.Marker.ToString() },
+            new AnnotationType { TypeId = SeedDataConstants.LineTypeId, TypeName = AnnotationTypeEnum.Line.ToString() },
+            new AnnotationType { TypeId = SeedDataConstants.PolygonTypeId, TypeName = AnnotationTypeEnum.Polygon.ToString() },
+            new AnnotationType { TypeId = SeedDataConstants.CircleTypeId, TypeName = AnnotationTypeEnum.Circle.ToString() },
+            new AnnotationType { TypeId = SeedDataConstants.RectangleTypeId, TypeName = AnnotationTypeEnum.Rectangle.ToString() },
+            new AnnotationType { TypeId = SeedDataConstants.TextLabelTypeId, TypeName = AnnotationTypeEnum.TextLabel.ToString() }
         );
     }
 }

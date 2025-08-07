@@ -32,7 +32,8 @@ public static class DependencyInjections
                 };
                 options.Events = new JwtBearerEvents
                 {
-                    OnAuthenticationFailed = context => {
+                    OnAuthenticationFailed = context =>
+                    {
                         Console.WriteLine("JWT auth failed: " + context.Exception.Message);
                         Console.WriteLine("Authorization header: " + context.Request.Headers["Authorization"]);
                         return Task.CompletedTask;

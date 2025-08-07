@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Tickets;
+using CusomMapOSM_Domain.Entities.Tickets.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,11 +29,11 @@ internal class TicketStatusConfiguration : IEntityTypeConfiguration<TicketStatus
 
         // Sample data for support ticket statuses
         builder.HasData(
-            new TicketStatus { StatusId = SeedDataConstants.OpenTicketStatusId, Name = "Open" },
-            new TicketStatus { StatusId = SeedDataConstants.InProgressTicketStatusId, Name = "In Progress" },
-            new TicketStatus { StatusId = SeedDataConstants.WaitingForCustomerTicketStatusId, Name = "Waiting for Customer" },
-            new TicketStatus { StatusId = SeedDataConstants.ResolvedTicketStatusId, Name = "Resolved" },
-            new TicketStatus { StatusId = SeedDataConstants.ClosedTicketStatusId, Name = "Closed" }
+            new TicketStatus { StatusId = SeedDataConstants.OpenTicketStatusId, Name = TicketStatusEnum.Open.ToString() },
+            new TicketStatus { StatusId = SeedDataConstants.InProgressTicketStatusId, Name = TicketStatusEnum.InProgress.ToString() },
+            new TicketStatus { StatusId = SeedDataConstants.WaitingForCustomerTicketStatusId, Name = TicketStatusEnum.WaitingForCustomer.ToString() },
+            new TicketStatus { StatusId = SeedDataConstants.ResolvedTicketStatusId, Name = TicketStatusEnum.Resolved.ToString() },
+            new TicketStatus { StatusId = SeedDataConstants.ClosedTicketStatusId, Name = TicketStatusEnum.Closed.ToString() }
         );
     }
 }

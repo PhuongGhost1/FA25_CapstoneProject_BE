@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Collaborations;
+using CusomMapOSM_Domain.Entities.Collaborations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -47,7 +48,7 @@ internal class CollaborationPermissionConfiguration : IEntityTypeConfiguration<C
                      new CollaborationPermission
                      {
                             PermissionId = SeedDataConstants.ViewPermissionId,
-                            PermissionName = "View",
+                            PermissionName = CollaborationPermissionEnum.View.ToString(),
                             Description = "Can view maps and layers",
                             LevelOrder = 1,
                             IsActive = true,
@@ -56,7 +57,7 @@ internal class CollaborationPermissionConfiguration : IEntityTypeConfiguration<C
                      new CollaborationPermission
                      {
                             PermissionId = SeedDataConstants.EditPermissionId,
-                            PermissionName = "Edit",
+                            PermissionName = CollaborationPermissionEnum.Edit.ToString(),
                             Description = "Can edit maps and layers",
                             LevelOrder = 2,
                             IsActive = true,
@@ -65,7 +66,7 @@ internal class CollaborationPermissionConfiguration : IEntityTypeConfiguration<C
                      new CollaborationPermission
                      {
                             PermissionId = SeedDataConstants.ManagePermissionId,
-                            PermissionName = "Manage",
+                            PermissionName = CollaborationPermissionEnum.Manage.ToString(),
                             Description = "Can manage maps, layers, and permissions",
                             LevelOrder = 3,
                             IsActive = true,

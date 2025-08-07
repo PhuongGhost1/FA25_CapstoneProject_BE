@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Exports;
+using CusomMapOSM_Domain.Entities.Exports.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,11 +29,11 @@ internal class ExportTypeConfiguration : IEntityTypeConfiguration<ExportType>
 
         // Sample data based on URD export format requirements
         builder.HasData(
-            new ExportType { TypeId = SeedDataConstants.PdfExportTypeId, Name = "PDF" },
-            new ExportType { TypeId = SeedDataConstants.PngExportTypeId, Name = "PNG" },
-            new ExportType { TypeId = SeedDataConstants.SvgExportTypeId, Name = "SVG" },
-            new ExportType { TypeId = SeedDataConstants.GeoJsonExportTypeId, Name = "GeoJSON" },
-            new ExportType { TypeId = SeedDataConstants.MbtilesExportTypeId, Name = "MBTiles" }
+            new ExportType { TypeId = SeedDataConstants.PdfExportTypeId, Name = ExportTypeEnum.PDF.ToString() },
+            new ExportType { TypeId = SeedDataConstants.PngExportTypeId, Name = ExportTypeEnum.PNG.ToString() },
+            new ExportType { TypeId = SeedDataConstants.SvgExportTypeId, Name = ExportTypeEnum.SVG.ToString() },
+            new ExportType { TypeId = SeedDataConstants.GeoJsonExportTypeId, Name = ExportTypeEnum.GeoJSON.ToString() },
+            new ExportType { TypeId = SeedDataConstants.MbtilesExportTypeId, Name = ExportTypeEnum.MBTiles.ToString() }
         );
     }
 }

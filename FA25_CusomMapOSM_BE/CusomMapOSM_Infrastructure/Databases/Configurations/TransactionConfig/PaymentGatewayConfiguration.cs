@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Transactions;
+using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,10 +29,10 @@ internal class PaymentGatewayConfiguration : IEntityTypeConfiguration<PaymentGat
 
         // Sample data based on URD payment requirements
         builder.HasData(
-            new PaymentGateway { GatewayId = SeedDataConstants.VnPayPaymentGatewayId, Name = "VNPay" },
-            new PaymentGateway { GatewayId = SeedDataConstants.PayPalPaymentGatewayId, Name = "PayPal" },
-            new PaymentGateway { GatewayId = SeedDataConstants.StripePaymentGatewayId, Name = "Stripe" },
-            new PaymentGateway { GatewayId = SeedDataConstants.BankTransferPaymentGatewayId, Name = "Bank Transfer" }
+            new PaymentGateway { GatewayId = SeedDataConstants.VnPayPaymentGatewayId, Name = PaymentGatewayEnum.VNPay.ToString() },
+            new PaymentGateway { GatewayId = SeedDataConstants.PayPalPaymentGatewayId, Name = PaymentGatewayEnum.PayPal.ToString() },
+            new PaymentGateway { GatewayId = SeedDataConstants.StripePaymentGatewayId, Name = PaymentGatewayEnum.Stripe.ToString() },
+            new PaymentGateway { GatewayId = SeedDataConstants.BankTransferPaymentGatewayId, Name = PaymentGatewayEnum.BankTransfer.ToString() }
         );
     }
 }
