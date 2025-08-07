@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Users.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,9 +29,9 @@ internal class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
 
         // Sample data based on URD requirements
         builder.HasData(
-            new UserRole { RoleId = SeedDataConstants.StaffRoleId, Name = "Staff" },
-            new UserRole { RoleId = SeedDataConstants.RegisteredUserRoleId, Name = "Registered User" },
-            new UserRole { RoleId = SeedDataConstants.AdminRoleId, Name = "Administrator" }
+            new UserRole { RoleId = SeedDataConstants.StaffRoleId, Name = UserRoleEnum.Staff.ToString() },
+            new UserRole { RoleId = SeedDataConstants.RegisteredUserRoleId, Name = UserRoleEnum.RegisteredUser.ToString() },
+            new UserRole { RoleId = SeedDataConstants.AdminRoleId, Name = UserRoleEnum.Admin.ToString() }
         );
     }
 }

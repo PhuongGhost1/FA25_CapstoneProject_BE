@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Memberships;
+using CusomMapOSM_Domain.Entities.Memberships.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,11 +29,11 @@ internal class MembershipStatusConfiguration : IEntityTypeConfiguration<Membersh
 
         // Sample data for membership statuses
         builder.HasData(
-            new MembershipStatus { StatusId = SeedDataConstants.ActiveMembershipStatusId, Name = "Active" },
-            new MembershipStatus { StatusId = SeedDataConstants.ExpiredMembershipStatusId, Name = "Expired" },
-            new MembershipStatus { StatusId = SeedDataConstants.SuspendedMembershipStatusId, Name = "Suspended" },
-            new MembershipStatus { StatusId = SeedDataConstants.PendingPaymentMembershipStatusId, Name = "Pending Payment" },
-            new MembershipStatus { StatusId = SeedDataConstants.CancelledMembershipStatusId, Name = "Cancelled" }
+            new MembershipStatus { StatusId = SeedDataConstants.ActiveMembershipStatusId, Name = MembershipStatusEnum.Active.ToString() },
+            new MembershipStatus { StatusId = SeedDataConstants.ExpiredMembershipStatusId, Name = MembershipStatusEnum.Expired.ToString() },
+            new MembershipStatus { StatusId = SeedDataConstants.SuspendedMembershipStatusId, Name = MembershipStatusEnum.Suspended.ToString() },
+            new MembershipStatus { StatusId = SeedDataConstants.PendingPaymentMembershipStatusId, Name = MembershipStatusEnum.PendingPayment.ToString() },
+            new MembershipStatus { StatusId = SeedDataConstants.CancelledMembershipStatusId, Name = MembershipStatusEnum.Cancelled.ToString() }
         );
     }
 }

@@ -1,5 +1,13 @@
-﻿using CusomMapOSM_Application.Interfaces.Services.Cache;
+﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Services.Cache;
+using CusomMapOSM_Application.Interfaces.Services.Jwt;
+using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Shared.Constant;
 using Microsoft.EntityFrameworkCore;
@@ -35,14 +43,20 @@ public static class DependencyInjections
         });
 
         // Register Repositories
-
+        services.AddScoped<ITypeRepository, TypeRepository>();
+        services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
 
         return services;
     }
 
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add application services
+        // Register Services
+        services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IMailService, MailService>();
+        services.AddScoped<IRedisCacheService, RedisCacheService>();
+
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
 
         // Register Redis Cache
         services.AddSingleton<IConnectionMultiplexer>(sp =>

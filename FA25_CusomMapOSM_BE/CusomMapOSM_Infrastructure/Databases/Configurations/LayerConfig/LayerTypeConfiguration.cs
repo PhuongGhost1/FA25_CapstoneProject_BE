@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Layers.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -48,7 +49,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 1,
-                TypeName = "Roads",
+                TypeName = LayerTypeEnum.Roads.ToString(),
                 Description = "Street and road networks from OpenStreetMap",
                 IconUrl = "/icons/roads.svg",
                 IsActive = true,
@@ -57,7 +58,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 2,
-                TypeName = "Buildings",
+                TypeName = LayerTypeEnum.Buildings.ToString(),
                 Description = "Building footprints and structures",
                 IconUrl = "/icons/buildings.svg",
                 IsActive = true,
@@ -66,7 +67,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 3,
-                TypeName = "POIs",
+                TypeName = LayerTypeEnum.POI.ToString(),
                 Description = "Points of Interest including amenities and landmarks",
                 IconUrl = "/icons/poi.svg",
                 IsActive = true,
@@ -75,7 +76,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 4,
-                TypeName = "GeoJSON",
+                TypeName = LayerTypeEnum.GEOJSON.ToString(),
                 Description = "User uploaded GeoJSON data layers",
                 IconUrl = "/icons/geojson.svg",
                 IsActive = true,
@@ -84,7 +85,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 5,
-                TypeName = "KML",
+                TypeName = LayerTypeEnum.KML.ToString(),
                 Description = "User uploaded KML data layers",
                 IconUrl = "/icons/kml.svg",
                 IsActive = true,
@@ -93,7 +94,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 6,
-                TypeName = "CSV",
+                TypeName = LayerTypeEnum.CSV.ToString(),
                 Description = "User uploaded CSV data with coordinates",
                 IconUrl = "/icons/csv.svg",
                 IsActive = true,

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -25,10 +26,10 @@ internal class OrganizationLocationStatusConfiguration : IEntityTypeConfiguratio
 
         // Sample data for organization location statuses
         builder.HasData(
-            new OrganizationLocationStatus { StatusId = SeedDataConstants.ActiveOrganizationLocationStatusId, Name = "Active" },
-            new OrganizationLocationStatus { StatusId = SeedDataConstants.InactiveOrganizationLocationStatusId, Name = "Inactive" },
-            new OrganizationLocationStatus { StatusId = SeedDataConstants.UnderConstructionOrganizationLocationStatusId, Name = "Under Construction" },
-            new OrganizationLocationStatus { StatusId = SeedDataConstants.TemporaryClosedOrganizationLocationStatusId, Name = "Temporary Closed" }
+            new OrganizationLocationStatus { StatusId = SeedDataConstants.ActiveOrganizationLocationStatusId, Name = OrganizationLocationStatusEnum.Active.ToString() },
+            new OrganizationLocationStatus { StatusId = SeedDataConstants.InactiveOrganizationLocationStatusId, Name = OrganizationLocationStatusEnum.Inactive.ToString() },
+            new OrganizationLocationStatus { StatusId = SeedDataConstants.UnderConstructionOrganizationLocationStatusId, Name = OrganizationLocationStatusEnum.UnderConstruction.ToString() },
+            new OrganizationLocationStatus { StatusId = SeedDataConstants.TemporaryClosedOrganizationLocationStatusId, Name = OrganizationLocationStatusEnum.TemporaryClosed.ToString() }
         );
     }
 }

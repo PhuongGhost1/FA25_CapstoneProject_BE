@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Users.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,10 +29,10 @@ internal class AccountStatusConfiguration : IEntityTypeConfiguration<AccountStat
 
         // Sample data for account statuses
         builder.HasData(
-            new AccountStatus { StatusId = SeedDataConstants.ActiveStatusId, Name = "Active" },
-            new AccountStatus { StatusId = SeedDataConstants.InactiveStatusId, Name = "Inactive" },
-            new AccountStatus { StatusId = SeedDataConstants.SuspendedStatusId, Name = "Suspended" },
-            new AccountStatus { StatusId = SeedDataConstants.PendingVerificationStatusId, Name = "Pending Verification" }
+            new AccountStatus { StatusId = SeedDataConstants.ActiveStatusId, Name = AccountStatusEnum.Active.ToString() },
+            new AccountStatus { StatusId = SeedDataConstants.InactiveStatusId, Name = AccountStatusEnum.Inactive.ToString() },
+            new AccountStatus { StatusId = SeedDataConstants.SuspendedStatusId, Name = AccountStatusEnum.Suspended.ToString() },
+            new AccountStatus { StatusId = SeedDataConstants.PendingVerificationStatusId, Name = AccountStatusEnum.PendingVerification.ToString() }
         );
     }
 }
