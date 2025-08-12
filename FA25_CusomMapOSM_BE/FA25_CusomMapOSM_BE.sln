@@ -18,7 +18,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Domain", "Cusom
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Infrastructure", "CusomMapOSM_Infrastructure\CusomMapOSM_Infrastructure.csproj", "{31CA3AB4-7825-4F32-B12A-EB6681C79706}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Shared", "CusomMapOSM_Commons\CusomMapOSM_Shared.csproj", "{6BC7E44B-6FBE-47C7-A76F-1AB6FC8C363B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Commons", "CusomMapOSM_Commons\CusomMapOSM_Commons.csproj", "{6BC7E44B-6FBE-47C7-A76F-1AB6FC8C363B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Application", "CusomMapOSM_Application\CusomMapOSM_Application.csproj", "{45E2808E-0D0B-4709-A9B5-AA1B66F35DED}"
 EndProject

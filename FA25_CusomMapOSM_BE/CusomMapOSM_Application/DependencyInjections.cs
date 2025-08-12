@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Shared.Constant;
+﻿using CusomMapOSM_Commons.Constant;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;

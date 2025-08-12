@@ -14,6 +14,7 @@ using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Tickets;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases;
@@ -54,6 +55,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationLocation> OrganizationLocations { get; set; }
+    public DbSet<OrganizationInvitation>  OrganizationInvitations { get; set; }
     public DbSet<OrganizationLocationStatus> OrganizationLocationStatuses { get; set; }
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
@@ -67,6 +69,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<UserAccessTool> UserAccessTools { get; set; }
     public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
     public DbSet<UserPreference> UserPreferences { get; set; }
+    public DbSet<FailedEmail> FailedEmails { get; set; }
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
