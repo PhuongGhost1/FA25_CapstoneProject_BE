@@ -6,6 +6,7 @@ using CusomMapOSM_Domain.Entities.Exports;
 using CusomMapOSM_Domain.Entities.Exports.Enums;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
+using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Domain.Entities.Tickets.Enums;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
@@ -83,6 +84,11 @@ public class TypeRepository : ITypeRepository
     {
         var entity = await _context.OrganizationMemberTypes.FirstOrDefaultAsync(x => x.Name == name.ToString());
         return entity != null ? Enum.TryParse<OrganizationMemberTypeEnum>(entity.Name, out var result) ? result : (OrganizationMemberTypeEnum?)null : null;
+    }
+    
+    public async Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name)
+    {
+        return await _context.OrganizationMemberTypes.FirstOrDefaultAsync(x => x.Name == name);
     }
 
     public async Task<TicketStatusEnum?> GetTicketStatusById(TicketStatusEnum name)

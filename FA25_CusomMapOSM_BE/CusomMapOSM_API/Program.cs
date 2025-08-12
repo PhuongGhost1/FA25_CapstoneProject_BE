@@ -2,10 +2,12 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Middlewares;
 using CusomMapOSM_Application;
 using CusomMapOSM_Infrastructure;
+using CusomMapOSM_Infrastructure.Extensions;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
-
+using CusomMapOSM_API;
+using CusomMapOSM_Domain.Constants;
 var builder = WebApplication.CreateBuilder(args);
 var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
 var envPath = Path.Combine(solutionRoot, ".env");
@@ -32,6 +34,8 @@ builder.Services.AddApplicationServices();
 builder.Services.AddEndpoints();
 builder.Services.AddValidation();
 
+
+
 // Add swagger services to the container.
 builder.Services.AddSwaggerServices();
 
@@ -44,6 +48,9 @@ app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<LoggingMiddleware>();
 
+// Add Hangfire Dashboard
+app.UseHangfireDashboard();
+
 app.UseCors();
 app.UseAuthorization();
 app.UseAuthentication();
@@ -53,6 +60,7 @@ app.MapHealthChecks("/health");
 app.MapHealthChecks("/ready");
 
 // Map all endpoints
-app.MapEndpoints();
+var api = app.MapGroup(Routes.ApiBase);
+app.MapEndpoints(api);
 
 app.Run();

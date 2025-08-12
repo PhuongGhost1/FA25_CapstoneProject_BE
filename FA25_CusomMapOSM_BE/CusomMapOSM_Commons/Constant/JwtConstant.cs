@@ -1,4 +1,4 @@
-﻿namespace CusomMapOSM_Shared.Constant;
+﻿namespace CusomMapOSM_Commons.Constant;
 
 public static class JwtConstant
 {
