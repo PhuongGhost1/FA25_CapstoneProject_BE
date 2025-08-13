@@ -66,6 +66,7 @@ public static class DependencyInjections
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IAccessToolRepository, AccessToolRepository>();
         services.AddScoped<IUserAccessToolRepository, UserAccessToolRepository>();
+        services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
 
         return services;
     }
@@ -128,10 +129,9 @@ public static class DependencyInjections
     internal static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
         // Add payment services
-        services.AddScoped<StripePaymentService>();
-        services.AddScoped<PaypalPaymentService>();
-        services.AddScoped<PayOSPaymentService>();
-        services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IPaymentService, StripePaymentService>();
+        services.AddScoped<IPaymentService, PaypalPaymentService>();
+        services.AddScoped<IPaymentService, PayOSPaymentService>();
 
         // Add HttpClient for PayOS
         services.AddHttpClient<PayOSPaymentService>();
