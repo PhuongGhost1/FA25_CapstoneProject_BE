@@ -1,14 +1,28 @@
 ﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.Membership;
+using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
+using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Features.Authentication;
+using CusomMapOSM_Infrastructure.Features.Membership;
+using CusomMapOSM_Infrastructure.Features.Transaction;
+using CusomMapOSM_Infrastructure.Features.User;
 using CusomMapOSM_Infrastructure.Services;
+using CusomMapOSM_Infrastructure.Services.Payment;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Shared.Constant;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -16,6 +30,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using StackExchange.Redis;
 using System.Net.Sockets;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessToolRepo;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.AccessToolRepo;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -45,6 +61,11 @@ public static class DependencyInjections
         // Register Repositories
         services.AddScoped<ITypeRepository, TypeRepository>();
         services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
+        services.AddScoped<IMembershipRepository, MembershipRepository>();
+        services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
+        services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<IAccessToolRepository, AccessToolRepository>();
+        services.AddScoped<IUserAccessToolRepository, UserAccessToolRepository>();
 
         return services;
     }
@@ -52,6 +73,11 @@ public static class DependencyInjections
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Register Services
+        services.AddScoped<IMembershipService, MembershipService>();
+        services.AddScoped<IMembershipPlanService, MembershipPlanService>();
+        services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IUserAccessToolService, UserAccessToolService>();
+
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
@@ -102,6 +128,13 @@ public static class DependencyInjections
     internal static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
         // Add payment services
+        services.AddScoped<StripePaymentService>();
+        services.AddScoped<PaypalPaymentService>();
+        services.AddScoped<PayOSPaymentService>();
+        services.AddScoped<ITransactionService, TransactionService>();
+
+        // Add HttpClient for PayOS
+        services.AddHttpClient<PayOSPaymentService>();
 
         return services;
     }

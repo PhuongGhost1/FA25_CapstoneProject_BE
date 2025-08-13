@@ -1241,6 +1241,62 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("memberships", (string)null);
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.MembershipAddon", b =>
+                {
+                    b.Property<Guid>("AddonId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("addon_id");
+
+                    b.Property<string>("AddonKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("addon_key");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("EffectiveFrom")
+                        .HasColumnType("datetime")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveUntil")
+                        .HasColumnType("datetime")
+                        .HasColumnName("effective_until");
+
+                    b.Property<string>("FeaturePayload")
+                        .HasColumnType("json")
+                        .HasColumnName("feature_payload");
+
+                    b.Property<Guid>("MembershipId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("membership_id");
+
+                    b.Property<Guid>("OrgId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("org_id");
+
+                    b.Property<DateTime>("PurchasedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("purchased_at");
+
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("int")
+                        .HasColumnName("quantity");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("AddonId");
+
+                    b.HasIndex("MembershipId", "OrgId", "AddonKey");
+
+                    b.ToTable("membership_addons", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.MembershipStatus", b =>
                 {
                     b.Property<Guid>("StatusId")
@@ -1286,6 +1342,61 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.MembershipUsage", b =>
+                {
+                    b.Property<Guid>("UsageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("usage_id");
+
+                    b.Property<int>("ActiveUsersInOrg")
+                        .HasColumnType("int")
+                        .HasColumnName("active_users_in_org");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("CycleEndDate")
+                        .HasColumnType("datetime")
+                        .HasColumnName("cycle_end_date");
+
+                    b.Property<DateTime>("CycleStartDate")
+                        .HasColumnType("datetime")
+                        .HasColumnName("cycle_start_date");
+
+                    b.Property<int>("ExportsThisCycle")
+                        .HasColumnType("int")
+                        .HasColumnName("exports_this_cycle");
+
+                    b.Property<string>("FeatureFlags")
+                        .HasColumnType("json")
+                        .HasColumnName("feature_flags");
+
+                    b.Property<int>("MapsCreatedThisCycle")
+                        .HasColumnType("int")
+                        .HasColumnName("maps_created_this_cycle");
+
+                    b.Property<Guid>("MembershipId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("membership_id");
+
+                    b.Property<Guid>("OrgId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("org_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UsageId");
+
+                    b.HasIndex("MembershipId", "OrgId")
+                        .IsUnique();
+
+                    b.ToTable("membership_usages", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.Plan", b =>
                 {
                     b.Property<int>("PlanId")
@@ -1294,6 +1405,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("plan_id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PlanId"));
+
+                    b.Property<string>("AccessToolIds")
+                        .HasColumnType("json")
+                        .HasColumnName("access_tool_ids");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime")
@@ -1370,6 +1485,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             PlanId = 1,
+                            AccessToolIds = "[1, 2, 3]",
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Basic features for individual users",
                             DurationMonths = 1,
@@ -1389,6 +1505,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             PlanId = 2,
+                            AccessToolIds = "[1, 2, 3, 4, 5]",
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Essential features for small teams",
                             DurationMonths = 1,
@@ -1408,6 +1525,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             PlanId = 3,
+                            AccessToolIds = "[1, 2, 3, 4, 5, 6, 7]",
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Advanced features for growing businesses",
                             DurationMonths = 1,
@@ -1427,6 +1545,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         new
                         {
                             PlanId = 4,
+                            AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Full-featured solution for large organizations",
                             DurationMonths = 1,
@@ -1906,6 +2025,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             GatewayId = new Guid("00000000-0000-0000-0000-000000000051"),
                             Name = "BankTransfer"
+                        },
+                        new
+                        {
+                            GatewayId = new Guid("00000000-0000-0000-0000-000000000052"),
+                            Name = "PayOS"
                         });
                 });
 
