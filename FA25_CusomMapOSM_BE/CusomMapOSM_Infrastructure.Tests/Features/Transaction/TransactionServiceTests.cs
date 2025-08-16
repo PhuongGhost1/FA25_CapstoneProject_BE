@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Optional;
 using Xunit;
+using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Transaction;
 
@@ -56,7 +57,7 @@ public class TransactionServiceTests
         // Arrange
         var request = new ProcessPaymentReq
         {
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
             MembershipId = Guid.NewGuid()
@@ -70,7 +71,14 @@ public class TransactionServiceTests
             .RuleFor(t => t.Status, "pending")
             .Generate();
 
-        var approvalResponse = new ApprovalUrlResponse("session_123", "https://paypal.com/checkout");
+        var approvalResponse = new ApprovalUrlResponse
+        {
+            ApprovalUrl = "https://payos.vn/checkout",
+            PaymentGateway = PaymentGatewayEnum.PayOS,
+            SessionId = "session_123",
+            QrCode = "qr_code_data",
+            OrderCode = "ORDER_123"
+        };
 
         _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PaymentGateway { GatewayId = gatewayId });
@@ -90,7 +98,7 @@ public class TransactionServiceTests
 
         // Assert
         result.HasValue.Should().BeTrue();
-        result.ValueOrFailure().Should().BeEquivalentTo(approvalResponse);
+        result.ValueOr(default(ApprovalUrlResponse)).Should().BeEquivalentTo(approvalResponse);
     }
 
     [Fact]
@@ -99,7 +107,7 @@ public class TransactionServiceTests
         // Arrange
         var request = new ProcessPaymentReq
         {
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
             MembershipId = Guid.NewGuid()
@@ -127,12 +135,14 @@ public class TransactionServiceTests
         var request = new ConfirmPaymentWithContextReq
         {
             TransactionId = transactionId,
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             PaymentId = "payment_123",
             Purpose = "membership",
             UserId = Guid.NewGuid(),
             OrgId = Guid.NewGuid(),
-            PlanId = 1
+            PlanId = 1,
+            OrderCode = "ORDER_123",
+            Signature = "signature_123"
         };
 
         var existingTransaction = new Faker<Transactions>()
@@ -143,8 +153,16 @@ public class TransactionServiceTests
         _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingTransaction);
 
+        var confirmPaymentResponse = new ConfirmPaymentResponse
+        {
+            PaymentId = "payment_123",
+            PaymentGateway = PaymentGatewayEnum.PayOS,
+            OrderCode = "ORDER_123",
+            Signature = "signature_123"
+        };
+
         _mockPaymentService.Setup(x => x.ConfirmPaymentAsync(It.IsAny<ConfirmPaymentReq>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.Some<object, Error>(new { status = "confirmed" }));
+            .ReturnsAsync(Option.Some<ConfirmPaymentResponse, Error>(confirmPaymentResponse));
 
         var membership = new Faker<DomainMembership>()
             .RuleFor(m => m.MembershipId, Guid.NewGuid())
@@ -158,6 +176,13 @@ public class TransactionServiceTests
                 true,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<DomainMembership, Error>(membership));
+
+        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(
+                request.UserId!.Value,
+                request.PlanId!.Value,
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.Some<bool, Error>(true));
 
         // Act
         var result = await _transactionService.ConfirmPaymentWithContextAsync(request, CancellationToken.None);
@@ -185,55 +210,63 @@ public class TransactionServiceTests
 
         // Assert
         result.HasValue.Should().BeTrue();
-        result.ValueOrFailure().Should().BeEquivalentTo(transaction);
+        result.ValueOr(default(Transactions)).Should().BeEquivalentTo(transaction);
     }
 
     [Fact]
     public async Task CancelPaymentWithContextAsync_WithValidRequest_ShouldReturnSuccess()
     {
         // Arrange
-        var request = new CancelPaymentWithContextReq
-        {
-            TransactionId = Guid.NewGuid(),
-            PaymentGateway = PaymentGatewayEnum.PayPal
-        };
+        var request = new CancelPaymentWithContextReq(
+            PaymentGatewayEnum.PayOS,
+            "payment_123",
+            "", // PayerId (not used for PayOS)
+            "", // Token (not used for PayOS)
+            "", // PaymentIntentId (not used for PayOS)
+            "", // ClientSecret (not used for PayOS)
+            "ORDER_123", // OrderCode
+            "signature_123", // Signature
+            Guid.NewGuid() // TransactionId
+        );
 
         var gatewayId = Guid.NewGuid();
 
         _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PaymentGateway { GatewayId = gatewayId });
 
+        var cancelResponse = new CancelPaymentResponse("cancelled", PaymentGatewayEnum.PayOS.ToString());
+
+        _mockPaymentService.Setup(x => x.CancelPaymentAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.Some<CancelPaymentResponse, Error>(cancelResponse));
+
         // Act
         var result = await _transactionService.CancelPaymentWithContextAsync(request, CancellationToken.None);
 
         // Assert
         result.HasValue.Should().BeTrue();
-        var response = result.ValueOrFailure();
+        var response = result.ValueOr(default(CancelPaymentResponse));
         response.Status.Should().Be("cancelled");
     }
 
-    [Theory]
-    [InlineData(PaymentGatewayEnum.PayPal)]
-    [InlineData(PaymentGatewayEnum.Stripe)]
-    [InlineData(PaymentGatewayEnum.PayOS)]
-    public void GetPaymentService_WithValidGateway_ShouldReturnCorrectService(PaymentGatewayEnum gateway)
+    [Fact]
+    public void GetPaymentService_WithPayOSGateway_ShouldReturnPaymentService()
     {
-        // Arrange
-        var mockPaypalService = new Mock<PaypalPaymentService>();
-        var mockStripeService = new Mock<StripePaymentService>();
-        var mockPayOSService = new Mock<PayOSPaymentService>();
-
-        _mockServiceProvider.Setup(x => x.GetRequiredService<PaypalPaymentService>())
-            .Returns(mockPaypalService.Object);
-        _mockServiceProvider.Setup(x => x.GetRequiredService<StripePaymentService>())
-            .Returns(mockStripeService.Object);
-        _mockServiceProvider.Setup(x => x.GetRequiredService<PayOSPaymentService>())
-            .Returns(mockPayOSService.Object);
-
         // Act
-        var result = _transactionService.GetPaymentService(gateway);
+        var result = _transactionService.GetPaymentService(PaymentGatewayEnum.PayOS);
 
         // Assert
         result.Should().NotBeNull();
+        result.Should().Be(_mockPaymentService.Object);
+    }
+
+    [Fact]
+    public void GetPaymentService_WithInvalidGateway_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var invalidGateway = PaymentGatewayEnum.PayPal; // Using PayPal as invalid since we only support PayOS
+
+        // Act & Assert
+        var action = () => _transactionService.GetPaymentService(invalidGateway);
+        action.Should().Throw<ArgumentException>().WithMessage("Invalid payment gateway");
     }
 }

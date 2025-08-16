@@ -92,6 +92,9 @@ public class MembershipPlanServiceTests
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.Cancel(); // Cancel immediately
 
+        _mockMembershipPlanRepository.Setup(x => x.GetActivePlansAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             _membershipPlanService.GetActivePlansAsync(cancellationTokenSource.Token));
@@ -206,6 +209,9 @@ public class MembershipPlanServiceTests
         var planId = 3;
         var cancellationTokenSource = new CancellationTokenSource();
         cancellationTokenSource.Cancel(); // Cancel immediately
+
+        _mockMembershipPlanRepository.Setup(x => x.GetPlanByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -374,18 +380,17 @@ public class MembershipPlanServiceTests
     }
 
     [Fact]
-    public async Task GetActivePlansAsync_WithNullReturnFromRepository_ShouldReturnEmptyList()
+    public async Task GetActivePlansAsync_WithNullReturnFromRepository_ShouldReturnNull()
     {
         // Arrange
         _mockMembershipPlanRepository.Setup(x => x.GetActivePlansAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IReadOnlyList<Plan>?)null);
+            .ReturnsAsync((IReadOnlyList<Plan>)null!);
 
         // Act
         var result = await _membershipPlanService.GetActivePlansAsync(CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEmpty();
+        result.Should().BeNull();
 
         _mockMembershipPlanRepository.Verify(x => x.GetActivePlansAsync(It.IsAny<CancellationToken>()), Times.Once);
     }

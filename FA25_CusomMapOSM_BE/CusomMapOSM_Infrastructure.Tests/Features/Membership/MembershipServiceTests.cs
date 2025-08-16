@@ -1,13 +1,14 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
-using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
+using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using FluentAssertions;
 using Moq;
 using Optional;
 using Xunit;
+using Optional.Unsafe;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Membership;
 
@@ -35,7 +36,7 @@ public class MembershipServiceTests
         var newPlanId = 3; // Pro plan
         var autoRenew = true;
 
-        var currentPlan = new Faker<DomainMembership.MembershipPlan>()
+        var currentPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 2) // Basic plan
             .RuleFor(p => p.PlanName, "Basic")
             .RuleFor(p => p.PriceMonthly, 9.99m)
@@ -44,7 +45,7 @@ public class MembershipServiceTests
             .RuleFor(p => p.MaxUsersPerOrg, 5)
             .Generate();
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 3) // Pro plan
             .RuleFor(p => p.PlanName, "Pro")
             .RuleFor(p => p.PriceMonthly, 29.99m)
@@ -114,7 +115,7 @@ public class MembershipServiceTests
         var newPlanId = 2; // Basic plan
         var autoRenew = false;
 
-        var currentPlan = new Faker<DomainMembership.MembershipPlan>()
+        var currentPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 3) // Pro plan
             .RuleFor(p => p.PlanName, "Pro")
             .RuleFor(p => p.PriceMonthly, 29.99m)
@@ -123,7 +124,7 @@ public class MembershipServiceTests
             .RuleFor(p => p.MaxUsersPerOrg, 20)
             .Generate();
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 2) // Basic plan
             .RuleFor(p => p.PlanName, "Basic")
             .RuleFor(p => p.PriceMonthly, 9.99m)
@@ -193,7 +194,7 @@ public class MembershipServiceTests
         var newPlanId = 999; // Non-existent plan
 
         _mockMembershipPlanRepository.Setup(x => x.GetPlanByIdAsync(newPlanId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DomainMembership.MembershipPlan?)null);
+            .ReturnsAsync((DomainMembership.Plan?)null);
 
         // Act
         var result = await _membershipService.ChangeSubscriptionPlanAsync(userId, orgId, newPlanId, true, CancellationToken.None);
@@ -214,7 +215,7 @@ public class MembershipServiceTests
         var orgId = Guid.NewGuid();
         var newPlanId = 3;
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, newPlanId)
             .RuleFor(p => p.IsActive, true)
             .Generate();
@@ -223,7 +224,7 @@ public class MembershipServiceTests
             .ReturnsAsync(newPlan);
 
         _mockMembershipRepository.Setup(x => x.GetByUserOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DomainMembership?)null);
+            .ReturnsAsync((DomainMembership.Membership?)null);
 
         // Act
         var result = await _membershipService.ChangeSubscriptionPlanAsync(userId, orgId, newPlanId, true, CancellationToken.None);
@@ -244,7 +245,7 @@ public class MembershipServiceTests
         var orgId = Guid.NewGuid();
         var planId = 3; // Same plan
 
-        var plan = new Faker<DomainMembership.MembershipPlan>()
+        var plan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, planId)
             .RuleFor(p => p.IsActive, true)
             .Generate();
@@ -281,7 +282,7 @@ public class MembershipServiceTests
         var orgId = Guid.NewGuid();
         var newPlanId = 3;
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, newPlanId)
             .RuleFor(p => p.IsActive, false) // Inactive plan
             .Generate();
@@ -308,7 +309,7 @@ public class MembershipServiceTests
         var orgId = Guid.NewGuid();
         var newPlanId = 3;
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, newPlanId)
             .RuleFor(p => p.IsActive, true)
             .Generate();
@@ -336,7 +337,7 @@ public class MembershipServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => error.Type.Should().Be(ErrorType.Failure)
+            none: error => error.Type.Should().Be(ErrorType.NotFound)
         );
     }
 
@@ -348,12 +349,12 @@ public class MembershipServiceTests
         var orgId = Guid.NewGuid();
         var newPlanId = 4; // Enterprise plan (unlimited)
 
-        var currentPlan = new Faker<DomainMembership.MembershipPlan>()
+        var currentPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 3) // Pro plan
             .RuleFor(p => p.PriceMonthly, 29.99m)
             .Generate();
 
-        var newPlan = new Faker<DomainMembership.MembershipPlan>()
+        var newPlan = new Faker<DomainMembership.Plan>()
             .RuleFor(p => p.PlanId, 4) // Enterprise plan
             .RuleFor(p => p.PriceMonthly, 99.99m)
             .RuleFor(p => p.MaxMapsPerMonth, -1) // Unlimited

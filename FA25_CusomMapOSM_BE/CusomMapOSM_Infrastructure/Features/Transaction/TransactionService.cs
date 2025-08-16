@@ -18,6 +18,7 @@ namespace CusomMapOSM_Infrastructure.Features.Transaction;
 public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
+    private readonly IPaymentService _paymentService;
     private readonly IMembershipService _membershipService;
     private readonly IUserAccessToolService _userAccessToolService;
     private readonly IServiceProvider _serviceProvider;
@@ -25,6 +26,7 @@ public class TransactionService : ITransactionService
     public TransactionService(ITransactionRepository transactionRepository, IPaymentService paymentService, IMembershipService membershipService, IUserAccessToolService userAccessToolService, IServiceProvider serviceProvider, IPaymentGatewayRepository paymentGatewayRepository)
     {
         _transactionRepository = transactionRepository;
+        _paymentService = paymentService;
         _membershipService = membershipService;
         _userAccessToolService = userAccessToolService;
         _serviceProvider = serviceProvider;
@@ -86,9 +88,7 @@ public class TransactionService : ITransactionService
     {
         return gateway switch
         {
-            PaymentGatewayEnum.PayPal => _serviceProvider.GetRequiredService<PaypalPaymentService>(),
-            PaymentGatewayEnum.Stripe => _serviceProvider.GetRequiredService<StripePaymentService>(),
-            PaymentGatewayEnum.PayOS => _serviceProvider.GetRequiredService<PayOSPaymentService>(),
+            PaymentGatewayEnum.PayOS => _paymentService, // Use the injected payment service directly
             _ => throw new ArgumentException("Invalid payment gateway")
         };
     }
@@ -147,7 +147,9 @@ public class TransactionService : ITransactionService
             PayerId = req.PayerId,
             Token = req.Token,
             PaymentIntentId = req.PaymentIntentId,
-            ClientSecret = req.ClientSecret
+            ClientSecret = req.ClientSecret,
+            OrderCode = req.OrderCode,
+            Signature = req.Signature
         }, ct);
 
         return await confirmed.Match(
@@ -195,7 +197,7 @@ public class TransactionService : ITransactionService
 
                     accessToolResult.Match(
                         some: _ => { /* Success - do nothing */ },
-                        none: error => Console.WriteLine($"Failed to grant access tools: {error.Description}")
+                        none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
                     );
 
                     return Option.Some<object, ErrorCustom.Error>(new

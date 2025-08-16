@@ -1,7 +1,6 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.User;
-using CusomMapOSM_API.Endpoints.AccessTool;
 using CusomMapOSM_Domain.Entities.Users;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -10,7 +9,6 @@ using Moq;
 using Optional;
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Claims;
 using Xunit;
 
 namespace CusomMapOSM_API.Tests.Endpoints.AccessTool;

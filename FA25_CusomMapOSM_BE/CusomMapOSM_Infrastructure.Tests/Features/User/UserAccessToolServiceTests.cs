@@ -13,6 +13,7 @@ using Moq;
 using Optional;
 using System.Text.Json;
 using Xunit;
+using Optional.Unsafe;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.User;
 
@@ -29,12 +30,12 @@ public class UserAccessToolServiceTests
         _mockUserAccessToolRepository = new Mock<IUserAccessToolRepository>();
         _mockAccessToolRepository = new Mock<IAccessToolRepository>();
         _mockMembershipPlanRepository = new Mock<IMembershipPlanRepository>();
-        
+
         _userAccessToolService = new UserAccessToolService(
             _mockUserAccessToolRepository.Object,
             _mockAccessToolRepository.Object,
             _mockMembershipPlanRepository.Object);
-        
+
         _faker = new Faker();
     }
 
@@ -61,7 +62,7 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().HaveCount(3);
         result.ValueOrFailure().Should().BeEquivalentTo(userAccessTools);
-        
+
         _mockUserAccessToolRepository.Verify(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -81,7 +82,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeEmpty();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -101,7 +102,7 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => 
+            none: error =>
             {
                 error.Type.Should().Be(ErrorType.Failure);
                 error.Code.Should().Be("UserAccessTool.GetFailed");
@@ -132,7 +133,7 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().HaveCount(2);
         result.ValueOrFailure().Should().BeEquivalentTo(activeAccessTools);
-        
+
         _mockUserAccessToolRepository.Verify(x => x.GetActiveByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -152,7 +153,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.HasAccessAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -172,7 +173,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeFalse();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.HasAccessAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -186,8 +187,8 @@ public class UserAccessToolServiceTests
 
         var accessTool = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, accessToolId)
-            .RuleFor(at => at.ToolName, "Test Tool")
-            .RuleFor(at => at.IsActive, true)
+            .RuleFor(at => at.AccessToolName, "Test Tool")
+            .RuleFor(at => at.RequiredMembership, true)
             .Generate();
 
         var createdUserAccessTool = new Faker<UserAccessTool>()
@@ -213,7 +214,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeEquivalentTo(createdUserAccessTool);
-        
+
         _mockAccessToolRepository.Verify(x => x.GetByIdAsync(accessToolId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.GetByUserAndToolAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.CreateAsync(It.IsAny<UserAccessTool>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -229,8 +230,8 @@ public class UserAccessToolServiceTests
 
         var accessTool = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, accessToolId)
-            .RuleFor(at => at.ToolName, "Test Tool")
-            .RuleFor(at => at.IsActive, true)
+            .RuleFor(at => at.AccessToolName, "Test Tool")
+            .RuleFor(at => at.RequiredMembership, true)
             .Generate();
 
         var existingUserAccessTool = new Faker<UserAccessTool>()
@@ -264,7 +265,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeEquivalentTo(updatedUserAccessTool);
-        
+
         _mockAccessToolRepository.Verify(x => x.GetByIdAsync(accessToolId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.GetByUserAndToolAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.UpdateAsync(It.Is<UserAccessTool>(uat => uat.ExpiredAt == expiredAt), It.IsAny<CancellationToken>()), Times.Once);
@@ -288,13 +289,13 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => 
+            none: error =>
             {
                 error.Type.Should().Be(ErrorType.NotFound);
                 error.Code.Should().Be("UserAccessTool.AccessToolNotFound");
             }
         );
-        
+
         _mockAccessToolRepository.Verify(x => x.GetByIdAsync(accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -314,7 +315,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.DeleteByUserAndToolAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -334,7 +335,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeFalse();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.DeleteByUserAndToolAsync(userId, accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -348,8 +349,8 @@ public class UserAccessToolServiceTests
 
         var accessTool = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, f => f.PickRandom(accessToolIds))
-            .RuleFor(at => at.ToolName, "Test Tool")
-            .RuleFor(at => at.IsActive, true)
+            .RuleFor(at => at.AccessToolName, "Test Tool")
+            .RuleFor(at => at.RequiredMembership, true)
             .Generate();
 
         var createdUserAccessTool = new Faker<UserAccessTool>()
@@ -375,7 +376,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockAccessToolRepository.Verify(x => x.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
         _mockUserAccessToolRepository.Verify(x => x.CreateAsync(It.IsAny<UserAccessTool>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
@@ -390,8 +391,8 @@ public class UserAccessToolServiceTests
 
         var accessTool = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, 1)
-            .RuleFor(at => at.ToolName, "Test Tool")
-            .RuleFor(at => at.IsActive, true)
+            .RuleFor(at => at.AccessToolName, "Test Tool")
+            .RuleFor(at => at.RequiredMembership, true)
             .Generate();
 
         _mockAccessToolRepository.Setup(x => x.GetByIdAsync(1, It.IsAny<CancellationToken>()))
@@ -404,7 +405,14 @@ public class UserAccessToolServiceTests
             .ReturnsAsync((UserAccessTool?)null);
 
         _mockUserAccessToolRepository.Setup(x => x.CreateAsync(It.IsAny<UserAccessTool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserAccessTool());
+            .ReturnsAsync(new UserAccessTool
+            {
+                UserId = Guid.NewGuid(),
+                AccessToolId = 1,
+                UserAccessToolId = 0,
+                GrantedAt = DateTime.UtcNow,
+                ExpiredAt = DateTime.UtcNow.AddDays(30)
+            });
 
         // Act
         var result = await _userAccessToolService.GrantAccessToToolsAsync(userId, accessToolIds, expiredAt, CancellationToken.None);
@@ -413,7 +421,7 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => 
+            none: error =>
             {
                 error.Type.Should().Be(ErrorType.Failure);
                 error.Code.Should().Be("UserAccessTool.GrantAccessFailed");
@@ -436,7 +444,7 @@ public class UserAccessToolServiceTests
             .ReturnsAsync(userAccessTools);
 
         _mockUserAccessToolRepository.Setup(x => x.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         // Act
         var result = await _userAccessToolService.RevokeAllAccessToolsAsync(userId, CancellationToken.None);
@@ -444,7 +452,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockUserAccessToolRepository.Verify(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
@@ -465,8 +473,8 @@ public class UserAccessToolServiceTests
 
         var accessTool = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, f => f.Random.Int(1, 3))
-            .RuleFor(at => at.ToolName, "Test Tool")
-            .RuleFor(at => at.IsActive, true)
+            .RuleFor(at => at.AccessToolName, "Test Tool")
+            .RuleFor(at => at.RequiredMembership, true)
             .Generate();
 
         var userAccessTools = new Faker<UserAccessTool>()
@@ -493,7 +501,7 @@ public class UserAccessToolServiceTests
             .ReturnsAsync(userAccessTools);
 
         _mockUserAccessToolRepository.Setup(x => x.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         _mockUserAccessToolRepository.Setup(x => x.GetByUserAndToolAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserAccessTool?)null);
@@ -507,7 +515,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockMembershipPlanRepository.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -532,13 +540,13 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => 
+            none: error =>
             {
                 error.Type.Should().Be(ErrorType.NotFound);
                 error.Code.Should().Be("UserAccessTool.PlanNotFound");
             }
         );
-        
+
         _mockMembershipPlanRepository.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -566,13 +574,13 @@ public class UserAccessToolServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => 
+            none: error =>
             {
                 error.Type.Should().Be(ErrorType.Validation);
                 error.Code.Should().Be("UserAccessTool.InvalidAccessToolIds");
             }
         );
-        
+
         _mockMembershipPlanRepository.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -592,9 +600,8 @@ public class UserAccessToolServiceTests
 
         var freeTools = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, f => f.Random.Int(1, 5))
-            .RuleFor(at => at.ToolName, "Free Tool")
-            .RuleFor(at => at.IsActive, true)
-            .RuleFor(at => at.RequiresMembership, false)
+            .RuleFor(at => at.AccessToolName, "Free Tool")
+            .RuleFor(at => at.RequiredMembership, false)
             .Generate(3);
 
         var userAccessTools = new Faker<UserAccessTool>()
@@ -624,7 +631,7 @@ public class UserAccessToolServiceTests
             .ReturnsAsync(userAccessTools);
 
         _mockUserAccessToolRepository.Setup(x => x.DeleteAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         _mockUserAccessToolRepository.Setup(x => x.GetByUserAndToolAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserAccessTool?)null);
@@ -638,7 +645,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockMembershipPlanRepository.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
         _mockAccessToolRepository.Verify(x => x.GetByRequiredMembershipAsync(false, It.IsAny<CancellationToken>()), Times.Once);
         _mockUserAccessToolRepository.Verify(x => x.CreateAsync(It.IsAny<UserAccessTool>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
@@ -646,8 +653,8 @@ public class UserAccessToolServiceTests
 
     [Theory]
     [InlineData("")]
-    [InlineData(null)]
     [InlineData("   ")]
+    [InlineData("null")]
     public async Task UpdateAccessToolsForMembershipAsync_WithNullOrEmptyAccessToolIds_ShouldGrantFreeTools(string accessToolIds)
     {
         // Arrange
@@ -663,9 +670,8 @@ public class UserAccessToolServiceTests
 
         var freeTools = new Faker<AccessTool>()
             .RuleFor(at => at.AccessToolId, f => f.Random.Int(1, 5))
-            .RuleFor(at => at.ToolName, "Free Tool")
-            .RuleFor(at => at.IsActive, true)
-            .RuleFor(at => at.RequiresMembership, false)
+            .RuleFor(at => at.AccessToolName, "Free Tool")
+            .RuleFor(at => at.RequiredMembership, false)
             .Generate(2);
 
         _mockMembershipPlanRepository.Setup(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()))
@@ -684,7 +690,14 @@ public class UserAccessToolServiceTests
             .ReturnsAsync((UserAccessTool?)null);
 
         _mockUserAccessToolRepository.Setup(x => x.CreateAsync(It.IsAny<UserAccessTool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserAccessTool());
+            .ReturnsAsync(new UserAccessTool
+            {
+                UserId = Guid.NewGuid(),
+                AccessToolId = 1,
+                UserAccessToolId = 0,
+                GrantedAt = DateTime.UtcNow,
+                ExpiredAt = DateTime.UtcNow.AddDays(30)
+            });
 
         // Act
         var result = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(userId, planId, membershipExpiryDate, CancellationToken.None);
@@ -692,7 +705,7 @@ public class UserAccessToolServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Should().BeTrue();
-        
+
         _mockAccessToolRepository.Verify(x => x.GetByRequiredMembershipAsync(false, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

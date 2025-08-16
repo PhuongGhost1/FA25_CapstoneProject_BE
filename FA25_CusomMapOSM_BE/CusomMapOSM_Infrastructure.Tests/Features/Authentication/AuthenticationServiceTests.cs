@@ -7,7 +7,7 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
-using CusomMapOSM_Domain.Entities.Users;
+using DomainUsers = CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
@@ -16,6 +16,7 @@ using FluentAssertions;
 using Moq;
 using Optional;
 using Xunit;
+using Optional.Unsafe;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Authentication;
 
@@ -56,7 +57,7 @@ public class AuthenticationServiceTests
             .RuleFor(r => r.Password, f => f.Internet.Password())
             .Generate();
 
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, request.Email)
             .RuleFor(u => u.PasswordHash, "hashed_password")
@@ -137,7 +138,7 @@ public class AuthenticationServiceTests
             .Returns("hashed_password");
 
         _mockAuthenticationRepository.Setup(x => x.Login(request.Email, "hashed_password"))
-            .ReturnsAsync((User?)null);
+            .ReturnsAsync((DomainUsers.User?)null);
 
         // Act
         var result = await _authenticationService.Login(request);
@@ -159,7 +160,7 @@ public class AuthenticationServiceTests
             .RuleFor(r => r.Password, f => f.Internet.Password())
             .Generate();
 
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, request.Email)
             .RuleFor(u => u.PasswordHash, "hashed_password")
@@ -190,13 +191,13 @@ public class AuthenticationServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, userId)
             .RuleFor(u => u.Email, f => f.Internet.Email())
             .RuleFor(u => u.AccountStatusId, Guid.NewGuid())
             .Generate();
 
-        var inactiveStatus = new Faker<AccountStatus>()
+        var inactiveStatus = new Faker<DomainUsers.AccountStatus>()
             .RuleFor(s => s.StatusId, Guid.NewGuid())
             .RuleFor(s => s.Name, AccountStatusEnum.Inactive.ToString())
             .Generate();
@@ -207,8 +208,8 @@ public class AuthenticationServiceTests
         _mockTypeRepository.Setup(x => x.GetAccountStatusById(AccountStatusEnum.Inactive))
             .ReturnsAsync(inactiveStatus);
 
-        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<User>()))
-            .Returns(Task.CompletedTask);
+        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<DomainUsers.User>()))
+            .ReturnsAsync(true);
 
         _mockRedisCacheService.Setup(x => x.ForceLogout(userId))
             .Returns(Task.CompletedTask);
@@ -220,7 +221,7 @@ public class AuthenticationServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Logout successfully");
 
-        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<User>(u =>
+        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<DomainUsers.User>(u =>
             u.AccountStatusId == inactiveStatus.StatusId)), Times.Once);
     }
 
@@ -231,7 +232,7 @@ public class AuthenticationServiceTests
         var userId = Guid.NewGuid();
 
         _mockAuthenticationRepository.Setup(x => x.GetUserById(userId))
-            .ReturnsAsync((User?)null);
+            .ReturnsAsync((DomainUsers.User?)null);
 
         // Act
         var result = await _authenticationService.LogOut(userId);
@@ -256,12 +257,12 @@ public class AuthenticationServiceTests
             .RuleFor(r => r.Phone, f => f.Phone.PhoneNumber())
             .Generate();
 
-        var userRole = new Faker<UserRole>()
+        var userRole = new Faker<DomainUsers.UserRole>()
             .RuleFor(r => r.RoleId, Guid.NewGuid())
             .RuleFor(r => r.Name, UserRoleEnum.RegisteredUser.ToString())
             .Generate();
 
-        var accountStatus = new Faker<AccountStatus>()
+        var accountStatus = new Faker<DomainUsers.AccountStatus>()
             .RuleFor(s => s.StatusId, Guid.NewGuid())
             .RuleFor(s => s.Name, AccountStatusEnum.PendingVerification.ToString())
             .Generate();
@@ -278,8 +279,8 @@ public class AuthenticationServiceTests
         _mockJwtService.Setup(x => x.HashObject<string>(request.Password))
             .Returns("hashed_password");
 
-        _mockAuthenticationRepository.Setup(x => x.Register(It.IsAny<User>()))
-            .Returns(Task.CompletedTask);
+        _mockAuthenticationRepository.Setup(x => x.Register(It.IsAny<DomainUsers.User>()))
+            .ReturnsAsync(true);
 
         _mockRedisCacheService.Setup(x => x.Set(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<TimeSpan>()))
             .Returns(Task.CompletedTask);
@@ -294,7 +295,7 @@ public class AuthenticationServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Email sent successfully");
 
-        _mockAuthenticationRepository.Verify(x => x.Register(It.Is<User>(u =>
+        _mockAuthenticationRepository.Verify(x => x.Register(It.Is<DomainUsers.User>(u =>
             u.Email == request.Email &&
             u.FullName == $"{request.FirstName} {request.LastName}" &&
             u.RoleId == userRole.RoleId &&
@@ -363,13 +364,13 @@ public class AuthenticationServiceTests
 
         var otpData = new RegisterVerifyOtpResDto { Email = email, Otp = otp };
 
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, email)
             .RuleFor(u => u.AccountStatusId, Guid.NewGuid())
             .Generate();
 
-        var activeStatus = new Faker<AccountStatus>()
+        var activeStatus = new Faker<DomainUsers.AccountStatus>()
             .RuleFor(s => s.StatusId, Guid.NewGuid())
             .RuleFor(s => s.Name, AccountStatusEnum.Active.ToString())
             .Generate();
@@ -383,8 +384,8 @@ public class AuthenticationServiceTests
         _mockTypeRepository.Setup(x => x.GetAccountStatusById(AccountStatusEnum.Active))
             .ReturnsAsync(activeStatus);
 
-        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<User>()))
-            .Returns(Task.CompletedTask);
+        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<DomainUsers.User>()))
+            .ReturnsAsync(true);
 
         _mockRedisCacheService.Setup(x => x.Remove(otp))
             .Returns(Task.CompletedTask);
@@ -396,7 +397,7 @@ public class AuthenticationServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Email verified successfully");
 
-        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<User>(u =>
+        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<DomainUsers.User>(u =>
             u.AccountStatusId == activeStatus.StatusId)), Times.Once);
     }
 
@@ -473,7 +474,7 @@ public class AuthenticationServiceTests
             .RuleFor(r => r.Email, f => f.Internet.Email())
             .Generate();
 
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, request.Email)
             .Generate();
@@ -523,7 +524,7 @@ public class AuthenticationServiceTests
             .Generate();
 
         _mockAuthenticationRepository.Setup(x => x.GetUserByEmail(request.Email))
-            .ReturnsAsync((User?)null);
+            .ReturnsAsync((DomainUsers.User?)null);
 
         // Act
         var result = await _authenticationService.ResetPasswordVerify(request);
@@ -552,7 +553,7 @@ public class AuthenticationServiceTests
 
         var otpData = new RegisterVerifyOtpResDto { Email = email, Otp = otp };
 
-        var user = new Faker<User>()
+        var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, email)
             .RuleFor(u => u.PasswordHash, "old_hash")
@@ -567,8 +568,8 @@ public class AuthenticationServiceTests
         _mockJwtService.Setup(x => x.HashObject<string>(newPassword))
             .Returns("new_hash");
 
-        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<User>()))
-            .Returns(Task.CompletedTask);
+        _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<DomainUsers.User>()))
+            .ReturnsAsync(true);
 
         _mockRedisCacheService.Setup(x => x.Remove(otp))
             .Returns(Task.CompletedTask);
@@ -580,7 +581,7 @@ public class AuthenticationServiceTests
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Password reset successfully");
 
-        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<User>(u =>
+        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<DomainUsers.User>(u =>
             u.PasswordHash == "new_hash")), Times.Once);
     }
 
