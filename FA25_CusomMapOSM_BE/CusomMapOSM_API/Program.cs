@@ -6,53 +6,61 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
-var builder = WebApplication.CreateBuilder(args);
-var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
-var envPath = Path.Combine(solutionRoot, ".env");
-Console.WriteLine($"Loading environment variables from: {envPath}");
-Env.Load(envPath);
+namespace CusomMapOSM_API;
 
-builder.Services.Configure<JsonOptions>(options =>
+public class Program
 {
-    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
+    public static void Main(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+        var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
+        var envPath = Path.Combine(solutionRoot, ".env");
+        Console.WriteLine($"Loading environment variables from: {envPath}");
+        Env.Load(envPath);
 
-// Add middleware to the container.
-builder.Services.AddSingleton<ExceptionMiddleware>();
-builder.Services.AddSingleton<LoggingMiddleware>();
+        builder.Services.Configure<JsonOptions>(options =>
+        {
+            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
 
-// Add health checks to the container.
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "ready" });
+        // Add middleware to the container.
+        builder.Services.AddSingleton<ExceptionMiddleware>();
+        builder.Services.AddSingleton<LoggingMiddleware>();
 
-// Add services to the container.
-builder.Services.AddInfrastructureServices(builder.Configuration);
-builder.Services.AddApplicationServices();
-builder.Services.AddEndpoints();
-builder.Services.AddValidation();
+        // Add health checks to the container.
+        builder.Services.AddHealthChecks()
+            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
-// Add swagger services to the container.
-builder.Services.AddSwaggerServices();
+        // Add services to the container.
+        builder.Services.AddInfrastructureServices(builder.Configuration);
+        builder.Services.AddApplicationServices();
+        builder.Services.AddEndpoints();
+        builder.Services.AddValidation();
 
-var app = builder.Build();
+        // Add swagger services to the container.
+        builder.Services.AddSwaggerServices();
 
-app.UseSwaggerServices();
-app.UseHttpsRedirection();
+        var app = builder.Build();
 
-// Use custom middlewares
-app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<LoggingMiddleware>();
+        app.UseSwaggerServices();
+        app.UseHttpsRedirection();
 
-app.UseCors();
-app.UseAuthorization();
-app.UseAuthentication();
+        // Use custom middlewares
+        app.UseMiddleware<ExceptionMiddleware>();
+        app.UseMiddleware<LoggingMiddleware>();
 
-// Map health checks
-app.MapHealthChecks("/health");
-app.MapHealthChecks("/ready");
+        app.UseCors();
+        app.UseAuthorization();
+        app.UseAuthentication();
 
-// Map all endpoints
-app.MapEndpoints();
+        // Map health checks
+        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/ready");
 
-app.Run();
+        // Map all endpoints
+        app.MapEndpoints();
+
+        app.Run();
+    }
+}

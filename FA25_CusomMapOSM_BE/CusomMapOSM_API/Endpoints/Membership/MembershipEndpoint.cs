@@ -10,7 +10,7 @@ public class MembershipEndpoint : IEndpoint
     private const string API_PREFIX = "membership";
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup(API_PREFIX);
+        var group = app.MapGroup(API_PREFIX).RequireAuthorization();
 
         group.MapPost("/create-or-renew", async (IMembershipService membershipService, CreateMembershipRequest request, CancellationToken ct) =>
         {
@@ -22,7 +22,11 @@ public class MembershipEndpoint : IEndpoint
                 some: membership => Results.Ok(new CreateMembershipResponse(membership.MembershipId)),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("CreateOrRenew")
+        .WithDescription("Create or renew subscription plan")
+        .WithTags(Tags.Membership)
+        .Produces<CreateMembershipResponse>();
 
         group.MapPost("/change-plan", async (IMembershipService membershipService, ChangeSubscriptionPlanRequest request, CancellationToken ct) =>
         {
@@ -41,6 +45,7 @@ public class MembershipEndpoint : IEndpoint
         })
         .WithName("ChangeSubscriptionPlan")
         .WithDescription("Change subscription plan for existing membership")
+        .WithTags(Tags.Membership)
         .Produces<ChangeSubscriptionPlanResponse>();
 
         group.MapPost("/track-usage", async (IMembershipService membershipService, TrackUsageRequest request, CancellationToken ct) =>
@@ -53,7 +58,10 @@ public class MembershipEndpoint : IEndpoint
                 some: ok => Results.Ok(new TrackUsageResponse(true)),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("TrackUsage")
+        .WithDescription("Track a usage of membership plan from user")
+        .WithTags(Tags.Membership);
 
         group.MapGet("/{membershipId:guid}/org/{orgId:guid}/feature/{featureKey}", async (IMembershipService membershipService, Guid membershipId, Guid orgId, string featureKey, CancellationToken ct) =>
         {
@@ -62,7 +70,10 @@ public class MembershipEndpoint : IEndpoint
                 some: has => Results.Ok(new FeatureCheckResponse(has)),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("CheckFeatures")
+        .WithDescription("Check features of an organization")
+        .WithTags(Tags.Membership);
 
         group.MapPost("/purchase-addon", async (IMembershipService membershipService, PurchaseAddonRequest request, CancellationToken ct) =>
         {
@@ -74,6 +85,9 @@ public class MembershipEndpoint : IEndpoint
                 some: addon => Results.Ok(new PurchaseAddonResponse(addon.AddonId, "created")),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("PurchaseAddOn")
+        .WithDescription("Purchase add-on more for features")
+        .WithTags(Tags.Membership);
     }
 }

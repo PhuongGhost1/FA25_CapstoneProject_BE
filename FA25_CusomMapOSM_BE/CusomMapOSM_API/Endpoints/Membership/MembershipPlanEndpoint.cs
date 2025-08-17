@@ -18,6 +18,7 @@ public class MembershipPlanEndpoint : IEndpoint
         })
         .WithName("GetActivePlans")
         .WithDescription("Get all active plans")
+        .WithTags(Tags.MembershipPlan)
         .Produces<IReadOnlyList<DomainMembership.Plan>>();
 
         group.MapGet("/{id}", async (IMembershipPlanService planService, int id, CancellationToken ct) =>
@@ -27,6 +28,7 @@ public class MembershipPlanEndpoint : IEndpoint
         })
         .WithName("GetPlanById")
         .WithDescription("Get plan by id")
+        .WithTags(Tags.MembershipPlan)
         .Produces<DomainMembership.Plan>();
     }
 }

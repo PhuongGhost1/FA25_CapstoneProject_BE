@@ -26,6 +26,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("Login")
         .WithDescription("Login to the system")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost("verify-email", async (
@@ -40,6 +41,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("VerifyEmail")
         .WithDescription("Verify email")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost("verify-otp", async (
@@ -54,6 +56,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("VerifyOtp")
         .WithDescription("Verify OTP")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost("logout", async (
@@ -73,7 +76,8 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithName("Logout")
-        .WithDescription("Logout from the system");
+        .WithDescription("Logout from the system")
+        .WithTags(Tags.Authentication);
 
         group.MapPost("reset-password-verify", async (
             [FromBody] ResetPasswordVerifyReqDto req,
@@ -87,6 +91,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("ResetPasswordVerify")
         .WithDescription("Reset password verify")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost("reset-password", async (
@@ -101,6 +106,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("ResetPassword")
         .WithDescription("Reset password")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
     }
 }

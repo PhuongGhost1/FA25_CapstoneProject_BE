@@ -403,8 +403,8 @@ public class AuthenticationEndpointTests : IClassFixture<WebApplicationFactory<C
 
     [Theory]
     [InlineData("")]
-    [InlineData(null)]
     [InlineData("   ")]
+    [InlineData("null")]
     public async Task Login_WithInvalidJson_ShouldReturnBadRequest(string invalidJson)
     {
         // Arrange

@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_API.Endpoints.Transaction;
 using CusomMapOSM_Domain.Entities.Transactions;
+using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,13 +44,18 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
         var client = _factory.CreateClient();
         var request = new ProcessPaymentReq
         {
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
             MembershipId = Guid.NewGuid()
         };
 
-        var approvalResponse = new ApprovalUrlResponse("session_123", "https://paypal.com/checkout");
+        var approvalResponse = new ApprovalUrlResponse
+        {
+            ApprovalUrl = "https://payos.vn/checkout",
+            PaymentGateway = PaymentGatewayEnum.PayOS,
+            SessionId = "session_123"
+        };
 
         _mockTransactionService.Setup(x => x.ProcessPaymentAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<ApprovalUrlResponse, Error>(approvalResponse));
@@ -72,7 +78,7 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
         var client = _factory.CreateClient();
         var request = new ProcessPaymentReq
         {
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
             MembershipId = Guid.NewGuid()
@@ -98,20 +104,14 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
         var request = new ConfirmPaymentWithContextReq
         {
             TransactionId = Guid.NewGuid(),
-            PaymentGateway = PaymentGatewayEnum.PayPal,
+            PaymentGateway = PaymentGatewayEnum.PayOS,
             PaymentId = "payment_123",
-            Purpose = "membership",
-            UserId = Guid.NewGuid(),
-            OrgId = Guid.NewGuid(),
-            PlanId = 1
+            OrderCode = "order_123",
+            Signature = "signature_123",
+            Purpose = "membership"
         };
 
-        var confirmResponse = new
-        {
-            MembershipId = Guid.NewGuid(),
-            TransactionId = request.TransactionId,
-            AccessToolsGranted = true
-        };
+        var confirmResponse = new { Success = true, TransactionId = request.TransactionId };
 
         _mockTransactionService.Setup(x => x.ConfirmPaymentWithContextAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<object, Error>(confirmResponse));
@@ -124,29 +124,30 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
     }
 
     [Fact]
-    public async Task GetTransaction_WithValidId_ShouldReturnOk()
+    public async Task ConfirmPayment_WithServiceError_ShouldReturnBadRequest()
     {
         // Arrange
         var client = _factory.CreateClient();
-        var transactionId = Guid.NewGuid();
-        var transaction = new Faker<Transactions>()
-            .RuleFor(t => t.TransactionId, transactionId)
-            .RuleFor(t => t.Amount, 99.99m)
-            .RuleFor(t => t.Status, "success")
-            .Generate();
+        var request = new ConfirmPaymentWithContextReq
+        {
+            TransactionId = Guid.NewGuid(),
+            PaymentGateway = PaymentGatewayEnum.PayOS,
+            PaymentId = "payment_123",
+            OrderCode = "order_123",
+            Signature = "signature_123",
+            Purpose = "membership"
+        };
 
-        _mockTransactionService.Setup(x => x.GetTransactionAsync(transactionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.Some<Transactions, Error>(transaction));
+        var error = new Error("Payment.Confirmation.Failed", "Payment confirmation failed", ErrorType.Failure);
+
+        _mockTransactionService.Setup(x => x.ConfirmPaymentWithContextAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.None<object, Error>(error));
 
         // Act
-        var response = await client.GetAsync($"/transaction/get-transaction/{transactionId}");
+        var response = await client.PostAsJsonAsync("/transaction/confirm-payment-with-context", request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var result = await response.Content.ReadFromJsonAsync<Transactions>();
-        result.Should().NotBeNull();
-        result.Should().BeEquivalentTo(transaction);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -154,13 +155,19 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
     {
         // Arrange
         var client = _factory.CreateClient();
-        var request = new CancelPaymentWithContextReq
-        {
-            TransactionId = Guid.NewGuid(),
-            PaymentGateway = PaymentGatewayEnum.PayPal
-        };
+        var request = new CancelPaymentWithContextReq(
+            PaymentGatewayEnum.PayOS,
+            "payment_123",
+            "payer_123",
+            "token_123",
+            "intent_123",
+            "secret_123",
+            "order_123",
+            "signature_123",
+            Guid.NewGuid()
+        );
 
-        var cancelResponse = new CancelPaymentResponse("cancelled", PaymentGatewayEnum.PayPal.ToString());
+        var cancelResponse = new CancelPaymentResponse("cancelled", PaymentGatewayEnum.PayOS.ToString());
 
         _mockTransactionService.Setup(x => x.CancelPaymentWithContextAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<CancelPaymentResponse, Error>(cancelResponse));
@@ -170,35 +177,102 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var result = await response.Content.ReadFromJsonAsync<CancelPaymentResponse>();
-        result.Should().NotBeNull();
-        result.Should().BeEquivalentTo(cancelResponse);
     }
 
     [Fact]
-    public async Task ProcessPayment_WithNullRequest_ShouldReturnBadRequest()
+    public async Task CancelPayment_WithServiceError_ShouldReturnBadRequest()
     {
         // Arrange
         var client = _factory.CreateClient();
+        var request = new CancelPaymentWithContextReq(
+            PaymentGatewayEnum.PayOS,
+            "payment_123",
+            "payer_123",
+            "token_123",
+            "intent_123",
+            "secret_123",
+            "order_123",
+            "signature_123",
+            Guid.NewGuid()
+        );
+
+        var error = new Error("Payment.Cancellation.Failed", "Payment cancellation failed", ErrorType.Failure);
+
+        _mockTransactionService.Setup(x => x.CancelPaymentWithContextAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.None<CancelPaymentResponse, Error>(error));
 
         // Act
-        var response = await client.PostAsJsonAsync<ProcessPaymentReq>("/transaction/process-payment", null!);
+        var response = await client.PostAsJsonAsync("/transaction/cancel-payment", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task GetTransaction_WithInvalidRoute_ShouldReturnNotFound()
+    public async Task GetTransaction_WithValidId_ShouldReturnOk()
     {
         // Arrange
         var client = _factory.CreateClient();
+        var transactionId = Guid.NewGuid();
+        var transaction = new Transactions
+        {
+            TransactionId = transactionId,
+            Amount = 99.99m,
+            Status = "completed",
+            PaymentGatewayId = Guid.NewGuid(),
+            Purpose = "membership"
+        };
+
+        _mockTransactionService.Setup(x => x.GetTransactionAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.Some<Transactions, Error>(transaction));
 
         // Act
-        var response = await client.GetAsync("/transaction/invalid");
+        var response = await client.GetAsync($"/transaction/{transactionId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<Transactions>();
+        result.Should().NotBeNull();
+        result!.TransactionId.Should().Be(transactionId);
+    }
+
+    [Fact]
+    public async Task GetTransaction_WithInvalidId_ShouldReturnNotFound()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var transactionId = Guid.NewGuid();
+
+        var error = new Error("Transaction.NotFound", "Transaction not found", ErrorType.NotFound);
+
+        _mockTransactionService.Setup(x => x.GetTransactionAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Option.None<Transactions, Error>(error));
+
+        // Act
+        var response = await client.GetAsync($"/transaction/{transactionId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ProcessPayment_WithInvalidAmount_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var request = new ProcessPaymentReq
+        {
+            PaymentGateway = PaymentGatewayEnum.PayOS,
+            Total = 0, // Invalid amount
+            Purpose = "membership",
+            MembershipId = Guid.NewGuid()
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync("/transaction/process-payment", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

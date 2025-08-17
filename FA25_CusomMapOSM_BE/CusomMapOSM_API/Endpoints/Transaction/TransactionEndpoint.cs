@@ -10,7 +10,7 @@ namespace CusomMapOSM_API.Endpoints.Transaction;
 
 public class TransactionEndpoint : IEndpoint
 {
-    private const string API_PREFIX = "transaction";
+    private const string API_PREFIX = Tags.Transaction;
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(API_PREFIX).RequireAuthorization();
@@ -29,7 +29,10 @@ public class TransactionEndpoint : IEndpoint
                 some: approval => Results.Ok(approval),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("ProcessPayment")
+        .WithDescription("Process a payment with context")
+        .WithTags(Tags.Transaction);
 
         group.MapPost("/confirm-payment-with-context", async (
             ITransactionService factory,
@@ -42,7 +45,10 @@ public class TransactionEndpoint : IEndpoint
                 some: ok => Results.Ok(ok),
                 none: err => err.ToProblemDetailsResult()
             );
-        });
+        })
+        .WithName("ConfirmPayment")
+        .WithDescription("Confirm a payment with context")
+        .WithTags(Tags.Transaction);
 
         group.MapPost("/cancel-payment", async (
             ITransactionService factory,
@@ -57,7 +63,7 @@ public class TransactionEndpoint : IEndpoint
         })
         .WithName("CancelPayment")
         .WithDescription("Cancel a payment transaction")
-        .WithTags("Transaction");
+        .WithTags(Tags.Transaction);
 
         group.MapGet("/{transactionId:guid}", async (ITransactionService txService, Guid transactionId, CancellationToken ct) =>
         {
@@ -69,6 +75,6 @@ public class TransactionEndpoint : IEndpoint
         })
         .WithName("GetTransaction")
         .WithDescription("Get transaction details by ID")
-        .WithTags("Transaction");
+        .WithTags(Tags.Transaction);
     }
 }

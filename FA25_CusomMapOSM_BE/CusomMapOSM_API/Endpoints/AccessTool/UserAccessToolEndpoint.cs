@@ -13,7 +13,7 @@ public class UserAccessToolEndpoint : IEndpoint
     private const string API_PREFIX = "user-access-tool";
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup(API_PREFIX);
+        var group = app.MapGroup(API_PREFIX).RequireAuthorization();
 
         group.MapGet("get-all", async (
             ClaimsPrincipal user,
@@ -33,7 +33,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("GetUserAccessTools")
         .WithDescription("Get all user access tools")
-        .Produces<IReadOnlyList<UserAccessTool>>();
+        .Produces<IReadOnlyList<UserAccessTool>>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapGet("get-active", async (
             ClaimsPrincipal user,
@@ -53,7 +54,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("GetActiveUserAccessTools")
         .WithDescription("Get all active user access tools")
-        .Produces<IReadOnlyList<UserAccessTool>>();
+        .Produces<IReadOnlyList<UserAccessTool>>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapPost("grant-access", async (
             ClaimsPrincipal user,
@@ -74,7 +76,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("GrantAccessToTool")
         .WithDescription("Grant access to a tool")
-        .Produces<UserAccessTool>();
+        .Produces<UserAccessTool>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapPost("revoke-access", async (
             ClaimsPrincipal user,
@@ -95,7 +98,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("RevokeAccessToTool")
         .WithDescription("Revoke access to a tool")
-        .Produces<bool>();
+        .Produces<bool>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapPost("grant-multiple-access", async (
             ClaimsPrincipal user,
@@ -116,7 +120,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("GrantMultipleAccessToTools")
         .WithDescription("Grant access to multiple tools")
-        .Produces<bool>();
+        .Produces<bool>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapPost("revoke-all-access", async (
             ClaimsPrincipal user,
@@ -136,7 +141,8 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("RevokeAllAccessTools")
         .WithDescription("Revoke all access tools")
-        .Produces<bool>();
+        .Produces<bool>()
+        .WithTags(Tags.UserAccessTool);
 
         group.MapPost("update-access-tools-for-membership", async (
             ClaimsPrincipal user,
@@ -157,6 +163,7 @@ public class UserAccessToolEndpoint : IEndpoint
         })
         .WithName("UpdateAccessToolsForMembership")
         .WithDescription("Update access tools for membership")
-        .Produces<bool>();
+        .Produces<bool>()
+        .WithTags(Tags.UserAccessTool);
     }
 }

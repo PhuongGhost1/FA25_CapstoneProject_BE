@@ -57,7 +57,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<Plan>>();
         result.Should().NotBeNull();
         result.Should().HaveCount(3);
@@ -79,7 +79,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<Plan>>();
         result.Should().NotBeNull();
         result.Should().BeEmpty();
@@ -127,7 +127,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(plan);
@@ -150,7 +150,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().BeNull();
     }
@@ -170,7 +170,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().BeNull();
     }
@@ -190,7 +190,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().BeNull();
     }
@@ -236,11 +236,11 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().NotBeNull();
         result!.PlanId.Should().Be(planId);
-        
+
         _mockMembershipPlanService.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -269,7 +269,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<Plan>>();
         result.Should().NotBeNull();
         result.Should().HaveCount(100);
@@ -302,7 +302,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(inactivePlan);
@@ -336,7 +336,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(unlimitedPlan);
@@ -361,7 +361,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<Plan>();
         result.Should().BeNull();
     }
@@ -385,7 +385,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockMembershipPlanService.Verify(x => x.GetActivePlansAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -409,7 +409,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockMembershipPlanService.Verify(x => x.GetPlanByIdAsync(planId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -524,14 +524,14 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
         var client = _factory.CreateClient();
 
         _mockMembershipPlanService.Setup(x => x.GetActivePlansAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IReadOnlyList<Plan>?)null);
+            .ReturnsAsync((IReadOnlyList<Plan>)null!);
 
         // Act
         var response = await client.GetAsync("/membership-plan/active");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<Plan>>();
         result.Should().NotBeNull();
         result.Should().BeEmpty();
@@ -562,7 +562,7 @@ public class MembershipPlanEndpointTests : IClassFixture<WebApplicationFactory<C
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<Plan>>();
         result.Should().NotBeNull();
         result.Should().HaveCount(1000);

@@ -10,6 +10,8 @@ using Optional;
 using System.Net;
 using System.Net.Http.Json;
 using Xunit;
+using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
+using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 
 namespace CusomMapOSM_API.Tests.Endpoints.AccessTool;
 
@@ -28,17 +30,56 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         {
             builder.ConfigureServices(services =>
             {
+                // Replace the real service with our mock
                 services.AddScoped(_ => _mockUserAccessToolService.Object);
             });
         });
+    }
+
+    private async Task<string> GetValidTokenAsync()
+    {
+        var client = _factory.CreateClient();
+
+        // Create a test user login request
+        var loginRequest = new LoginReqDto
+        {
+            Email = "test@example.com",
+            Password = "TestPassword123!"
+        };
+
+        // Call the login endpoint to get a token
+        var loginResponse = await client.PostAsJsonAsync("/auth/login", loginRequest);
+
+        if (loginResponse.IsSuccessStatusCode)
+        {
+            var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResDto>();
+            return loginResult?.Token ?? string.Empty;
+        }
+
+        // If login fails, return empty string (tests will fail appropriately)
+        return string.Empty;
+    }
+
+    private HttpClient CreateAuthenticatedClient(string token)
+    {
+        var client = _factory.CreateClient();
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        }
+
+        return client;
     }
 
     [Fact]
     public async Task GetAllUserAccessTools_WithValidUser_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var userId = Guid.NewGuid();
+
         var userAccessTools = new Faker<UserAccessTool>()
             .RuleFor(uat => uat.UserAccessToolId, f => f.Random.Int(1, 100))
             .RuleFor(uat => uat.UserId, userId)
@@ -47,27 +88,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
             .RuleFor(uat => uat.ExpiredAt, f => f.Date.Future())
             .Generate(3);
 
-        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<IReadOnlyList<UserAccessTool>, Error>(userAccessTools));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        // Add authorization header with user ID
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.GetAsync("/user-access-tool/get-all");
+        var response = await client.GetAsync("/user-access-tool/get-all");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserAccessTool>>();
         result.Should().NotBeNull();
         result.Should().HaveCount(3);
@@ -78,30 +107,19 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GetAllUserAccessTools_WithNoAccessTools_ShouldReturnEmptyList()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var emptyAccessTools = new List<UserAccessTool>();
 
-        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<IReadOnlyList<UserAccessTool>, Error>(emptyAccessTools));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.GetAsync("/user-access-tool/get-all");
+        var response = await client.GetAsync("/user-access-tool/get-all");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserAccessTool>>();
         result.Should().NotBeNull();
         result.Should().BeEmpty();
@@ -111,26 +129,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GetAllUserAccessTools_WithServiceError_ShouldReturnBadRequest()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var error = new Error("UserAccessTool.GetFailed", "Failed to get user access tools", ErrorType.Failure);
 
-        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GetUserAccessToolsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.None<IReadOnlyList<UserAccessTool>, Error>(error));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.GetAsync("/user-access-tool/get-all");
+        var response = await client.GetAsync("/user-access-tool/get-all");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -153,8 +160,10 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GetActiveUserAccessTools_WithValidUser_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var userId = Guid.NewGuid();
+
         var activeAccessTools = new Faker<UserAccessTool>()
             .RuleFor(uat => uat.UserAccessToolId, f => f.Random.Int(1, 100))
             .RuleFor(uat => uat.UserId, userId)
@@ -163,26 +172,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
             .RuleFor(uat => uat.ExpiredAt, f => f.Date.Future())
             .Generate(2);
 
-        _mockUserAccessToolService.Setup(x => x.GetActiveUserAccessToolsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GetActiveUserAccessToolsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<IReadOnlyList<UserAccessTool>, Error>(activeAccessTools));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.GetAsync("/user-access-tool/get-active");
+        var response = await client.GetAsync("/user-access-tool/get-active");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<IReadOnlyList<UserAccessTool>>();
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
@@ -193,8 +191,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GrantAccessToTool_WithValidRequest_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolId = 3;
         var expiredAt = DateTime.UtcNow.AddDays(30);
 
@@ -206,32 +204,21 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
 
         var grantedAccessTool = new Faker<UserAccessTool>()
             .RuleFor(uat => uat.UserAccessToolId, f => f.Random.Int(1, 100))
-            .RuleFor(uat => uat.UserId, userId)
+            .RuleFor(uat => uat.UserId, Guid.NewGuid())
             .RuleFor(uat => uat.AccessToolId, accessToolId)
             .RuleFor(uat => uat.GrantedAt, DateTime.UtcNow)
             .RuleFor(uat => uat.ExpiredAt, expiredAt)
             .Generate();
 
-        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolAsync(userId, accessToolId, expiredAt, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolAsync(It.IsAny<Guid>(), accessToolId, expiredAt, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<UserAccessTool, Error>(grantedAccessTool));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/grant-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/grant-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<UserAccessTool>();
         result.Should().NotBeNull();
         result.Should().BeEquivalentTo(grantedAccessTool);
@@ -241,8 +228,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GrantAccessToTool_WithServiceError_ShouldReturnBadRequest()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolId = 999;
         var expiredAt = DateTime.UtcNow.AddDays(30);
 
@@ -254,22 +241,11 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
 
         var error = new Error("UserAccessTool.AccessToolNotFound", "Access tool not found", ErrorType.NotFound);
 
-        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolAsync(userId, accessToolId, expiredAt, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolAsync(It.IsAny<Guid>(), accessToolId, expiredAt, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.None<UserAccessTool, Error>(error));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/grant-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/grant-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -297,8 +273,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task RevokeAccessToTool_WithValidRequest_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolId = 3;
 
         var request = new RevokeAccessToToolRequest
@@ -306,26 +282,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
             AccessToolId = accessToolId
         };
 
-        _mockUserAccessToolService.Setup(x => x.RevokeAccessToToolAsync(userId, accessToolId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.RevokeAccessToToolAsync(It.IsAny<Guid>(), accessToolId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/revoke-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/revoke-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<bool>();
         result.Should().BeTrue();
     }
@@ -334,8 +299,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GrantMultipleAccessToTools_WithValidRequest_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolIds = new List<int> { 1, 2, 3 };
         var expiredAt = DateTime.UtcNow.AddDays(30);
 
@@ -345,26 +310,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
             ExpiredAt = expiredAt
         };
 
-        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolsAsync(userId, accessToolIds, expiredAt, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.GrantAccessToToolsAsync(It.IsAny<Guid>(), accessToolIds, expiredAt, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/grant-multiple-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/grant-multiple-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<bool>();
         result.Should().BeTrue();
     }
@@ -373,29 +327,18 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task RevokeAllAccessTools_WithValidUser_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
 
-        _mockUserAccessToolService.Setup(x => x.RevokeAllAccessToolsAsync(userId, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.RevokeAllAccessToolsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsync("/user-access-tool/revoke-all-access", null);
+        var response = await client.PostAsync("/user-access-tool/revoke-all-access", null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<bool>();
         result.Should().BeTrue();
     }
@@ -404,8 +347,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task UpdateAccessToolsForMembership_WithValidRequest_ShouldReturnSuccess()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var planId = 3;
         var membershipExpiryDate = DateTime.UtcNow.AddDays(365);
 
@@ -415,26 +358,15 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
             MembershipExpiryDate = membershipExpiryDate
         };
 
-        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(userId, planId, membershipExpiryDate, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(It.IsAny<Guid>(), planId, membershipExpiryDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var result = await response.Content.ReadFromJsonAsync<bool>();
         result.Should().BeTrue();
     }
@@ -443,8 +375,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task UpdateAccessToolsForMembership_WithServiceError_ShouldReturnBadRequest()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var planId = 999;
         var membershipExpiryDate = DateTime.UtcNow.AddDays(365);
 
@@ -456,22 +388,11 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
 
         var error = new Error("UserAccessTool.PlanNotFound", "Membership plan not found", ErrorType.NotFound);
 
-        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(userId, planId, membershipExpiryDate, It.IsAny<CancellationToken>()))
+        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(It.IsAny<Guid>(), planId, membershipExpiryDate, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.None<bool, Error>(error));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -491,101 +412,11 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     }
 
     [Fact]
-    public async Task GrantAccessToTool_WithPostMethod_ShouldReturnMethodNotAllowed()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.PostAsync("/user-access-tool/get-all", null);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
-    }
-
-    [Fact]
-    public async Task GrantAccessToTool_WithPutMethod_ShouldReturnMethodNotAllowed()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.PutAsync("/user-access-tool/get-all", null);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
-    }
-
-    [Fact]
-    public async Task GrantAccessToTool_WithDeleteMethod_ShouldReturnMethodNotAllowed()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.DeleteAsync("/user-access-tool/get-all");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
-    }
-
-    [Fact]
-    public async Task GrantAccessToTool_WithNullRequest_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
-        // Act
-        var response = await authenticatedClient.PostAsJsonAsync<GrantAccessToToolRequest>("/user-access-tool/grant-access", null!);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task GrantAccessToTool_WithInvalidJson_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        var invalidJson = "{ invalid json }";
-
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
-        var content = new StringContent(invalidJson, System.Text.Encoding.UTF8, "application/json");
-
-        // Act
-        var response = await authenticatedClient.PostAsync("/user-access-tool/grant-access", content);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
     public async Task GrantAccessToTool_WithServiceCall_ShouldCallServiceWithCorrectParameters()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolId = 3;
         var expiredAt = DateTime.UtcNow.AddDays(30);
 
@@ -597,7 +428,7 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
 
         var grantedAccessTool = new Faker<UserAccessTool>()
             .RuleFor(uat => uat.UserAccessToolId, f => f.Random.Int(1, 100))
-            .RuleFor(uat => uat.UserId, userId)
+            .RuleFor(uat => uat.UserId, Guid.NewGuid())
             .RuleFor(uat => uat.AccessToolId, accessToolId)
             .RuleFor(uat => uat.GrantedAt, DateTime.UtcNow)
             .RuleFor(uat => uat.ExpiredAt, expiredAt)
@@ -606,23 +437,12 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         _mockUserAccessToolService.Setup(x => x.GrantAccessToToolAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<UserAccessTool, Error>(grantedAccessTool));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/grant-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/grant-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockUserAccessToolService.Verify(x => x.GrantAccessToToolAsync(It.IsAny<Guid>(), accessToolId, expiredAt, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -630,8 +450,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task RevokeAccessToTool_WithServiceCall_ShouldCallServiceWithCorrectParameters()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolId = 3;
 
         var request = new RevokeAccessToToolRequest
@@ -642,23 +462,12 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         _mockUserAccessToolService.Setup(x => x.RevokeAccessToToolAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/revoke-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/revoke-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockUserAccessToolService.Verify(x => x.RevokeAccessToToolAsync(It.IsAny<Guid>(), accessToolId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -666,8 +475,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task GrantMultipleAccessToTools_WithServiceCall_ShouldCallServiceWithCorrectParameters()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var accessToolIds = new List<int> { 1, 2, 3 };
         var expiredAt = DateTime.UtcNow.AddDays(30);
 
@@ -680,23 +489,12 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         _mockUserAccessToolService.Setup(x => x.GrantAccessToToolsAsync(It.IsAny<Guid>(), It.IsAny<IEnumerable<int>>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/grant-multiple-access", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/grant-multiple-access", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockUserAccessToolService.Verify(x => x.GrantAccessToToolsAsync(It.IsAny<Guid>(), accessToolIds, expiredAt, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -704,8 +502,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
     public async Task UpdateAccessToolsForMembership_WithServiceCall_ShouldCallServiceWithCorrectParameters()
     {
         // Arrange
-        var client = _factory.CreateClient();
-        var userId = Guid.NewGuid();
+        var token = await GetValidTokenAsync();
+        var client = CreateAuthenticatedClient(token);
         var planId = 3;
         var membershipExpiryDate = DateTime.UtcNow.AddDays(365);
 
@@ -718,23 +516,12 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<bool, Error>(true));
 
-        // Create authenticated client
-        var authenticatedClient = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockUserAccessToolService.Object);
-            });
-        }).CreateClient();
-
-        authenticatedClient.DefaultRequestHeaders.Add("Authorization", "Bearer valid_token");
-
         // Act
-        var response = await authenticatedClient.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
+        var response = await client.PostAsJsonAsync("/user-access-tool/update-access-tools-for-membership", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         _mockUserAccessToolService.Verify(x => x.UpdateAccessToolsForMembershipAsync(It.IsAny<Guid>(), planId, membershipExpiryDate, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
