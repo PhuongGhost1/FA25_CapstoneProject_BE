@@ -6,7 +6,12 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
+
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
+
+using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Domain.Entities.Users;
+
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
@@ -22,14 +27,16 @@ public class AuthenticationService : IAuthenticationService
     private readonly IJwtService _jwtService;
     private readonly IMailService _mailService;
     private readonly IRedisCacheService _redisCacheService;
+    private readonly IRabbitMQService _rabbitMqService;
     public AuthenticationService(IAuthenticationRepository authenticationRepository, IJwtService jwtService, IMailService mailService,
-    IRedisCacheService redisCacheService, ITypeRepository typeRepository)
+    IRedisCacheService redisCacheService, ITypeRepository typeRepository, IRabbitMQService rabbitMqService)
     {
         _authenticationRepository = authenticationRepository;
         _jwtService = jwtService;
         _mailService = mailService;
         _redisCacheService = redisCacheService;
         _typeRepository = typeRepository;
+        _rabbitMqService = rabbitMqService;
     }
 
     public async Task<Option<LoginResDto, Error>> Login(LoginReqDto req)
@@ -101,7 +108,7 @@ public class AuthenticationService : IAuthenticationService
             Body = $"Your OTP is {otp}"
         };
 
-        await _mailService.SendEmailAsync(mail);
+        await _rabbitMqService.EnqueueEmailAsync(mail);
 
         return Option.Some<RegisterResDto, Error>(new RegisterResDto { Result = "Email sent successfully" });
     }
@@ -152,7 +159,7 @@ public class AuthenticationService : IAuthenticationService
             Body = $"Your OTP is {otp}"
         };
 
-        await _mailService.SendEmailAsync(mail);
+        await _rabbitMqService.EnqueueEmailAsync(mail);
 
         return Option.Some<RegisterResDto, Error>(new RegisterResDto { Result = "OTP sent successfully" });
     }

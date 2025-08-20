@@ -1,12 +1,20 @@
+namespace CusomMapOSM_API;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Middlewares;
 using CusomMapOSM_Application;
 using CusomMapOSM_Infrastructure;
+using CusomMapOSM_Infrastructure.Extensions;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
-namespace CusomMapOSM_API;
+using CusomMapOSM_API;
+using CusomMapOSM_Domain.Constants;
+var builder = WebApplication.CreateBuilder(args);
+var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
+var envPath = Path.Combine(solutionRoot, ".env");
+Console.WriteLine($"Loading environment variables from: {envPath}");
+Env.Load(envPath);
 
 public class Program
 {
@@ -46,20 +54,31 @@ public class Program
         app.UseSwaggerServices();
         app.UseHttpsRedirection();
 
+
         // Use custom middlewares
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseMiddleware<LoggingMiddleware>();
 
+        // Add Hangfire Dashboard
+        app.UseHangfireDashboard();
+
         app.UseCors();
         app.UseAuthorization();
         app.UseAuthentication();
+
+
+        app.UseCors();
+        app.UseAuthorization();
+        app.UseAuthentication();
+
 
         // Map health checks
         app.MapHealthChecks("/health");
         app.MapHealthChecks("/ready");
 
         // Map all endpoints
-        app.MapEndpoints();
+        var api = app.MapGroup(Routes.ApiBase);
+        app.MapEndpoints(api);
 
         app.Run();
     }
