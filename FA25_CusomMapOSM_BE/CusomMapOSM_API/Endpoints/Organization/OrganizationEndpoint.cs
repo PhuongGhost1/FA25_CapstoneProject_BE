@@ -1,9 +1,9 @@
-﻿using CusomMapOSM_API.Extensions;
+﻿using CusomMapOSM_API.Constants;
+using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Organization;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
-using CusomMapOSM_Domain.Constants;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Organization;

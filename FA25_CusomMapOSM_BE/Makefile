@@ -11,7 +11,7 @@ redislocal:
 	docker-compose up -d
 
 docker:
-	docker build -t lms_server -f ./CustomMapOSM_API/Dockerfile .
+	docker build -t lms_server -f ./CusomMapOSM_API/Dockerfile .
 
 release:
 	docker build --build-arg APP_VERSION=$(version) -t lms_server -f ./CustomMapOSM_API/Dockerfile .

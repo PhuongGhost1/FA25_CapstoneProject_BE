@@ -1,4 +1,4 @@
-﻿namespace CusomMapOSM_Domain.Constants;
+﻿namespace CusomMapOSM_API.Constants;
 
 public static class Routes
 {

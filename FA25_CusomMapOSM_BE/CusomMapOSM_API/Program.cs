@@ -1,4 +1,4 @@
-namespace CusomMapOSM_API;
+using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Middlewares;
 using CusomMapOSM_Application;
@@ -8,78 +8,72 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 
-using CusomMapOSM_API;
-using CusomMapOSM_Domain.Constants;
-var builder = WebApplication.CreateBuilder(args);
-var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
-var envPath = Path.Combine(solutionRoot, ".env");
-Console.WriteLine($"Loading environment variables from: {envPath}");
-Env.Load(envPath);
-
-public class Program
-{
-    public static void Main(string[] args)
+namespace CusomMapOSM_API;
+    public class Program
     {
-        var builder = WebApplication.CreateBuilder(args);
-        var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
-        var envPath = Path.Combine(solutionRoot, ".env");
-        Console.WriteLine($"Loading environment variables from: {envPath}");
-        Env.Load(envPath);
-
-        builder.Services.Configure<JsonOptions>(options =>
+        public static void Main(string[] args)
         {
-            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-        });
+            var builder = WebApplication.CreateBuilder(args);
+            var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
+            var envPath = Path.Combine(solutionRoot, ".env");
+            Console.WriteLine($"Loading environment variables from: {envPath}");
+            Env.Load(envPath);
 
-        // Add middleware to the container.
-        builder.Services.AddSingleton<ExceptionMiddleware>();
-        builder.Services.AddSingleton<LoggingMiddleware>();
+            builder.Services.Configure<JsonOptions>(options =>
+            {
+                options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
-        // Add health checks to the container.
-        builder.Services.AddHealthChecks()
-            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "ready" });
+            // Add middleware to the container.
+            builder.Services.AddSingleton<ExceptionMiddleware>();
+            builder.Services.AddSingleton<LoggingMiddleware>();
 
-        // Add services to the container.
-        builder.Services.AddInfrastructureServices(builder.Configuration);
-        builder.Services.AddApplicationServices();
-        builder.Services.AddEndpoints();
-        builder.Services.AddValidation();
+            // Add health checks to the container.
+            builder.Services.AddHealthChecks()
+                .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
-        // Add swagger services to the container.
-        builder.Services.AddSwaggerServices();
+            // Add services to the container.
+            builder.Services.AddInfrastructureServices(builder.Configuration);
+            builder.Services.AddApplicationServices();
+            builder.Services.AddEndpoints();
+            builder.Services.AddValidation();
 
-        var app = builder.Build();
+            // Add swagger services to the container.
+            builder.Services.AddSwaggerServices();
 
-        app.UseSwaggerServices();
-        app.UseHttpsRedirection();
+            var app = builder.Build();
 
-
-        // Use custom middlewares
-        app.UseMiddleware<ExceptionMiddleware>();
-        app.UseMiddleware<LoggingMiddleware>();
-
-        // Add Hangfire Dashboard
-        app.UseHangfireDashboard();
-
-        app.UseCors();
-        app.UseAuthorization();
-        app.UseAuthentication();
+            app.UseSwaggerServices();
+            app.UseHttpsRedirection();
 
 
-        app.UseCors();
-        app.UseAuthorization();
-        app.UseAuthentication();
+            // Use custom middlewares
+            app.UseMiddleware<ExceptionMiddleware>();
+            app.UseMiddleware<LoggingMiddleware>();
+
+            // Add Hangfire Dashboard
+            app.UseHangfireDashboard();
+
+            app.UseCors();
+            app.UseAuthorization();
+            app.UseAuthentication();
 
 
-        // Map health checks
-        app.MapHealthChecks("/health");
-        app.MapHealthChecks("/ready");
+            app.UseCors();
+            app.UseAuthorization();
+            app.UseAuthentication();
 
-        // Map all endpoints
-        var api = app.MapGroup(Routes.ApiBase);
-        app.MapEndpoints(api);
 
-        app.Run();
+            // Map health checks
+            app.MapHealthChecks("/health");
+            app.MapHealthChecks("/ready");
+
+            // Map all endpoints
+            var api = app.MapGroup(Routes.ApiBase);
+            app.MapEndpoints(api);
+
+            app.Run();
+        }
     }
-}
+

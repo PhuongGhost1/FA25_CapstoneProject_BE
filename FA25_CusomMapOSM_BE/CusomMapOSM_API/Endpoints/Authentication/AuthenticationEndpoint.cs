@@ -5,7 +5,7 @@ using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using Microsoft.AspNetCore.Mvc;
 using CusomMapOSM_API;
-using CusomMapOSM_Domain.Constants;
+using CusomMapOSM_API.Constants;
 
 namespace CusomMapOSM_API.Endpoints.Authentication;
 
@@ -15,8 +15,8 @@ public class AuthenticationEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(Routes.Prefix.Auth)         
-            .WithTags(Tags.Auth)
-            .WithDescription(Tags.Auth);
+            .WithTags(Tags.Authentication)
+            .WithDescription(Tags.Authentication);
 
         group.MapPost(Routes.AuthEndpoints.Login, async (
             [FromBody] LoginReqDto req,

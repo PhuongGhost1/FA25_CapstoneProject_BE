@@ -27,6 +27,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IJwtService> _mockJwtService;
     private readonly Mock<IMailService> _mockMailService;
     private readonly Mock<IRedisCacheService> _mockRedisCacheService;
+    private readonly Mock<IRabbitMQService> _mockRabbitMQService;
     private readonly AuthenticationService _authenticationService;
     private readonly Faker _faker;
 
@@ -37,13 +38,15 @@ public class AuthenticationServiceTests
         _mockJwtService = new Mock<IJwtService>();
         _mockMailService = new Mock<IMailService>();
         _mockRedisCacheService = new Mock<IRedisCacheService>();
+        _mockRabbitMQService = new Mock<IRabbitMQService>();
 
         _authenticationService = new AuthenticationService(
             _mockAuthenticationRepository.Object,
             _mockJwtService.Object,
             _mockMailService.Object,
             _mockRedisCacheService.Object,
-            _mockTypeRepository.Object);
+            _mockTypeRepository.Object,
+            _mockRabbitMQService.Object);
 
         _faker = new Faker();
     }
@@ -288,6 +291,9 @@ public class AuthenticationServiceTests
         _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
             .Returns(Task.CompletedTask);
 
+        _mockRabbitMQService.Setup(x => x.EnqueueEmailAsync(It.IsAny<MailRequest>()))
+            .Returns(Task.CompletedTask);
+
         // Act
         var result = await _authenticationService.VerifyEmail(request);
 
@@ -486,6 +492,9 @@ public class AuthenticationServiceTests
             .Returns(Task.CompletedTask);
 
         _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
+            .Returns(Task.CompletedTask);
+
+        _mockRabbitMQService.Setup(x => x.EnqueueEmailAsync(It.IsAny<MailRequest>()))
             .Returns(Task.CompletedTask);
 
         // Act
