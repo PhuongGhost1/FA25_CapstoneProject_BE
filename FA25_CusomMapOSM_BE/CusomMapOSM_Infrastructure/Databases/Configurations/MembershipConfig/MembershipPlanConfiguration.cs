@@ -76,6 +76,10 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             .HasColumnName("features")
             .HasColumnType("json");
 
+        builder.Property(p => p.AccessToolIds)
+            .HasColumnName("access_tool_ids")
+            .HasColumnType("json");
+
         builder.Property(p => p.IsActive)
             .HasColumnName("is_active")
             .IsRequired();
@@ -107,6 +111,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = 3,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
+                AccessToolIds = "[1, 2, 3]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -126,6 +131,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = 10,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true}",
+                AccessToolIds = "[1, 2, 3, 4, 5]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -145,6 +151,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = 50,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
+                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -164,6 +171,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = -1, // Unlimited
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
+                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             }

@@ -52,6 +52,8 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<MembershipStatus> MembershipStatuses { get; set; }
     public DbSet<Plan> Plans { get; set; }
+    public DbSet<MembershipUsage> MembershipUsages { get; set; }
+    public DbSet<MembershipAddon> MembershipAddons { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationLocation> OrganizationLocations { get; set; }
