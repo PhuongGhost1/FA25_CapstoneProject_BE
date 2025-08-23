@@ -1,5 +1,5 @@
 using CusomMapOSM_Domain.Entities.AccessTools;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessToolRepo;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
 using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.AccessToolRepo;

@@ -46,3 +46,32 @@ public record DeleteOrganizationReqDto
 {
     public required Guid Id { get; set; }
 }
+
+public record UpdateMemberRoleReqDto
+{
+    public required Guid OrgId { get; set; }
+    public required Guid MemberId { get; set; }
+    public required string NewRole { get; set; }
+}
+
+public record RemoveMemberReqDto
+{
+    public required Guid OrgId { get; set; }
+    public required Guid MemberId { get; set; }
+}
+
+public record RejectInviteOrganizationReqDto
+{
+    public required Guid InvitationId { get; set; }
+}
+
+public record CancelInviteOrganizationReqDto
+{
+    public required Guid InvitationId { get; set; }
+}
+
+public record TransferOwnershipReqDto
+{
+    public required Guid OrgId { get; set; }
+    public required Guid NewOwnerId { get; set; }
+}

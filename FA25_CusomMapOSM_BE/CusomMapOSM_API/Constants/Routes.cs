@@ -30,5 +30,13 @@ public static class Routes
         public const string InviteMember = "invite-member";
         public const string AcceptInvite = "accept-invite";
         public const string GetMyInvitations = "my-invitations";
+        public const string GetOrganizationMembers = "/{orgId:guid}/members";
+        public const string UpdateMemberRole = "/members/role";
+        public const string RemoveMember = "/members/remove";
+        public const string RejectInvite = "/invites/reject";
+        public const string CancelInvite = "/invites/cancel";
+        public const string GetMyOrganizations = "/mine";
+        public const string TransferOwnership = "/ownership/transfer";
+
     }
 }

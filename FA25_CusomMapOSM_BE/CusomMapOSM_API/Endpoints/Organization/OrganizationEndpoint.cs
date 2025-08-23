@@ -131,5 +131,86 @@ public class OrganizationEndpoint : IEndpoint
             .RequireAuthorization()
             .Produces<GetInvitationsResDto>(200)
             .ProducesValidationProblem();
+        
+        group.MapGet(Routes.OrganizationsEndpoints.GetOrganizationMembers, async (
+                [FromRoute] Guid orgId,
+                [FromServices] IOrganizationService organizationService) =>
+            {
+                var result = await organizationService.GetMembers(orgId);
+                return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+            }).WithName(Routes.OrganizationsEndpoints.GetOrganizationMembers)
+            .WithDescription("Get organization members")
+            .RequireAuthorization()
+            .Produces<GetOrganizationMembersResDto>(200);
+
+group.MapPut(Routes.OrganizationsEndpoints.UpdateMemberRole, async (
+        [FromBody] UpdateMemberRoleReqDto req,
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.UpdateMemberRole(req);
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.UpdateMemberRole)
+    .WithDescription("Update member role in organization")
+    .RequireAuthorization()
+    .Produces<UpdateMemberRoleResDto>(200)
+    .ProducesValidationProblem();
+
+group.MapDelete(Routes.OrganizationsEndpoints.RemoveMember, async (
+        [FromBody] RemoveMemberReqDto req,
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.RemoveMember(req);
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.RemoveMember)
+    .WithDescription("Remove member from organization")
+    .RequireAuthorization()
+    .Produces<RemoveMemberResDto>(200)
+    .ProducesValidationProblem();
+
+group.MapPost(Routes.OrganizationsEndpoints.RejectInvite, async (
+        [FromBody] RejectInviteOrganizationReqDto req,
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.RejectInvite(req);
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.RejectInvite)
+    .WithDescription("Reject an organization invitation")
+    .RequireAuthorization()
+    .Produces<RejectInviteOrganizationResDto>(200)
+    .ProducesValidationProblem();
+group.MapPost(Routes.OrganizationsEndpoints.CancelInvite, async (
+        [FromBody] CancelInviteOrganizationReqDto req,
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.CancelInvite(req);
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.CancelInvite)
+    .WithDescription("Cancel a pending organization invitation")
+    .RequireAuthorization()
+    .Produces<CancelInviteOrganizationResDto>(200)
+    .ProducesValidationProblem();
+
+group.MapGet(Routes.OrganizationsEndpoints.GetMyOrganizations, async (
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.GetMyOrganizations();
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.GetMyOrganizations)
+    .WithDescription("Get organizations I belong to")
+    .RequireAuthorization()
+    .Produces<GetMyOrganizationsResDto>(200);
+
+group.MapPost(Routes.OrganizationsEndpoints.TransferOwnership, async (
+        [FromBody] TransferOwnershipReqDto req,
+        [FromServices] IOrganizationService organizationService) =>
+    {
+        var result = await organizationService.TransferOwnership(req);
+        return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+    }).WithName(Routes.OrganizationsEndpoints.TransferOwnership)
+    .WithDescription("Transfer organization ownership")
+    .RequireAuthorization()
+    .Produces<TransferOwnershipResDto>(200)
+    .ProducesValidationProblem();
+
     }
 }

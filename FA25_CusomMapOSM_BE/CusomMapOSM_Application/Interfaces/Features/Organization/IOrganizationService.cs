@@ -16,4 +16,11 @@ public interface IOrganizationService
     Task<Option<InviteMemberOrganizationResDto, Error>> InviteMember(InviteMemberOrganizationReqDto req);
     Task<Option<AcceptInviteOrganizationResDto, Error>> AcceptInvite(AcceptInviteOrganizationReqDto req);
     Task<Option<GetInvitationsResDto, Error>> GetMyInvitations();
+    Task<Option<GetOrganizationMembersResDto, Error>> GetMembers(Guid orgId);
+    Task<Option<UpdateMemberRoleResDto, Error>> UpdateMemberRole(UpdateMemberRoleReqDto req);
+    Task<Option<RemoveMemberResDto, Error>> RemoveMember(RemoveMemberReqDto req);
+    Task<Option<RejectInviteOrganizationResDto, Error>> RejectInvite(RejectInviteOrganizationReqDto req);
+    Task<Option<CancelInviteOrganizationResDto, Error>> CancelInvite(CancelInviteOrganizationReqDto req);
+    Task<Option<GetMyOrganizationsResDto, Error>> GetMyOrganizations();
+    Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(TransferOwnershipReqDto req);
 }

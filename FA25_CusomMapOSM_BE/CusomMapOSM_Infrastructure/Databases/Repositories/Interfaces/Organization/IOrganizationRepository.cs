@@ -26,4 +26,18 @@ public interface IOrganizationRepository
     Task<bool> UpdateInvitation(OrganizationInvitation invitation);
     
     Task<List<OrganizationInvitation>> GetInvitationsByEmail(string email);
+    
+    Task<List<OrganizationMember>> GetOrganizationMembers(Guid orgId);
+    
+    Task<OrganizationMember?> GetOrganizationMemberById(Guid memberId);
+    
+    Task<OrganizationMember?> GetOrganizationMemberByUserAndOrg(Guid userId, Guid orgId);
+    
+    Task<bool> UpdateOrganizationMember(OrganizationMember member);
+    
+    Task<bool> RemoveOrganizationMember(Guid memberId);
+    
+    Task<bool> DeleteInvitation(Guid invitationId);
+    
+    Task<List<OrganizationMember>> GetUserOrganizations(Guid userId);
 }
