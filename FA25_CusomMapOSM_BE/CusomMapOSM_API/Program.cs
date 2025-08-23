@@ -56,18 +56,11 @@ namespace CusomMapOSM_API;
             app.UseHangfireDashboard();
 
             app.UseCors();
-            app.UseAuthorization();
             app.UseAuthentication();
-
-
-            app.UseCors();
             app.UseAuthorization();
-            app.UseAuthentication();
-
-
+            
             // Map health checks
-            app.MapHealthChecks("/health");
-            app.MapHealthChecks("/ready");
+            app.MapHealthChecks(Routes.Health);
 
             // Map all endpoints
             var api = app.MapGroup(Routes.ApiBase);

@@ -3,7 +3,7 @@
 public static class Routes
 {
     public const string ApiBase = "api/v1";
-
+    public const string Health = "health";
     public static class Prefix
     {
         public const string Auth = "auth";

@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Application.Models.Templates.Email;
 using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
@@ -43,6 +44,7 @@ public class OrganizationService : IOrganizationService
             ContactEmail = req.ContactEmail,
             ContactPhone = req.ContactPhone,
             Address = req.Address,
+            OwnerUserId = _currentUserService.GetUserId()!.Value,
             CreatedAt = DateTime.UtcNow,
             IsActive = true,
         };
@@ -214,13 +216,10 @@ public class OrganizationService : IOrganizationService
         {
             ToEmail = req.MemberEmail,
             Subject = $"Invitation to join {organization?.OrgName ?? "Organization"}",
-            Body = $@"
-                <h2>You've been invited to join an organization!</h2>
-                <p>Hello,</p>
-                <p>You have been invited by <strong>{inviter?.FullName ?? "Unknown User"}</strong> to join <strong>{organization?.OrgName ?? "an organization"}</strong> as a <strong>{req.MemberType}</strong>.</p>
-                <p>Please log in to your account to accept or decline this invitation.</p>
-                <p>If you have any questions, please contact the organization administrator.</p>
-                <p>Best regards,<br>Custom Map OSM Team</p>"
+            Body = EmailTemplates.Organization.GetInvitationTemplate(
+                inviter?.FullName ?? "Unknown User",
+                organization?.OrgName ?? "an organization", 
+                req.MemberType)
         };
 
         await _rabbitMqService.EnqueueEmailAsync(mail);

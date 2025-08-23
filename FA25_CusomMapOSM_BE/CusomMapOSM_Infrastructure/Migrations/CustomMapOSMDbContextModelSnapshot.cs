@@ -1683,7 +1683,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("invite_id");
 
-                    b.Property<DateTime>("AcceptedAt")
+                    b.Property<DateTime?>("AcceptedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("accepted_at");
 

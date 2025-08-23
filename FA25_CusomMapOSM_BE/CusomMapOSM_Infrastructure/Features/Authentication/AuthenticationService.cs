@@ -6,6 +6,7 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Application.Models.Templates.Email;
 
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
 
@@ -105,7 +106,7 @@ public class AuthenticationService : IAuthenticationService
         {
             ToEmail = req.Email,
             Subject = "Verify your email",
-            Body = $"Your OTP is {otp}"
+            Body = EmailTemplates.Authentication.GetEmailVerificationOtpTemplate(otp)
         };
 
         await _rabbitMqService.EnqueueEmailAsync(mail);
@@ -156,7 +157,7 @@ public class AuthenticationService : IAuthenticationService
         {
             ToEmail = req.Email,
             Subject = "Reset your password",
-            Body = $"Your OTP is {otp}"
+            Body = EmailTemplates.Authentication.GetPasswordResetOtpTemplate(otp)
         };
 
         await _rabbitMqService.EnqueueEmailAsync(mail);
