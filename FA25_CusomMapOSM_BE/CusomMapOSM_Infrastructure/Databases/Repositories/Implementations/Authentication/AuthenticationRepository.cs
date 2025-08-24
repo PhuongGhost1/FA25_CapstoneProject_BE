@@ -1,4 +1,4 @@
-using CusomMapOSM_Domain.Entities.Users;
+using DomainUser = CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,12 +12,12 @@ public class AuthenticationRepository : IAuthenticationRepository
         _context = context;
     }
 
-    public async Task<User?> GetUserByEmail(string email)
+    public async Task<DomainUser.User?> GetUserByEmail(string email)
     {
         return await _context.Users.FirstOrDefaultAsync(x => x.Email == email);
     }
 
-    public async Task<User?> GetUserById(Guid? userId)
+    public async Task<DomainUser.User?> GetUserById(Guid? userId)
     {
         return await _context.Users.FindAsync(userId);
     }
@@ -27,18 +27,18 @@ public class AuthenticationRepository : IAuthenticationRepository
         return await _context.Users.AnyAsync(x => x.Email == email);
     }
 
-    public async Task<User?> Login(string email, string pwd)
+    public async Task<DomainUser.User?> Login(string email, string pwd)
     {
         return await _context.Users.FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
     }
 
-    public async Task<bool> Register(User user)
+    public async Task<bool> Register(DomainUser.User user)
     {
         await _context.Users.AddAsync(user);
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<bool> UpdateUser(User user)
+    public async Task<bool> UpdateUser(DomainUser.User user)
     {
         _context.Users.Update(user);
         return await _context.SaveChangesAsync() > 0;

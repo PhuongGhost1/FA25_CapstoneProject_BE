@@ -32,7 +32,8 @@ internal class PaymentGatewayConfiguration : IEntityTypeConfiguration<PaymentGat
             new PaymentGateway { GatewayId = SeedDataConstants.VnPayPaymentGatewayId, Name = PaymentGatewayEnum.VNPay.ToString() },
             new PaymentGateway { GatewayId = SeedDataConstants.PayPalPaymentGatewayId, Name = PaymentGatewayEnum.PayPal.ToString() },
             new PaymentGateway { GatewayId = SeedDataConstants.StripePaymentGatewayId, Name = PaymentGatewayEnum.Stripe.ToString() },
-            new PaymentGateway { GatewayId = SeedDataConstants.BankTransferPaymentGatewayId, Name = PaymentGatewayEnum.BankTransfer.ToString() }
+            new PaymentGateway { GatewayId = SeedDataConstants.BankTransferPaymentGatewayId, Name = PaymentGatewayEnum.BankTransfer.ToString() },
+            new PaymentGateway { GatewayId = SeedDataConstants.PayOSPaymentGatewayId, Name = PaymentGatewayEnum.PayOS.ToString() }
         );
     }
 }

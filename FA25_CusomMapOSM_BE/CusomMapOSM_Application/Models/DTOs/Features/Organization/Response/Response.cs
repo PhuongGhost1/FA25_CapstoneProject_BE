@@ -66,3 +66,58 @@ public record DeleteOrganizationResDto
 {
     public required string Result { get; set; }
 }
+
+public record MemberDto
+{
+    public required Guid MemberId { get; set; }
+    public required string Email { get; set; }
+    public required string FullName { get; set; }
+    public required string Role { get; set; }
+    public required DateTime JoinedAt { get; set; }
+    public required bool IsActive { get; set; }
+}
+
+public record GetOrganizationMembersResDto
+{
+    public required List<MemberDto> Members { get; set; }
+}
+
+public record UpdateMemberRoleResDto
+{
+    public required string Result { get; set; }
+}
+
+public record RemoveMemberResDto
+{
+    public required string Result { get; set; }
+}
+
+public record RejectInviteOrganizationResDto
+{
+    public required string Result { get; set; }
+}
+
+public record CancelInviteOrganizationResDto
+{
+    public required string Result { get; set; }
+}
+
+public record MyOrganizationDto
+{
+    public required Guid OrgId { get; set; }
+    public required string OrgName { get; set; }
+    public required string Abbreviation { get; set; }
+    public required string MyRole { get; set; }
+    public required DateTime JoinedAt { get; set; }
+    public string? LogoUrl { get; set; }
+}
+
+public record GetMyOrganizationsResDto
+{
+    public required List<MyOrganizationDto> Organizations { get; set; }
+}
+
+public record TransferOwnershipResDto
+{
+    public required string Result { get; set; }
+}

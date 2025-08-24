@@ -5,7 +5,7 @@ using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using Microsoft.AspNetCore.Mvc;
 using CusomMapOSM_API;
-using CusomMapOSM_Domain.Constants;
+using CusomMapOSM_API.Constants;
 
 namespace CusomMapOSM_API.Endpoints.Authentication;
 
@@ -15,8 +15,8 @@ public class AuthenticationEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(Routes.Prefix.Auth)         
-            .WithTags(Tags.Auth)
-            .WithDescription(Tags.Auth);
+            .WithTags(Tags.Authentication)
+            .WithDescription(Tags.Authentication);
 
         group.MapPost(Routes.AuthEndpoints.Login, async (
             [FromBody] LoginReqDto req,
@@ -30,6 +30,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("Login")
         .WithDescription("Login to the system")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost(Routes.AuthEndpoints.VerifyEmail, async (
@@ -44,6 +45,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("VerifyEmail")
         .WithDescription("Verify email")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost(Routes.AuthEndpoints.VerifyOtp, async (
@@ -58,6 +60,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("VerifyOtp")
         .WithDescription("Verify OTP")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost(Routes.AuthEndpoints.Logout, async (
@@ -77,7 +80,8 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithName("Logout")
-        .WithDescription("Logout from the system");
+        .WithDescription("Logout from the system")
+        .WithTags(Tags.Authentication);
 
         group.MapPost(Routes.AuthEndpoints.ResetPasswordVerify, async (
             [FromBody] ResetPasswordVerifyReqDto req,
@@ -91,6 +95,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("ResetPasswordVerify")
         .WithDescription("Reset password verify")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
         group.MapPost(Routes.AuthEndpoints.ResetPassword, async (
@@ -105,6 +110,7 @@ public class AuthenticationEndpoint : IEndpoint
         })
         .WithName("ResetPassword")
         .WithDescription("Reset password")
+        .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
     }
 }

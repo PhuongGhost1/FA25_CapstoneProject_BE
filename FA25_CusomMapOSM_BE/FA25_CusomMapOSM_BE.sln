@@ -30,6 +30,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "QGIS", "QGIS", "{F7C3DBD4-9
 		..\..\..\Documents\Maps\vietnam_map_project.qgz = ..\..\..\Documents\Maps\vietnam_map_project.qgz
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_API.Tests", "CusomMapOSM_API.Tests\CusomMapOSM_API.Tests.csproj", "{112194E4-627F-6441-CA4E-EEC97FBCB91D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CusomMapOSM_Infrastructure.Tests", "CusomMapOSM_Infrastructure.Tests\CusomMapOSM_Infrastructure.Tests.csproj", "{9726F6F0-2043-53FB-4849-6147D10E8F00}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +60,14 @@ Global
 		{3B638CC9-C27B-4404-92F2-A0B30AA52BF1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3B638CC9-C27B-4404-92F2-A0B30AA52BF1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3B638CC9-C27B-4404-92F2-A0B30AA52BF1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{112194E4-627F-6441-CA4E-EEC97FBCB91D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{112194E4-627F-6441-CA4E-EEC97FBCB91D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{112194E4-627F-6441-CA4E-EEC97FBCB91D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{112194E4-627F-6441-CA4E-EEC97FBCB91D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9726F6F0-2043-53FB-4849-6147D10E8F00}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9726F6F0-2043-53FB-4849-6147D10E8F00}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9726F6F0-2043-53FB-4849-6147D10E8F00}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9726F6F0-2043-53FB-4849-6147D10E8F00}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,6 +79,8 @@ Global
 		{45E2808E-0D0B-4709-A9B5-AA1B66F35DED} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
 		{3B638CC9-C27B-4404-92F2-A0B30AA52BF1} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
 		{F7C3DBD4-9794-484B-B9B8-35EB339CB95F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{112194E4-627F-6441-CA4E-EEC97FBCB91D} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
+		{9726F6F0-2043-53FB-4849-6147D10E8F00} = {23BB9C15-9E10-47CD-901A-BAF350FFD3C6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B08CEEBE-A528-41BD-9DC5-38E6EEF78908}

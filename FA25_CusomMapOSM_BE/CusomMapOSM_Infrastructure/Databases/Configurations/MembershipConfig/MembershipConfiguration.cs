@@ -52,7 +52,12 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
 
         builder.Property(m => m.CurrentUsage)
             .HasColumnName("current_usage")
-            .HasColumnType("json");
+            .HasColumnType("json")
+            // .HasConversion(
+            //     v => JsonSerializer.Serialize(v, null),
+            //     v => JsonSerializer.Deserialize<MembershipUsage>(v, null) ?? new MembershipUsage()
+            // )
+            ;
 
         builder.Property(m => m.LastResetDate)
             .HasColumnName("last_reset_date")

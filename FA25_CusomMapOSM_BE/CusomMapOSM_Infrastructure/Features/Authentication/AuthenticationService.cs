@@ -6,8 +6,13 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Application.Models.Templates.Email;
+
+using DomainUser = CusomMapOSM_Domain.Entities.Users;
+
 using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Domain.Entities.Users;
+
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
@@ -80,7 +85,7 @@ public class AuthenticationService : IAuthenticationService
         var userRole = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
         var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.PendingVerification);
 
-        var user = new User
+        var user = new DomainUser.User
         {
             Email = req.Email,
             PasswordHash = _jwtService.HashObject<string>(req.Password),
@@ -101,7 +106,7 @@ public class AuthenticationService : IAuthenticationService
         {
             ToEmail = req.Email,
             Subject = "Verify your email",
-            Body = $"Your OTP is {otp}"
+            Body = EmailTemplates.Authentication.GetEmailVerificationOtpTemplate(otp)
         };
 
         await _rabbitMqService.EnqueueEmailAsync(mail);
@@ -152,7 +157,7 @@ public class AuthenticationService : IAuthenticationService
         {
             ToEmail = req.Email,
             Subject = "Reset your password",
-            Body = $"Your OTP is {otp}"
+            Body = EmailTemplates.Authentication.GetPasswordResetOtpTemplate(otp)
         };
 
         await _rabbitMqService.EnqueueEmailAsync(mail);

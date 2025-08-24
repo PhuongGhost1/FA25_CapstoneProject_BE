@@ -55,14 +55,14 @@ public static class DependencyInjections
             });
         });
 
-        services.AddRateLimiter(_ => _
-        .AddFixedWindowLimiter(policyName: "fixed", options =>
-        {
-            options.PermitLimit = 4;
-            options.Window = TimeSpan.FromSeconds(12);
-            options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-            options.QueueLimit = 2;
-        }));
+        // services.AddRateLimiter(_ => _
+        // .AddFixedWindowLimiter(policyName: "fixed", options =>
+        // {
+        //     options.PermitLimit = 4;
+        //     options.Window = TimeSpan.FromSeconds(12);
+        //     options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        //     options.QueueLimit = 2;
+        // }));
 
         // Register Services
 

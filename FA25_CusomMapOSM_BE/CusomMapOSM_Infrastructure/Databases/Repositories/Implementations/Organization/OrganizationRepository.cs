@@ -93,4 +93,74 @@ public class OrganizationRepository : IOrganizationRepository
             .OrderByDescending(x => x.InvitedAt)
             .ToListAsync();
     }
+
+    public async Task<List<OrganizationMember>> GetOrganizationMembers(Guid orgId)
+    {
+        return await _context.OrganizationMembers
+            .Include(x => x.User)
+            .Include(x => x.Role)
+            .Where(x => x.OrgId == orgId && x.IsActive)
+            .OrderBy(x => x.JoinedAt)
+            .ToListAsync();
+    }
+
+    public async Task<OrganizationMember?> GetOrganizationMemberById(Guid memberId)
+    {
+        return await _context.OrganizationMembers
+            .Include(x => x.User)
+            .Include(x => x.Role)
+            .Include(x => x.Organization)
+            .FirstOrDefaultAsync(x => x.MemberId == memberId);
+    }
+
+    public async Task<OrganizationMember?> GetOrganizationMemberByUserAndOrg(Guid userId, Guid orgId)
+    {
+        return await _context.OrganizationMembers
+            .Include(x => x.User)
+            .Include(x => x.Role)
+            .Include(x => x.Organization)
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId && x.IsActive);
+    }
+
+    public async Task<bool> UpdateOrganizationMember(OrganizationMember member)
+    {
+        _context.OrganizationMembers.Update(member);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> RemoveOrganizationMember(Guid memberId)
+    {
+        var member = await _context.OrganizationMembers
+            .FirstOrDefaultAsync(x => x.MemberId == memberId);
+        
+        if (member == null)
+            return false;
+            
+        // Soft delete by setting IsActive to false
+        member.IsActive = false;
+        _context.OrganizationMembers.Update(member);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> DeleteInvitation(Guid invitationId)
+    {
+        var invitation = await _context.OrganizationInvitations
+            .FirstOrDefaultAsync(x => x.InvitationId == invitationId);
+        
+        if (invitation == null)
+            return false;
+            
+        _context.OrganizationInvitations.Remove(invitation);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<List<OrganizationMember>> GetUserOrganizations(Guid userId)
+    {
+        return await _context.OrganizationMembers
+            .Include(x => x.Organization)
+            .Include(x => x.Role)
+            .Where(x => x.UserId == userId && x.IsActive && (x.Organization != null && x.Organization.IsActive))
+            .OrderBy(x => x.JoinedAt)
+            .ToListAsync();
+    }
 }

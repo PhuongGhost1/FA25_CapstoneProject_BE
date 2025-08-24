@@ -76,4 +76,5 @@ public static class SeedDataConstants
     public static readonly Guid PayPalPaymentGatewayId = Guid.Parse("00000000-0000-0000-0000-000000000049");
     public static readonly Guid StripePaymentGatewayId = Guid.Parse("00000000-0000-0000-0000-000000000050");
     public static readonly Guid BankTransferPaymentGatewayId = Guid.Parse("00000000-0000-0000-0000-000000000051");
+    public static readonly Guid PayOSPaymentGatewayId = Guid.Parse("00000000-0000-0000-0000-000000000052");
 }

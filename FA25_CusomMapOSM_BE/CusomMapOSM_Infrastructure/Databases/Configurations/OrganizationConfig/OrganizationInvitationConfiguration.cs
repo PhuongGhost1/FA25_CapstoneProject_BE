@@ -18,7 +18,7 @@ internal class OrganizationInvitationConfiguration : IEntityTypeConfiguration<Or
         builder.Property(m => m.MembersRoleId).HasColumnName("role_id").IsRequired();
         builder.Property(m => m.InvitedAt).HasColumnName("invited_at").HasColumnType("datetime").IsRequired();
         builder.Property(o => o.IsAccepted).HasColumnName("is_accepted").IsRequired();
-        builder.Property(m => m.AcceptedAt).HasColumnName("accepted_at").HasColumnType("datetime").IsRequired(); 
+        builder.Property(m => m.AcceptedAt).HasColumnName("accepted_at").HasColumnType("datetime"); 
         
         builder.HasOne(o => o.Inviter)
             .WithMany()

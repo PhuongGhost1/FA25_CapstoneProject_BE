@@ -5,5 +5,6 @@ public enum PaymentGatewayEnum
     VNPay = 1,
     PayPal = 2,
     Stripe = 3,
-    BankTransfer = 4
+    BankTransfer = 4,
+    PayOS = 5
 }

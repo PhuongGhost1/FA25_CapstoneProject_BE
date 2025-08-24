@@ -22,6 +22,7 @@ public class Plan
     public int MaxCustomLayers { get; set; }
     public bool PrioritySupport { get; set; }
     public string? Features { get; set; } // Stored as JSON
+    public string? AccessToolIds { get; set; } // Stored as JSON array of AccessTool IDs
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
