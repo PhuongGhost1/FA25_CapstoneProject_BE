@@ -4,6 +4,7 @@ using CusomMapOSM_Application;
 using CusomMapOSM_Infrastructure;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace CusomMapOSM_API;
@@ -20,8 +21,21 @@ public class Program
 
         builder.Services.Configure<JsonOptions>(options =>
         {
-            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.JsonSerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true)
+            );
+            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
+        });
+
+        // Configure JSON serialization for controllers
+        builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+        {
+            options.SerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true)
+            );
+            options.SerializerOptions.PropertyNameCaseInsensitive = true;
+            options.SerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
         });
 
         // Add middleware to the container.
@@ -51,8 +65,8 @@ public class Program
         app.UseMiddleware<LoggingMiddleware>();
 
         app.UseCors();
-        app.UseAuthorization();
         app.UseAuthentication();
+        app.UseAuthorization();
 
         // Map health checks
         app.MapHealthChecks("/health");

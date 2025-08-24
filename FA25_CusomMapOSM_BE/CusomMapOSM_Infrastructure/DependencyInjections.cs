@@ -132,9 +132,11 @@ public static class DependencyInjections
         services.AddScoped<IPaymentService, StripePaymentService>();
         services.AddScoped<IPaymentService, PaypalPaymentService>();
         services.AddScoped<IPaymentService, PayOSPaymentService>();
+        services.AddScoped<IPaymentService, VNPayPaymentService>();
 
-        // Add HttpClient for PayOS
+        // Add HttpClient for PayOS and VNPay
         services.AddHttpClient<PayOSPaymentService>();
+        services.AddHttpClient<VNPayPaymentService>();
 
         return services;
     }

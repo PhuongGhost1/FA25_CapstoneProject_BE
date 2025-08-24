@@ -58,7 +58,7 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transactions>
 
               builder.Property(t => t.Purpose)
                      .HasColumnName("purpose")
-                     .HasMaxLength(100)
+                     .HasColumnType("text")
                      .IsRequired();
 
               // Relationships

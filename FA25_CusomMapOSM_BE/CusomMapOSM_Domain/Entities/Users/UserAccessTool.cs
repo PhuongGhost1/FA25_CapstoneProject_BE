@@ -15,6 +15,6 @@ public class UserAccessTool
     public DateTime GrantedAt { get; set; } = DateTime.UtcNow;
     public DateTime ExpiredAt { get; set; }
 
-    public User User { get; set; } = new();
-    public AccessTool AccessTool { get; set; } = new();
+    public User? User { get; set; }
+    public AccessTool? AccessTool { get; set; }
 }

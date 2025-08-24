@@ -7,6 +7,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using Microsoft.EntityFrameworkCore;
 using Optional;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Infrastructure.Databases;
 
 namespace CusomMapOSM_Infrastructure.Features.Membership;
 
@@ -37,7 +38,7 @@ public class MembershipService : IMembershipService
                 PlanId = planId,
                 StartDate = now,
                 EndDate = null,
-                StatusId = Guid.Empty,
+                StatusId = SeedDataConstants.ActiveMembershipStatusId, // Use the correct active status ID
                 AutoRenew = autoRenew,
                 CurrentUsage = null,
                 LastResetDate = now,
