@@ -64,9 +64,22 @@ public class PaypalPaymentService : IPaymentService
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(decimal amount, string returnUrl, string cancelUrl, CancellationToken ct)
     {
-        var payment = CreatePayment(new ProcessCreatePaymentReq()
+        // Create a simple request for backward compatibility
+        var simpleRequest = new ProcessPaymentReq
         {
             Total = amount,
+            Purpose = "membership", // Default purpose
+            PaymentGateway = PaymentGatewayEnum.PayPal
+        };
+
+        return await CreateCheckoutAsync(simpleRequest, returnUrl, cancelUrl, ct);
+    }
+
+    public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(ProcessPaymentReq request, string returnUrl, string cancelUrl, CancellationToken ct)
+    {
+        var payment = CreatePayment(new ProcessCreatePaymentReq()
+        {
+            Total = request.Total,
             ReturnUrl = returnUrl,
             CancelUrl = cancelUrl
         });

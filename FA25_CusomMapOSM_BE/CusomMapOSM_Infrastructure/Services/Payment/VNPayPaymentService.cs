@@ -53,14 +53,32 @@ public class VNPayPaymentService : IPaymentService
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(decimal amount, string returnUrl, string cancelUrl, CancellationToken ct)
     {
+        // Create a simple request for backward compatibility
+        var simpleRequest = new ProcessPaymentReq
+        {
+            Total = amount,
+            Purpose = "membership", // Default purpose
+            PaymentGateway = PaymentGatewayEnum.VNPay
+        };
+
+        return await CreateCheckoutAsync(simpleRequest, returnUrl, cancelUrl, ct);
+    }
+
+    public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(ProcessPaymentReq request, string returnUrl, string cancelUrl, CancellationToken ct)
+    {
         try
         {
             var orderId = GenerateOrderId();
-            var amountInVND = (long)(amount * 24500); // Convert to VND and ensure it's an integer
+            var amountInVND = (long)(request.Total * 24500); // Convert to VND and ensure it's an integer
 
             Console.WriteLine($"=== VNPay Payment Request ===");
             Console.WriteLine($"Order ID: {orderId}");
+            Console.WriteLine($"Purpose: {request.Purpose}");
             Console.WriteLine($"Amount: {amountInVND}");
+            if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
+            {
+                Console.WriteLine($"Addon: {request.AddonKey} (Qty: {request.Quantity ?? 1})");
+            }
             Console.WriteLine($"Return URL: {returnUrl}");
             Console.WriteLine($"Cancel URL: {cancelUrl}");
             Console.WriteLine($"=== End VNPay Payment Request ===");

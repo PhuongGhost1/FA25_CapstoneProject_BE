@@ -75,9 +75,9 @@ public class TransactionService : ITransactionService
         // 4. Get PaymentService
         var paymentService = GetPaymentService(request.PaymentGateway);
 
-        // 5. Create checkout
+        // 5. Create checkout with full request context for multi-item support
         var checkoutResult = await paymentService.CreateCheckoutAsync(
-            request.Total,
+            request,
             $"http://localhost:5233/transaction/confirm-payment-with-context?transactionId={pendingTransaction.TransactionId}",
             $"http://localhost:5233/transaction/cancel-payment?transactionId={pendingTransaction.TransactionId}",
             ct
@@ -394,8 +394,6 @@ public class TransactionService : ITransactionService
                 );
             }
 
-            // Store business context as JSON in the transaction record
-            // We'll use the Purpose field to store additional context
             var context = new TransactionContext
             {
                 UserId = request.UserId,

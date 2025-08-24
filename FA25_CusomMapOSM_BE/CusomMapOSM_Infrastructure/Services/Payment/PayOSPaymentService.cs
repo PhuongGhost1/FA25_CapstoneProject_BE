@@ -119,49 +119,97 @@ public class PayOSPaymentService : IPaymentService
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(decimal amount, string returnUrl, string cancelUrl, CancellationToken ct)
     {
+        // Create a simple request for backward compatibility
+        var simpleRequest = new ProcessPaymentReq
+        {
+            Total = amount,
+            Purpose = "membership", // Default purpose
+            PaymentGateway = PaymentGatewayEnum.PayOS
+        };
+
+        return await CreateCheckoutAsync(simpleRequest, returnUrl, cancelUrl, ct);
+    }
+
+    public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(ProcessPaymentReq request, string returnUrl, string cancelUrl, CancellationToken ct)
+    {
         try
         {
             var orderCode = GenerateOrderCode();
-            var amountInVND = (long)(amount * 1); // Convert to VND and ensure it's an integer
+            var amountInVND = (long)(request.Total * 24500); // Convert to VND and ensure it's an integer
 
-            // According to PayOS official documentation, we need to include items array
-            // The signature calculation might be different - let's try the official format
-            var requestData = new
+            // Determine description and items based on purpose
+            string description;
+            object[] items;
+
+            if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey) && request.Quantity.HasValue && request.Quantity.Value > 1)
             {
-                orderCode = orderCode,
-                amount = amountInVND,
-                description = "Payment for CustomMapOSM", // Shortened to fit 25 char limit
+                // Multi-quantity addon purchase
+                description = $"Addon: {request.AddonKey} x{request.Quantity}";
                 items = new[]
                 {
                     new
                     {
-                        name = "CustomMapOSM Service",
+                        name = $"CustomMapOSM Addon: {request.AddonKey}",
+                        quantity = request.Quantity.Value,
+                        price = amountInVND / request.Quantity.Value // Price per unit
+                    }
+                };
+            }
+            else if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
+            {
+                // Single addon purchase
+                description = $"Addon: {request.AddonKey}";
+                items = new[]
+                {
+                    new
+                    {
+                        name = $"CustomMapOSM Addon: {request.AddonKey}",
+                        quantity = request.Quantity ?? 1,
+                        price = amountInVND / (request.Quantity ?? 1)
+                    }
+                };
+            }
+            else
+            {
+                // Membership purchase (default)
+                description = "CustomMapOSM Membership";
+                items = new[]
+                {
+                    new
+                    {
+                        name = "CustomMapOSM Membership",
                         quantity = 1,
                         price = amountInVND
                     }
-                },
+                };
+            }
+
+            // Ensure description fits PayOS 25-character limit
+            if (description.Length > 25)
+            {
+                description = description.Substring(0, 22) + "...";
+            }
+
+            var requestData = new
+            {
+                orderCode = orderCode,
+                amount = amountInVND,
+                description = description,
+                items = items,
                 cancelUrl = cancelUrl,
                 returnUrl = returnUrl
             };
 
-            // Try multiple signature formats to find the correct one
-            var signature = GeneratePayOSSignatureComprehensive(orderCode, amountInVND, "Payment for CustomMapOSM", returnUrl, cancelUrl, PayOsConstant.PAYOS_CHECKSUM_KEY);
+            // Generate signature
+            var signature = GeneratePayOSSignatureComprehensive(orderCode, amountInVND, description, returnUrl, cancelUrl, PayOsConstant.PAYOS_CHECKSUM_KEY);
 
             // Add signature to request data
             var requestWithSignature = new
             {
                 orderCode = orderCode,
                 amount = amountInVND,
-                description = "Payment for CustomMapOSM", // Shortened to fit 25 char limit
-                items = new[]
-                {
-                    new
-                    {
-                        name = "CustomMapOSM Service",
-                        quantity = 1,
-                        price = amountInVND
-                    }
-                },
+                description = description,
+                items = items,
                 cancelUrl = cancelUrl,
                 returnUrl = returnUrl,
                 signature = signature
@@ -170,8 +218,14 @@ public class PayOSPaymentService : IPaymentService
             Console.WriteLine($"=== PayOS Official Request with Items ===");
             Console.WriteLine($"Order Code: {orderCode}");
             Console.WriteLine($"Amount: {amountInVND}");
-            Console.WriteLine($"Description: Payment for CustomMapOSM service");
-            Console.WriteLine($"Items: CustomMapOSM Service (Qty: 1, Price: {amountInVND})");
+            Console.WriteLine($"Purpose: {request.Purpose}");
+            Console.WriteLine($"Description: {description}");
+            Console.WriteLine($"Items: {items.Length} item(s)");
+            foreach (var item in items)
+            {
+                var itemDict = (IDictionary<string, object>)item;
+                Console.WriteLine($"  - {itemDict["name"]} (Qty: {itemDict["quantity"]}, Price: {itemDict["price"]})");
+            }
             Console.WriteLine($"Return URL: {returnUrl}");
             Console.WriteLine($"Cancel URL: {cancelUrl}");
             Console.WriteLine($"Signature: {signature}");

@@ -36,6 +36,8 @@ Generate QR Code     Process Payment     Grant Access Tools
 
 ### Request Payload
 
+#### For Membership Purchase
+
 ```json
 {
   "total": 10.0,
@@ -45,6 +47,32 @@ Generate QR Code     Process Payment     Grant Access Tools
   "orgId": "123e4567-e89b-12d3-a456-426614174001",
   "planId": 1,
   "autoRenew": true
+}
+```
+
+#### For Add-on Purchase (Single Quantity)
+
+```json
+{
+  "total": 5.0,
+  "paymentGateway": "payOS",
+  "purpose": "addon",
+  "membershipId": "123e4567-e89b-12d3-a456-426614174002",
+  "addonKey": "advanced_analytics",
+  "quantity": 1
+}
+```
+
+#### For Add-on Purchase (Multiple Quantities)
+
+```json
+{
+  "total": 15.0,
+  "paymentGateway": "payOS",
+  "purpose": "addon",
+  "membershipId": "123e4567-e89b-12d3-a456-426614174002",
+  "addonKey": "api_access",
+  "quantity": 3
 }
 ```
 
@@ -233,6 +261,30 @@ The actual payment verification is done by:
 - **Format**: `amount=$amount&cancelUrl=$cancelUrl&description=$description&orderCode=$orderCode&returnUrl=$returnUrl`
 - **Secret**: PayOS checksum key
 
+### Multi-Item Support
+
+The payment system now supports both single-item (membership) and multi-item (add-on) purchases:
+
+#### **Membership Purchases**
+
+- **Purpose**: `"membership"`
+- **Items**: Single membership plan
+- **Quantity**: Always 1
+- **Description**: "CustomMapOSM Membership"
+
+#### **Add-on Purchases**
+
+- **Purpose**: `"addon"`
+- **Items**: Add-on with quantity support
+- **Quantity**: 1 or more (specified in request)
+- **Description**: "Addon: {addonKey}" or "Addon: {addonKey} x{quantity}"
+
+#### **Price Calculation**
+
+- **Membership**: `total` = membership plan price
+- **Add-on**: `total` = (unit price × quantity)
+- **Unit Price**: Automatically calculated as `total / quantity`
+
 ### PayOS Response Fields
 
 ```json
@@ -401,3 +453,52 @@ curl -X POST "http://localhost:5233/Transaction/cancel-payment" \
 1. Check console logs for transaction context storage
 2. Verify transaction.Purpose field format: `"membership|{\"UserId\":\"...\",\"OrgId\":\"...\",\"PlanId\":1}`
 3. Ensure confirm-payment uses the same transactionId from process-payment
+
+### Issue: Multi-Item Support for Add-ons
+
+**Cause**: Payment service not handling multiple quantities for add-on purchases  
+**Symptoms**:
+
+- Add-on purchases always show quantity = 1 in payment gateway
+- Total amount doesn't reflect quantity × unit price
+- Payment description doesn't show quantity information
+
+**Solution**:
+
+- Fixed: Enhanced payment service interface to support `ProcessPaymentReq` with quantity information
+- All payment gateways now support multi-item purchases
+- PayOS, Stripe, PayPal, and VNPay all handle quantity-based pricing
+
+**Debug Steps**:
+
+1. Check console logs for "Purpose: addon" and quantity information
+2. Verify that `request.Quantity` is properly set in the payment request
+3. Ensure `request.Total` = (unit price × quantity)
+4. Check payment gateway response for correct item breakdown
+
+**Example Multi-Item Request**:
+
+```json
+{
+  "total": 15.0,
+  "paymentGateway": "payOS",
+  "purpose": "addon",
+  "membershipId": "123e4567-e89b-12d3-a456-426614174002",
+  "addonKey": "api_access",
+  "quantity": 3
+}
+```
+
+**Expected PayOS Items**:
+
+```json
+{
+  "items": [
+    {
+      "name": "CustomMapOSM Addon: api_access",
+      "quantity": 3,
+      "price": 5000000 // 15.0 * 24500 / 3 = 122500 per unit
+    }
+  ]
+}
+```
