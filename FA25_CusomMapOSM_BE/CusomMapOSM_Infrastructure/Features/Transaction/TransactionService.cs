@@ -15,6 +15,17 @@ using CusomMapOSM_Application.Common.Errors;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
+public class TransactionContext
+{
+    public Guid? UserId { get; set; }
+    public Guid? OrgId { get; set; }
+    public int? PlanId { get; set; }
+    public bool AutoRenew { get; set; } = true;
+    public Guid? MembershipId { get; set; }
+    public string? AddonKey { get; set; }
+    public int? Quantity { get; set; }
+}
+
 public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
@@ -42,13 +53,13 @@ public class TransactionService : ITransactionService
 
         var gatewayId = gatewayIdResult.ValueOr(default(Guid));
 
-        // 2. Create pending transaction
+        // 2. Create pending transaction with business context
         var pendingTransactionResult = await CreateTransactionRecordAsync(
             gatewayId,
             request.Total,
             request.Purpose,
-            request.MembershipId,
-            null,
+            request.MembershipId, // This will be null for new memberships, which is correct
+            null, // ExportId
             "pending",
             ct
         );
@@ -58,12 +69,15 @@ public class TransactionService : ITransactionService
 
         var pendingTransaction = pendingTransactionResult.ValueOr(default(Transactions));
 
-        // 3. Get PaymentService
+        // 3. Store business context in transaction metadata for later retrieval
+        await StoreTransactionContextAsync(pendingTransaction.TransactionId, request, ct);
+
+        // 4. Get PaymentService
         var paymentService = GetPaymentService(request.PaymentGateway);
 
-        // 4. Create checkout
+        // 5. Create checkout with full request context for multi-item support
         var checkoutResult = await paymentService.CreateCheckoutAsync(
-            request.Total,
+            request,
             $"http://localhost:5233/transaction/confirm-payment-with-context?transactionId={pendingTransaction.TransactionId}",
             $"http://localhost:5233/transaction/cancel-payment?transactionId={pendingTransaction.TransactionId}",
             ct
@@ -74,7 +88,7 @@ public class TransactionService : ITransactionService
 
         var approval = checkoutResult.ValueOr(default(ApprovalUrlResponse));
 
-        // 5. Save gateway session/payment ID
+        // 6. Save gateway session/payment ID
         await UpdateTransactionGatewayInfoAsync(
             pendingTransaction.TransactionId,
             approval.SessionId,
@@ -86,11 +100,25 @@ public class TransactionService : ITransactionService
 
     public IPaymentService GetPaymentService(PaymentGatewayEnum gateway)
     {
-        return gateway switch
+        // Get all registered payment services from the service provider
+        var paymentServices = _serviceProvider.GetServices<IPaymentService>();
+
+        // Find the service that matches the requested gateway
+        foreach (var service in paymentServices)
         {
-            PaymentGatewayEnum.PayOS => _paymentService, // Use the injected payment service directly
-            _ => throw new ArgumentException("Invalid payment gateway")
-        };
+            // Test the service by trying to create a minimal checkout to see which gateway it supports
+            // This is a simple way to identify which service handles which gateway
+            if (service is PayOSPaymentService && gateway == PaymentGatewayEnum.PayOS)
+                return service;
+            if (service is VNPayPaymentService && gateway == PaymentGatewayEnum.VNPay)
+                return service;
+            if (service is StripePaymentService && gateway == PaymentGatewayEnum.Stripe)
+                return service;
+            if (service is PaypalPaymentService && gateway == PaymentGatewayEnum.PayPal)
+                return service;
+        }
+
+        throw new ArgumentException($"Payment gateway '{gateway}' is not supported or not properly registered");
     }
 
     public async Task<Option<object, ErrorCustom.Error>> ConfirmPaymentWithContextAsync(
@@ -157,8 +185,8 @@ public class TransactionService : ITransactionService
             {
                 await UpdateTransactionStatusAsync(transaction.TransactionId, "success", ct);
 
-                // 4. Post-payment fulfillment logic
-                return await HandlePostPaymentAsync(req, transaction.TransactionId, ct);
+                // 4. Post-payment fulfillment logic using stored context
+                return await HandlePostPaymentWithStoredContextAsync(transaction, ct);
             },
             none: async err =>
             {
@@ -168,19 +196,21 @@ public class TransactionService : ITransactionService
         );
     }
 
-    private async Task<Option<object, ErrorCustom.Error>> HandlePostPaymentAsync(ConfirmPaymentWithContextReq req, Guid transactionId, CancellationToken ct)
+    private async Task<Option<object, ErrorCustom.Error>> HandlePostPaymentWithStoredContextAsync(Transactions transaction, CancellationToken ct)
     {
-        if (string.Equals(req.Purpose, "membership", StringComparison.OrdinalIgnoreCase))
+        var (purpose, context) = ParseTransactionContext(transaction);
+
+        if (string.Equals(purpose, "membership", StringComparison.OrdinalIgnoreCase))
         {
-            if (req.UserId is null || req.OrgId is null || req.PlanId is null)
+            if (context?.UserId is null || context?.OrgId is null || context?.PlanId is null)
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Context.Invalid", "Missing membership context", ErrorCustom.ErrorType.Validation));
 
             var membership = await _membershipService.CreateOrRenewMembershipAsync(
-                req.UserId.Value,
-                req.OrgId.Value,
-                req.PlanId.Value,
-                autoRenew: true,
+                context.UserId.Value,
+                context.OrgId.Value,
+                context.PlanId.Value,
+                context.AutoRenew,
                 ct
             );
 
@@ -189,8 +219,8 @@ public class TransactionService : ITransactionService
                 {
                     // Grant access tools based on the membership plan
                     var accessToolResult = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(
-                        req.UserId.Value,
-                        req.PlanId.Value,
+                        context.UserId.Value,
+                        context.PlanId.Value,
                         m.EndDate ?? DateTime.UtcNow.AddMonths(1), // Default to 1 month if no end date
                         ct
                     );
@@ -203,7 +233,7 @@ public class TransactionService : ITransactionService
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
                         MembershipId = m.MembershipId,
-                        TransactionId = transactionId,
+                        TransactionId = transaction.TransactionId,
                         AccessToolsGranted = accessToolResult.HasValue
                     });
                 },
@@ -211,17 +241,17 @@ public class TransactionService : ITransactionService
             );
         }
 
-        if (string.Equals(req.Purpose, "addon", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(purpose, "addon", StringComparison.OrdinalIgnoreCase))
         {
-            if (req.MembershipId is null || req.OrgId is null || string.IsNullOrWhiteSpace(req.AddonKey))
+            if (context?.MembershipId is null || context?.OrgId is null || string.IsNullOrWhiteSpace(context?.AddonKey))
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
 
             var addon = await _membershipService.AddAddonAsync(
-                req.MembershipId.Value,
-                req.OrgId.Value,
-                req.AddonKey,
-                req.Quantity,
+                context.MembershipId.Value,
+                context.OrgId.Value,
+                context.AddonKey,
+                context.Quantity,
                 true,
                 ct
             );
@@ -230,7 +260,7 @@ public class TransactionService : ITransactionService
                 some: a => Option.Some<object, ErrorCustom.Error>(new
                 {
                     AddonId = a.AddonId,
-                    TransactionId = transactionId
+                    TransactionId = transaction.TransactionId
                 }),
                 none: err => Option.None<object, ErrorCustom.Error>(err)
             );
@@ -239,7 +269,7 @@ public class TransactionService : ITransactionService
         return Option.Some<object, ErrorCustom.Error>(new
         {
             Status = "ok",
-            TransactionId = transactionId
+            TransactionId = transaction.TransactionId
         });
     }
 
@@ -350,5 +380,95 @@ public class TransactionService : ITransactionService
         await _transactionRepository.UpdateAsync(transaction, ct);
 
         return Option.Some<Transactions, ErrorCustom.Error>(transaction);
+    }
+
+    private async Task<Option<bool, ErrorCustom.Error>> StoreTransactionContextAsync(Guid transactionId, ProcessPaymentReq request, CancellationToken ct)
+    {
+        try
+        {
+            var transaction = await _transactionRepository.GetByIdAsync(transactionId, ct);
+            if (transaction == null)
+            {
+                return Option.None<bool, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Transaction.NotFound", "Transaction not found", ErrorCustom.ErrorType.NotFound)
+                );
+            }
+
+            var context = new TransactionContext
+            {
+                UserId = request.UserId,
+                OrgId = request.OrgId,
+                PlanId = request.PlanId,
+                AutoRenew = request.AutoRenew,
+                AddonKey = request.AddonKey,
+                Quantity = request.Quantity
+            };
+
+            // Store the purpose and context as JSON with a separator
+            var contextJson = System.Text.Json.JsonSerializer.Serialize(context);
+            transaction.Purpose = $"{request.Purpose}|{contextJson}";
+
+            Console.WriteLine($"=== Storing Transaction Context ===");
+            Console.WriteLine($"TransactionId: {transactionId}");
+            Console.WriteLine($"Purpose: {request.Purpose}");
+            Console.WriteLine($"Context JSON: {contextJson}");
+            Console.WriteLine($"Final Purpose Field: {transaction.Purpose}");
+            Console.WriteLine($"=== End Storing Transaction Context ===");
+
+            await _transactionRepository.UpdateAsync(transaction, ct);
+            return Option.Some<bool, ErrorCustom.Error>(true);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<bool, ErrorCustom.Error>(
+                new ErrorCustom.Error("Transaction.Context.StoreFailed", $"Failed to store transaction context: {ex.Message}", ErrorCustom.ErrorType.Failure)
+            );
+        }
+    }
+
+    private (string Purpose, TransactionContext? Context) ParseTransactionContext(Transactions transaction)
+    {
+        try
+        {
+            Console.WriteLine($"=== Parsing Transaction Context ===");
+            Console.WriteLine($"TransactionId: {transaction.TransactionId}");
+            Console.WriteLine($"Purpose Field: '{transaction.Purpose}'");
+            Console.WriteLine($"Contains '|': {transaction.Purpose?.Contains("|")}");
+
+            if (string.IsNullOrEmpty(transaction.Purpose) || !transaction.Purpose.Contains("|"))
+            {
+                Console.WriteLine($"No separator found or empty purpose, returning: ({transaction.Purpose}, null)");
+                Console.WriteLine($"=== End Parsing Transaction Context ===");
+                return (transaction.Purpose, null);
+            }
+
+            var parts = transaction.Purpose.Split('|', 2);
+            Console.WriteLine($"Split parts count: {parts.Length}");
+
+            if (parts.Length != 2)
+            {
+                Console.WriteLine($"Invalid parts count, returning: ({transaction.Purpose}, null)");
+                Console.WriteLine($"=== End Parsing Transaction Context ===");
+                return (transaction.Purpose, null);
+            }
+
+            var purpose = parts[0];
+            var contextJson = parts[1];
+            Console.WriteLine($"Extracted Purpose: '{purpose}'");
+            Console.WriteLine($"Extracted Context JSON: '{contextJson}'");
+
+            var context = System.Text.Json.JsonSerializer.Deserialize<TransactionContext>(contextJson);
+            Console.WriteLine($"Deserialized Context: UserId={context?.UserId}, OrgId={context?.OrgId}, PlanId={context?.PlanId}");
+            Console.WriteLine($"=== End Parsing Transaction Context ===");
+
+            return (purpose, context);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"=== Parsing Transaction Context ERROR ===");
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"=== End Parsing Transaction Context ERROR ===");
+            return (transaction.Purpose, null);
+        }
     }
 }

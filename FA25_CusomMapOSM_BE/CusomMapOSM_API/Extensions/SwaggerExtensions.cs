@@ -1,7 +1,39 @@
 ﻿using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace CusomMapOSM_API.Extensions;
+
+public class SecurityRequirementsOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        var authAttributes = context.MethodInfo.DeclaringType?.GetCustomAttributes(true)
+            .Union(context.MethodInfo.GetCustomAttributes(true))
+            .OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>();
+
+        if (authAttributes?.Any() == true)
+        {
+            operation.Security = new List<OpenApiSecurityRequirement>
+            {
+                new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                }
+            };
+        }
+    }
+}
 
 public static class SwaggerExtensions
 {
@@ -12,15 +44,29 @@ public static class SwaggerExtensions
         services.AddSwaggerGen(
             c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "CustomMapOSM", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "CustomMapOSM API",
+                    Version = "v1",
+                    Description = "CustomMapOSM Backend API for GIS platform",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "CustomMapOSM Team",
+                        Email = "support@custommaposm.com"
+                    }
+                });
+
+                // Configure Bearer token authentication
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    In = ParameterLocation.Header,
-                    Description = "Please enter token",
                     Name = "Authorization",
                     Type = SecuritySchemeType.Http,
-                    Scheme = "Bearer"
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter your JWT token below.\nExample: Bearer eyJhbGciOiJIUzI1..."
                 });
+
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
@@ -32,9 +78,12 @@ public static class SwaggerExtensions
                                 Id = "Bearer"
                             }
                         },
-                        new string[] {}
+                        Array.Empty<string>()
                     }
                 });
+
+                // Add operation filter to include authorization requirement
+                c.OperationFilter<SecurityRequirementsOperationFilter>();
             }
         );
 
@@ -48,7 +97,22 @@ public static class SwaggerExtensions
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "PXP Data Aggregator API v1");
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "CustomMapOSM API v1");
+                options.DocumentTitle = "CustomMapOSM API Documentation";
+                options.RoutePrefix = "swagger";
+
+                // Customize the Swagger UI
+                options.InjectStylesheet("/swagger-ui/custom.css");
+                options.InjectJavascript("/swagger-ui/custom.js");
+
+                // Add authorization button styling
+                options.OAuthClientId("swagger-ui");
+                options.OAuthRealm("swagger-ui-realm");
+                options.OAuthAppName("CustomMapOSM API");
+
+                // Display the authorization button prominently
+                options.DisplayRequestDuration();
+                options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
             });
         }
 

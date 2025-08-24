@@ -28,3 +28,13 @@ public static class PayOsConstant
     public static readonly string PAYOS_CHECKSUM_KEY = Environment.GetEnvironmentVariable("PAYOS_CHECKSUM_KEY") ??
         throw new ApplicationException("Cannot found payos checksum key in environment variables");
 }
+
+public static class VnPayConstant
+{
+    public static readonly string VNPAY_TMN_CODE = Environment.GetEnvironmentVariable("VNPAY_TMN_CODE") ??
+        throw new ApplicationException("Cannot found VNPay TMN code in environment variables");
+    public static readonly string VNPAY_HASH_SECRET = Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET") ??
+        throw new ApplicationException("Cannot found VNPay hash secret in environment variables");
+    public static readonly string VNPAY_URL = Environment.GetEnvironmentVariable("VNPAY_URL") ??
+        "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+}

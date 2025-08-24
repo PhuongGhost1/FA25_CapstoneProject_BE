@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250824084744_UpdateDatabase_UpdatePurposeColumnType")]
+    partial class UpdateDatabase_UpdatePurposeColumnType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -308,8 +311,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("DataSourceBookmarkId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("data_source_bookmarks", (string)null);
                 });
@@ -1032,10 +1033,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("VersionId");
 
-                    b.HasIndex("MapId");
-
-                    b.HasIndex("UserId");
-
                     b.ToTable("map_histories", (string)null);
                 });
 
@@ -1674,55 +1671,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("OwnerUserId");
 
                     b.ToTable("organizations", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationInvitation", b =>
-                {
-                    b.Property<Guid>("InvitationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("invite_id");
-
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("accepted_at");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("member_email");
-
-                    b.Property<DateTime>("InvitedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("invited_at");
-
-                    b.Property<Guid>("InvitedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("char(50)")
-                        .HasColumnName("invited_by");
-
-                    b.Property<bool>("IsAccepted")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_accepted");
-
-                    b.Property<Guid>("MembersRoleId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("role_id");
-
-                    b.Property<Guid>("OrgId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("org_id");
-
-                    b.HasKey("InvitationId");
-
-                    b.HasIndex("InvitedBy");
-
-                    b.HasIndex("MembersRoleId");
-
-                    b.HasIndex("OrgId");
-
-                    b.ToTable("organization_invitation", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationLocation", b =>
@@ -2379,71 +2327,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Infrastructure.Services.FailedEmail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-                    b.Property<string>("EmailData")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FailureReason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime?>("LastRetryAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("RetryCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("ToEmail")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("ToEmail");
-
-                    b.HasIndex("Status", "RetryCount");
-
-                    b.ToTable("FailedEmails", (string)null);
-                });
-
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Annotations.Annotation", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
@@ -2480,17 +2363,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Map");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Bookmarks.DataSourceBookmark", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Collaborations.Collaboration", b =>
@@ -2639,25 +2511,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapHistory", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-
-                    b.Navigation("Map");
-                });
-
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapLayer", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
@@ -2743,33 +2596,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationInvitation", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Inviter")
-                        .WithMany()
-                        .HasForeignKey("InvitedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.OrganizationMemberType", "Role")
-                        .WithMany()
-                        .HasForeignKey("MembersRoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrgId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Inviter");
-
-                    b.Navigation("Organization");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationLocation", b =>

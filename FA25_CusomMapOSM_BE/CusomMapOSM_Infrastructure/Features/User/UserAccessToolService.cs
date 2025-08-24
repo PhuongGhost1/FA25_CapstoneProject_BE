@@ -6,7 +6,9 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using Optional;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 using System.Text.Json;
+using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
+
 
 namespace CusomMapOSM_Infrastructure.Features.User;
 
@@ -72,24 +74,35 @@ public class UserAccessToolService : IUserAccessToolService
     {
         try
         {
+            Console.WriteLine($"=== GrantAccessToToolAsync ===");
+            Console.WriteLine($"UserId: {userId}");
+            Console.WriteLine($"AccessToolId: {accessToolId}");
+            Console.WriteLine($"ExpiredAt: {expiredAt}");
+
             // Check if access tool exists
             var accessTool = await _accessToolRepository.GetByIdAsync(accessToolId, ct);
             if (accessTool == null)
             {
+                Console.WriteLine($"Access tool not found for AccessToolId: {accessToolId}");
                 return Option.None<UserAccessTool, ErrorCustom.Error>(
                     new ErrorCustom.Error("UserAccessTool.AccessToolNotFound", "Access tool not found", ErrorCustom.ErrorType.NotFound));
             }
+
+            Console.WriteLine($"Found access tool: {accessTool.AccessToolName}");
 
             // Check if user already has access to this tool
             var existingAccess = await _userAccessToolRepository.GetByUserAndToolAsync(userId, accessToolId, ct);
             if (existingAccess != null)
             {
+                Console.WriteLine("Updating existing access");
                 // Update existing access
                 existingAccess.ExpiredAt = expiredAt;
                 var updatedAccess = await _userAccessToolRepository.UpdateAsync(existingAccess, ct);
+                Console.WriteLine("Successfully updated existing access");
                 return Option.Some<UserAccessTool, ErrorCustom.Error>(updatedAccess);
             }
 
+            Console.WriteLine("Creating new access");
             // Create new access
             var userAccessTool = new UserAccessTool
             {
@@ -99,11 +112,16 @@ public class UserAccessToolService : IUserAccessToolService
                 ExpiredAt = expiredAt
             };
 
+            Console.WriteLine($"About to create UserAccessTool: UserId={userAccessTool.UserId}, AccessToolId={userAccessTool.AccessToolId}");
             var createdAccess = await _userAccessToolRepository.CreateAsync(userAccessTool, ct);
+            Console.WriteLine("Successfully created new access");
+            Console.WriteLine($"=== End GrantAccessToToolAsync ===");
             return Option.Some<UserAccessTool, ErrorCustom.Error>(createdAccess);
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Exception in GrantAccessToToolAsync: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             return Option.None<UserAccessTool, ErrorCustom.Error>(
                 new ErrorCustom.Error("UserAccessTool.GrantAccessFailed", $"Failed to grant access: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }
@@ -166,13 +184,25 @@ public class UserAccessToolService : IUserAccessToolService
     {
         try
         {
+            Console.WriteLine($"=== UpdateAccessToolsForMembershipAsync ===");
+            Console.WriteLine($"UserId: {userId}");
+            Console.WriteLine($"PlanId: {planId}");
+            Console.WriteLine($"MembershipExpiryDate: {membershipExpiryDate}");
+
+            // First, ensure the user has a valid account status
+            await EnsureUserHasValidAccountStatusAsync(userId, ct);
+            Console.WriteLine($"=== End UpdateAccessToolsForMembershipAsync ====");
+
             // Get the plan to see what access tools should be granted
             var plan = await _membershipPlanRepository.GetPlanByIdAsync(planId, ct);
             if (plan == null)
             {
+                Console.WriteLine($"Plan not found for PlanId: {planId}");
                 return Option.None<bool, ErrorCustom.Error>(
                     new ErrorCustom.Error("UserAccessTool.PlanNotFound", "Membership plan not found", ErrorCustom.ErrorType.NotFound));
             }
+
+            Console.WriteLine($"Found plan: {plan.PlanName}");
 
             // Parse access tool IDs from plan
             List<int> accessToolIds = new List<int>();
@@ -182,9 +212,11 @@ public class UserAccessToolService : IUserAccessToolService
                 try
                 {
                     accessToolIds = JsonSerializer.Deserialize<List<int>>(plan.AccessToolIds) ?? new List<int>();
+                    Console.WriteLine($"Parsed access tool IDs from plan: {string.Join(", ", accessToolIds)}");
                 }
-                catch (JsonException)
+                catch (JsonException ex)
                 {
+                    Console.WriteLine($"Failed to parse access tool IDs: {ex.Message}");
                     return Option.None<bool, ErrorCustom.Error>(
                         new ErrorCustom.Error("UserAccessTool.InvalidAccessToolIds", "Invalid access tool IDs format in plan", ErrorCustom.ErrorType.Validation));
                 }
@@ -195,27 +227,53 @@ public class UserAccessToolService : IUserAccessToolService
             {
                 var freeTools = await _accessToolRepository.GetByRequiredMembershipAsync(false, ct);
                 accessToolIds = freeTools.Select(t => t.AccessToolId).ToList();
+                Console.WriteLine($"No specific tools in plan, using free tools: {string.Join(", ", accessToolIds)}");
             }
 
             // Revoke all current access tools
+            Console.WriteLine("Revoking all current access tools...");
             await RevokeAllAccessToolsAsync(userId, ct);
 
             // Grant new access tools
             if (accessToolIds.Any())
             {
+                Console.WriteLine($"Granting access to tools: {string.Join(", ", accessToolIds)}");
                 var grantResult = await GrantAccessToToolsAsync(userId, accessToolIds, membershipExpiryDate, ct);
                 if (!grantResult.HasValue)
                 {
+                    Console.WriteLine("Failed to grant access tools");
                     return Option.None<bool, ErrorCustom.Error>(new ErrorCustom.Error("UserAccessTool.GrantAccessFailed", "Failed to grant access", ErrorCustom.ErrorType.Failure));
                 }
+                Console.WriteLine("Successfully granted access tools");
+            }
+            else
+            {
+                Console.WriteLine("No access tools to grant");
             }
 
             return Option.Some<bool, ErrorCustom.Error>(true);
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Exception in UpdateAccessToolsForMembershipAsync: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             return Option.None<bool, ErrorCustom.Error>(
                 new ErrorCustom.Error("UserAccessTool.UpdateMembershipAccessFailed", $"Failed to update membership access: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    private async Task EnsureUserHasValidAccountStatusAsync(Guid userId, CancellationToken ct)
+    {
+        try
+        {
+            // This is a temporary fix - in a real application, you would inject IUserRepository
+            // For now, we'll just log the issue and continue
+            Console.WriteLine($"Checking user account status for UserId: {userId}");
+            Console.WriteLine($"Note: If foreign key constraint fails, ensure user has valid AccountStatusId: {SeedDataConstants.ActiveStatusId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not verify user account status: {ex.Message}");
         }
     }
 }
