@@ -6,6 +6,7 @@ using CusomMapOSM_Domain.Entities.Exports;
 using CusomMapOSM_Domain.Entities.Exports.Enums;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
+using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Domain.Entities.Tickets.Enums;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
@@ -28,6 +29,7 @@ public interface ITypeRepository
     Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name);
     Task<OrganizationLocationStatusEnum?> GetOrganizationLocationStatusById(OrganizationLocationStatusEnum name);
     Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name);
+    Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name);
     Task<TicketStatusEnum?> GetTicketStatusById(TicketStatusEnum name);
     Task<PaymentGatewayEnum?> GetPaymentGatewayById(PaymentGatewayEnum name);
 }

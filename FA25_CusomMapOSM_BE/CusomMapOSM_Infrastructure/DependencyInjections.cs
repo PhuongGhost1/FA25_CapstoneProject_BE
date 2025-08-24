@@ -23,6 +23,7 @@ using CusomMapOSM_Infrastructure.Features.User;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Features.User;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Shared.Constant;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -30,8 +31,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using StackExchange.Redis;
 using System.Net.Sockets;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessToolRepo;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.AccessToolRepo;
+using CusomMapOSM_Application.Interfaces.Features.Organization;
+using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Infrastructure.Features.Organization;
+using Hangfire;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -40,7 +47,8 @@ public static class DependencyInjections
     private const int RETRY_ATTEMPTS = 3;
     private const int RETRY_DELAY = 10;
 
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddPersistance(configuration);
         services.AddServices(configuration);
@@ -55,18 +63,23 @@ public static class DependencyInjections
         // Add DbContext for the application
         services.AddDbContext<CustomMapOSMDbContext>(opt =>
         {
-            opt.UseMySql(MySqlDatabase.CONNECTION_STRING, ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING));
+            opt.UseMySql(MySqlDatabase.CONNECTION_STRING,
+                ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING));
         });
 
         // Register Repositories
         services.AddScoped<ITypeRepository, TypeRepository>();
         services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
+
         services.AddScoped<IMembershipRepository, MembershipRepository>();
         services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IAccessToolRepository, AccessToolRepository>();
         services.AddScoped<IUserAccessToolRepository, UserAccessToolRepository>();
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
+
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+
 
         return services;
     }
@@ -81,9 +94,14 @@ public static class DependencyInjections
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
+        services.AddScoped<IRabbitMQService, RabbitMqPublisherService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<FailedEmailStorageService>();
+        services.AddScoped<HangfireEmailService>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
 
         // Register Redis Cache
         services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -102,31 +120,46 @@ public static class DependencyInjections
 
             return policy.Execute(() => ConnectionMultiplexer.Connect(redisConnectionString));
         });
-        services.AddScoped<IRedisCacheService, RedisCacheService>();
 
-        // File service persist
-        //services.AddSingleton((serviceProvider) =>
-        //{
-        //    IOptions<ExternalUrlsOptions> getOption = serviceProvider.GetRequiredService<IOptions<ExternalUrlsOptions>>();
-        //    if (getOption is null)
-        //        throw new ArgumentNullException();
-        //    ExternalUrlsOptions option = getOption.Value;
-        //    var newClient = new BlobServiceClient(option.Azure.ConnectionString, new BlobClientOptions() { });
-        //    return newClient;
-        //});
-        //services.AddScoped<IBlobFileServices, AzureBlobContainerService>();
+        // Configure Hangfire
+        var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
+        var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
+        var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
+        var redisConnectionString = $"{redisHost}:{redisPort},password={redisPassword}";
+        
+        services.AddHangfire(config =>
+        {
+            config.UseRedisStorage(redisConnectionString, new Hangfire.Redis.RedisStorageOptions
+            {
+                Db = 1 // Use different database for Hangfire
+            });
+        });
+
+        services.AddHangfireServer(options =>
+        {
+            options.WorkerCount = Environment.ProcessorCount * 2;
+            options.Queues = new[] { "default", "email", "fallback" };
+        });
 
         return services;
     }
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add background job services
+        // Đăng ký service để xử lý RabbitMQ connection & queue
+        services.AddSingleton<RabbitMqService>();
+
+        // Đăng ký service gửi email và retry
+        services.AddScoped<FailedEmailStorageService>();
+        services.AddScoped<HangfireEmailService>();
+
+        // Đăng ký background service chính
+        services.AddHostedService<EmailProcessingService>();
 
         return services;
     }
 
-    internal static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
         // Add payment services
         services.AddScoped<IPaymentService, StripePaymentService>();
@@ -138,6 +171,8 @@ public static class DependencyInjections
         services.AddHttpClient<PayOSPaymentService>();
         services.AddHttpClient<VNPayPaymentService>();
 
+
+        // Add payment services here when needed
         return services;
     }
 }

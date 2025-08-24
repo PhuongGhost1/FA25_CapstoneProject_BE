@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Shared.Constant;
+﻿using CusomMapOSM_Commons.Constant;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -55,14 +55,14 @@ public static class DependencyInjections
             });
         });
 
-        services.AddRateLimiter(_ => _
-        .AddFixedWindowLimiter(policyName: "fixed", options =>
-        {
-            options.PermitLimit = 4;
-            options.Window = TimeSpan.FromSeconds(12);
-            options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
-            options.QueueLimit = 2;
-        }));
+        // services.AddRateLimiter(_ => _
+        // .AddFixedWindowLimiter(policyName: "fixed", options =>
+        // {
+        //     options.PermitLimit = 4;
+        //     options.Window = TimeSpan.FromSeconds(12);
+        //     options.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        //     options.QueueLimit = 2;
+        // }));
 
         // Register Services
 
