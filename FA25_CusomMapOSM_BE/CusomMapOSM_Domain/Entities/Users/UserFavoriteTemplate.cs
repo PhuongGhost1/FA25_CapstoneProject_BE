@@ -11,9 +11,9 @@ public class UserFavoriteTemplate
 {
     public int UserFavoriteTemplateId { get; set; }
     public required Guid UserId { get; set; }
-    public required int TemplateId { get; set; }
+    public required Guid TemplateId { get; set; }
     public DateTime FavoriteAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = new();
-    public MapTemplate Template { get; set; } = new();
+    public Map Template { get; set; } = new();
 }

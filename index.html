@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MapTemplate Viewer</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <style>
+    body, html { margin: 0; height: 100%; }
+    #map        { width: 100%; height: 100%; }
+    #toolbar    { position:absolute; top:8px; left:8px; z-index:1000; background:#fff; padding:6px 10px; border-radius:4px; box-shadow:0 0 6px #0003;}
+    #toolbar input{ width:90px }
+    #error      { color:#d00; font-size:0.8rem }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <div style="margin-bottom: 8px;">
+      <select id="templateSelect" style="width: 200px; padding: 4px;">
+        <option value="">Loading templates...</option>
+      </select>
+    <button id="btnLoad">Load</button>
+    </div>
+    <div style="margin-bottom: 4px;">
+      Or Template ID: <input id="templateId" value="" style="width: 60px;" />
+    </div>
+    <span id="error"></span>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const apiBase = "https://localhost:7099";      // ⭐ URL gốc API của bạn
+    const token   = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYzOTcxMzAsIm5iZiI6MTc1NjM5MzUzMCwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMDhkZGU2NDEtNmMwOC00OWMxLThmOTctZDE3MTllNjE5NGM3In0.3cbNkEMReqZALikb-990elmw0wvswSHrQoLoXXsQu0Y";         // ⭐ Token nếu endpoint cần auth
+
+    // khởi tạo map
+    const map = L.map("map").setView([16.0471, 108.2062], 6); // VN center
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    // style polygon mặc định
+    const polygonStyle = {
+      color: "#3388ff",
+      weight: 2,
+      fillColor: "#3388ff",
+      fillOpacity: 0.2,
+    };
+
+    // ✅ Load all templates on page load
+    async function loadTemplateList() {
+      try {
+        const res = await fetch(`${apiBase}/api/v1/api/maps/templates`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+
+        if (!res.ok) {
+          document.getElementById("templateSelect").innerHTML = 
+            '<option value="">❌ Error loading templates</option>';
+          return;
+        }
+
+        const data = await res.json();
+        const templates = data.templates || [];
+        
+        const selectElement = document.getElementById("templateSelect");
+        selectElement.innerHTML = '<option value="">-- Select Template --</option>';
+        
+        templates.forEach(template => {
+          const option = document.createElement("option");
+          option.value = template.templateId;
+          option.textContent = `${template.templateName} (${template.totalFeatures} features)`;
+          selectElement.appendChild(option);
+        });
+
+        // ✅ Auto-select first template if available
+        if (templates.length > 0) {
+          selectElement.value = templates[0].templateId;
+        }
+
+      } catch (error) {
+        console.error("Error loading templates:", error);
+        document.getElementById("templateSelect").innerHTML = 
+          '<option value="">❌ Error loading templates</option>';
+      }
+    }
+
+    // ✅ Handle template selection change
+    document.getElementById("templateSelect").onchange = function() {
+      const selectedId = this.value;
+      if (selectedId) {
+        document.getElementById("templateId").value = selectedId;
+      }
+    };
+
+    document.getElementById("btnLoad").onclick = async () => {
+      const id   = document.getElementById("templateId").value.trim();
+      const msg  = document.getElementById("error");
+      msg.textContent = "";
+
+      if (!id) { msg.textContent = "Vui lòng nhập templateId"; return; }
+
+      try {
+        // ---- gọi API: GET /api/v1/api/maps/templates/{templateId}
+        const res = await fetch(`${apiBase}/api/v1/api/maps/templates/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+
+        if (!res.ok) {
+          msg.textContent = `API error ${res.status}`;
+          return;
+        }
+        const data = await res.json();
+        console.log("API Response:", data); // Debug log
+
+        // ✅ Lấy template từ response structure mới
+        const template = data.template;
+        if (!template) {
+          msg.textContent = "Template not found in response";
+          return;
+        }
+
+        // ✅ Hiển thị thông tin template
+        document.title = `MapTemplate Viewer - ${template.templateName}`;
+        
+        // ✅ Clear layer cũ
+        if (window._allLayers) {
+          window._allLayers.forEach(layer => map.removeLayer(layer));
+          window._allLayers = [];
+        } else {
+          window._allLayers = [];
+        }
+
+        // ✅ Load và hiển thị từng layer với GeoJSON data thực tế
+        if (template.layers && template.layers.length > 0) {
+          let layersLoaded = 0;
+          const totalLayers = template.layers.length;
+          
+          msg.textContent = `Loading ${totalLayers} layers...`;
+          
+          for (const layerInfo of template.layers) {
+            try {
+              // Gọi API để lấy layer data
+              const layerRes = await fetch(`${apiBase}/api/v1/api/maps/templates/${template.templateId}/layers/${layerInfo.layerId}/data`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+              });
+
+              if (layerRes.ok) {
+                const layerData = await layerRes.json();
+                const geoJsonData = JSON.parse(layerData.layerData);
+
+                // ✅ Parse layer style nếu có
+                let layerStyle = polygonStyle;
+                if (layerInfo.layerStyle) {
+                  try {
+                    const customStyle = JSON.parse(layerInfo.layerStyle);
+                    layerStyle = { ...polygonStyle, ...customStyle };
+                  } catch (e) {
+                    console.warn("Invalid layer style, using default:", e);
+                  }
+                }
+
+                // ✅ Tạo layer với data thực tế
+                const geoLayer = L.geoJSON(geoJsonData, {
+                  style: layerStyle,
+                  onEachFeature: function(feature, layer) {
+                    // Thêm popup với thông tin feature
+                    if (feature.properties) {
+                      const popupContent = Object.entries(feature.properties)
+                        .map(([key, value]) => `<strong>${key}:</strong> ${value}`)
+                        .join('<br/>');
+                      layer.bindPopup(`
+                        <div style="max-width: 300px;">
+                          <h4>${layerInfo.layerName}</h4>
+                          ${popupContent}
+                        </div>
+                      `);
+                    }
+                  }
+                }).addTo(map);
+
+                window._allLayers.push(geoLayer);
+                layersLoaded++;
+
+                // ✅ Fit bounds khi load layer đầu tiên
+                if (layersLoaded === 1) {
+                  map.fitBounds(geoLayer.getBounds());
+                }
+
+                console.log(`✅ Loaded layer: ${layerInfo.layerName} (${layerInfo.featureCount} features)`);
+              } else {
+                console.warn(`❌ Failed to load layer ${layerInfo.layerId}:`, layerRes.status);
+              }
+            } catch (e) {
+              console.error(`❌ Error loading layer ${layerInfo.layerId}:`, e);
+            }
+          }
+
+          msg.style.color = "#28a745";
+          msg.textContent = `✅ Loaded: ${template.templateName} (${layersLoaded}/${totalLayers} layers, ${template.totalFeatures} features)`;
+        } else {
+          // ✅ Fallback: Hiển thị bounds nếu không có layers
+          if (template.defaultBounds) {
+            const boundsGeoJson = JSON.parse(template.defaultBounds);
+            const boundsLayer = L.geoJSON(boundsGeoJson, { style: polygonStyle }).addTo(map);
+            window._allLayers.push(boundsLayer);
+            map.fitBounds(boundsLayer.getBounds());
+            
+            msg.style.color = "#ffc107";
+            msg.textContent = `⚠️ No layers found, showing bounds only`;
+          } else {
+            msg.textContent = "No map data available";
+            return;
+          }
+        }
+
+        // ✅ Hiển thị popup với thông tin template (sau khi đã load layers)
+        if (window._allLayers.length > 0) {
+          const center = map.getCenter();
+          L.popup()
+            .setLatLng(center)
+            .setContent(`
+              <div style="min-width: 200px;">
+                <h4 style="margin: 0 0 8px 0;">${template.templateName}</h4>
+                <p style="margin: 4px 0; color: #666;">${template.description || 'No description'}</p>
+                <div style="font-size: 0.9em; color: #007bff;">
+                  <strong>📊 Stats:</strong><br/>
+                  • ${template.totalLayers} layers<br/>
+                  • ${template.totalFeatures} features<br/>
+                  • Category: ${template.category}<br/>
+                  • Created: ${new Date(template.createdAt).toLocaleDateString()}
+                </div>
+                ${template.layers ? `
+                  <div style="margin-top: 8px; font-size: 0.85em;">
+                    <strong>🗺️ Layers:</strong><br/>
+                    ${template.layers.map(layer => 
+                      `• ${layer.layerName} (${layer.featureCount || 0} features)`
+                    ).join('<br/>')}
+                  </div>
+                ` : ''}
+              </div>
+            `)
+            .openOn(map);
+        }
+
+      } catch (e) {
+        console.error("Error:", e);
+        msg.textContent = `Error: ${e.message}`;
+      }
+    };
+
+    // ✅ Load templates when page loads
+    window.onload = function() {
+      loadTemplateList();
+    };
+  </script>
+</body>
+</html>

@@ -22,7 +22,7 @@ new-migration:
 	dotnet ef migrations add $(name) --project CusomMapOSM_Infrastructure --startup-project CusomMapOSM_API --verbose
 
 migration:
-	dotnet ef database update --project CusomMapOSM_Infrastructure --startup-project CusomMapOSM_API --connection "server=localhost;port=3306;uid=osmuser;pwd=osmpassword;database=osm"
+	dotnet ef database update --project CusomMapOSM_Infrastructure --startup-project CusomMapOSM_API
 
 push-registries:
 	docker tag /lms_server:$(version)

@@ -42,6 +42,11 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
                      .HasDefaultValueSql("CURRENT_TIMESTAMP");
+              
+              builder.Property(u => u.LastLogin)
+                     .HasColumnName("last_login")
+                     .HasColumnType("datetime")
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.HasOne(u => u.Role)
                      .WithMany()

@@ -1,14 +1,18 @@
-using CusomMapOSM_API.Constants;
+using System.Text.Json;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Middlewares;
 using CusomMapOSM_Application;
 using CusomMapOSM_Infrastructure;
 using CusomMapOSM_Infrastructure.Extensions;
 using DotNetEnv;
-using Hangfire;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using System.Text.Json.Serialization;
+using CusomMapOSM_API;
+using CusomMapOSM_API.Constants;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Http.Features;
+
 
 namespace CusomMapOSM_API;
 
@@ -39,6 +43,23 @@ public class Program
             options.SerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
         });
 
+        builder.Services.Configure<IISServerOptions>(options =>
+        {
+            options.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+        });
+
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.ValueLengthLimit = int.MaxValue;
+            options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100MB
+            options.MultipartHeadersLengthLimit = int.MaxValue;
+        });
+
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+        });
+
         builder.Services.AddSingleton<ExceptionMiddleware>();
         builder.Services.AddSingleton<LoggingMiddleware>();
 
@@ -47,6 +68,18 @@ public class Program
 
         builder.Services.AddInfrastructureServices(builder.Configuration);
         builder.Services.AddApplicationServices();
+
+        // Add Redis Cache
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = builder.Configuration.GetConnectionString("Redis")
+                ?? "localhost:6379";
+            options.InstanceName = "CustomMapOSM:";
+        });
+
+        // Add Template Cache Services
+        builder.Services.AddSingleton<CusomMapOSM_Infrastructure.Services.TemplateCacheManager>();
+        builder.Services.AddHostedService<CusomMapOSM_Infrastructure.Services.TemplateCacheHostedService>();
         builder.Services.AddEndpoints();
         builder.Services.AddValidation();
 

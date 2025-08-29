@@ -48,7 +48,8 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Map> Maps { get; set; }
     public DbSet<MapHistory> MapHistories { get; set; }
     public DbSet<MapLayer> MapLayers { get; set; }
-    public DbSet<MapTemplate> MapTemplates { get; set; }
+    public DbSet<MapAnnotation> MapAnnotations { get; set; }
+    public DbSet<MapImage> MapImages { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<MembershipStatus> MembershipStatuses { get; set; }
     public DbSet<Plan> Plans { get; set; }
