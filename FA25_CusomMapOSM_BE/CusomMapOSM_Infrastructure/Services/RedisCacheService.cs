@@ -1,73 +1,158 @@
 ﻿using CusomMapOSM_Application.Interfaces.Services.Cache;
-using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CusomMapOSM_Infrastructure.Services;
 
-public class RedisCacheService : IRedisCacheService
+public class RedisCacheService : CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService, CusomMapOSM_Application.Interfaces.Services.Cache.IRedisCacheService
 {
-    private readonly IDatabase _database;
-    private readonly string _redisKey = "lms_server";
+    private readonly IDistributedCache _cache;
+    private readonly JsonSerializerOptions _jsonOptions;
 
-    public RedisCacheService(IConnectionMultiplexer connectionMultiplexer)
+    public RedisCacheService(IDistributedCache cache)
     {
-        _database = connectionMultiplexer.GetDatabase();
+        _cache = cache;
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            ReferenceHandler = ReferenceHandler.IgnoreCycles
+        };
     }
 
+    public async Task<T?> GetAsync<T>(string key)
+    {
+        var cachedData = await _cache.GetAsync(key);
+        if (cachedData == null)
+            return default;
+
+        var json = System.Text.Encoding.UTF8.GetString(cachedData);
+        return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+    }
+
+    public async Task SetAsync<T>(string key, T value, TimeSpan? expiry = null)
+    {
+        var json = JsonSerializer.Serialize(value, _jsonOptions);
+        var data = System.Text.Encoding.UTF8.GetBytes(json);
+
+        var options = new DistributedCacheEntryOptions();
+        if (expiry.HasValue)
+            options.AbsoluteExpirationRelativeToNow = expiry;
+
+        await _cache.SetAsync(key, data, options);
+    }
+
+    public async Task<bool> RemoveAsync(string key)
+    {
+        await _cache.RemoveAsync(key);
+        return true;
+    }
+
+    public async Task<bool> ExistsAsync(string key)
+    {
+        var data = await _cache.GetAsync(key);
+        return data != null;
+    }
+
+    // Template-specific cache operations
+    public async Task<List<T>?> GetTemplateDataAsync<T>(string cacheKey)
+    {
+        return await GetAsync<List<T>>(cacheKey);
+    }
+
+    public async Task SetTemplateDataAsync<T>(string cacheKey, List<T> data, TimeSpan? expiry = null)
+    {
+        await SetAsync(cacheKey, data, expiry);
+    }
+
+    // Batch operations for template cache
+    public async Task InvalidateTemplateCacheAsync(string pattern = "*")
+    {
+        // Note: Redis pattern matching would require additional setup
+        // For now, we'll use specific keys
+        var keys = new[]
+        {
+            "templates:all",
+            "templates:category:Business",
+            "templates:category:Planning",
+            "templates:category:Logistics",
+            "templates:category:Research",
+            "templates:category:Operations",
+            "templates:category:Education"
+        };
+
+        foreach (var key in keys)
+        {
+            if (key.Contains(pattern) || pattern == "*")
+            {
+                await RemoveAsync(key);
+            }
+        }
+    }
+
+    public async Task WarmupTemplateCacheAsync()
+    {
+        // This would be called on application startup or scheduled job
+        // to preload frequently used templates into cache
+
+        // Example: Preload all featured templates
+        // var featuredTemplates = await _templateRepository.GetFeaturedTemplates();
+        // await SetTemplateDataAsync("templates:featured", featuredTemplates, TimeSpan.FromHours(1));
+    }
+
+    // IRedisCacheService implementation
     public async Task<T?> Get<T>(string key)
     {
-        var value = await _database.StringGetAsync($"{_redisKey}:{key}");
-        if (value.IsNullOrEmpty)
-        {
-            return default(T);
-        }
-
-        return JsonSerializer.Deserialize<T>(value);
+        return await GetAsync<T>(key);
     }
 
-    public Task Set<T>(string key, T value)
+    public async Task Set<T>(string key, T value)
     {
-        return _database.StringSetAsync($"{_redisKey}:{key}", JsonSerializer.Serialize(value), TimeSpan.FromMinutes(30));
+        await SetAsync(key, value);
     }
 
-    public Task Set<T>(string key, T value, TimeSpan expiration)
+    public async Task Set<T>(string key, T value, TimeSpan expiration)
     {
-        return _database.StringSetAsync($"{_redisKey}:{key}", JsonSerializer.Serialize(value), expiration);
+        await SetAsync(key, value, expiration);
     }
 
     public async Task<bool> Update<T>(string key, T value)
     {
-        TimeSpan? ttl = await _database.KeyTimeToLiveAsync($"{_redisKey}:{key}");
-        return await _database.StringSetAsync($"{_redisKey}:{key}", JsonSerializer.Serialize(value), ttl);
+        if (await ExistsAsync(key))
+        {
+            await SetAsync(key, value);
+            return true;
+        }
+        return false;
     }
 
-    public Task Remove(string key)
+    public async Task Remove(string key)
     {
-        return _database.KeyDeleteAsync($"{_redisKey}:{key}");
+        await RemoveAsync(key);
     }
 
-    public Task<bool> Exists(string key)
+    public async Task<bool> Exists(string key)
     {
-        return _database.KeyExistsAsync($"{_redisKey}:{key}");
+        return await ExistsAsync(key);
     }
 
-    public Task Clear()
+    public async Task Clear()
     {
-        return _database.ExecuteAsync("FLUSHDB");
+        // Note: Redis doesn't have a direct "clear all" command
+        // This is a placeholder implementation
+        // In a real scenario, you might use Redis SCAN or maintain a list of keys to clear
+        throw new NotImplementedException("Clear operation requires key pattern matching or key registry");
     }
 
-    public Task ClearWithPattern(string pattern)
+    public async Task ClearWithPattern(string pattern)
     {
-        var endpoints = _database.Multiplexer.GetEndPoints();
-        var server = _database.Multiplexer.GetServer(endpoints.First());
-        var keys = server.Keys(pattern: $"{_redisKey}:{pattern}*").ToArray();
-        return _database.KeyDeleteAsync(keys);
+        await InvalidateTemplateCacheAsync(pattern);
     }
 
-    public Task ForceLogout(Guid userId)
+    public async Task ForceLogout(Guid userId)
     {
-        var redisKey = $"ss:{userId}";
-
-        return ClearWithPattern(redisKey);
+        var key = $"user:{userId}:token";
+        await RemoveAsync(key);
     }
 }

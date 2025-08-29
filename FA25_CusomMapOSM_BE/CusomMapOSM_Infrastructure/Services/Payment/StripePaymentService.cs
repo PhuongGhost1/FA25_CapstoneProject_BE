@@ -14,29 +14,82 @@ public class StripePaymentService : IPaymentService
 {
     public async Task<Option<ApprovalUrlResponse, Error>> CreateCheckoutAsync(decimal amount, string returnUrl, string cancelUrl, CancellationToken ct)
     {
+        // Create a simple request for backward compatibility
+        var simpleRequest = new ProcessPaymentReq
+        {
+            Total = amount,
+            Purpose = "membership", // Default purpose
+            PaymentGateway = PaymentGatewayEnum.Stripe
+        };
+
+        return await CreateCheckoutAsync(simpleRequest, returnUrl, cancelUrl, ct);
+    }
+
+    public async Task<Option<ApprovalUrlResponse, Error>> CreateCheckoutAsync(ProcessPaymentReq request, string returnUrl, string cancelUrl, CancellationToken ct)
+    {
         var options = new SessionCreateOptions
         {
             PaymentMethodTypes = new List<string> { "card" },
-            LineItems = new List<SessionLineItemOptions>
-            {
-                new SessionLineItemOptions
-                {
-                    PriceData = new SessionLineItemPriceDataOptions
-                    {
-                        Currency = "usd",
-                        UnitAmount = (long)(amount * 100),
-                        ProductData = new SessionLineItemPriceDataProductDataOptions
-                        {
-                            Name = "Purchase"
-                        }
-                    },
-                    Quantity = 1
-                }
-            },
+            LineItems = new List<SessionLineItemOptions>(),
             Mode = "payment",
             SuccessUrl = returnUrl,
             CancelUrl = cancelUrl
         };
+
+        // Determine line items based on purpose
+        if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey) && request.Quantity.HasValue && request.Quantity.Value > 1)
+        {
+            // Multi-quantity addon purchase
+            var unitPrice = (long)((request.Total / request.Quantity.Value) * 100);
+            options.LineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "usd",
+                    UnitAmount = unitPrice,
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = $"CustomMapOSM Addon: {request.AddonKey}"
+                    }
+                },
+                Quantity = request.Quantity.Value
+            });
+        }
+        else if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
+        {
+            // Single addon purchase
+            var unitPrice = (long)((request.Total / (request.Quantity ?? 1)) * 100);
+            options.LineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "usd",
+                    UnitAmount = unitPrice,
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = $"CustomMapOSM Addon: {request.AddonKey}"
+                    }
+                },
+                Quantity = request.Quantity ?? 1
+            });
+        }
+        else
+        {
+            // Membership purchase (default)
+            options.LineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "usd",
+                    UnitAmount = (long)(request.Total * 100),
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = "CustomMapOSM Membership"
+                    }
+                },
+                Quantity = 1
+            });
+        }
 
         var service = new SessionService();
         var session = await service.CreateAsync(options, new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY });

@@ -37,5 +37,14 @@ internal class MapHistoryConfiguration : IEntityTypeConfiguration<MapHistory>
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
                      .IsRequired();
+              builder.HasOne(mh => mh.Map)
+                     .WithMany()
+                     .HasForeignKey(mh => mh.MapId)
+                     .OnDelete(DeleteBehavior.Cascade);
+
+              builder.HasOne(mh => mh.Creator)
+                     .WithMany()
+                     .HasForeignKey(mh => mh.UserId)
+                     .OnDelete(DeleteBehavior.Restrict);
        }
 }

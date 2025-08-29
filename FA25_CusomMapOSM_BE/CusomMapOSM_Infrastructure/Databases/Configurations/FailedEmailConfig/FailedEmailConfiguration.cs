@@ -8,7 +8,7 @@ public class FailedEmailConfiguration : IEntityTypeConfiguration<FailedEmail>
 {
     public void Configure(EntityTypeBuilder<FailedEmail> builder)
     {
-        builder.ToTable("FailedEmails");
+        builder.ToTable("failed_emails");
 
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id).ValueGeneratedOnAdd();

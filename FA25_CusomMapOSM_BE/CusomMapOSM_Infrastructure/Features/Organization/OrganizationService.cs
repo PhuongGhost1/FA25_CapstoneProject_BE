@@ -35,6 +35,8 @@ public class OrganizationService : IOrganizationService
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
     {
+        var currentUserId = _currentUserService.GetUserId()!.Value;
+
         var newOrg = new CusomMapOSM_Domain.Entities.Organizations.Organization()
         {
             OrgName = req.OrgName,
@@ -44,11 +46,48 @@ public class OrganizationService : IOrganizationService
             ContactEmail = req.ContactEmail,
             ContactPhone = req.ContactPhone,
             Address = req.Address,
-            OwnerUserId = _currentUserService.GetUserId()!.Value,
+            OwnerUserId = currentUserId,
             CreatedAt = DateTime.UtcNow,
             IsActive = true,
         };
-        await _organizationRepository.CreateOrganization(newOrg);
+
+        var createResult = await _organizationRepository.CreateOrganization(newOrg);
+        if (!createResult)
+        {
+            return Option.None<OrganizationResDto, Error>(
+                Error.Failure("Organization.CreateFailed", "Failed to create organization"));
+        }
+
+        // Get the created organization to get its ID
+        var createdOrg = await _organizationRepository.GetOrganizationById(newOrg.OrgId);
+        if (createdOrg == null)
+        {
+            return Option.None<OrganizationResDto, Error>(
+                Error.Failure("Organization.NotFound", "Created organization not found"));
+        }
+
+        // Add creator as organization member with Owner role
+        var ownerRole = await _typeRepository.GetOrganizationMemberTypeByName("Owner");
+        if (ownerRole != null)
+        {
+            var creatorMember = new OrganizationMember()
+            {
+                OrgId = createdOrg.OrgId,
+                UserId = currentUserId,
+                MembersRoleId = ownerRole.TypeId,
+                InvitedBy = currentUserId, // Self-invited
+                JoinedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            var memberResult = await _organizationRepository.AddMemberToOrganization(creatorMember);
+            if (!memberResult)
+            {
+                // Log warning but don't fail organization creation
+                // The organization is created successfully, member addition is secondary
+            }
+        }
+
         return Option.Some<OrganizationResDto, Error>(new OrganizationResDto
             { Result = "Create Organization Success" });
     }
@@ -364,6 +403,13 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
 
+        var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
+        if (currentUserRole is null || currentUserRole.Role?.Name != "Owner")
+        {
+            return Option.None<UpdateMemberRoleResDto, Error>(
+                Error.Forbidden("Organization.NotOwner", "Only the owner can update member roles"));
+        }
+
         var member = await _organizationRepository.GetOrganizationMemberById(req.MemberId);
         if (member is null)
         {
@@ -405,6 +451,12 @@ public class OrganizationService : IOrganizationService
         {
             return Option.None<RemoveMemberResDto, Error>(
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
+        }
+        var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
+        if (currentUserRole is null || currentUserRole.Role?.Name != "Owner")
+        {
+            return Option.None<RemoveMemberResDto, Error>(
+                Error.Forbidden("Organization.NotOwner", "Only the owner can remove members"));
         }
 
         var member = await _organizationRepository.GetOrganizationMemberById(req.MemberId);

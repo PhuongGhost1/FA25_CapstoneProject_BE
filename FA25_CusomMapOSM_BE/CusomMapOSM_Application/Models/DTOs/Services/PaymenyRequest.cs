@@ -12,15 +12,19 @@ public record ProcessCreatePaymentReq
 public record ProcessPaymentReq
 {
     public required decimal Total { get; set; }
-    public required PaymentGatewayEnum PaymentGateway { get; set; }
-    public required string Purpose { get; set; } // "membership" or "addon"
+    public required PaymentGatewayEnum PaymentGateway { get; set; } = PaymentGatewayEnum.PayOS;
+    public required string Purpose { get; set; } = "membership"; // "membership" or "addon"
+
+    // Business context for membership creation (when Purpose = "membership")
     public Guid? UserId { get; set; }
     public Guid? OrgId { get; set; }
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
+
+    // Business context for addon purchase (when Purpose = "addon")
+    public Guid? MembershipId { get; set; } // Only used for addon purchases
     public string? AddonKey { get; set; }
     public int? Quantity { get; set; }
-    public Guid? MembershipId { get; set; }
 }
 
 // PayPal specific payment request
