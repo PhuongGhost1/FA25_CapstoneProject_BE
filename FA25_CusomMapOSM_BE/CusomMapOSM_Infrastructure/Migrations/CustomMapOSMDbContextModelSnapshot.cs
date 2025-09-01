@@ -742,7 +742,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("is_public");
 
                     b.Property<string>("LayerData")
-                        .HasColumnType("text")
+                        .HasColumnType("longtext")
                         .HasColumnName("layer_data");
 
                     b.Property<string>("LayerName")
@@ -751,7 +751,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("layer_name");
 
                     b.Property<string>("LayerStyle")
-                        .HasColumnType("text")
+                        .HasColumnType("longtext")
                         .HasColumnName("layer_style");
 
                     b.Property<int>("LayerTypeId")

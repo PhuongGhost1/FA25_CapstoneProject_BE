@@ -99,6 +99,19 @@ public class MapEndpoints : IEndpoint
             .AllowAnonymous()
             .Produces<GetMapTemplateByIdResponse>(200);
 
+        group.MapGet("/templates/{templateId:guid}/details", async (
+                Guid templateId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.GetTemplateWithDetails(templateId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMapTemplateWithDetails")
+            .WithDescription("Get map template with all details (layers, annotations, images)")
+            .AllowAnonymous()
+            .Produces<GetMapTemplateWithDetailsResponse>(200);
 
         group.MapGet("/templates/{templateId}/layers/{layerId}/data", async (
                 [FromRoute] Guid templateId,

@@ -27,7 +27,6 @@ public interface ITypeRepository
     Task<LayerTypeEnum?> GetLayerTypeById(LayerTypeEnum name);
     Task<MembershipStatusEnum?> GetMembershipStatusById(MembershipStatusEnum name);
     Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name);
-    Task<OrganizationLocationStatusEnum?> GetOrganizationLocationStatusById(OrganizationLocationStatusEnum name);
     Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name);
     Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name);
     Task<TicketStatusEnum?> GetTicketStatusById(TicketStatusEnum name);

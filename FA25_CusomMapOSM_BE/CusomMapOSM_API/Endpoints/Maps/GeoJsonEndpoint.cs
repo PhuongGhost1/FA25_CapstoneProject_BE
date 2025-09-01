@@ -17,8 +17,8 @@ public class GeoJsonEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/maps/geojson")
-            .WithTags("GeoJSON")
-            .WithDescription("GeoJSON processing endpoints");
+            .WithTags("Maps")
+            .WithDescription("Create map from GeoJSON endpoints");
 
         group.MapPost("/create-template", async (
                 IFormFile geoJsonFile,
@@ -54,26 +54,26 @@ public class GeoJsonEndpoint : IEndpoint
                         });
                     }
                     
-                if (!fileProcessorService.IsSupported(geoJsonFile.FileName, geoJsonFile.ContentType))
+                if (!fileProcessorService.IsSupported(geoJsonFile.FileName))
                 {
                     return Results.BadRequest(new {
                         error = "Unsupported file type",
-                        message = "Supported formats: GeoJSON, KML, GPX, CSV, Excel, GeoTIFF, PNG, JPG"
+                        message = "Supported formats: GeoJSON, KML, GPX, CSV, Excel, GeoTIFF"
                     });
                 }
 
-                    var fileSizeMB = geoJsonFile.Length / (1024.0 * 1024.0);
+                    var fileSizeMb = geoJsonFile.Length / (1024.0 * 1024.0);
                     if (geoJsonFile.Length > 100 * 1024 * 1024)
                     {
                         return Results.BadRequest(new { 
                             error = "File too large", 
                             message = "File size must be less than 100MB",
-                            currentSize = $"{fileSizeMB:F2} MB"
+                            currentSize = $"{fileSizeMb:F2} MB"
                         });
                     }
 
                     var processingWarning = "";
-                    if (fileSizeMB > 10)
+                    if (fileSizeMb > 10)
                     {
                         processingWarning = "Large file detected. Processing may take longer than usual.";
                     }
@@ -113,27 +113,9 @@ public class GeoJsonEndpoint : IEndpoint
                     return result.Match(
                         success => Results.Created($"/api/maps/templates/{success.TemplateId}", new
                         {
-                            success = true,
+                            templateId = success.TemplateId,
                             message = "MapTemplate created successfully",
-                            warning = !string.IsNullOrEmpty(processingWarning) ? processingWarning : null,
-                            template = success,
-                            layerInfo = new
-                            {
-                                layerName = layerName,
-                                fileName = geoJsonFile.FileName,
-                                fileSize = $"{processedData.DataSizeKB} KB",
-                                fileSizeMB = $"{fileSizeMB:F2} MB",
-                                featureCount = processedData.FeatureCount,
-                                geometryType = processedData.GeometryType,
-                                propertyNames = processedData.PropertyNames
-                            },
-                            performance = new
-                            {
-                                processedAsync = fileSizeMB > 10,
-                                compressionApplied = processedData.DataSizeKB > 5000,
-                                estimatedProcessingTime = fileSizeMB > 20 ? "2-5 minutes" : 
-                                                        fileSizeMB > 10 ? "30-120 seconds" : "< 30 seconds"
-                            }
+                            warning = !string.IsNullOrEmpty(processingWarning) ? processingWarning : null
                         }),
                         error => error.ToProblemDetailsResult()
                     );

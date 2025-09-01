@@ -40,11 +40,11 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .HasColumnName("file_path");
 
         builder.Property(l => l.LayerData)
-            .HasColumnType("text") // For large GeoJSON or similar
+            .HasColumnType("longtext")
             .HasColumnName("layer_data");
 
         builder.Property(l => l.LayerStyle)
-            .HasColumnType("text")
+            .HasColumnType("longtext")
             .HasColumnName("layer_style");
 
         builder.Property(l => l.IsPublic)

@@ -62,7 +62,7 @@ internal class MapAnnotationConfiguration : IEntityTypeConfiguration<MapAnnotati
                .IsRequired();
         
         builder.HasOne(ma => ma.Map)
-               .WithMany(m => m.MapAnnotations)
+               .WithMany()
                .HasForeignKey(ma => ma.MapId)
                .OnDelete(DeleteBehavior.Cascade);
         

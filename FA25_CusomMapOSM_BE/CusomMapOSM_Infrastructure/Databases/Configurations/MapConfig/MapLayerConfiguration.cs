@@ -87,10 +87,10 @@ internal class MapLayerConfiguration : IEntityTypeConfiguration<MapLayer>
                      .HasColumnType("datetime");
               
               builder.HasOne(ml => ml.Map)
-                     .WithMany(m => m.MapLayers)
+                     .WithMany()
                      .HasForeignKey(ml => ml.MapId)
                      .OnDelete(DeleteBehavior.Cascade);
-
+              
               builder.HasOne(ml => ml.Layer)
                      .WithMany()
                      .HasForeignKey(ml => ml.LayerId);

@@ -19,6 +19,7 @@ public interface IMapService
     // Map Template Operations
     Task<Option<GetMapTemplatesResponse, Error>> GetTemplates();
     Task<Option<GetMapTemplateByIdResponse, Error>> GetTemplateById(Guid templateId);
+    Task<Option<GetMapTemplateWithDetailsResponse, Error>> GetTemplateWithDetails(Guid templateId);
 
     // Map Layer Operations
     Task<Option<AddLayerToMapResponse, Error>> AddLayerToMap(Guid mapId, AddLayerToMapRequest req);

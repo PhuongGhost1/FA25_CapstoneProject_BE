@@ -39,7 +39,7 @@
 
   <script>
     const apiBase = "https://localhost:7099";      // ⭐ URL gốc API của bạn
-    const token   = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYzOTcxMzAsIm5iZiI6MTc1NjM5MzUzMCwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMDhkZGU2NDEtNmMwOC00OWMxLThmOTctZDE3MTllNjE5NGM3In0.3cbNkEMReqZALikb-990elmw0wvswSHrQoLoXXsQu0Y";         // ⭐ Token nếu endpoint cần auth
+    const token   = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTY3NDY1NDAsIm5iZiI6MTc1Njc0Mjk0MCwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMDhkZGU5NWUtMjE4MS00YzAzLThiMjItMTY0N2FjOWYxNTc3In0.ddhrKj_f5PfIRtPW-8tZdxX7zxuhsxD6YolHFtcMIf8";         // ⭐ Token nếu endpoint cần auth
 
     // khởi tạo map
     const map = L.map("map").setView([16.0471, 108.2062], 6); // VN center
@@ -58,7 +58,7 @@
     // ✅ Load all templates on page load
     async function loadTemplateList() {
       try {
-        const res = await fetch(`${apiBase}/api/v1/api/maps/templates`, {
+        const res = await fetch(`${apiBase}/api/v1/maps/templates`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
 
@@ -110,7 +110,7 @@
 
       try {
         // ---- gọi API: GET /api/v1/api/maps/templates/{templateId}
-        const res = await fetch(`${apiBase}/api/v1/api/maps/templates/${id}`, {
+        const res = await fetch(`${apiBase}/api/v1/maps/templates/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
 
@@ -149,7 +149,7 @@
           for (const layerInfo of template.layers) {
             try {
               // Gọi API để lấy layer data
-              const layerRes = await fetch(`${apiBase}/api/v1/api/maps/templates/${template.templateId}/layers/${layerInfo.layerId}/data`, {
+              const layerRes = await fetch(`${apiBase}/api/v1/maps/templates/${template.templateId}/layers/${layerInfo.layerId}/data`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
               });
 

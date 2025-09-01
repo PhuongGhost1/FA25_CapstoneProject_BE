@@ -1,4 +1,6 @@
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
+using CusomMapOSM_Application.Models.DTOs.Features.FileProcessor.Response;
+using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
 using Microsoft.AspNetCore.Http;
 
@@ -27,7 +29,7 @@ public class FileProcessorService : IFileProcessorService
             var fileExtension = Path.GetExtension(file.FileName).ToLower();
             var contentType = file.ContentType.ToLower();
             
-            if (!IsSupported(file.FileName, contentType))
+            if (!IsSupported(file.FileName))
             {
                 return new FileProcessingResult
                 {
@@ -36,7 +38,7 @@ public class FileProcessorService : IFileProcessorService
                 };
             }
 
-            var layerType = DetectFileType(file.FileName, contentType);
+            var layerType = DetectFileType(file.FileName);
 
             // Route to appropriate processor
             return layerType switch
@@ -72,38 +74,28 @@ public class FileProcessorService : IFileProcessorService
         }
     }
 
-    public LayerTypeEnum DetectFileType(string fileName, string contentType)
+    public LayerTypeEnum DetectFileType(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLower();
         
         return extension switch
         {
-            ".geojson" or ".json" => LayerTypeEnum.GEOJSON,
-            ".kml" => LayerTypeEnum.KML,
-            ".shp" => LayerTypeEnum.Shapefile,
-            ".gpx" => LayerTypeEnum.GPX,
-            ".csv" => LayerTypeEnum.CSV,
-            ".xlsx" or ".xls" => LayerTypeEnum.Excel,
-            ".tif" or ".tiff" => LayerTypeEnum.GeoTIFF,
-            ".png" => LayerTypeEnum.PNG,
-            ".jpg" or ".jpeg" => LayerTypeEnum.JPG,
+            FileExtensionConstant.Vector.GEOJSON or FileExtensionConstant.Vector.JSON => LayerTypeEnum.GEOJSON,
+            FileExtensionConstant.Vector.KML => LayerTypeEnum.KML,
+            FileExtensionConstant.Vector.SHAPEFILE => LayerTypeEnum.Shapefile,
+            FileExtensionConstant.Vector.GPX => LayerTypeEnum.GPX,
+            FileExtensionConstant.Spreadsheet.CSV => LayerTypeEnum.CSV,
+            FileExtensionConstant.Spreadsheet.XLSX or FileExtensionConstant.Spreadsheet.XLS => LayerTypeEnum.Excel,
+            FileExtensionConstant.Raster.TIF or FileExtensionConstant.Raster.TIFF => LayerTypeEnum.GeoTIFF,
+            FileExtensionConstant.Raster.PNG => LayerTypeEnum.PNG,
+            FileExtensionConstant.Raster.JPG or FileExtensionConstant.Raster.JPEG => LayerTypeEnum.JPG,
             _ => LayerTypeEnum.GEOJSON // Default fallback
         };
     }
 
-    public bool IsSupported(string fileName, string contentType)
+    public bool IsSupported(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLower();
-        var supportedExtensions = new[]
-        {
-            // Vector
-            ".geojson", ".json", ".kml", ".shp", ".gpx",
-            // Spreadsheet  
-            ".csv", ".xlsx", ".xls",
-            // Raster
-            ".tif", ".tiff", ".png", ".jpg", ".jpeg"
-        };
-
-        return supportedExtensions.Contains(extension);
+        return FileExtensionConstant.ALL_SUPPORTED.Contains(extension);
     }
 }
