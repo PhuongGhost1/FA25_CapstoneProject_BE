@@ -6,6 +6,5 @@ public class MapTemplateWithDetails
 {
     public Map Map { get; set; } = new();
     public List<MapLayer> MapLayers { get; set; } = new();
-    public List<MapAnnotation> MapAnnotations { get; set; } = new();
     public List<MapImage> MapImages { get; set; } = new();
 }

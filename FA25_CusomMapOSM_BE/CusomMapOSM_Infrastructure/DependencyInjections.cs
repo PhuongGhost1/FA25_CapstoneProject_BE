@@ -45,6 +45,10 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using Hangfire;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Infrastructure.Features.Maps;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -86,6 +90,7 @@ public static class DependencyInjections
 
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
+        services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
 
         // Cache Services
         services.AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService, CusomMapOSM_Infrastructure.Services.RedisCacheService>();
@@ -110,6 +115,7 @@ public static class DependencyInjections
         services.AddScoped<HangfireEmailService>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();

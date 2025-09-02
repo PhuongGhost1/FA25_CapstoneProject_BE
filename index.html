@@ -9,6 +9,12 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
+  
+  <!-- Leaflet Draw CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+  />
 
   <style>
     body, html { margin: 0; height: 100%; }
@@ -16,6 +22,11 @@
     #toolbar    { position:absolute; top:8px; left:8px; z-index:1000; background:#fff; padding:6px 10px; border-radius:4px; box-shadow:0 0 6px #0003;}
     #toolbar input{ width:90px }
     #error      { color:#d00; font-size:0.8rem }
+    #drawingPanel { position:absolute; top:8px; right:8px; z-index:1000; background:#fff; padding:8px; border-radius:4px; box-shadow:0 0 6px #0003; }
+    #drawingPanel button { margin:2px; padding:4px 8px; border:1px solid #ccc; background:#f8f9fa; cursor:pointer; border-radius:3px; }
+    #drawingPanel button:hover { background:#e9ecef; }
+    #drawingPanel button.active { background:#007bff; color:white; }
+    .draw-status { font-size:0.85em; color:#666; margin-top:4px; }
   </style>
 </head>
 <body>
@@ -24,28 +35,82 @@
       <select id="templateSelect" style="width: 200px; padding: 4px;">
         <option value="">Loading templates...</option>
       </select>
-    <button id="btnLoad">Load</button>
+    <button id="btnLoad">Load Template</button>
     </div>
     <div style="margin-bottom: 4px;">
-      Or Template ID: <input id="templateId" value="" style="width: 60px;" />
+      Template ID: <input id="templateId" value="" style="width: 60px;" />
+    </div>
+    <div style="margin-bottom: 8px;">
+      <input id="mapId" placeholder="Map ID (for existing map)" style="width: 200px; padding: 4px;" />
+      <button id="btnLoadMap">Load Map</button>
+    </div>
+    <div style="margin-bottom: 4px;">
+      <button id="btnSaveState">Save State</button>
+      <button id="btnClearState">Clear State</button>
     </div>
     <span id="error"></span>
+  </div>
+
+  <!-- Drawing Tools Panel -->
+  <div id="drawingPanel">
+    <div><strong>🖊️ Drawing Tools</strong></div>
+    <div style="margin: 8px 0;">
+      <button id="drawPoint">📍 Pin</button>
+      <button id="drawLine">📏 Line</button>
+      <button id="drawPolygon">🔷 Polygon</button>
+      <button id="drawCircle">⭕ Circle</button>
+    </div>
+    <div style="margin: 8px 0;">
+      <button id="drawMarker">🏷️ Marker</button>
+      <button id="drawText">📝 Text</button>
+      <button id="drawNote">📋 Note</button>
+    </div>
+    <div style="margin: 8px 0;">
+      <button id="drawHighlighter">🖍️ Highlighter</button>
+      <button id="drawRoute">🛣️ Route</button>
+      <button id="drawLink">🔗 Link</button>
+      <button id="drawVideo">📹 Video</button>
+    </div>
+    <div style="margin: 8px 0;">
+      <button id="editMode">✏️ Edit</button>
+      <button id="deleteMode">🗑️ Delete</button>
+      <button id="clearAll">🧹 Clear</button>
+    </div>
+    <div class="draw-status" id="drawStatus">Ready to draw</div>
   </div>
 
   <div id="map"></div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Leaflet Draw JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
   <script>
     const apiBase = "https://localhost:7099";      // ⭐ URL gốc API của bạn
-    const token   = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTY3NDY1NDAsIm5iZiI6MTc1Njc0Mjk0MCwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMDhkZGU5NWUtMjE4MS00YzAzLThiMjItMTY0N2FjOWYxNTc3In0.ddhrKj_f5PfIRtPW-8tZdxX7zxuhsxD6YolHFtcMIf8";         // ⭐ Token nếu endpoint cần auth
+    const token   = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTY4MjcyODUsIm5iZiI6MTc1NjgyMzY4NSwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMDhkZGU5NWUtMjE4MS00YzAzLThiMjItMTY0N2FjOWYxNTc3In0.my5rP42c9S-aD06hEIK-lShSfwO0ERmqgbya4IFY90c";         // ⭐ Token nếu endpoint cần auth
+
+    // Global variables
+    let currentMapId = null;
+    let currentLayerId = null;
+    let drawingMode = null;
+    let drawnItems = new L.FeatureGroup();
+    
+    // Free drawing variables
+    let isDrawingHighlighter = false;
+    let isDrawingRoute = false;
+    let currentFreePath = [];
+    let tempFreeLine = null;
 
     // khởi tạo map
     const map = L.map("map").setView([16.0471, 108.2062], 6); // VN center
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
+    
+    // Add drawn items layer to map
+    map.addLayer(drawnItems);
 
     // style polygon mặc định
     const polygonStyle = {
@@ -54,6 +119,379 @@
       fillColor: "#3388ff",
       fillOpacity: 0.2,
     };
+
+    // Drawing styles
+    const drawingStyles = {
+      pin: { color: "#ff0000", fillColor: "#ff0000", fillOpacity: 0.8, radius: 8 },
+      line: { color: "#ff6600", weight: 3 },
+      polygon: { color: "#00aa00", weight: 2, fillColor: "#00aa00", fillOpacity: 0.3 },
+      circle: { color: "#9900cc", weight: 2, fillColor: "#9900cc", fillOpacity: 0.3 },
+      marker: { color: "#ffcc00", fillColor: "#ffcc00", fillOpacity: 0.8 },
+      text: { color: "#333333", fillColor: "#ffffff", fillOpacity: 0.9 },
+      note: { color: "#0066cc", fillColor: "#e6f3ff", fillOpacity: 0.9 },
+      highlighter: { color: "#ffff00", weight: 8, opacity: 0.6 },
+      route: { color: "#ff0066", weight: 4, opacity: 0.8, dashArray: "10,5" },
+      link: { color: "#0066ff", fillColor: "#0066ff", fillOpacity: 0.9, radius: 10 },
+      video: { color: "#cc0066", fillColor: "#cc0066", fillOpacity: 0.9, radius: 12 }
+    };
+
+    // State Management Functions
+    function saveMapState() {
+      const state = {
+        currentMapId: currentMapId,
+        currentLayerId: currentLayerId,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('mapDrawingState', JSON.stringify(state));
+      console.log('💾 State saved:', state);
+    }
+
+    function loadMapState() {
+      try {
+        const saved = localStorage.getItem('mapDrawingState');
+        if (saved) {
+          const state = JSON.parse(saved);
+          console.log('📂 State loaded:', state);
+          return state;
+        }
+      } catch (error) {
+        console.error('❌ Error loading state:', error);
+      }
+      return null;
+    }
+
+    function clearMapState() {
+      localStorage.removeItem('mapDrawingState');
+      console.log('🗑️ State cleared');
+    }
+
+    // API Helper Functions
+    async function loadMapById(mapId) {
+      try {
+        console.log('🔄 Loading map by ID:', mapId);
+        
+        const response = await fetch(`${apiBase}/api/v1/maps/${mapId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+
+        if (response.ok) {
+          const responseData = await response.json();
+          const mapData = responseData.map; // GetMapByIdResponse has "map" property
+          console.log('✅ Map loaded:', mapData);
+          
+          // Set current map context
+          currentMapId = mapId;
+          currentLayerId = mapData.layers && mapData.layers.length > 0 ? mapData.layers[0].id : null;
+          
+          // Clear existing layers
+          if (window._allLayers) {
+            window._allLayers.forEach(layer => map.removeLayer(layer));
+            window._allLayers = [];
+          } else {
+            window._allLayers = [];
+          }
+          
+          // Load map layers (if any)
+          if (mapData.layers && mapData.layers.length > 0) {
+            for (const layerInfo of mapData.layers) {
+              try {
+                // This might need adjustment based on actual API response structure
+                if (layerInfo.layerData) {
+                  const geoJsonData = JSON.parse(layerInfo.layerData);
+                  const geoLayer = L.geoJSON(geoJsonData, {
+                    style: layerInfo.layerStyle ? JSON.parse(layerInfo.layerStyle) : polygonStyle
+                  }).addTo(map);
+                  window._allLayers.push(geoLayer);
+                }
+              } catch (e) {
+                console.warn('❌ Error loading layer:', e);
+              }
+            }
+          }
+          
+          // Load existing features
+          await loadMapFeatures(mapId);
+          
+          // Update UI
+          document.getElementById('mapId').value = mapId;
+          document.getElementById('error').textContent = '';
+          document.getElementById('error').style.color = '#28a745';
+          document.getElementById('error').textContent = `✅ Map loaded: ${mapData.name || 'Unnamed Map'}`;
+          
+          // Save state
+          saveMapState();
+          
+          return mapData;
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to load map:', response.status, errorText);
+          document.getElementById('error').textContent = `Failed to load map: ${response.status}`;
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Error loading map:', error);
+        document.getElementById('error').textContent = `Error: ${error.message}`;
+        return null;
+      }
+    }
+
+    async function createMapFromTemplate(templateId, templateName) {
+      try {
+        console.log('🔄 Creating map from template:', templateId);
+        
+        const response = await fetch(`${apiBase}/api/v1/maps/from-template`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            TemplateId: templateId,
+            CustomName: `My ${templateName}`,
+            CustomDescription: 'Map created for drawing features',
+            IsPublic: false
+          })
+        });
+
+        if (response.ok) {
+          const newMap = await response.json();
+          currentMapId = newMap.MapId || newMap.mapId;
+          console.log('✅ Map created successfully:', newMap);
+          
+          // Save state after creating map
+          saveMapState();
+          
+          return newMap;
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to create map:', response.status, errorText);
+          // Fallback: use template ID as map ID (might not work for saving features)
+          currentMapId = templateId;
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Error creating map:', error);
+        // Fallback: use template ID as map ID
+        currentMapId = templateId;
+        return null;
+      }
+    }
+
+    async function saveFeature(feature) {
+      if (!currentMapId) {
+        console.warn("No map selected for saving feature");
+        return null;
+      }
+
+      try {
+        console.log('🔄 Saving feature:', feature);
+        console.log('🔄 To mapId:', currentMapId);
+        
+        const response = await fetch(`${apiBase}/api/v1/maps/${currentMapId}/features`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(feature)
+        });
+
+        console.log('📡 Response status:', response.status);
+        
+        if (response.ok) {
+          const savedFeature = await response.json();
+          console.log('✅ Feature saved successfully:', savedFeature);
+          
+          // Auto-save state after successful feature save
+          saveMapState();
+          
+          return savedFeature;
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Failed to save feature:', response.status, errorText);
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Error saving feature:', error);
+        return null;
+      }
+    }
+
+    async function loadMapFeatures(mapId) {
+      try {
+        console.log(`🔄 Loading features for mapId: ${mapId}`);
+        const response = await fetch(`${apiBase}/api/v1/maps/${mapId}/features`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+
+        if (response.ok) {
+          const features = await response.json();
+          console.log('✅ Loaded features:', features);
+          console.log('Features count:', features.length);
+          
+          // Clear existing drawn items
+          drawnItems.clearLayers();
+          
+          // Add features to map
+          let loadedCount = 0;
+          features.forEach(feature => {
+            console.log('Processing feature:', feature);
+            const layer = createLayerFromFeature(feature);
+            if (layer) {
+              drawnItems.addLayer(layer);
+              layer._featureId = feature.featureId;
+              loadedCount++;
+              console.log(`✅ Added feature to map: ${feature.name}`);
+            } else {
+              console.warn(`❌ Failed to create layer for feature: ${feature.name}`);
+            }
+          });
+          
+          console.log(`✅ Total features loaded to map: ${loadedCount}/${features.length}`);
+          document.getElementById('drawStatus').textContent = `Loaded ${loadedCount} saved features`;
+          
+          return features;
+        } else {
+          console.warn('❌ Failed to load features:', response.status);
+          const errorText = await response.text();
+          console.warn('Error response:', errorText);
+          return [];
+        }
+      } catch (error) {
+        console.error('❌ Error loading features:', error);
+        return [];
+      }
+    }
+
+    function createLayerFromFeature(feature) {
+      try {
+        const coords = JSON.parse(feature.coordinates);
+        const style = feature.style ? JSON.parse(feature.style) : {};
+        
+        let layer = null;
+        
+        // Handle enum values (they come as strings from API)
+        const geometryType = feature.geometryType || feature.GeometryType;
+        const featureCategory = feature.featureCategory || feature.FeatureCategory;
+        const annotationType = feature.annotationType || feature.AnnotationType;
+        
+        console.log(`Creating layer - Type: ${geometryType}, Category: ${featureCategory}, Annotation: ${annotationType}`);
+        
+        switch (geometryType.toLowerCase()) {
+          case 'point':
+            if (featureCategory.toLowerCase() === 'data') {
+              // Pin
+              layer = L.circleMarker([coords[1], coords[0]], { ...drawingStyles.pin, ...style });
+            } else {
+              // Marker/Text/Note/Link/Video
+              const markerStyle = annotationType?.toLowerCase() === 'marker' ? drawingStyles.marker :
+                                annotationType?.toLowerCase() === 'text' ? drawingStyles.text :
+                                annotationType?.toLowerCase() === 'link' ? drawingStyles.link :
+                                annotationType?.toLowerCase() === 'video' ? drawingStyles.video :
+                                drawingStyles.note;
+              layer = L.circleMarker([coords[1], coords[0]], { ...markerStyle, ...style });
+            }
+            break;
+            
+          case 'linestring':
+            const lineCoords = coords.map(c => [c[1], c[0]]);
+            // Check if it's a special annotation type
+            if (featureCategory.toLowerCase() === 'annotation') {
+              if (annotationType?.toLowerCase() === 'highlighter') {
+                layer = L.polyline(lineCoords, { ...drawingStyles.highlighter, ...style });
+              } else if (annotationType?.toLowerCase() === 'route') {
+                layer = L.polyline(lineCoords, { ...drawingStyles.route, ...style });
+              } else {
+                layer = L.polyline(lineCoords, { ...drawingStyles.line, ...style });
+              }
+            } else {
+              layer = L.polyline(lineCoords, { ...drawingStyles.line, ...style });
+            }
+            break;
+            
+          case 'polygon':
+            const polygonCoords = coords[0].map(c => [c[1], c[0]]);
+            layer = L.polygon(polygonCoords, { ...drawingStyles.polygon, ...style });
+            break;
+            
+          case 'circle':
+            const properties = feature.properties ? JSON.parse(feature.properties) : {};
+            const radius = properties.radiusMeters || 1000;
+            layer = L.circle([coords[1], coords[0]], { ...drawingStyles.circle, ...style, radius });
+            break;
+            
+          default:
+            console.warn(`Unknown geometry type: ${geometryType}`);
+            return null;
+        }
+        
+        if (layer && feature.name) {
+          let popupContent = `<strong>${feature.name}</strong>`;
+          if (feature.description) {
+            popupContent += `<br/>${feature.description}`;
+          }
+          
+          // Add special content for different annotation types
+          if (feature.properties) {
+            const props = JSON.parse(feature.properties);
+            if (props.text) {
+              popupContent += `<br/><em>"${props.text}"</em>`;
+            }
+            if (props.note) {
+              popupContent += `<br/><em>"${props.note}"</em>`;
+            }
+            if (props.url) {
+              popupContent = `<a href="${props.url}" target="_blank">${feature.name}</a>`;
+            }
+            if (props.videoUrl) {
+              popupContent = `
+                <div style="max-width: 300px;">
+                  <strong>${feature.name}</strong><br/>
+                  <a href="${props.videoUrl}" target="_blank">🎥 Watch Video</a>
+                </div>
+              `;
+            }
+          }
+          
+          layer.bindPopup(popupContent);
+        }
+        
+        return layer;
+      } catch (error) {
+        console.error('Error creating layer from feature:', error, feature);
+        return null;
+      }
+    }
+
+    function coordsToGeoJSON(layer) {
+      if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
+        const latlng = layer.getLatLng();
+        return JSON.stringify([latlng.lng, latlng.lat]);
+      } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+        const coords = layer.getLatLngs().map(ll => [ll.lng, ll.lat]);
+        return JSON.stringify(coords);
+      } else if (layer instanceof L.Polygon) {
+        const coords = layer.getLatLngs()[0].map(ll => [ll.lng, ll.lat]);
+        return JSON.stringify([coords]);
+      } else if (layer instanceof L.Circle) {
+        const latlng = layer.getLatLng();
+        return JSON.stringify([latlng.lng, latlng.lat]);
+      }
+      return "[]";
+    }
+
+    function getGeometryType(layer) {
+      if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
+        return 'Point';
+      } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+        return 'LineString';
+      } else if (layer instanceof L.Polygon) {
+        return 'Polygon';
+      } else if (layer instanceof L.Circle) {
+        return 'Circle';
+      }
+      return 'Point';
+    }
 
     // ✅ Load all templates on page load
     async function loadTemplateList() {
@@ -127,6 +565,15 @@
           msg.textContent = "Template not found in response";
           return;
         }
+        
+        // ✅ Create a new map instance from template for drawing features
+        await createMapFromTemplate(template.templateId, template.templateName);
+        currentLayerId = template.layers && template.layers.length > 0 ? template.layers[0].layerId : null;
+        
+        console.log('🗺️ Map prepared for drawing:');
+        console.log('  - MapId:', currentMapId);
+        console.log('  - LayerId:', currentLayerId);
+        console.log('  - Template:', template.templateName);
 
         // ✅ Hiển thị thông tin template
         document.title = `MapTemplate Viewer - ${template.templateName}`;
@@ -206,6 +653,9 @@
 
           msg.style.color = "#28a745";
           msg.textContent = `✅ Loaded: ${template.templateName} (${layersLoaded}/${totalLayers} layers, ${template.totalFeatures} features)`;
+          
+          // ✅ Load existing user-drawn features
+          await loadMapFeatures(currentMapId);
         } else {
           // ✅ Fallback: Hiển thị bounds nếu không có layers
           if (template.defaultBounds) {
@@ -257,9 +707,668 @@
       }
     };
 
-    // ✅ Load templates when page loads
-    window.onload = function() {
-      loadTemplateList();
+    // Drawing Event Handlers
+    function setDrawingMode(mode) {
+      // Clear active state from all buttons
+      document.querySelectorAll('#drawingPanel button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      drawingMode = mode;
+      
+      if (mode) {
+        document.getElementById(`draw${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('active');
+        document.getElementById('drawStatus').textContent = `Click to draw ${mode}`;
+        map.getContainer().style.cursor = 'crosshair';
+      } else {
+        document.getElementById('drawStatus').textContent = 'Ready to draw';
+        map.getContainer().style.cursor = '';
+      }
+    }
+
+    // Map click handler for drawing
+    map.on('click', async function(e) {
+      if (!drawingMode || !currentMapId) return;
+      
+      const latlng = e.latlng;
+      let layer = null;
+      let feature = null;
+      
+      switch (drawingMode) {
+        case 'point':
+          layer = L.circleMarker(latlng, drawingStyles.pin);
+          feature = {
+            featureCategory: 'data',
+            geometryType: 'point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Pin',
+            style: JSON.stringify(drawingStyles.pin),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'marker':
+          layer = L.circleMarker(latlng, drawingStyles.marker);
+          feature = {
+            featureCategory: 'annotation',
+            annotationType: 'marker',
+            geometryType: 'point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Marker',
+            style: JSON.stringify(drawingStyles.marker),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'text':
+          const text = prompt('Enter text:') || 'Text';
+          layer = L.circleMarker(latlng, drawingStyles.text);
+          layer.bindPopup(text);
+          feature = {
+            featureCategory: 'annotation',
+            annotationType: 'text',
+            geometryType: 'point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: text,
+            properties: JSON.stringify({ text: text }),
+            style: JSON.stringify(drawingStyles.text),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'note':
+          const note = prompt('Enter note:') || 'Note';
+          layer = L.circleMarker(latlng, drawingStyles.note);
+          layer.bindPopup(note);
+          feature = {
+            featureCategory: 'annotation',
+            annotationType: 'note',
+            geometryType: 'point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Note',
+            properties: JSON.stringify({ note: note }),
+            style: JSON.stringify(drawingStyles.note),
+            layerId: currentLayerId
+          };
+          break;
+      }
+      
+      if (layer && feature) {
+        drawnItems.addLayer(layer);
+        
+        // Save to API
+        const saved = await saveFeature(feature);
+        if (saved) {
+          layer._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = `✅ ${feature.name} saved`;
+        }
+        
+        setDrawingMode(null); // Reset drawing mode
+      }
+    });
+
+    // Button event listeners
+    document.getElementById('drawPoint').onclick = () => setDrawingMode('point');
+    document.getElementById('drawMarker').onclick = () => setDrawingMode('marker');
+    document.getElementById('drawText').onclick = () => setDrawingMode('text');
+    document.getElementById('drawNote').onclick = () => setDrawingMode('note');
+    document.getElementById('drawLink').onclick = () => setDrawingMode('link');
+    document.getElementById('drawVideo').onclick = () => setDrawingMode('video');
+    
+    // Line and Polygon drawing (more complex)
+    let isDrawingLine = false;
+    let isDrawingPolygon = false;
+    let currentPath = [];
+    let tempPolyline = null;
+    let tempPolygon = null;
+
+    document.getElementById('drawLine').onclick = function() {
+      if (isDrawingLine) {
+        // Finish line
+        finishLineDrawing();
+      } else {
+        // Start line
+        startLineDrawing();
+      }
+    };
+
+    document.getElementById('drawPolygon').onclick = function() {
+      if (isDrawingPolygon) {
+        // Finish polygon
+        finishPolygonDrawing();
+      } else {
+        // Start polygon
+        startPolygonDrawing();
+      }
+    };
+
+    // Highlighter (free drawing) - Toggle mode
+    document.getElementById('drawHighlighter').onclick = function() {
+      if (isDrawingHighlighter) {
+        // Stop highlighter mode
+        resetHighlighterDrawing();
+      } else {
+        // Start highlighter mode
+        startHighlighterDrawing();
+      }
+    };
+
+    // Route drawing
+    document.getElementById('drawRoute').onclick = function() {
+      if (isDrawingRoute) {
+        // Finish route
+        finishRouteDrawing();
+      } else {
+        // Start route
+        startRouteDrawing();
+      }
+    };
+
+    function startLineDrawing() {
+      isDrawingLine = true;
+      currentPath = [];
+      setDrawingMode(null);
+      document.getElementById('drawLine').classList.add('active');
+      document.getElementById('drawStatus').textContent = 'Click points to draw line. Click Line button again to finish.';
+      map.getContainer().style.cursor = 'crosshair';
+    }
+
+    function startPolygonDrawing() {
+      isDrawingPolygon = true;
+      currentPath = [];
+      setDrawingMode(null);
+      document.getElementById('drawPolygon').classList.add('active');
+      document.getElementById('drawStatus').textContent = 'Click points to draw polygon. Click Polygon button again to finish.';
+      map.getContainer().style.cursor = 'crosshair';
+    }
+
+    async function finishLineDrawing() {
+      if (currentPath.length >= 2) {
+        if (tempPolyline) map.removeLayer(tempPolyline);
+        
+        const line = L.polyline(currentPath, drawingStyles.line);
+        drawnItems.addLayer(line);
+        
+        const feature = {
+          featureCategory: 'Data',
+          geometryType: 'LineString',
+          coordinates: JSON.stringify(currentPath.map(p => [p.lng, p.lat])),
+          name: 'Line',
+          style: JSON.stringify(drawingStyles.line),
+          layerId: currentLayerId
+        };
+        
+        const saved = await saveFeature(feature);
+        if (saved) {
+          line._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = '✅ Line saved';
+        }
+      }
+      
+      resetLineDrawing();
+    }
+
+    async function finishPolygonDrawing() {
+      if (currentPath.length >= 3) {
+        if (tempPolygon) map.removeLayer(tempPolygon);
+        
+        const polygon = L.polygon(currentPath, drawingStyles.polygon);
+        drawnItems.addLayer(polygon);
+        
+        const feature = {
+          featureCategory: 'Data',
+          geometryType: 'Polygon',
+          coordinates: JSON.stringify([currentPath.map(p => [p.lng, p.lat])]),
+          name: 'Polygon',
+          style: JSON.stringify(drawingStyles.polygon),
+          layerId: currentLayerId
+        };
+        
+        const saved = await saveFeature(feature);
+        if (saved) {
+          polygon._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = '✅ Polygon saved';
+        }
+      }
+      
+      resetPolygonDrawing();
+    }
+
+    function resetLineDrawing() {
+      isDrawingLine = false;
+      currentPath = [];
+      if (tempPolyline) {
+        map.removeLayer(tempPolyline);
+        tempPolyline = null;
+      }
+      document.getElementById('drawLine').classList.remove('active');
+      document.getElementById('drawStatus').textContent = 'Ready to draw';
+      map.getContainer().style.cursor = '';
+    }
+
+    function resetPolygonDrawing() {
+      isDrawingPolygon = false;
+      currentPath = [];
+      if (tempPolygon) {
+        map.removeLayer(tempPolygon);
+        tempPolygon = null;
+      }
+      document.getElementById('drawPolygon').classList.remove('active');
+      document.getElementById('drawStatus').textContent = 'Ready to draw';
+      map.getContainer().style.cursor = '';
+    }
+
+    // Highlighter functions
+    function startHighlighterDrawing() {
+      isDrawingHighlighter = true;
+      currentFreePath = [];
+      setDrawingMode(null);
+      document.getElementById('drawHighlighter').classList.add('active');
+      document.getElementById('drawStatus').textContent = '🖍️ Highlighter mode: Hold and drag to draw. Each stroke saves automatically. Click Highlighter to exit.';
+      map.getContainer().style.cursor = 'crosshair';
+      
+      // Enable drag drawing
+      map.dragging.disable();
+    }
+
+    function startRouteDrawing() {
+      isDrawingRoute = true;
+      currentFreePath = [];
+      setDrawingMode(null);
+      document.getElementById('drawRoute').classList.add('active');
+      document.getElementById('drawStatus').textContent = 'Click points to draw route. Click Route button again to finish.';
+      map.getContainer().style.cursor = 'crosshair';
+    }
+
+    async function finishHighlighterDrawing() {
+      if (currentFreePath.length >= 2) {
+        if (tempFreeLine) map.removeLayer(tempFreeLine);
+        
+        const highlighter = L.polyline(currentFreePath, drawingStyles.highlighter);
+        drawnItems.addLayer(highlighter);
+        
+        const feature = {
+          featureCategory: 'Annotation',
+          annotationType: 'Highlighter',
+          geometryType: 'LineString',
+          coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
+          name: 'Highlighter',
+          style: JSON.stringify(drawingStyles.highlighter),
+          layerId: currentLayerId
+        };
+        
+        const saved = await saveFeature(feature);
+        if (saved) {
+          highlighter._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = '✅ Highlighter saved';
+        }
+      }
+      
+      resetHighlighterDrawing();
+    }
+
+    async function finishRouteDrawing() {
+      if (currentFreePath.length >= 2) {
+        if (tempFreeLine) map.removeLayer(tempFreeLine);
+        
+        const route = L.polyline(currentFreePath, drawingStyles.route);
+        drawnItems.addLayer(route);
+        
+        const feature = {
+          featureCategory: 'Annotation',
+          annotationType: 'Route',
+          geometryType: 'LineString',
+          coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
+          name: 'Route',
+          style: JSON.stringify(drawingStyles.route),
+          layerId: currentLayerId
+        };
+        
+        const saved = await saveFeature(feature);
+        if (saved) {
+          route._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = '✅ Route saved';
+        }
+      }
+      
+      resetRouteDrawing();
+    }
+
+    function resetHighlighterDrawing() {
+      isDrawingHighlighter = false;
+      currentFreePath = [];
+      if (tempFreeLine) {
+        map.removeLayer(tempFreeLine);
+        tempFreeLine = null;
+      }
+      document.getElementById('drawHighlighter').classList.remove('active');
+      document.getElementById('drawStatus').textContent = 'Ready to draw';
+      map.getContainer().style.cursor = '';
+      map.dragging.enable();
+    }
+
+    function resetRouteDrawing() {
+      isDrawingRoute = false;
+      currentFreePath = [];
+      if (tempFreeLine) {
+        map.removeLayer(tempFreeLine);
+        tempFreeLine = null;
+      }
+      document.getElementById('drawRoute').classList.remove('active');
+      document.getElementById('drawStatus').textContent = 'Ready to draw';
+      map.getContainer().style.cursor = '';
+    }
+
+    // Enhanced map click handler
+    map.off('click'); // Remove previous handler
+    map.on('click', async function(e) {
+      const latlng = e.latlng;
+      
+      // Handle route drawing (click-based)
+      if (isDrawingRoute) {
+        currentFreePath.push(latlng);
+        
+        if (tempFreeLine) map.removeLayer(tempFreeLine);
+        tempFreeLine = L.polyline(currentFreePath, { ...drawingStyles.route, opacity: 0.5 });
+        map.addLayer(tempFreeLine);
+        
+        document.getElementById('drawStatus').textContent = `Route: ${currentFreePath.length} points. Click Route button to finish.`;
+        return;
+      }
+      
+      // Handle line drawing
+      if (isDrawingLine) {
+        currentPath.push(latlng);
+        
+        if (tempPolyline) map.removeLayer(tempPolyline);
+        tempPolyline = L.polyline(currentPath, { ...drawingStyles.line, opacity: 0.5 });
+        map.addLayer(tempPolyline);
+        
+        document.getElementById('drawStatus').textContent = `Line: ${currentPath.length} points. Click Line button to finish.`;
+        return;
+      }
+      
+      // Handle polygon drawing
+      if (isDrawingPolygon) {
+        currentPath.push(latlng);
+        
+        if (tempPolygon) map.removeLayer(tempPolygon);
+        if (currentPath.length >= 3) {
+          tempPolygon = L.polygon(currentPath, { ...drawingStyles.polygon, opacity: 0.5 });
+          map.addLayer(tempPolygon);
+        } else if (currentPath.length >= 2) {
+          tempPolyline = L.polyline(currentPath, { ...drawingStyles.polygon, opacity: 0.5 });
+          map.addLayer(tempPolyline);
+        }
+        
+        document.getElementById('drawStatus').textContent = `Polygon: ${currentPath.length} points. Click Polygon button to finish.`;
+        return;
+      }
+      
+      // Handle point-based drawing
+      if (!drawingMode || !currentMapId) return;
+      
+      let layer = null;
+      let feature = null;
+      
+      switch (drawingMode) {
+        case 'point':
+          layer = L.circleMarker(latlng, drawingStyles.pin);
+          feature = {
+            featureCategory: 'Data',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Pin',
+            style: JSON.stringify(drawingStyles.pin),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'marker':
+          layer = L.circleMarker(latlng, drawingStyles.marker);
+          feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Marker',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Marker',
+            style: JSON.stringify(drawingStyles.marker),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'text':
+          const text = prompt('Enter text:') || 'Text';
+          layer = L.circleMarker(latlng, drawingStyles.text);
+          layer.bindPopup(text);
+          feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Text',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: text,
+            properties: JSON.stringify({ text: text }),
+            style: JSON.stringify(drawingStyles.text),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'note':
+          const note = prompt('Enter note:') || 'Note';
+          layer = L.circleMarker(latlng, drawingStyles.note);
+          layer.bindPopup(note);
+          feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Note',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Note',
+            properties: JSON.stringify({ note: note }),
+            style: JSON.stringify(drawingStyles.note),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'circle':
+          const radius = parseFloat(prompt('Enter radius in meters:')) || 1000;
+          layer = L.circle(latlng, { ...drawingStyles.circle, radius: radius });
+          feature = {
+            featureCategory: 'Data',
+            geometryType: 'Circle',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: 'Circle',
+            properties: JSON.stringify({ radiusMeters: radius }),
+            style: JSON.stringify(drawingStyles.circle),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'link':
+          const url = prompt('Enter URL:') || 'https://example.com';
+          const linkName = prompt('Enter link name:') || 'Link';
+          layer = L.circleMarker(latlng, drawingStyles.link);
+          layer.bindPopup(`<a href="${url}" target="_blank">${linkName}</a>`);
+          feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Link',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: linkName,
+            properties: JSON.stringify({ url: url }),
+            style: JSON.stringify(drawingStyles.link),
+            layerId: currentLayerId
+          };
+          break;
+          
+        case 'video':
+          const videoUrl = prompt('Enter video URL (YouTube, Vimeo, etc.):') || 'https://youtube.com/watch?v=...';
+          const videoTitle = prompt('Enter video title:') || 'Video';
+          layer = L.circleMarker(latlng, drawingStyles.video);
+          layer.bindPopup(`
+            <div style="max-width: 300px;">
+              <strong>${videoTitle}</strong><br/>
+              <a href="${videoUrl}" target="_blank">🎥 Watch Video</a>
+            </div>
+          `);
+          feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Video',
+            geometryType: 'Point',
+            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
+            name: videoTitle,
+            properties: JSON.stringify({ videoUrl: videoUrl }),
+            style: JSON.stringify(drawingStyles.video),
+            layerId: currentLayerId
+          };
+          break;
+      }
+      
+      if (layer && feature) {
+        drawnItems.addLayer(layer);
+        
+        // Save to API
+        const saved = await saveFeature(feature);
+        if (saved) {
+          layer._featureId = saved.featureId;
+          document.getElementById('drawStatus').textContent = `✅ ${feature.name} saved`;
+        }
+        
+        setDrawingMode(null); // Reset drawing mode
+      }
+    });
+
+    // Circle drawing
+    document.getElementById('drawCircle').onclick = () => setDrawingMode('circle');
+
+    // Clear all features
+    document.getElementById('clearAll').onclick = function() {
+      if (confirm('Clear all drawn features?')) {
+        drawnItems.clearLayers();
+        resetLineDrawing();
+        resetPolygonDrawing();
+        resetHighlighterDrawing();
+        resetRouteDrawing();
+        document.getElementById('drawStatus').textContent = 'All features cleared';
+      }
+    };
+
+    // Mouse events for highlighter free drawing
+    let isMouseDown = false;
+    
+    map.on('mousedown', function(e) {
+      if (isDrawingHighlighter) {
+        isMouseDown = true;
+        currentFreePath = [e.latlng];
+        
+        if (tempFreeLine) map.removeLayer(tempFreeLine);
+        tempFreeLine = L.polyline(currentFreePath, { ...drawingStyles.highlighter, opacity: 0.7 });
+        map.addLayer(tempFreeLine);
+      }
+    });
+    
+    map.on('mousemove', function(e) {
+      if (isDrawingHighlighter && isMouseDown) {
+        currentFreePath.push(e.latlng);
+        
+        if (tempFreeLine) {
+          tempFreeLine.addLatLng(e.latlng);
+        }
+        
+        // Limit path length to prevent performance issues
+        if (currentFreePath.length > 500) {
+          currentFreePath.shift();
+        }
+      }
+    });
+    
+    map.on('mouseup', async function(e) {
+      if (isDrawingHighlighter && isMouseDown) {
+        isMouseDown = false;
+        
+        // Auto-save highlighter after drawing
+        if (currentFreePath.length >= 2) {
+          const highlighter = L.polyline(currentFreePath, drawingStyles.highlighter);
+          drawnItems.addLayer(highlighter);
+          
+          const feature = {
+            featureCategory: 'Annotation',
+            annotationType: 'Highlighter',
+            geometryType: 'LineString',
+            coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
+            name: 'Highlighter',
+            style: JSON.stringify(drawingStyles.highlighter),
+            layerId: currentLayerId
+          };
+          
+          // Remove temp line and save
+          if (tempFreeLine) map.removeLayer(tempFreeLine);
+          
+          const saved = await saveFeature(feature);
+          if (saved) {
+            highlighter._featureId = saved.featureId;
+            document.getElementById('drawStatus').textContent = '✅ Highlighter saved automatically';
+            console.log('✅ Highlighter auto-saved:', saved);
+          } else {
+            document.getElementById('drawStatus').textContent = '❌ Failed to save highlighter';
+          }
+          
+          // Reset for next drawing
+          currentFreePath = [];
+          tempFreeLine = null;
+        } else {
+          document.getElementById('drawStatus').textContent = 'Highlighter too short, try drawing a longer line';
+        }
+      }
+    });
+
+    // Button event handlers
+    document.getElementById('btnLoadMap').onclick = async () => {
+      const mapId = document.getElementById('mapId').value.trim();
+      const msg = document.getElementById('error');
+      msg.textContent = "";
+
+      if (!mapId) { 
+        msg.textContent = "Please enter a Map ID"; 
+        return; 
+      }
+
+      await loadMapById(mapId);
+    };
+
+    document.getElementById('btnSaveState').onclick = () => {
+      saveMapState();
+      document.getElementById('error').style.color = '#28a745';
+      document.getElementById('error').textContent = '💾 State saved to browser storage';
+    };
+
+    document.getElementById('btnClearState').onclick = () => {
+      if (confirm('Clear saved state? This will remove the saved map information.')) {
+        clearMapState();
+        document.getElementById('error').style.color = '#ffc107';
+        document.getElementById('error').textContent = '🗑️ State cleared';
+      }
+    };
+
+    // Auto-restore state on page load
+    async function autoRestoreState() {
+      const savedState = loadMapState();
+      if (savedState && savedState.currentMapId) {
+        console.log('🔄 Auto-restoring previous state...');
+        document.getElementById('mapId').value = savedState.currentMapId;
+        
+        // Try to reload the previous map
+        const restored = await loadMapById(savedState.currentMapId);
+        if (restored) {
+          document.getElementById('error').style.color = '#28a745';
+          document.getElementById('error').textContent = '🔄 Previous session restored automatically';
+        }
+      }
+    }
+
+    // ✅ Load templates and restore state when page loads
+    window.onload = async function() {
+      await loadTemplateList();
+      await autoRestoreState();
     };
   </script>
 </body>

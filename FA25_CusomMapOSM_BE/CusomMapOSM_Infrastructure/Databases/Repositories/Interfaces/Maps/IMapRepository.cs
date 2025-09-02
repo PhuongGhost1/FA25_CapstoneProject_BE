@@ -25,7 +25,6 @@ public interface IMapRepository
 
     // Template Content operations
     Task<List<MapLayer>> GetTemplateLayers(Guid mapId);
-    Task<List<MapAnnotation>> GetTemplateAnnotations(Guid mapId);
     Task<List<MapImage>> GetTemplateImages(Guid mapId);
     Task<bool> CreateMapTemplateLayer(MapLayer templateLayer);
     Task<bool> CreateLayer(Layer layer);

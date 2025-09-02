@@ -114,16 +114,14 @@ public class MapRepository : IMapRepository
             return null;
 
         var mapLayersTask = GetTemplateLayers(templateId);
-        var mapAnnotationsTask = GetTemplateAnnotations(templateId);
         var mapImagesTask = GetTemplateImages(templateId);
 
-        await Task.WhenAll(mapLayersTask, mapAnnotationsTask, mapImagesTask);
+        await Task.WhenAll(mapLayersTask, mapImagesTask);
 
         var templateWithDetails = new MapTemplateWithDetails
         {
             Map = template,
             MapLayers = mapLayersTask.Result,
-            MapAnnotations = mapAnnotationsTask.Result,
             MapImages = mapImagesTask.Result
         };
 
@@ -134,18 +132,13 @@ public class MapRepository : IMapRepository
     public async Task<List<MapLayer>> GetTemplateLayers(Guid mapId)
     {
         return await _context.MapLayers
+            .Include(tl => tl.Layer) // Include Layer navigation property
             .Where(tl => tl.MapId == mapId)
             .OrderBy(tl => tl.LayerOrder)
             .ToListAsync();
     }
 
-    public async Task<List<MapAnnotation>> GetTemplateAnnotations(Guid mapId)
-    {
-        return await _context.MapAnnotations
-            .Where(ta => ta.MapId == mapId)
-            .OrderBy(ta => ta.CreatedAt)
-            .ToListAsync();
-    }
+
 
     public async Task<List<MapImage>> GetTemplateImages(Guid mapId)
     {
@@ -183,12 +176,50 @@ public class MapRepository : IMapRepository
 
     public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
     {
-        var layer = await _context.MapLayers
-            .Where(l => l.MapId == mapId && l.MapLayerId == layerId && l.IsVisible)
-            .Select(l => l.LayerData)
-            .FirstOrDefaultAsync();
-
-        return layer;
+        // First try to find MapLayer by MapId and LayerId
+        var mapLayer = await _context.MapLayers
+            .Include(ml => ml.Layer)
+            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
+        
+        // If not found, try to find by MapId and check if layerId is actually a MapLayerId
+        if (mapLayer == null)
+        {
+            mapLayer = await _context.MapLayers
+                .Include(ml => ml.Layer)
+                .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.MapLayerId == layerId);
+        }
+        
+        if (mapLayer == null)
+        {
+            // Debug: Check what MapLayers exist for this map
+            var allMapLayers = await _context.MapLayers
+                .Where(ml => ml.MapId == mapId)
+                .Select(ml => new { ml.MapLayerId, ml.LayerId, ml.IsVisible, LayerName = ml.Layer != null ? ml.Layer.LayerName : "null" })
+                .ToListAsync();
+                
+            Console.WriteLine($"MapLayer not found for MapId: {mapId}, LayerId: {layerId}");
+            Console.WriteLine($"Available MapLayers for MapId {mapId}:");
+            foreach (var ml in allMapLayers)
+            {
+                Console.WriteLine($"  - MapLayerId:{ml.MapLayerId}, LayerId:{ml.LayerId}, Visible:{ml.IsVisible}, Name:{ml.LayerName}");
+            }
+            return null;
+        }
+        
+        if (mapLayer.Layer == null)
+        {
+            Console.WriteLine($"Layer entity is null for MapLayerId: {mapLayer.MapLayerId}");
+            return null;
+        }
+        
+        if (string.IsNullOrEmpty(mapLayer.Layer.LayerData))
+        {
+            Console.WriteLine($"LayerData is empty for LayerId: {mapLayer.LayerId}, LayerName: {mapLayer.Layer.LayerName}");
+            return null;
+        }
+        
+        Console.WriteLine($"Successfully found layer data for LayerId: {mapLayer.LayerId}, Size: {mapLayer.Layer.LayerData?.Length ?? 0} chars");
+        return mapLayer.Layer.LayerData;
     }
 
     // Template Management operations
@@ -261,10 +292,6 @@ public class MapRepository : IMapRepository
         return await _context.MapLayers
             .Include(ml => ml.Layer)
                 .ThenInclude(l => l.User)
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.LayerType)
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.Source)
             .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
     }
 
@@ -273,10 +300,6 @@ public class MapRepository : IMapRepository
         return await _context.MapLayers
             .Include(ml => ml.Layer)
                 .ThenInclude(l => l.User)
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.LayerType)
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.Source)
             .Where(ml => ml.MapId == mapId)
             .OrderBy(ml => ml.LayerOrder)
             .ToListAsync();

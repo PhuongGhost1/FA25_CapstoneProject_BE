@@ -754,12 +754,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("layer_style");
 
-                    b.Property<int>("LayerTypeId")
+                    b.Property<int>("LayerType")
                         .HasColumnType("int")
                         .HasColumnName("layer_type_id");
 
-                    b.Property<Guid>("SourceId")
-                        .HasColumnType("char(36)")
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int")
                         .HasColumnName("source_id");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -771,10 +771,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("LayerId");
-
-                    b.HasIndex("LayerTypeId");
-
-                    b.HasIndex("SourceId");
 
                     b.HasIndex("UserId");
 
@@ -871,7 +867,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             Description = "Street and road networks from OpenStreetMap",
                             IconUrl = "/icons/roads.svg",
                             IsActive = true,
-                            TypeName = "Roads"
+                            TypeName = "GEOJSON"
                         },
                         new
                         {
@@ -880,7 +876,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             Description = "Building footprints and structures",
                             IconUrl = "/icons/buildings.svg",
                             IsActive = true,
-                            TypeName = "Buildings"
+                            TypeName = "KML"
                         },
                         new
                         {
@@ -889,7 +885,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             Description = "Points of Interest including amenities and landmarks",
                             IconUrl = "/icons/poi.svg",
                             IsActive = true,
-                            TypeName = "POI"
+                            TypeName = "Shapefile"
                         },
                         new
                         {
@@ -1023,36 +1019,46 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("maps", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapAnnotation", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapFeature", b =>
                 {
-                    b.Property<int>("MapAnnotationId")
+                    b.Property<Guid>("FeatureId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("map_annotation_id");
+                        .HasColumnType("char(36)")
+                        .HasColumnName("feature_id");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MapAnnotationId"));
+                    b.Property<string>("AnnotationType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("annotation_type");
 
-                    b.Property<string>("AnnotationName")
+                    b.Property<string>("Coordinates")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("annotation_name");
-
-                    b.Property<int>("AnnotationTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("annotation_type_id");
-
-                    b.Property<string>("Content")
-                        .HasColumnType("text")
-                        .HasColumnName("content");
+                        .HasColumnType("longtext")
+                        .HasColumnName("coordinates");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("GeometryData")
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
                         .HasColumnType("text")
-                        .HasColumnName("geometry_data");
+                        .HasColumnName("description");
+
+                    b.Property<string>("FeatureCategory")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("feature_category");
+
+                    b.Property<string>("GeometryType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("geometry_type");
 
                     b.Property<bool>("IsVisible")
                         .ValueGeneratedOnAdd()
@@ -1060,33 +1066,55 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_visible");
 
-                    b.Property<decimal?>("Latitude")
-                        .HasColumnType("decimal(10,8)")
-                        .HasColumnName("latitude");
-
-                    b.Property<decimal?>("Longitude")
-                        .HasColumnType("decimal(11,8)")
-                        .HasColumnName("longitude");
+                    b.Property<Guid?>("LayerId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("layer_id");
 
                     b.Property<Guid>("MapId")
                         .HasColumnType("char(36)")
                         .HasColumnName("map_id");
 
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("json")
+                        .HasColumnName("properties");
+
                     b.Property<string>("Style")
-                        .HasColumnType("text")
+                        .HasColumnType("json")
                         .HasColumnName("style");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("ZIndex")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(1000)
+                        .HasDefaultValue(0)
                         .HasColumnName("z_index");
 
-                    b.HasKey("MapAnnotationId");
+                    b.HasKey("FeatureId");
 
-                    b.HasIndex("MapId");
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_map_features_created_by");
 
-                    b.ToTable("map_annotations", (string)null);
+                    b.HasIndex("LayerId")
+                        .HasDatabaseName("ix_map_features_layer_id");
+
+                    b.HasIndex("MapId")
+                        .HasDatabaseName("ix_map_features_map_id");
+
+                    b.HasIndex("MapId", "IsVisible")
+                        .HasDatabaseName("ix_map_features_map_visible");
+
+                    b.HasIndex("MapId", "FeatureCategory", "AnnotationType")
+                        .HasDatabaseName("ix_map_features_category_annotation");
+
+                    b.ToTable("map_features", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapHistory", b =>
@@ -1237,19 +1265,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_visible");
 
-                    b.Property<string>("LayerData")
-                        .HasColumnType("longtext")
-                        .HasColumnName("layer_data");
-
                     b.Property<Guid>("LayerId")
                         .HasColumnType("char(36)")
                         .HasColumnName("layer_id");
-
-                    b.Property<string>("LayerName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("layer_name");
 
                     b.Property<int>("LayerOrder")
                         .ValueGeneratedOnAdd()
@@ -1257,21 +1275,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("layer_order");
 
-                    b.Property<string>("LayerStyle")
-                        .HasColumnType("text")
-                        .HasColumnName("layer_style");
-
-                    b.Property<int>("LayerTypeId")
-                        .HasColumnType("int")
-                        .HasColumnName("layer_type_id");
-
                     b.Property<Guid>("MapId")
                         .HasColumnType("char(36)")
                         .HasColumnName("map_id");
-
-                    b.Property<Guid>("SourceId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("source_id");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")
@@ -2565,27 +2571,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.Layer", b =>
                 {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.LayerType", "LayerType")
-                        .WithMany()
-                        .HasForeignKey("LayerTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.LayerSource", "Source")
-                        .WithMany()
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("LayerType");
-
-                    b.Navigation("Source");
 
                     b.Navigation("User");
                 });
@@ -2615,13 +2605,28 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapAnnotation", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapFeature", b =>
                 {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
+                        .WithMany()
+                        .HasForeignKey("LayerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
                         .WithMany()
                         .HasForeignKey("MapId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Creator");
+
+                    b.Navigation("Layer");
 
                     b.Navigation("Map");
                 });

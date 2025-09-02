@@ -4,6 +4,7 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
@@ -79,7 +80,6 @@ public class MapService : IMapService
         }
         
         var layersCreated = await CopyTemplateLayersToMap(template.MapId, newMap.MapId, currentUserId.Value);
-        var annotationsCreated = await CopyTemplateAnnotationsToMap(template.MapId, newMap.MapId, currentUserId.Value);
         var imagesCreated = await CopyTemplateImagesToMap(template.MapId, newMap.MapId, currentUserId.Value);
         
         template.UsageCount++;
@@ -91,7 +91,6 @@ public class MapService : IMapService
             MapName = newMap.MapName,
             TemplateName = template.MapName,
             LayersCreated = layersCreated,
-            AnnotationsCreated = annotationsCreated,
             ImagesCreated = imagesCreated,
             CreatedAt = newMap.CreatedAt
         });
@@ -367,10 +366,10 @@ public class MapService : IMapService
         var layers = await _mapRepository.GetTemplateLayers(template.MapId);
         var layerDtos = layers.Select(l => new MapTemplateLayerDTO
         {
-            LayerId = l.MapLayerId,
-            LayerName = l.LayerName,
-            LayerTypeId = l.LayerTypeId,
-            LayerStyle = l.LayerStyle ?? "",
+            LayerId = l.LayerId,
+            LayerName = l.Layer?.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)(l.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
+            LayerStyle = l.Layer?.LayerStyle ?? "",
             IsVisible = l.IsVisible,
             ZIndex = l.ZIndex,
             LayerOrder = l.LayerOrder,
@@ -447,33 +446,17 @@ public class MapService : IMapService
         var layerDtos = templateWithDetails.MapLayers.Select(ml => new MapLayerDTO
         {
             MapLayerId = ml.MapLayerId,
-            LayerName = ml.LayerName,
-            LayerTypeId = ml.LayerTypeId,
+            LayerName = ml.Layer?.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
             IsVisible = ml.IsVisible,
             ZIndex = ml.ZIndex,
             LayerOrder = ml.LayerOrder,
-            LayerData = ml.LayerData,
-            LayerStyle = ml.LayerStyle,
+            LayerData = ml.Layer?.LayerData ?? "",
+            LayerStyle = ml.Layer?.LayerStyle ?? "",
             CustomStyle = ml.CustomStyle,
             FeatureCount = ml.FeatureCount,
             DataSizeKB = ml.DataSizeKB,
             DataBounds = ml.DataBounds
-        }).ToList();
-
-        // Map Annotations
-        var annotationDtos = templateWithDetails.MapAnnotations.Select(ma => new MapAnnotationDTO
-        {
-            MapAnnotationId = ma.MapAnnotationId,
-            AnnotationName = ma.AnnotationName,
-            AnnotationTypeId = ma.AnnotationTypeId,
-            GeometryData = ma.GeometryData,
-            Style = ma.Style,
-            Content = ma.Content,
-            Latitude = ma.Latitude,
-            Longitude = ma.Longitude,
-            IsVisible = ma.IsVisible,
-            ZIndex = ma.ZIndex,
-            CreatedAt = ma.CreatedAt
         }).ToList();
 
         // Map Images
@@ -497,7 +480,6 @@ public class MapService : IMapService
         {
             Template = templateDto,
             Layers = layerDtos,
-            Annotations = annotationDtos,
             Images = imageDtos
         };
 
@@ -704,10 +686,10 @@ public class MapService : IMapService
         {
             Id = ml.Layer?.LayerId ?? Guid.Empty,
             Name = ml.Layer?.LayerName ?? "Unknown Layer",
-            LayerTypeId = ml.Layer?.LayerTypeId ?? 0,
-            LayerTypeName = ml.Layer?.LayerType?.TypeName ?? "Unknown",
-            LayerTypeIcon = ml.Layer?.LayerType?.IconUrl ?? "",
-            SourceName = ml.Layer?.Source?.Name ?? "Unknown",
+            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
+            LayerTypeName = ml.Layer?.LayerType.ToString() ?? "Unknown",
+            LayerTypeIcon = "",
+            SourceName = ml.Layer?.SourceType.ToString() ?? "Unknown",
             FilePath = ml.Layer?.FilePath ?? "",
             LayerData = ml.Layer?.LayerData ?? "",
             LayerStyle = ml.Layer?.LayerStyle ?? "",
@@ -790,11 +772,11 @@ public class MapService : IMapService
             {
                 LayerId = newLayerId,
                 UserId = userId,
-                LayerName = templateLayer.LayerName,
-                LayerTypeId = templateLayer.LayerTypeId,
-                SourceId = SeedDataConstants.UserUploadSourceTypeId, // Use predefined UserUploaded source ID
-                LayerData = templateLayer.LayerData,
-                LayerStyle = templateLayer.LayerStyle,
+                LayerName = templateLayer.Layer?.LayerName,
+                LayerType = templateLayer.Layer?.LayerType ?? LayerTypeEnum.GEOJSON,
+                SourceType = templateLayer.Layer?.SourceType ?? LayerSourceEnum.UserUploaded,
+                LayerData = templateLayer.Layer?.LayerData,
+                LayerStyle = templateLayer.Layer?.LayerStyle,
                 IsPublic = false, // New map layers are private by default
                 CreatedAt = DateTime.UtcNow
             };
@@ -810,11 +792,6 @@ public class MapService : IMapService
             {
                 MapId = mapId,
                 LayerId = newLayerId,
-                LayerName = templateLayer.LayerName,
-                LayerTypeId = templateLayer.LayerTypeId,
-                SourceId = SeedDataConstants.UserUploadSourceTypeId,
-                LayerData = templateLayer.LayerData,
-                LayerStyle = templateLayer.LayerStyle,
                 IsVisible = templateLayer.IsVisible,
                 ZIndex = templateLayer.ZIndex,
                 LayerOrder = templateLayer.LayerOrder,
@@ -836,33 +813,7 @@ public class MapService : IMapService
         return layersCreated;
     }
 
-    private async Task<int> CopyTemplateAnnotationsToMap(Guid templateId, Guid mapId, Guid userId)
-    {
-        var templateAnnotations = await _mapRepository.GetTemplateAnnotations(templateId);
-        var annotationsCreated = 0;
 
-        foreach (var templateAnnotation in templateAnnotations)
-        {
-            var newAnnotation = new MapAnnotation
-            {
-                MapId = mapId,
-                AnnotationName = templateAnnotation.AnnotationName,
-                AnnotationTypeId = templateAnnotation.AnnotationTypeId,
-                GeometryData = templateAnnotation.GeometryData,
-                Style = templateAnnotation.Style,
-                Content = templateAnnotation.Content,
-                Latitude = templateAnnotation.Latitude,
-                Longitude = templateAnnotation.Longitude,
-                IsVisible = templateAnnotation.IsVisible,
-                ZIndex = templateAnnotation.ZIndex,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            annotationsCreated++;
-        }
-
-        return annotationsCreated;
-    }
 
     private async Task<int> CopyTemplateImagesToMap(Guid templateId, Guid mapId, Guid userId)
     {
@@ -939,8 +890,8 @@ public class MapService : IMapService
                 LayerId = layerId,
                 UserId = currentUserId.Value,
                 LayerName = req.LayerName,
-                LayerTypeId = 4,
-                SourceId = SeedDataConstants.UserUploadSourceTypeId, // Use predefined UserUploaded source ID
+                LayerType = LayerTypeEnum.GEOJSON,
+                SourceType = LayerSourceEnum.UserUploaded,
                 LayerData = compressedGeoJsonData,
                 LayerStyle = req.LayerStyle,
                 IsPublic = req.IsPublic,
@@ -958,11 +909,6 @@ public class MapService : IMapService
             {
                 MapId = mapTemplate.MapId,
                 LayerId = layerId,
-                LayerName = req.LayerName,
-                LayerTypeId = 4,
-                SourceId = SeedDataConstants.UserUploadSourceTypeId,
-                LayerData = compressedGeoJsonData,
-                LayerStyle = req.LayerStyle,
                 IsVisible = true,
                 ZIndex = 1,
                 LayerOrder = 1,

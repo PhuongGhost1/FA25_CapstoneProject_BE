@@ -6,7 +6,6 @@ public class GetMapTemplateWithDetailsResponse
 {
     public MapTemplateDTO Template { get; set; } = new();
     public List<MapLayerDTO> Layers { get; set; } = new();
-    public List<MapAnnotationDTO> Annotations { get; set; } = new();
     public List<MapImageDTO> Images { get; set; } = new();
 }
 
@@ -26,20 +25,6 @@ public class MapLayerDTO
     public string? DataBounds { get; set; }
 }
 
-public class MapAnnotationDTO
-{
-    public int MapAnnotationId { get; set; }
-    public string AnnotationName { get; set; } = string.Empty;
-    public int AnnotationTypeId { get; set; }
-    public string? GeometryData { get; set; }
-    public string? Style { get; set; }
-    public string? Content { get; set; }
-    public double? Latitude { get; set; }
-    public double? Longitude { get; set; }
-    public bool IsVisible { get; set; }
-    public int ZIndex { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
 
 public class MapImageDTO
 {

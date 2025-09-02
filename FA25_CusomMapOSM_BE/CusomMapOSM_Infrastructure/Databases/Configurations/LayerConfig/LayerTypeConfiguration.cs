@@ -49,7 +49,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 1,
-                TypeName = LayerTypeEnum.Roads.ToString(),
+                TypeName = LayerTypeEnum.GEOJSON.ToString(),
                 Description = "Street and road networks from OpenStreetMap",
                 IconUrl = "/icons/roads.svg",
                 IsActive = true,
@@ -58,7 +58,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 2,
-                TypeName = LayerTypeEnum.Buildings.ToString(),
+                TypeName = LayerTypeEnum.KML.ToString(),
                 Description = "Building footprints and structures",
                 IconUrl = "/icons/buildings.svg",
                 IsActive = true,
@@ -67,7 +67,7 @@ internal class LayerTypeConfiguration : IEntityTypeConfiguration<LayerType>
             new LayerType
             {
                 LayerTypeId = 3,
-                TypeName = LayerTypeEnum.POI.ToString(),
+                TypeName = LayerTypeEnum.Shapefile.ToString(),
                 Description = "Points of Interest including amenities and landmarks",
                 IconUrl = "/icons/poi.svg",
                 IsActive = true,
