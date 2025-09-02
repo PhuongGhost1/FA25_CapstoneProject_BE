@@ -58,9 +58,6 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.Property(m => m.DefaultBounds)
                      .HasColumnName("default_bounds");
 
-              builder.Property(m => m.MapConfig)
-                     .HasColumnName("map_config");
-
               builder.Property(m => m.BaseLayer)
                      .HasColumnName("base_layer")
                      .HasMaxLength(100)
@@ -89,13 +86,6 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasColumnName("updated_at")
                      .HasColumnType("datetime");
               
-              builder.Property(m => m.TotalLayers)
-                     .HasColumnName("total_layers")
-                     .HasDefaultValue(0);
-
-              builder.Property(m => m.TotalFeatures)
-                     .HasColumnName("total_features")
-                     .HasDefaultValue(0);
               
               builder.HasOne(m => m.User)
                      .WithMany()
@@ -106,8 +96,9 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasForeignKey(m => m.OrgId)
                      .OnDelete(DeleteBehavior.SetNull);
               
+              // Self-referencing relationship for template cloning
               builder.HasOne(m => m.ParentMap)
-                     .WithMany(m => m.ClonedMaps)
+                     .WithMany()
                      .HasForeignKey(m => m.ParentMapId)
                      .OnDelete(DeleteBehavior.SetNull);
        }

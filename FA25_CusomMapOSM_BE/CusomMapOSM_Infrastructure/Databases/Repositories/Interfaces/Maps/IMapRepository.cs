@@ -1,4 +1,6 @@
 using CusomMapOSM_Domain.Entities.Maps;
+using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 
@@ -17,14 +19,15 @@ public interface IMapRepository
     Task<List<Map>> GetMapTemplates();
     Task<List<Map>> GetMapsByCategory(string category);
     Task<Map?> GetMapTemplateById(Guid templateId);
+    Task<MapTemplateWithDetails?> GetMapTemplateWithDetails(Guid templateId);
     Task<bool> CreateMapTemplate(Map template);
     Task<bool> UpdateMapTemplate(Map template);
 
     // Template Content operations
     Task<List<MapLayer>> GetTemplateLayers(Guid mapId);
-    Task<List<MapAnnotation>> GetTemplateAnnotations(Guid mapId);
     Task<List<MapImage>> GetTemplateImages(Guid mapId);
     Task<bool> CreateMapTemplateLayer(MapLayer templateLayer);
+    Task<bool> CreateLayer(Layer layer);
     Task<string?> GetLayerDataById(Guid mapId, Guid layerId);
 
     // Map Layer operations

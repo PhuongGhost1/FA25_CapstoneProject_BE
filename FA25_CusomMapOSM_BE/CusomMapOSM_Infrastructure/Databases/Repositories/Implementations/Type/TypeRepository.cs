@@ -73,13 +73,7 @@ public class TypeRepository : ITypeRepository
         var entity = await _context.Plans.FirstOrDefaultAsync(x => x.PlanName == name.ToString());
         return entity != null ? Enum.TryParse<MembershipPlanTypeEnum>(entity.PlanName, out var result) ? result : (MembershipPlanTypeEnum?)null : null;
     }
-
-    public async Task<OrganizationLocationStatusEnum?> GetOrganizationLocationStatusById(OrganizationLocationStatusEnum name)
-    {
-        var entity = await _context.OrganizationLocationStatuses.FirstOrDefaultAsync(x => x.Name == name.ToString());
-        return entity != null ? Enum.TryParse<OrganizationLocationStatusEnum>(entity.Name, out var result) ? result : (OrganizationLocationStatusEnum?)null : null;
-    }
-
+    
     public async Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name)
     {
         var entity = await _context.OrganizationMemberTypes.FirstOrDefaultAsync(x => x.Name == name.ToString());

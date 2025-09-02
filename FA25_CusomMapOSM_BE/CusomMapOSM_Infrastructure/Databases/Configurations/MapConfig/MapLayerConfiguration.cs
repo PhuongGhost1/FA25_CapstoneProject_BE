@@ -30,24 +30,6 @@ internal class MapLayerConfiguration : IEntityTypeConfiguration<MapLayer>
                      .HasColumnName("layer_id")
                      .IsRequired();
               
-              builder.Property(ml => ml.LayerName)
-                     .HasColumnName("layer_name")
-                     .HasMaxLength(255);
-
-              builder.Property(ml => ml.LayerTypeId)
-                     .HasColumnName("layer_type_id");
-
-              builder.Property(ml => ml.SourceId)
-                     .HasColumnName("source_id");
-
-              builder.Property(ml => ml.LayerData)
-                     .HasColumnName("layer_data")
-                     .HasColumnType("longtext");
-
-              builder.Property(ml => ml.LayerStyle)
-                     .HasColumnName("layer_style")
-                     .HasColumnType("text");
-              
               builder.Property(ml => ml.IsVisible)
                      .HasColumnName("is_visible")
                      .HasDefaultValue(true);
@@ -87,10 +69,10 @@ internal class MapLayerConfiguration : IEntityTypeConfiguration<MapLayer>
                      .HasColumnType("datetime");
               
               builder.HasOne(ml => ml.Map)
-                     .WithMany(m => m.MapLayers)
+                     .WithMany()
                      .HasForeignKey(ml => ml.MapId)
                      .OnDelete(DeleteBehavior.Cascade);
-
+              
               builder.HasOne(ml => ml.Layer)
                      .WithMany()
                      .HasForeignKey(ml => ml.LayerId);

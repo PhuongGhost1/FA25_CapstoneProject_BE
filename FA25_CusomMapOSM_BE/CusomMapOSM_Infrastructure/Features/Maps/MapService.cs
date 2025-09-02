@@ -4,12 +4,15 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
+using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
 using System.Text.Json;
+using CusomMapOSM_Application.Interfaces.Services.Cache;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -17,13 +20,15 @@ public class MapService : IMapService
 {
     private readonly IMapRepository _mapRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ICacheService _cacheService; 
 
     public MapService(
         IMapRepository mapRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService, ICacheService cacheService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
+        _cacheService = cacheService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -54,12 +59,11 @@ public class MapService : IMapService
             DefaultBounds = template.DefaultBounds,
             ViewState = template.ViewState,
             BaseLayer = template.BaseLayer,
-            ParentMapId = template.MapId, // Link to parent template
+            ParentMapId = template.MapId,
             CreatedAt = DateTime.UtcNow,
             IsActive = true
         };
-
-        // Override bounds and zoom if custom values provided
+        
         if (req.CustomInitialLatitude.HasValue && req.CustomInitialLongitude.HasValue)
         {
             newMap.DefaultBounds = $"{req.CustomInitialLatitude},{req.CustomInitialLongitude}";
@@ -74,13 +78,10 @@ public class MapService : IMapService
             return Option.None<CreateMapFromTemplateResponse, Error>(
                 Error.Failure("Map.CreateFailed", "Failed to create map from template"));
         }
-
-        // Copy template content to new map
+        
         var layersCreated = await CopyTemplateLayersToMap(template.MapId, newMap.MapId, currentUserId.Value);
-        var annotationsCreated = await CopyTemplateAnnotationsToMap(template.MapId, newMap.MapId, currentUserId.Value);
         var imagesCreated = await CopyTemplateImagesToMap(template.MapId, newMap.MapId, currentUserId.Value);
-
-        // Update template usage count
+        
         template.UsageCount++;
         await _mapRepository.UpdateMapTemplate(template);
 
@@ -90,7 +91,6 @@ public class MapService : IMapService
             MapName = newMap.MapName,
             TemplateName = template.MapName,
             LayersCreated = layersCreated,
-            AnnotationsCreated = annotationsCreated,
             ImagesCreated = imagesCreated,
             CreatedAt = newMap.CreatedAt
         });
@@ -111,7 +111,7 @@ public class MapService : IMapService
             Description = req.Description,
             IsPublic = req.IsPublic,
             UserId = currentUserId.Value,
-            OrgId = null, // TODO: Get from user's organization context when implemented
+            OrgId = null, 
             DefaultBounds = $"{req.InitialLatitude},{req.InitialLongitude}",
             ViewState = $"{{\"center\":[{req.InitialLatitude},{req.InitialLongitude}],\"zoom\":{req.InitialZoom}}}",
             BaseLayer = req.BaseMapProvider ?? "osm",
@@ -299,6 +299,16 @@ public class MapService : IMapService
 
     public async Task<Option<GetMapTemplatesResponse, Error>> GetTemplates()
     {
+        var cacheKey = "templates:all:response";
+        
+        // Try get from cache first
+        var cachedResponse = await _cacheService.GetAsync<GetMapTemplatesResponse>(cacheKey);
+        if (cachedResponse != null)
+        {
+            return Option.Some<GetMapTemplatesResponse, Error>(cachedResponse);
+        }
+
+        // Cache miss - get data from repository
         var templates = await _mapRepository.GetMapTemplates();
         var templateDtos = new List<MapTemplateDTO>();
 
@@ -318,21 +328,34 @@ public class MapService : IMapService
                 IsPublic = template.IsPublic,
                 IsFeatured = template.IsFeatured,
                 UsageCount = template.UsageCount,
-                TotalLayers = template.TotalLayers,
-                TotalFeatures = template.TotalFeatures,
                 CreatedAt = template.CreatedAt
             };
             templateDtos.Add(templateDto);
         }
 
-        return Option.Some<GetMapTemplatesResponse, Error>(new GetMapTemplatesResponse
+        var response = new GetMapTemplatesResponse
         {
             Templates = templateDtos
-        });
+        };
+
+        // Cache for 30 minutes
+        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+
+        return Option.Some<GetMapTemplatesResponse, Error>(response);
     }
 
     public async Task<Option<GetMapTemplateByIdResponse, Error>> GetTemplateById(Guid templateId)
     {
+        var cacheKey = $"templates:id:response:{templateId}";
+        
+        // Try get from cache first
+        var cachedResponse = await _cacheService.GetAsync<GetMapTemplateByIdResponse>(cacheKey);
+        if (cachedResponse != null)
+        {
+            return Option.Some<GetMapTemplateByIdResponse, Error>(cachedResponse);
+        }
+
+        // Cache miss - get data from repository
         var template = await _mapRepository.GetMapTemplateById(templateId);
         if (template is null || !template.IsActive || !template.IsTemplate)
         {
@@ -343,10 +366,10 @@ public class MapService : IMapService
         var layers = await _mapRepository.GetTemplateLayers(template.MapId);
         var layerDtos = layers.Select(l => new MapTemplateLayerDTO
         {
-            LayerId = l.MapLayerId,
-            LayerName = l.LayerName,
-            LayerTypeId = l.LayerTypeId,
-            LayerStyle = l.LayerStyle ?? "",
+            LayerId = l.LayerId,
+            LayerName = l.Layer?.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)(l.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
+            LayerStyle = l.Layer?.LayerStyle ?? "",
             IsVisible = l.IsVisible,
             ZIndex = l.ZIndex,
             LayerOrder = l.LayerOrder,
@@ -367,16 +390,103 @@ public class MapService : IMapService
             IsPublic = template.IsPublic,
             IsFeatured = template.IsFeatured,
             UsageCount = template.UsageCount,
-            TotalLayers = template.TotalLayers,
-            TotalFeatures = template.TotalFeatures,
             CreatedAt = template.CreatedAt,
             Layers = layerDtos
         };
 
-        return Option.Some<GetMapTemplateByIdResponse, Error>(new GetMapTemplateByIdResponse
+        var response = new GetMapTemplateByIdResponse
         {
             Template = templateDetailDto
-        });
+        };
+
+        // Cache for 30 minutes
+        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+
+        return Option.Some<GetMapTemplateByIdResponse, Error>(response);
+    }
+    
+    public async Task<Option<GetMapTemplateWithDetailsResponse, Error>> GetTemplateWithDetails(Guid templateId)
+    {
+        var cacheKey = $"templates:details:response:{templateId}";
+        
+        // Try get from cache first (Service level caching)
+        var cachedResponse = await _cacheService.GetAsync<GetMapTemplateWithDetailsResponse>(cacheKey);
+        if (cachedResponse != null)
+        {
+            return Option.Some<GetMapTemplateWithDetailsResponse, Error>(cachedResponse);
+        }
+
+        // Cache miss - get data from repository
+        var templateWithDetails = await _mapRepository.GetMapTemplateWithDetails(templateId);
+        if (templateWithDetails == null)
+        {
+            return Option.None<GetMapTemplateWithDetailsResponse, Error>(
+                Error.NotFound("Map.TemplateNotFound", "Map template not found"));
+        }
+
+        var template = templateWithDetails.Map;
+        
+        // Map Template info
+        var templateDto = new MapTemplateDTO
+        {
+            TemplateId = template.MapId,
+            TemplateName = template.MapName,
+            Description = template.Description ?? "",
+            PreviewImage = template.PreviewImage ?? "",
+            Category = template.Category ?? MapTemplateCategoryEnum.General,
+            BaseLayer = template.BaseLayer,
+            DefaultBounds = template.DefaultBounds ?? "",
+            IsPublic = template.IsPublic,
+            IsFeatured = template.IsFeatured,
+            UsageCount = template.UsageCount,
+            CreatedAt = template.CreatedAt
+        };
+
+        // Map Layers
+        var layerDtos = templateWithDetails.MapLayers.Select(ml => new MapLayerDTO
+        {
+            MapLayerId = ml.MapLayerId,
+            LayerName = ml.Layer?.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
+            IsVisible = ml.IsVisible,
+            ZIndex = ml.ZIndex,
+            LayerOrder = ml.LayerOrder,
+            LayerData = ml.Layer?.LayerData ?? "",
+            LayerStyle = ml.Layer?.LayerStyle ?? "",
+            CustomStyle = ml.CustomStyle,
+            FeatureCount = ml.FeatureCount,
+            DataSizeKB = ml.DataSizeKB,
+            DataBounds = ml.DataBounds
+        }).ToList();
+
+        // Map Images
+        var imageDtos = templateWithDetails.MapImages.Select(mi => new MapImageDTO
+        {
+            MapImageId = mi.MapImageId,
+            ImageName = mi.ImageName,
+            ImageUrl = mi.ImageUrl,
+            Latitude = mi.Latitude,
+            Longitude = mi.Longitude,
+            Width = mi.Width,
+            Height = mi.Height,
+            Rotation = mi.Rotation,
+            ZIndex = mi.ZIndex,
+            IsVisible = mi.IsVisible,
+            Description = mi.Description,
+            CreatedAt = mi.CreatedAt
+        }).ToList();
+
+        var response = new GetMapTemplateWithDetailsResponse
+        {
+            Template = templateDto,
+            Layers = layerDtos,
+            Images = imageDtos
+        };
+
+        // Cache the processed response for 30 minutes
+        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+
+        return Option.Some<GetMapTemplateWithDetailsResponse, Error>(response);
     }
 
     // Layer management methods
@@ -576,10 +686,10 @@ public class MapService : IMapService
         {
             Id = ml.Layer?.LayerId ?? Guid.Empty,
             Name = ml.Layer?.LayerName ?? "Unknown Layer",
-            LayerTypeId = ml.Layer?.LayerTypeId ?? 0,
-            LayerTypeName = ml.Layer?.LayerType?.TypeName ?? "Unknown",
-            LayerTypeIcon = ml.Layer?.LayerType?.IconUrl ?? "",
-            SourceName = ml.Layer?.Source?.Name ?? "Unknown",
+            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
+            LayerTypeName = ml.Layer?.LayerType.ToString() ?? "Unknown",
+            LayerTypeIcon = "",
+            SourceName = ml.Layer?.SourceType.ToString() ?? "Unknown",
             FilePath = ml.Layer?.FilePath ?? "",
             LayerData = ml.Layer?.LayerData ?? "",
             LayerStyle = ml.Layer?.LayerStyle ?? "",
@@ -655,16 +765,33 @@ public class MapService : IMapService
 
         foreach (var templateLayer in templateLayers)
         {
+            // Create Layer entity first for the copy
+            var newLayerId = Guid.NewGuid();
+            
+            var layer = new Layer
+            {
+                LayerId = newLayerId,
+                UserId = userId,
+                LayerName = templateLayer.Layer?.LayerName,
+                LayerType = templateLayer.Layer?.LayerType ?? LayerTypeEnum.GEOJSON,
+                SourceType = templateLayer.Layer?.SourceType ?? LayerSourceEnum.UserUploaded,
+                LayerData = templateLayer.Layer?.LayerData,
+                LayerStyle = templateLayer.Layer?.LayerStyle,
+                IsPublic = false, // New map layers are private by default
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var layerEntityCreated = await _mapRepository.CreateLayer(layer);
+            if (!layerEntityCreated)
+            {
+                continue; // Skip this layer if creation failed
+            }
+
             // Copy template layer to new map
             var mapLayer = new MapLayer
             {
                 MapId = mapId,
-                LayerId = Guid.NewGuid(), // Generate new layer ID for the copy
-                LayerName = templateLayer.LayerName,
-                LayerTypeId = templateLayer.LayerTypeId,
-                SourceId = templateLayer.SourceId,
-                LayerData = templateLayer.LayerData,
-                LayerStyle = templateLayer.LayerStyle,
+                LayerId = newLayerId,
                 IsVisible = templateLayer.IsVisible,
                 ZIndex = templateLayer.ZIndex,
                 LayerOrder = templateLayer.LayerOrder,
@@ -686,36 +813,7 @@ public class MapService : IMapService
         return layersCreated;
     }
 
-    private async Task<int> CopyTemplateAnnotationsToMap(Guid templateId, Guid mapId, Guid userId)
-    {
-        var templateAnnotations = await _mapRepository.GetTemplateAnnotations(templateId);
-        var annotationsCreated = 0;
 
-        foreach (var templateAnnotation in templateAnnotations)
-        {
-            // Copy template annotation to new map
-            var newAnnotation = new MapAnnotation
-            {
-                MapId = mapId,
-                AnnotationName = templateAnnotation.AnnotationName,
-                AnnotationTypeId = templateAnnotation.AnnotationTypeId,
-                GeometryData = templateAnnotation.GeometryData,
-                Style = templateAnnotation.Style,
-                Content = templateAnnotation.Content,
-                Latitude = templateAnnotation.Latitude,
-                Longitude = templateAnnotation.Longitude,
-                IsVisible = templateAnnotation.IsVisible,
-                ZIndex = templateAnnotation.ZIndex,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            // TODO: Save annotation to database via repository
-            // For now, we'll just count them
-            annotationsCreated++;
-        }
-
-        return annotationsCreated;
-    }
 
     private async Task<int> CopyTemplateImagesToMap(Guid templateId, Guid mapId, Guid userId)
     {
@@ -724,7 +822,6 @@ public class MapService : IMapService
 
         foreach (var templateImage in templateImages)
         {
-            // Copy template image to new map
             var newImage = new MapImage
             {
                 MapId = mapId,
@@ -742,8 +839,6 @@ public class MapService : IMapService
                 CreatedAt = DateTime.UtcNow
             };
 
-            // TODO: Save image to database via repository
-            // For now, we'll just count them
             imagesCreated++;
         }
 
@@ -761,7 +856,6 @@ public class MapService : IMapService
 
         try
         {
-            // Create Map Template
             var mapTemplate = new Map
             {
                 MapName = req.TemplateName,
@@ -775,7 +869,7 @@ public class MapService : IMapService
                 IsFeatured = false,
                 UsageCount = 0,
                 UserId = currentUserId.Value,
-                OrgId = null, // TODO: Get from user's organization context when implemented
+                OrgId = null,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -789,16 +883,32 @@ public class MapService : IMapService
             var compressedGeoJsonData = req.DataSizeKB > 5000 ? // > 5MB
                 await CompressGeoJsonDataAsync(req.GeoJsonData) : req.GeoJsonData;
 
-            // Create MapLayer for template
+            var layerId = Guid.NewGuid();
+            
+            var layer = new Layer
+            {
+                LayerId = layerId,
+                UserId = currentUserId.Value,
+                LayerName = req.LayerName,
+                LayerType = LayerTypeEnum.GEOJSON,
+                SourceType = LayerSourceEnum.UserUploaded,
+                LayerData = compressedGeoJsonData,
+                LayerStyle = req.LayerStyle,
+                IsPublic = req.IsPublic,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var layerEntityCreated = await _mapRepository.CreateLayer(layer);
+            if (!layerEntityCreated)
+            {
+                return Option.None<CreateMapTemplateFromGeoJsonResponse, Error>(
+                    Error.Failure("Map.CreateLayerFailed", "Failed to create layer entity"));
+            }
+
             var templateLayer = new MapLayer
             {
                 MapId = mapTemplate.MapId,
-                LayerId = Guid.NewGuid(),
-                LayerName = req.LayerName,
-                LayerTypeId = 4, // GEOJSON = 4
-                SourceId = Guid.NewGuid(),
-                LayerData = compressedGeoJsonData,
-                LayerStyle = req.LayerStyle,
+                LayerId = layerId,
                 IsVisible = true,
                 ZIndex = 1,
                 LayerOrder = 1,
@@ -837,8 +947,7 @@ public class MapService : IMapService
     private async Task<string> CompressGeoJsonDataAsync(string geoJsonData)
     {
         try
-        {
-            // remove unnecessary whitespace
+        {   
             return await Task.Run(() =>
             {
                 var compressedJson = JsonSerializer.Serialize(

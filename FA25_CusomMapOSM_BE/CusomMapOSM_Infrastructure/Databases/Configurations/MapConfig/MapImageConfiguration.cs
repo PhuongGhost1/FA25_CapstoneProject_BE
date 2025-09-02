@@ -71,7 +71,7 @@ internal class MapImageConfiguration : IEntityTypeConfiguration<MapImage>
                .IsRequired();
         
         builder.HasOne(mi => mi.Map)
-               .WithMany(m => m.MapImages)
+               .WithMany()
                .HasForeignKey(mi => mi.MapId)
                .OnDelete(DeleteBehavior.Cascade);
     }

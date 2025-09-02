@@ -48,7 +48,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Map> Maps { get; set; }
     public DbSet<MapHistory> MapHistories { get; set; }
     public DbSet<MapLayer> MapLayers { get; set; }
-    public DbSet<MapAnnotation> MapAnnotations { get; set; }
+    public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<MembershipStatus> MembershipStatuses { get; set; }
@@ -57,9 +57,8 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MembershipAddon> MembershipAddons { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
-    public DbSet<OrganizationLocation> OrganizationLocations { get; set; }
     public DbSet<OrganizationInvitation>  OrganizationInvitations { get; set; }
-    public DbSet<OrganizationLocationStatus> OrganizationLocationStatuses { get; set; }
+
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
