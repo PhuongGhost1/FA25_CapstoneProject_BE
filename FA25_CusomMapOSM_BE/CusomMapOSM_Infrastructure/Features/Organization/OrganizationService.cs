@@ -1,6 +1,5 @@
 ﻿using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Organization;
-using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
@@ -10,6 +9,7 @@ using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Services;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.Organization;
@@ -20,17 +20,17 @@ public class OrganizationService : IOrganizationService
     private readonly IAuthenticationRepository _authenticationRepository;
     private readonly ITypeRepository _typeRepository;
     private readonly ICurrentUserService _currentUserService;
-    private readonly IRabbitMQService _rabbitMqService;
+    private readonly HangfireEmailService _hangfireEmailService;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
-        ICurrentUserService currentUserService, IRabbitMQService rabbitMqService)
+        ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
         _typeRepository = typeRepository;
         _currentUserService = currentUserService;
-        _rabbitMqService = rabbitMqService;
+        _hangfireEmailService = hangfireEmailService;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -261,7 +261,7 @@ public class OrganizationService : IOrganizationService
                 req.MemberType)
         };
 
-        await _rabbitMqService.EnqueueEmailAsync(mail);
+        _hangfireEmailService.EnqueueEmail(mail);
 
         return Option.Some<InviteMemberOrganizationResDto, Error>(
             new InviteMemberOrganizationResDto { Result = "Invitation sent successfully" });
