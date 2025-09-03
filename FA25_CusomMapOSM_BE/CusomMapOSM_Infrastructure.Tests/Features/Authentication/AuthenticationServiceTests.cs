@@ -12,6 +12,7 @@ using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Features.Authentication;
+using CusomMapOSM_Infrastructure.Services;
 using FluentAssertions;
 using Moq;
 using Optional;
@@ -27,7 +28,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IJwtService> _mockJwtService;
     private readonly Mock<IMailService> _mockMailService;
     private readonly Mock<IRedisCacheService> _mockRedisCacheService;
-    private readonly Mock<IRabbitMQService> _mockRabbitMQService;
+    private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
     private readonly AuthenticationService _authenticationService;
     private readonly Faker _faker;
 
@@ -38,15 +39,14 @@ public class AuthenticationServiceTests
         _mockJwtService = new Mock<IJwtService>();
         _mockMailService = new Mock<IMailService>();
         _mockRedisCacheService = new Mock<IRedisCacheService>();
-        _mockRabbitMQService = new Mock<IRabbitMQService>();
+        _mockHangfireEmailService = new Mock<HangfireEmailService>();
 
         _authenticationService = new AuthenticationService(
             _mockAuthenticationRepository.Object,
             _mockJwtService.Object,
-            _mockMailService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockRabbitMQService.Object);
+            _mockHangfireEmailService.Object);
 
         _faker = new Faker();
     }
@@ -291,8 +291,8 @@ public class AuthenticationServiceTests
         _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
             .Returns(Task.CompletedTask);
 
-        _mockRabbitMQService.Setup(x => x.EnqueueEmailAsync(It.IsAny<MailRequest>()))
-            .Returns(Task.CompletedTask);
+        _mockHangfireEmailService.Setup(x => x.EnqueueEmail(It.IsAny<MailRequest>()))
+            .Returns("job-id");
 
         // Act
         var result = await _authenticationService.VerifyEmail(request);
@@ -494,8 +494,8 @@ public class AuthenticationServiceTests
         _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
             .Returns(Task.CompletedTask);
 
-        _mockRabbitMQService.Setup(x => x.EnqueueEmailAsync(It.IsAny<MailRequest>()))
-            .Returns(Task.CompletedTask);
+        _mockHangfireEmailService.Setup(x => x.EnqueueEmail(It.IsAny<MailRequest>()))
+            .Returns("job-id");
 
         // Act
         var result = await _authenticationService.ResetPasswordVerify(request);

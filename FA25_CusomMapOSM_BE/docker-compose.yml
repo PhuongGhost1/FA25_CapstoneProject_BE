@@ -11,20 +11,6 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
 
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
-    networks:
-      - backend
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-
   mysql:
     image: mysql:8.0
     container_name: mysql_osm
@@ -57,5 +43,4 @@ networks:
     driver: bridge
 
 volumes:
-  rabbitmq_data:
   mysql_data:

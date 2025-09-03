@@ -108,7 +108,6 @@ public static class DependencyInjections
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
-        services.AddScoped<IRabbitMQService, RabbitMqPublisherService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FailedEmailStorageService>();
@@ -168,15 +167,9 @@ public static class DependencyInjections
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        // Đăng ký service để xử lý RabbitMQ connection & queue
-        services.AddSingleton<RabbitMqService>();
-
         // Đăng ký service gửi email và retry
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
-
-        // Đăng ký background service chính
-        services.AddHostedService<EmailProcessingService>();
 
         return services;
     }
