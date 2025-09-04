@@ -29,22 +29,24 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .HasMaxLength(255)
             .HasColumnName("layer_name");
 
-        builder.Property(l => l.LayerTypeId)
-            .HasColumnName("layer_type_id");
+        builder.Property(l => l.LayerType)
+            .HasColumnName("layer_type_id")
+            .HasConversion<int>();
 
-        builder.Property(l => l.SourceId)
-            .HasColumnName("source_id");
+        builder.Property(l => l.SourceType)
+            .HasColumnName("source_id")
+            .HasConversion<int>();
 
         builder.Property(l => l.FilePath)
             .HasMaxLength(500)
             .HasColumnName("file_path");
 
         builder.Property(l => l.LayerData)
-            .HasColumnType("text") // For large GeoJSON or similar
+            .HasColumnType("longtext")
             .HasColumnName("layer_data");
 
         builder.Property(l => l.LayerStyle)
-            .HasColumnType("text")
+            .HasColumnType("longtext")
             .HasColumnName("layer_style");
 
         builder.Property(l => l.IsPublic)
@@ -63,15 +65,5 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .WithMany()
             .HasForeignKey(l => l.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne(l => l.LayerType)
-            .WithMany()
-            .HasForeignKey(l => l.LayerTypeId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(l => l.Source)
-            .WithMany()
-            .HasForeignKey(l => l.SourceId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

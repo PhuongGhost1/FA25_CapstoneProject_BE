@@ -26,8 +26,7 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .IsRequired();
 
               builder.Property(m => m.OrgId)
-                     .HasColumnName("org_id")
-                     .IsRequired();
+                     .HasColumnName("org_id");
 
               builder.Property(m => m.MapName)
                      .HasColumnName("map_name")
@@ -35,12 +34,29 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
 
               builder.Property(m => m.Description)
                      .HasColumnName("description");
+              
+              builder.Property(m => m.IsTemplate)
+                     .HasColumnName("is_template")
+                     .HasDefaultValue(false);
 
-              builder.Property(m => m.GeographicBounds)
-                     .HasColumnName("geographic_bounds");
+              builder.Property(m => m.ParentMapId)
+                     .HasColumnName("parent_map_id");
 
-              builder.Property(m => m.MapConfig)
-                     .HasColumnName("map_config");
+              builder.Property(m => m.Category)
+                     .HasColumnName("category")
+                     .HasMaxLength(50)
+                     .HasConversion<string>();
+
+              builder.Property(m => m.IsFeatured)
+                     .HasColumnName("is_featured")
+                     .HasDefaultValue(false);
+
+              builder.Property(m => m.UsageCount)
+                     .HasColumnName("usage_count")
+                     .HasDefaultValue(0);
+              
+              builder.Property(m => m.DefaultBounds)
+                     .HasColumnName("default_bounds");
 
               builder.Property(m => m.BaseLayer)
                      .HasColumnName("base_layer")
@@ -61,9 +77,6 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasColumnName("is_active")
                      .HasDefaultValue(true);
 
-              builder.Property(m => m.TemplateId)
-                     .HasColumnName("template_id");
-
               builder.Property(m => m.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
@@ -72,17 +85,21 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.Property(m => m.UpdatedAt)
                      .HasColumnName("updated_at")
                      .HasColumnType("datetime");
-
+              
+              
               builder.HasOne(m => m.User)
                      .WithMany()
                      .HasForeignKey(m => m.UserId);
 
               builder.HasOne(m => m.Organization)
                      .WithMany()
-                     .HasForeignKey(m => m.OrgId);
-
-              builder.HasOne(m => m.Template)
+                     .HasForeignKey(m => m.OrgId)
+                     .OnDelete(DeleteBehavior.SetNull);
+              
+              // Self-referencing relationship for template cloning
+              builder.HasOne(m => m.ParentMap)
                      .WithMany()
-                     .HasForeignKey(m => m.TemplateId);
+                     .HasForeignKey(m => m.ParentMapId)
+                     .OnDelete(DeleteBehavior.SetNull);
        }
 }

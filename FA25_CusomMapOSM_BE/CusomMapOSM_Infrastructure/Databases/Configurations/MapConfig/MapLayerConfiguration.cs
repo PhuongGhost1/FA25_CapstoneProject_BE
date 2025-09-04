@@ -29,21 +29,35 @@ internal class MapLayerConfiguration : IEntityTypeConfiguration<MapLayer>
               builder.Property(ml => ml.LayerId)
                      .HasColumnName("layer_id")
                      .IsRequired();
-
+              
               builder.Property(ml => ml.IsVisible)
-                     .HasColumnName("is_visible");
+                     .HasColumnName("is_visible")
+                     .HasDefaultValue(true);
 
               builder.Property(ml => ml.ZIndex)
-                     .HasColumnName("z_index");
+                     .HasColumnName("z_index")
+                     .HasDefaultValue(0);
 
               builder.Property(ml => ml.LayerOrder)
-                     .HasColumnName("layer_order");
+                     .HasColumnName("layer_order")
+                     .HasDefaultValue(0);
 
               builder.Property(ml => ml.CustomStyle)
                      .HasColumnName("custom_style");
 
               builder.Property(ml => ml.FilterConfig)
                      .HasColumnName("filter_config");
+              
+              builder.Property(ml => ml.FeatureCount)
+                     .HasColumnName("feature_count");
+
+              builder.Property(ml => ml.DataSizeKB)
+                     .HasColumnName("data_size_kb")
+                     .HasColumnType("decimal(15,2)");
+
+              builder.Property(ml => ml.DataBounds)
+                     .HasColumnName("data_bounds")
+                     .HasColumnType("text");
 
               builder.Property(ml => ml.CreatedAt)
                      .HasColumnName("created_at")
@@ -53,11 +67,12 @@ internal class MapLayerConfiguration : IEntityTypeConfiguration<MapLayer>
               builder.Property(ml => ml.UpdatedAt)
                      .HasColumnName("updated_at")
                      .HasColumnType("datetime");
-
+              
               builder.HasOne(ml => ml.Map)
                      .WithMany()
-                     .HasForeignKey(ml => ml.MapId);
-
+                     .HasForeignKey(ml => ml.MapId)
+                     .OnDelete(DeleteBehavior.Cascade);
+              
               builder.HasOne(ml => ml.Layer)
                      .WithMany()
                      .HasForeignKey(ml => ml.LayerId);

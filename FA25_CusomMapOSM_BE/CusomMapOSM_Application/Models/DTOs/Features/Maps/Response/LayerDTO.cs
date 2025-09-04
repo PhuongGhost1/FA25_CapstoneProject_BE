@@ -24,7 +24,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
         public string OwnerName { get; set; }
         
         // MapLayer related properties
-        public int MapLayerId { get; set; }
+        public Guid MapLayerId { get; set; }
         public bool IsVisible { get; set; }
         public int ZIndex { get; set; }
         public int LayerOrder { get; set; }

@@ -1,22 +1,28 @@
 ﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
+using CusomMapOSM_Application.Interfaces.Services.GeoJson;
+using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Features.Authentication;
+using CusomMapOSM_Infrastructure.Features.Maps;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Infrastructure.Features.User;
@@ -39,6 +45,10 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using Hangfire;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Infrastructure.Features.Maps;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -79,7 +89,11 @@ public static class DependencyInjections
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
 
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IMapRepository, MapRepository>();
+        services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
 
+        // Cache Services
+        services.AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService, CusomMapOSM_Infrastructure.Services.RedisCacheService>();
 
         return services;
     }
@@ -94,14 +108,21 @@ public static class DependencyInjections
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
-        services.AddScoped<IRabbitMQService, RabbitMqPublisherService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IMapService, MapService>();
+        services.AddScoped<IGeoJsonService, GeoJsonService>();
+        
+        services.AddScoped<IFileProcessorService, Services.FileProcessors.FileProcessorService>();
+        services.AddScoped<IVectorProcessor, Services.FileProcessors.VectorProcessor>();
+        services.AddScoped<IRasterProcessor, Services.FileProcessors.RasterProcessor>();
+        services.AddScoped<ISpreadsheetProcessor, Services.FileProcessors.SpreadsheetProcessor>();
 
         // Register Redis Cache
         services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -146,15 +167,9 @@ public static class DependencyInjections
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        // Đăng ký service để xử lý RabbitMQ connection & queue
-        services.AddSingleton<RabbitMqService>();
-
         // Đăng ký service gửi email và retry
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
-
-        // Đăng ký background service chính
-        services.AddHostedService<EmailProcessingService>();
 
         return services;
     }

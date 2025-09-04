@@ -22,17 +22,28 @@ internal class UserFavoriteTemplateConfiguration : IEntityTypeConfiguration<User
                      .IsRequired()
                      .ValueGeneratedOnAdd();
 
+              builder.Property(uft => uft.UserId)
+                     .HasColumnName("user_id")
+                     .IsRequired();
+
+              builder.Property(uft => uft.TemplateId)
+                     .HasColumnName("template_id")
+                     .IsRequired();
+
               builder.Property(uft => uft.FavoriteAt)
                      .HasColumnName("favorite_at")
                      .HasColumnType("datetime")
                      .IsRequired();
-
+              
               builder.HasOne(uft => uft.User)
                      .WithMany()
-                     .HasForeignKey(uft => uft.UserId);
+                     .HasForeignKey(uft => uft.UserId)
+                     .OnDelete(DeleteBehavior.Cascade);
 
               builder.HasOne(uft => uft.Template)
                      .WithMany()
-                     .HasForeignKey(uft => uft.TemplateId);
+                     .HasForeignKey(uft => uft.TemplateId)
+                     .OnDelete(DeleteBehavior.Cascade);
+              
        }
 }
