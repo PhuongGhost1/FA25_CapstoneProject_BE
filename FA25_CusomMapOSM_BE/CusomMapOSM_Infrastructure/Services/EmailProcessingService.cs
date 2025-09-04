@@ -6,7 +6,7 @@ using RabbitMQ.Client;
 using Newtonsoft.Json;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
-using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Application.Common.ServiceConstants;
 
 namespace CusomMapOSM_Infrastructure.Services;
 

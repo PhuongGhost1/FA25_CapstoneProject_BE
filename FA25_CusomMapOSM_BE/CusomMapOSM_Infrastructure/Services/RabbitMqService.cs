@@ -1,6 +1,6 @@
 using RabbitMQ.Client;
 using Microsoft.Extensions.Logging;
-using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Application.Common.ServiceConstants;
 
 namespace CusomMapOSM_Infrastructure.Services;
 

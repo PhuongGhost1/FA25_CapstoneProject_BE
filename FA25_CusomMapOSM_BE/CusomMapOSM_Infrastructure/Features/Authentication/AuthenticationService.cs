@@ -8,18 +8,12 @@ using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Models.Templates.Email;
-
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
-
-using CusomMapOSM_Commons.Constant;
-using CusomMapOSM_Domain.Entities.Users;
-
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
-using CusomMapOSM_Shared.Constant;
 using Optional;
-
+using CusomMapOSM_Application.Common.ServiceConstants;
 namespace CusomMapOSM_Infrastructure.Features.Authentication;
 
 public class AuthenticationService : IAuthenticationService
@@ -110,7 +104,7 @@ public class AuthenticationService : IAuthenticationService
             Body = EmailTemplates.Authentication.GetEmailVerificationOtpTemplate(otp)
         };
 
-        await _rabbitMqService.EnqueueEmailAsync(mail);
+        await _mailService.SendEmailAsync(mail);
 
         return Option.Some<RegisterResDto, Error>(new RegisterResDto { Result = "Email sent successfully" });
     }
@@ -176,7 +170,7 @@ public class AuthenticationService : IAuthenticationService
             Body = EmailTemplates.Authentication.GetPasswordResetOtpTemplate(otp)
         };
 
-        await _rabbitMqService.EnqueueEmailAsync(mail);
+        await _mailService.SendEmailAsync(mail);
 
         return Option.Some<RegisterResDto, Error>(new RegisterResDto { Result = "OTP sent successfully" });
     }

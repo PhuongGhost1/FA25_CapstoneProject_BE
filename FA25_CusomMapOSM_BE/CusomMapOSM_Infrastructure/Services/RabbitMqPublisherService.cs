@@ -8,7 +8,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using System.IO;
 using System.Text;
-using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Application.Common.ServiceConstants;
 
 namespace CusomMapOSM_Infrastructure.Services;
 
