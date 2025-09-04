@@ -12,7 +12,6 @@ using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Services;
-using CusomMapOSM_Shared.Constant;
 using Optional;
 using CusomMapOSM_Application.Common.ServiceConstants;
 namespace CusomMapOSM_Infrastructure.Features.Authentication;
@@ -24,9 +23,10 @@ public class AuthenticationService : IAuthenticationService
     private readonly IJwtService _jwtService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly HangfireEmailService _hangfireEmailService;
-
+    private readonly IUserAccessToolService _userAccessToolService;
     public AuthenticationService(IAuthenticationRepository authenticationRepository, IJwtService jwtService,
-        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService)
+        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService,
+        IUserAccessToolService userAccessToolService)
     {
         _authenticationRepository = authenticationRepository;
         _jwtService = jwtService;
