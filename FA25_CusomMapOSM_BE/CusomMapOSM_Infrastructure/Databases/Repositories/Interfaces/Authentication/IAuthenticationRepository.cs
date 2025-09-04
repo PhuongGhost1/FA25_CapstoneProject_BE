@@ -1,4 +1,4 @@
-using DomainUser = CusomMapOSM_Domain.Entities.Users;
+using DomainUser =  CusomMapOSM_Domain.Entities.Users;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 

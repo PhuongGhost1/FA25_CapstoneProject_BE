@@ -11,3 +11,4 @@ public static class MailKitConstant
     public static string SmtpPassword = Environment.GetEnvironmentVariable("SMTP_PASS") ??
         throw new ArgumentNullException("SMTP_PASSWORD", "SMTP_PASSWORD is not set in the environment variables.");
 }
+

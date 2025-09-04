@@ -4,17 +4,21 @@ using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using Microsoft.AspNetCore.Mvc;
+using CusomMapOSM_API;
+using CusomMapOSM_API.Constants;
 
 namespace CusomMapOSM_API.Endpoints.Authentication;
 
 public class AuthenticationEndpoint : IEndpoint
 {
-    private const string API_PREFIX = "auth";
+    private const string API_PREFIX = Routes.Prefix.Auth;
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup(API_PREFIX);
+        var group = app.MapGroup(Routes.Prefix.Auth)         
+            .WithTags(Tags.Authentication)
+            .WithDescription(Tags.Authentication);
 
-        group.MapPost("login", async (
+        group.MapPost(Routes.AuthEndpoints.Login, async (
             [FromBody] LoginReqDto req,
             [FromServices] IAuthenticationService authenticationService) =>
         {
@@ -29,7 +33,7 @@ public class AuthenticationEndpoint : IEndpoint
         .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
-        group.MapPost("verify-email", async (
+        group.MapPost(Routes.AuthEndpoints.VerifyEmail, async (
             [FromBody] RegisterVerifyReqDto req,
             [FromServices] IAuthenticationService authenticationService) =>
         {
@@ -44,7 +48,7 @@ public class AuthenticationEndpoint : IEndpoint
         .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
-        group.MapPost("verify-otp", async (
+        group.MapPost(Routes.AuthEndpoints.VerifyOtp, async (
             [FromBody] VerifyOtpReqDto req,
             [FromServices] IAuthenticationService authenticationService) =>
         {
@@ -59,7 +63,7 @@ public class AuthenticationEndpoint : IEndpoint
         .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
-        group.MapPost("logout", async (
+        group.MapPost(Routes.AuthEndpoints.Logout, async (
             ClaimsPrincipal user,
             [FromServices] IAuthenticationService authenticationService) =>
         {
@@ -79,7 +83,7 @@ public class AuthenticationEndpoint : IEndpoint
         .WithDescription("Logout from the system")
         .WithTags(Tags.Authentication);
 
-        group.MapPost("reset-password-verify", async (
+        group.MapPost(Routes.AuthEndpoints.ResetPasswordVerify, async (
             [FromBody] ResetPasswordVerifyReqDto req,
             [FromServices] IAuthenticationService authenticationService) =>
         {
@@ -94,7 +98,7 @@ public class AuthenticationEndpoint : IEndpoint
         .WithTags(Tags.Authentication)
         .ProducesValidationProblem();
 
-        group.MapPost("reset-password", async (
+        group.MapPost(Routes.AuthEndpoints.ResetPassword, async (
             [FromBody] ResetPasswordReqDto req,
             [FromServices] IAuthenticationService authenticationService) =>
         {
