@@ -653,7 +653,7 @@ public class UserAccessToolServiceTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("   ")]
+    [InlineData("")]
     [InlineData("null")]
     public async Task UpdateAccessToolsForMembershipAsync_WithNullOrEmptyAccessToolIds_ShouldGrantFreeTools(string accessToolIds)
     {

@@ -111,33 +111,13 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = 3,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
-                AccessToolIds = "[1, 2, 3]",
+                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
             new Plan
             {
                 PlanId = 2,
-                PlanName = MembershipPlanTypeEnum.Basic.ToString(),
-                Description = "Essential features for small teams",
-                PriceMonthly = 9.99m,
-                DurationMonths = 1,
-                MaxOrganizations = 2,
-                MaxLocationsPerOrg = 5,
-                MaxMapsPerMonth = 25,
-                MaxUsersPerOrg = 5,
-                MapQuota = 50,
-                ExportQuota = 50,
-                MaxCustomLayers = 10,
-                PrioritySupport = false,
-                Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5]",
-                IsActive = true,
-                CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
-            },
-            new Plan
-            {
-                PlanId = 3,
                 PlanName = MembershipPlanTypeEnum.Pro.ToString(),
                 Description = "Advanced features for growing businesses",
                 PriceMonthly = 29.99m,
@@ -151,13 +131,13 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = 50,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7]",
+                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
             new Plan
             {
-                PlanId = 4,
+                PlanId = 3,
                 PlanName = MembershipPlanTypeEnum.Enterprise.ToString(),
                 Description = "Full-featured solution for large organizations",
                 PriceMonthly = 99.99m,
@@ -171,7 +151,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MaxCustomLayers = -1, // Unlimited
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]",
+                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             }

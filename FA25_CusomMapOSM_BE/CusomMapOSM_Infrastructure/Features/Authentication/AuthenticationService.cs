@@ -1,24 +1,19 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Models.Templates.Email;
-
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
-
-using CusomMapOSM_Commons.Constant;
-using CusomMapOSM_Domain.Entities.Users;
-
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Services;
-using CusomMapOSM_Shared.Constant;
 using Optional;
-
+using CusomMapOSM_Application.Common.ServiceConstants;
 namespace CusomMapOSM_Infrastructure.Features.Authentication;
 
 public class AuthenticationService : IAuthenticationService
@@ -28,9 +23,10 @@ public class AuthenticationService : IAuthenticationService
     private readonly IJwtService _jwtService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly HangfireEmailService _hangfireEmailService;
-    
+    private readonly IUserAccessToolService _userAccessToolService;
     public AuthenticationService(IAuthenticationRepository authenticationRepository, IJwtService jwtService,
-        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService)
+        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService,
+        IUserAccessToolService userAccessToolService)
     {
         _authenticationRepository = authenticationRepository;
         _jwtService = jwtService;
@@ -133,6 +129,21 @@ public class AuthenticationService : IAuthenticationService
 
         user.AccountStatusId = accountStatus.StatusId;
         await _authenticationRepository.UpdateUser(user);
+
+        // Grant default Free membership access tools (IDs 1-11)
+        var freeAccessToolIds = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+        var expiryDate = DateTime.UtcNow.AddYears(1); // Free access tools expire in 1 year
+
+        var grantResult = await _userAccessToolService.GrantAccessToToolsAsync(user.UserId, freeAccessToolIds, expiryDate, CancellationToken.None);
+        if (!grantResult.HasValue)
+        {
+            // Log the error but don't fail the registration process
+            var error = grantResult.Match(
+                some: _ => (Error)null!,
+                none: err => err
+            );
+            Console.WriteLine($"Failed to grant default access tools for user {user.UserId}: {error?.Description}");
+        }
 
         await _redisCacheService.Remove(req.Otp);
 

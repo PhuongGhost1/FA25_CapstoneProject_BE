@@ -1,8 +1,7 @@
 using System.Text.RegularExpressions;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Services;
-using CusomMapOSM_Commons.Constant;
-using CusomMapOSM_Shared.Constant;
+using CusomMapOSM_Application.Common.ServiceConstants;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -15,7 +14,7 @@ public class MailService : IMailService
     private readonly int _smtpPort;
     private readonly string _smtpUsername;
     private readonly string _smtpPassword;
-    
+
     public MailService()
     {
         _smtpServer = MailKitConstant.SmtpServer;

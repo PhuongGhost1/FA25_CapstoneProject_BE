@@ -1,5 +1,5 @@
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
-using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Application.Common.ServiceConstants;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Microsoft.IdentityModel.JsonWebTokens;
