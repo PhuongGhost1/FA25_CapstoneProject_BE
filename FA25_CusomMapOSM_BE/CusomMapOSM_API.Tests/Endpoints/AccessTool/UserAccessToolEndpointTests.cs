@@ -43,8 +43,8 @@ public class UserAccessToolEndpointTests : IClassFixture<WebApplicationFactory<C
         // Create a test user login request
         var loginRequest = new LoginReqDto
         {
-            Email = "test@example.com",
-            Password = "TestPassword123!"
+            Email = "phuonghtde170788@fpt.edu.vn",
+            Password = "1"
         };
 
         // Call the login endpoint to get a token
