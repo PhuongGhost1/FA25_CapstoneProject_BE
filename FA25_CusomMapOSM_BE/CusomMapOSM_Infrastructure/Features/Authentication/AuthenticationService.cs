@@ -33,6 +33,7 @@ public class AuthenticationService : IAuthenticationService
         _redisCacheService = redisCacheService;
         _typeRepository = typeRepository;
         _hangfireEmailService = hangfireEmailService;
+        _userAccessToolService = userAccessToolService;
     }
 
     public async Task<Option<LoginResDto, Error>> Login(LoginReqDto req)
