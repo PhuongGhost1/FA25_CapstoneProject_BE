@@ -95,8 +95,11 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .WithMany()
                      .HasForeignKey(m => m.OrgId)
                      .OnDelete(DeleteBehavior.SetNull);
+
+              builder.HasOne(m => m.Layers)
+                     .WithMany()
+                     .OnDelete(DeleteBehavior.Cascade);
               
-              // Self-referencing relationship for template cloning
               builder.HasOne(m => m.ParentMap)
                      .WithMany()
                      .HasForeignKey(m => m.ParentMapId)

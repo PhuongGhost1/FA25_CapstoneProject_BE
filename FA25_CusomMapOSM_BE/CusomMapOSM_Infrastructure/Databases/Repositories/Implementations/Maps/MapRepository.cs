@@ -121,7 +121,7 @@ public class MapRepository : IMapRepository
         var templateWithDetails = new MapTemplateWithDetails
         {
             Map = template,
-            MapLayers = mapLayersTask.Result,
+            Layers = mapLayersTask.Result,
             MapImages = mapImagesTask.Result
         };
 
@@ -129,12 +129,12 @@ public class MapRepository : IMapRepository
     }
     
     // Template Content operations
-    public async Task<List<MapLayer>> GetTemplateLayers(Guid mapId)
+    public async Task<List<Layer>> GetTemplateLayers(Guid mapId)
     {
-        return await _context.MapLayers
-            .Include(tl => tl.Layer) // Include Layer navigation property
-            .Where(tl => tl.MapId == mapId)
-            .OrderBy(tl => tl.LayerOrder)
+        return await _context.Layers
+            .Include(l => l.User) // Include User navigation property
+            .Where(l => l.MapId == mapId)
+            .OrderBy(l => l.LayerOrder)
             .ToListAsync();
     }
 
@@ -146,99 +146,6 @@ public class MapRepository : IMapRepository
             .Where(ti => ti.MapId == mapId)
             .OrderBy(ti => ti.CreatedAt)
             .ToListAsync();
-    }
-
-    public async Task<bool> CreateMapLayer(MapLayer templateLayer)
-    {
-        try
-        {
-            _context.MapLayers.Add(templateLayer);
-            
-            _context.Database.SetCommandTimeout(300);
-            
-            var result = await _context.SaveChangesAsync();
-            
-            // Reset timeout to default
-            _context.Database.SetCommandTimeout(30);
-            
-            return result > 0;
-        }
-        catch (Exception ex)
-        {
-            // Reset timeout on error
-            _context.Database.SetCommandTimeout(30);
-            
-            // Log the error for debugging
-            Console.WriteLine($"Error saving MapLayer: {ex.Message}");
-            throw;
-        }
-    }
-
-    public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
-    {
-        // First try to find MapLayer by MapId and LayerId
-        var mapLayer = await _context.MapLayers
-            .Include(ml => ml.Layer)
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
-        
-        // If not found, try to find by MapId and check if layerId is actually a MapLayerId
-        if (mapLayer == null)
-        {
-            mapLayer = await _context.MapLayers
-                .Include(ml => ml.Layer)
-                .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.MapLayerId == layerId);
-        }
-        
-        if (mapLayer == null)
-        {
-            // Debug: Check what MapLayers exist for this map
-            var allMapLayers = await _context.MapLayers
-                .Where(ml => ml.MapId == mapId)
-                .Select(ml => new { ml.MapLayerId, ml.LayerId, ml.IsVisible, LayerName = ml.Layer != null ? ml.Layer.LayerName : "null" })
-                .ToListAsync();
-                
-            Console.WriteLine($"MapLayer not found for MapId: {mapId}, LayerId: {layerId}");
-            Console.WriteLine($"Available MapLayers for MapId {mapId}:");
-            foreach (var ml in allMapLayers)
-            {
-                Console.WriteLine($"  - MapLayerId:{ml.MapLayerId}, LayerId:{ml.LayerId}, Visible:{ml.IsVisible}, Name:{ml.LayerName}");
-            }
-            return null;
-        }
-        
-        if (mapLayer.Layer == null)
-        {
-            Console.WriteLine($"Layer entity is null for MapLayerId: {mapLayer.MapLayerId}");
-            return null;
-        }
-        
-        if (string.IsNullOrEmpty(mapLayer.Layer.LayerData))
-        {
-            Console.WriteLine($"LayerData is empty for LayerId: {mapLayer.LayerId}, LayerName: {mapLayer.Layer.LayerName}");
-            return null;
-        }
-        
-        Console.WriteLine($"Successfully found layer data for LayerId: {mapLayer.LayerId}, Size: {mapLayer.Layer.LayerData?.Length ?? 0} chars");
-        return mapLayer.Layer.LayerData;
-    }
-
-    // Template Management operations
-    public async Task<bool> CreateMapTemplate(Map template)
-    {
-        template.IsTemplate = true; // Ensure it's marked as template
-        _context.Maps.Add(template);
-        return await _context.SaveChangesAsync() > 0;
-    }
-
-    public async Task<bool> UpdateMapTemplate(Map template)
-    {
-        _context.Maps.Update(template);
-        return await _context.SaveChangesAsync() > 0;
-    }
-
-    public async Task<bool> CreateMapTemplateLayer(MapLayer templateLayer)
-    {
-        return await CreateMapLayer(templateLayer);
     }
 
     public async Task<bool> CreateLayer(Layer layer)
@@ -258,50 +165,103 @@ public class MapRepository : IMapRepository
         }
         catch (Exception ex)
         {
+            // Reset timeout on error
             _context.Database.SetCommandTimeout(30);
+            
+            // Log the error for debugging
             Console.WriteLine($"Error saving Layer: {ex.Message}");
             throw;
         }
     }
-    public async Task<bool> AddLayerToMap(MapLayer mapLayer)
+
+    public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
     {
-        _context.MapLayers.Add(mapLayer);
+        // Find Layer by MapId and LayerId
+        var layer = await _context.Layers
+            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
+        
+        if (layer == null)
+        {
+            // Debug: Check what Layers exist for this map
+            var allLayers = await _context.Layers
+                .Where(l => l.MapId == mapId)
+                .Select(l => new { l.LayerId, l.IsVisible, l.LayerName })
+                .ToListAsync();
+                
+            Console.WriteLine($"Layer not found for MapId: {mapId}, LayerId: {layerId}");
+            Console.WriteLine($"Available Layers for MapId {mapId}:");
+            foreach (var l in allLayers)
+            {
+                Console.WriteLine($"  - LayerId:{l.LayerId}, Visible:{l.IsVisible}, Name:{l.LayerName}");
+            }
+            return null;
+        }
+        
+        if (string.IsNullOrEmpty(layer.LayerData))
+        {
+            Console.WriteLine($"LayerData is empty for LayerId: {layer.LayerId}, LayerName: {layer.LayerName}");
+            return null;
+        }
+        
+        Console.WriteLine($"Successfully found layer data for LayerId: {layer.LayerId}, Size: {layer.LayerData?.Length ?? 0} chars");
+        return layer.LayerData;
+    }
+
+    // Template Management operations
+    public async Task<bool> CreateMapTemplate(Map template)
+    {
+        template.IsTemplate = true; // Ensure it's marked as template
+        _context.Maps.Add(template);
         return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> UpdateMapTemplate(Map template)
+    {
+        _context.Maps.Update(template);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<Layer?> GetLayerById(Guid layerId)
+    {
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .FirstOrDefaultAsync(l => l.LayerId == layerId);
     }
 
     public async Task<bool> RemoveLayerFromMap(Guid mapId, Guid layerId)
     {
-        var mapLayer = await _context.MapLayers
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
+        var layer = await _context.Layers
+            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
 
-        if (mapLayer == null)
+        if (layer == null)
             return false;
 
-        _context.MapLayers.Remove(mapLayer);
+        _context.Layers.Remove(layer);
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<bool> UpdateMapLayer(MapLayer mapLayer)
+    public async Task<bool> UpdateLayer(Layer layer)
     {
-        _context.MapLayers.Update(mapLayer);
+        _context.Layers.Update(layer);
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<MapLayer?> GetMapLayer(Guid mapId, Guid layerId)
+    public async Task<Layer?> GetMapLayer(Guid mapId, Guid layerId)
     {
-        return await _context.MapLayers
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.User)
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
     }
 
-    public async Task<List<MapLayer>> GetMapLayers(Guid mapId)
+    public async Task<List<Layer>> GetMapLayers(Guid mapId)
     {
-        return await _context.MapLayers
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.User)
-            .Where(ml => ml.MapId == mapId)
-            .OrderBy(ml => ml.LayerOrder)
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .Where(l => l.MapId == mapId)
+            .OrderBy(l => l.LayerOrder)
             .ToListAsync();
     }
 
@@ -327,3 +287,4 @@ public class MapRepository : IMapRepository
         return new List<Map>();
     }
 }
+

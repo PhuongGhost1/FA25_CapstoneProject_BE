@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Users;
@@ -29,7 +30,10 @@ public class Map
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    
+    // Navigation properties
     public User? User { get; set; }
     public Organization? Organization { get; set; }
     public Map? ParentMap { get; set; }
+    public Layer Layers { get; set; } = new Layer();
 }

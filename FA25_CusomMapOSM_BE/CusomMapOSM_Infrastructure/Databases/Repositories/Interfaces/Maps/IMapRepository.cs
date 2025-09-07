@@ -24,18 +24,17 @@ public interface IMapRepository
     Task<bool> UpdateMapTemplate(Map template);
 
     // Template Content operations
-    Task<List<MapLayer>> GetTemplateLayers(Guid mapId);
+    Task<List<Layer>> GetTemplateLayers(Guid mapId);
     Task<List<MapImage>> GetTemplateImages(Guid mapId);
-    Task<bool> CreateMapTemplateLayer(MapLayer templateLayer);
     Task<bool> CreateLayer(Layer layer);
     Task<string?> GetLayerDataById(Guid mapId, Guid layerId);
 
     // Map Layer operations
-    Task<bool> AddLayerToMap(MapLayer mapLayer);
+    Task<Layer?> GetLayerById(Guid layerId);
     Task<bool> RemoveLayerFromMap(Guid mapId, Guid layerId);
-    Task<bool> UpdateMapLayer(MapLayer mapLayer);
-    Task<MapLayer?> GetMapLayer(Guid mapId, Guid layerId);
-    Task<List<MapLayer>> GetMapLayers(Guid mapId);
+    Task<bool> UpdateLayer(Layer layer);
+    Task<Layer?> GetMapLayer(Guid mapId, Guid layerId);
+    Task<List<Layer>> GetMapLayers(Guid mapId);
 
     // Collaboration operations
     Task<bool> ShareMap(Guid mapId, Guid userId, string permission);

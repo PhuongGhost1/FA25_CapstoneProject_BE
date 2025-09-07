@@ -367,9 +367,9 @@ public class MapService : IMapService
         var layerDtos = layers.Select(l => new MapTemplateLayerDTO
         {
             LayerId = l.LayerId,
-            LayerName = l.Layer?.LayerName ?? "Unknown Layer",
-            LayerTypeId = (int)(l.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
-            LayerStyle = l.Layer?.LayerStyle ?? "",
+            LayerName = l.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)l.LayerType,
+            LayerStyle = l.LayerStyle ?? "",
             IsVisible = l.IsVisible,
             ZIndex = l.ZIndex,
             LayerOrder = l.LayerOrder,
@@ -443,20 +443,20 @@ public class MapService : IMapService
         };
 
         // Map Layers
-        var layerDtos = templateWithDetails.MapLayers.Select(ml => new MapLayerDTO
+        var layerDtos = templateWithDetails.Layers.Select(l => new MapLayerDTO
         {
-            MapLayerId = ml.MapLayerId,
-            LayerName = ml.Layer?.LayerName ?? "Unknown Layer",
-            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
-            IsVisible = ml.IsVisible,
-            ZIndex = ml.ZIndex,
-            LayerOrder = ml.LayerOrder,
-            LayerData = ml.Layer?.LayerData ?? "",
-            LayerStyle = ml.Layer?.LayerStyle ?? "",
-            CustomStyle = ml.CustomStyle,
-            FeatureCount = ml.FeatureCount,
-            DataSizeKB = ml.DataSizeKB,
-            DataBounds = ml.DataBounds
+            MapLayerId = l.LayerId, // Use LayerId since MapLayerId doesn't exist anymore
+            LayerName = l.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)l.LayerType,
+            IsVisible = l.IsVisible,
+            ZIndex = l.ZIndex,
+            LayerOrder = l.LayerOrder,
+            LayerData = l.LayerData ?? "",
+            LayerStyle = l.LayerStyle ?? "",
+            CustomStyle = l.CustomStyle,
+            FeatureCount = l.FeatureCount,
+            DataSizeKB = l.DataSizeKB,
+            DataBounds = l.DataBounds
         }).ToList();
 
         // Map Images
@@ -512,19 +512,24 @@ public class MapService : IMapService
                 Error.Forbidden("Map.NotOwner", "Only the map owner can add layers"));
         }
 
-        var mapLayer = new MapLayer
+        // Get the layer and update its map association
+        var layer = await _mapRepository.GetLayerById(req.LayerId);
+        if (layer == null)
         {
-            MapId = mapId,
-            LayerId = req.LayerId,
-            IsVisible = req.IsVisible,
-            ZIndex = req.ZIndex,
-            LayerOrder = 0, // TODO: Calculate proper order
-            CustomStyle = req.CustomStyle,
-            FilterConfig = req.FilterConfig,
-            CreatedAt = DateTime.UtcNow
-        };
+            return Option.None<AddLayerToMapResponse, Error>(
+                Error.NotFound("Layer.NotFound", "Layer not found"));
+        }
 
-        var result = await _mapRepository.AddLayerToMap(mapLayer);
+        // Update layer properties for this map
+        layer.MapId = mapId;
+        layer.IsVisible = req.IsVisible;
+        layer.ZIndex = req.ZIndex;
+        layer.LayerOrder = 0; // TODO: Calculate proper order
+        layer.CustomStyle = req.CustomStyle;
+        layer.FilterConfig = req.FilterConfig;
+        layer.UpdatedAt = DateTime.UtcNow;
+
+        var result = await _mapRepository.UpdateLayer(layer);
         if (!result)
         {
             return Option.None<AddLayerToMapResponse, Error>(
@@ -533,7 +538,7 @@ public class MapService : IMapService
 
         return Option.Some<AddLayerToMapResponse, Error>(new AddLayerToMapResponse
         {
-            MapLayerId = mapLayer.MapLayerId
+            MapLayerId = layer.LayerId // Using LayerId since MapLayerId no longer exists
         });
     }
 
@@ -610,7 +615,7 @@ public class MapService : IMapService
 
         mapLayer.UpdatedAt = DateTime.UtcNow;
 
-        var result = await _mapRepository.UpdateMapLayer(mapLayer);
+        var result = await _mapRepository.UpdateLayer(mapLayer);
         if (!result)
         {
             return Option.None<UpdateMapLayerResponse, Error>(
@@ -682,29 +687,29 @@ public class MapService : IMapService
     {
         // Get layers for this map
         var mapLayers = await _mapRepository.GetMapLayers(map.MapId);
-        var layerDtos = mapLayers.Select(ml => new LayerDTO
+        var layerDtos = mapLayers.Select(l => new LayerDTO
         {
-            Id = ml.Layer?.LayerId ?? Guid.Empty,
-            Name = ml.Layer?.LayerName ?? "Unknown Layer",
-            LayerTypeId = (int)(ml.Layer?.LayerType ?? LayerTypeEnum.GEOJSON),
-            LayerTypeName = ml.Layer?.LayerType.ToString() ?? "Unknown",
+            Id = l.LayerId,
+            Name = l.LayerName ?? "Unknown Layer",
+            LayerTypeId = (int)l.LayerType,
+            LayerTypeName = l.LayerType.ToString(),
             LayerTypeIcon = "",
-            SourceName = ml.Layer?.SourceType.ToString() ?? "Unknown",
-            FilePath = ml.Layer?.FilePath ?? "",
-            LayerData = ml.Layer?.LayerData ?? "",
-            LayerStyle = ml.Layer?.LayerStyle ?? "",
-            IsPublic = ml.Layer?.IsPublic ?? false,
-            CreatedAt = ml.Layer?.CreatedAt ?? DateTime.UtcNow,
-            UpdatedAt = ml.Layer?.UpdatedAt,
-            OwnerId = ml.Layer?.UserId ?? Guid.Empty,
-            OwnerName = ml.Layer?.User?.FullName ?? "Unknown",
-            // MapLayer specific properties
-            MapLayerId = ml.MapLayerId,
-            IsVisible = ml.IsVisible,
-            ZIndex = ml.ZIndex,
-            LayerOrder = ml.LayerOrder,
-            CustomStyle = ml.CustomStyle ?? "",
-            FilterConfig = ml.FilterConfig ?? ""
+            SourceName = l.SourceType.ToString(),
+            FilePath = l.FilePath ?? "",
+            LayerData = l.LayerData ?? "",
+            LayerStyle = l.LayerStyle ?? "",
+            IsPublic = l.IsPublic,
+            CreatedAt = l.CreatedAt,
+            UpdatedAt = l.UpdatedAt,
+            OwnerId = l.UserId,
+            OwnerName = l.User?.FullName ?? "Unknown",
+            // Layer specific properties (moved from MapLayer)
+            MapLayerId = l.LayerId, // Use LayerId since MapLayerId doesn't exist
+            IsVisible = l.IsVisible,
+            ZIndex = l.ZIndex,
+            LayerOrder = l.LayerOrder,
+            CustomStyle = l.CustomStyle ?? "",
+            FilterConfig = l.FilterConfig ?? ""
         }).ToList();
 
         // Parse geographic bounds
@@ -771,27 +776,16 @@ public class MapService : IMapService
             var layer = new Layer
             {
                 LayerId = newLayerId,
-                UserId = userId,
-                LayerName = templateLayer.Layer?.LayerName,
-                LayerType = templateLayer.Layer?.LayerType ?? LayerTypeEnum.GEOJSON,
-                SourceType = templateLayer.Layer?.SourceType ?? LayerSourceEnum.UserUploaded,
-                LayerData = templateLayer.Layer?.LayerData,
-                LayerStyle = templateLayer.Layer?.LayerStyle,
-                IsPublic = false, // New map layers are private by default
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var layerEntityCreated = await _mapRepository.CreateLayer(layer);
-            if (!layerEntityCreated)
-            {
-                continue; // Skip this layer if creation failed
-            }
-
-            // Copy template layer to new map
-            var mapLayer = new MapLayer
-            {
                 MapId = mapId,
-                LayerId = newLayerId,
+                UserId = userId,
+                LayerName = templateLayer.LayerName,
+                LayerType = templateLayer.LayerType,
+                SourceType = templateLayer.SourceType,
+                LayerData = templateLayer.LayerData,
+                LayerStyle = templateLayer.LayerStyle,
+                IsPublic = false, // New map layers are private by default
+                
+                // Copy layer display properties
                 IsVisible = templateLayer.IsVisible,
                 ZIndex = templateLayer.ZIndex,
                 LayerOrder = templateLayer.LayerOrder,
@@ -800,11 +794,12 @@ public class MapService : IMapService
                 FeatureCount = templateLayer.FeatureCount,
                 DataSizeKB = templateLayer.DataSizeKB,
                 DataBounds = templateLayer.DataBounds,
+                
                 CreatedAt = DateTime.UtcNow
             };
 
-            var result = await _mapRepository.AddLayerToMap(mapLayer);
-            if (result)
+            var layerEntityCreated = await _mapRepository.CreateLayer(layer);
+            if (layerEntityCreated)
             {
                 layersCreated++;
             }
@@ -888,6 +883,7 @@ public class MapService : IMapService
             var layer = new Layer
             {
                 LayerId = layerId,
+                MapId = mapTemplate.MapId,
                 UserId = currentUserId.Value,
                 LayerName = req.LayerName,
                 LayerType = LayerTypeEnum.GEOJSON,
@@ -895,30 +891,19 @@ public class MapService : IMapService
                 LayerData = compressedGeoJsonData,
                 LayerStyle = req.LayerStyle,
                 IsPublic = req.IsPublic,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var layerEntityCreated = await _mapRepository.CreateLayer(layer);
-            if (!layerEntityCreated)
-            {
-                return Option.None<CreateMapTemplateFromGeoJsonResponse, Error>(
-                    Error.Failure("Map.CreateLayerFailed", "Failed to create layer entity"));
-            }
-
-            var templateLayer = new MapLayer
-            {
-                MapId = mapTemplate.MapId,
-                LayerId = layerId,
+                
+                // Template layer properties
                 IsVisible = true,
                 ZIndex = 1,
                 LayerOrder = 1,
                 FeatureCount = req.FeatureCount,
                 DataSizeKB = req.DataSizeKB,
                 DataBounds = req.DataBounds,
+                
                 CreatedAt = DateTime.UtcNow
             };
 
-            var layerCreated = await _mapRepository.CreateMapTemplateLayer(templateLayer);
+            var layerCreated = await _mapRepository.CreateLayer(layer);
             if (!layerCreated)
             {
                 return Option.None<CreateMapTemplateFromGeoJsonResponse, Error>(

@@ -21,6 +21,10 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .HasColumnName("layer_id")
             .IsRequired();
 
+        builder.Property(l => l.MapId)
+            .HasColumnName("map_id")
+            .IsRequired();
+
         builder.Property(l => l.UserId)
             .HasColumnName("user_id")
             .IsRequired();
@@ -60,6 +64,36 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
         builder.Property(l => l.UpdatedAt)
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
+
+        // Properties moved from MapLayer
+        builder.Property(l => l.IsVisible)
+            .HasColumnName("is_visible")
+            .HasDefaultValue(true);
+
+        builder.Property(l => l.ZIndex)
+            .HasColumnName("z_index")
+            .HasDefaultValue(0);
+
+        builder.Property(l => l.LayerOrder)
+            .HasColumnName("layer_order")
+            .HasDefaultValue(0);
+
+        builder.Property(l => l.CustomStyle)
+            .HasColumnName("custom_style");
+
+        builder.Property(l => l.FilterConfig)
+            .HasColumnName("filter_config");
+        
+        builder.Property(l => l.FeatureCount)
+            .HasColumnName("feature_count");
+
+        builder.Property(l => l.DataSizeKB)
+            .HasColumnName("data_size_kb")
+            .HasColumnType("decimal(15,2)");
+
+        builder.Property(l => l.DataBounds)
+            .HasColumnName("data_bounds")
+            .HasColumnType("text");
 
         builder.HasOne(l => l.User)
             .WithMany()
