@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitializeDatabase : Migration
+    public partial class UpdateDatabase_NewVersionDatabase : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -1231,12 +1231,37 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: new[] { "access_tool_id", "access_tool_description", "access_tool_name", "icon_url", "required_membership" },
                 values: new object[,]
                 {
-                    { 1, "Create and customize maps with OSM data", "Map Creation", "/icons/map-create.svg", false },
-                    { 2, "Upload GeoJSON, KML, and CSV files (max 50MB)", "Data Import", "/icons/data-import.svg", false },
-                    { 3, "Export maps in PDF, PNG, SVG, GeoJSON, MBTiles formats", "Export System", "/icons/export.svg", false },
-                    { 4, "Advanced map analytics and reporting", "Advanced Analytics", "/icons/analytics.svg", true },
-                    { 5, "Share maps and collaborate with team members", "Team Collaboration", "/icons/collaboration.svg", true },
-                    { 6, "Access to REST API for integration", "API Access", "/icons/api.svg", true }
+                    { 1, "Add pin markers to maps", "Pin", "/icons/pin.svg", false },
+                    { 2, "Draw lines on maps", "Line", "/icons/line.svg", false },
+                    { 3, "Create and display routes", "Route", "/icons/route.svg", false },
+                    { 4, "Draw polygon shapes on maps", "Polygon", "/icons/polygon.svg", false },
+                    { 5, "Draw circular areas on maps", "Circle", "/icons/circle.svg", false },
+                    { 6, "Add custom markers to maps", "Marker", "/icons/marker.svg", false },
+                    { 7, "Highlight areas on maps", "Highlighter", "/icons/highlighter.svg", false },
+                    { 8, "Add text annotations to maps", "Text", "/icons/text.svg", false },
+                    { 9, "Add notes to map locations", "Note", "/icons/note.svg", false },
+                    { 10, "Add clickable links to map elements", "Link", "/icons/link.svg", false },
+                    { 11, "Embed videos in map popups", "Video", "/icons/video.svg", false },
+                    { 12, "Calculate and display map bounds", "Bounds", "/icons/bounds.svg", true },
+                    { 13, "Create buffer zones around features", "Buffer", "/icons/buffer.svg", true },
+                    { 14, "Calculate centroids of features", "Centroid", "/icons/centroid.svg", true },
+                    { 15, "Dissolve overlapping features", "Dissolve", "/icons/dissolve.svg", true },
+                    { 16, "Clip features to specified boundaries", "Clip", "/icons/clip.svg", true },
+                    { 17, "Count points within areas", "Count Points", "/icons/count-points.svg", true },
+                    { 18, "Find intersections between features", "Intersect", "/icons/intersect.svg", true },
+                    { 19, "Join data from different sources", "Join", "/icons/join.svg", true },
+                    { 20, "Subtract one feature from another", "Subtract", "/icons/subtract.svg", true },
+                    { 21, "Generate statistical analysis", "Statistic", "/icons/statistic.svg", true },
+                    { 22, "Create bar charts from map data", "Bar Chart", "/icons/bar-chart.svg", true },
+                    { 23, "Generate histograms from data", "Histogram", "/icons/histogram.svg", true },
+                    { 24, "Filter map data by criteria", "Filter", "/icons/filter.svg", true },
+                    { 25, "Analyze data over time", "Time Series", "/icons/time-series.svg", true },
+                    { 26, "Search and find features", "Find", "/icons/find.svg", true },
+                    { 27, "Measure distances and areas", "Measure", "/icons/measure.svg", true },
+                    { 28, "Filter by spatial relationships", "Spatial Filter", "/icons/spatial-filter.svg", true },
+                    { 29, "Create custom map extensions", "Custom Extension", "/icons/custom-extension.svg", true },
+                    { 30, "Design custom popup templates", "Custom Popup", "/icons/custom-popup.svg", true },
+                    { 31, "Get AI-powered map suggestions", "AI Suggestion", "/icons/ai-suggestion.svg", true }
                 });
 
             migrationBuilder.InsertData(
@@ -1373,10 +1398,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: new[] { "plan_id", "access_tool_ids", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "max_custom_layers", "max_locations_per_org", "max_maps_per_month", "max_organizations", "max_users_per_org", "plan_name", "price_monthly", "priority_support", "updated_at" },
                 values: new object[,]
                 {
-                    { 1, "[1, 2, 3]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, "Free", 0.00m, false, null },
-                    { 2, "[1, 2, 3, 4, 5]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Essential features for small teams", 1, 50, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true}", true, 50, 10, 5, 25, 2, 5, "Basic", 9.99m, false, null },
-                    { 3, "[1, 2, 3, 4, 5, 6, 7]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, "Pro", 29.99m, true, null },
-                    { 4, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, "Enterprise", 99.99m, true, null }
+                    { 1, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, "Free", 0.00m, false, null },
+                    { 2, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, "Pro", 29.99m, true, null },
+                    { 3, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, "Enterprise", 99.99m, true, null }
                 });
 
             migrationBuilder.InsertData(

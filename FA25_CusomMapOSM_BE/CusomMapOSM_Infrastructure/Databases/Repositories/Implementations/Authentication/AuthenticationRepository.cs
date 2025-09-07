@@ -19,7 +19,7 @@ public class AuthenticationRepository : IAuthenticationRepository
 
     public async Task<DomainUser.User?> GetUserById(Guid? userId)
     {
-        return await _context.Users.FindAsync(userId);
+        return await _context.Users.Include(x => x.Role).Include(x => x.AccountStatus).FirstOrDefaultAsync(x => x.UserId == userId);
     }
 
     public async Task<bool> IsEmailExists(string email)

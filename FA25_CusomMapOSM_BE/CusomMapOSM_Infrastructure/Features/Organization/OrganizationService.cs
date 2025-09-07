@@ -1,5 +1,6 @@
 ﻿using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Organization;
+using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
@@ -21,16 +22,19 @@ public class OrganizationService : IOrganizationService
     private readonly ITypeRepository _typeRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly HangfireEmailService _hangfireEmailService;
+    private readonly IMembershipService _membershipService;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
-        ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService)
+        ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService,
+        IMembershipService membershipService)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
         _typeRepository = typeRepository;
         _currentUserService = currentUserService;
         _hangfireEmailService = hangfireEmailService;
+        _membershipService = membershipService;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -88,8 +92,28 @@ public class OrganizationService : IOrganizationService
             }
         }
 
+        // Create free membership for the organization owner
+        const int FREE_PLAN_ID = 1; // Free plan ID from database seed data
+        var membershipResult = await _membershipService.CreateOrRenewMembershipAsync(
+            currentUserId,
+            createdOrg.OrgId,
+            FREE_PLAN_ID,
+            autoRenew: false, // Free plan doesn't auto-renew
+            CancellationToken.None);
+
+        if (!membershipResult.HasValue)
+        {
+            // Log warning but don't fail organization creation
+            // The organization is created successfully, membership creation is secondary
+            var error = membershipResult.Match(
+                some: _ => (Error)null!,
+                none: err => err
+            );
+            Console.WriteLine($"Failed to create free membership for user {currentUserId} in organization {createdOrg.OrgId}: {error?.Description}");
+        }
+
         return Option.Some<OrganizationResDto, Error>(new OrganizationResDto
-            { Result = "Create Organization Success" });
+        { Result = "Create Organization Success" });
     }
 
     public async Task<Option<GetAllOrganizationsResDto, Error>> GetAll()
@@ -257,7 +281,7 @@ public class OrganizationService : IOrganizationService
             Subject = $"Invitation to join {organization?.OrgName ?? "Organization"}",
             Body = EmailTemplates.Organization.GetInvitationTemplate(
                 inviter?.FullName ?? "Unknown User",
-                organization?.OrgName ?? "an organization", 
+                organization?.OrgName ?? "an organization",
                 req.MemberType)
         };
 
@@ -573,7 +597,7 @@ public class OrganizationService : IOrganizationService
         }
 
         var myOrganizations = await _organizationRepository.GetUserOrganizations(currentUserId.Value);
-        
+
         var organizationDtos = myOrganizations.Select(member => new MyOrganizationDto
         {
             OrgId = member.Organization.OrgId,
@@ -621,13 +645,13 @@ public class OrganizationService : IOrganizationService
         var currentOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
         if (currentOwnerMember is null || currentOwnerMember.Role?.Name != "Owner")
         {
-            return Option.None<TransferOwnershipResDto, Error>(                Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));
+            return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));
         }
 
         // Update new owner's role
         newOwnerMember.MembersRoleId = ownerRole.TypeId;
         var updateNewOwnerResult = await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
-        
+
         if (!updateNewOwnerResult)
         {
             return Option.None<TransferOwnershipResDto, Error>(

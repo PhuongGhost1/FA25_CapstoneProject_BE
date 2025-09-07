@@ -317,4 +317,20 @@ public class MembershipService : IMembershipService
         };
         return Option.Some<DomainMembershipAddon, ErrorCustom.Error>(await _membershipRepository.AddAddonAsync(addon, ct));
     }
+
+    public async Task<Option<DomainMembership, ErrorCustom.Error>> GetCurrentMembershipWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
+    {
+        try
+        {
+            var membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(userId, orgId, ct);
+            return membership != null
+                ? Option.Some<DomainMembership, ErrorCustom.Error>(membership)
+                : Option.None<DomainMembership, ErrorCustom.Error>(new ErrorCustom.Error("Membership.NotFound", "No active membership found for user and organization", ErrorCustom.ErrorType.NotFound));
+        }
+        catch (Exception ex)
+        {
+            return Option.None<DomainMembership, ErrorCustom.Error>(
+                new ErrorCustom.Error("Membership.GetFailed", $"Failed to get current membership: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
 }

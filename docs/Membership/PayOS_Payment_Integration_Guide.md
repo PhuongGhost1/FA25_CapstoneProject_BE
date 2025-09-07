@@ -114,6 +114,15 @@ Generate QR Code     Process Payment     Grant Access Tools
   "planId": 1, // Required: For membership creation
   "autoRenew": true // Required: For membership creation
 }
+
+*note:
+{
+  "paymentGateway": "payOS",
+  "paymentId": "db1b43524ae44985a85d80f85a8dd852", // sessionId on processPayment
+  "orderCode": "8552886145241895",
+  "purpose": "membership",
+  "transactionId": "97588bfa-606e-4098-8dec-f0b52d2e5235",
+}
 ```
 
 ### Response Payload (Success)

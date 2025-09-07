@@ -134,8 +134,17 @@ public class PayOSPaymentService : IPaymentService
     {
         try
         {
+            Console.WriteLine($"=== PayOS CreateCheckoutAsync START ===");
+            Console.WriteLine($"Request Total: {request.Total}");
+            Console.WriteLine($"Request Purpose: {request.Purpose}");
+            Console.WriteLine($"Return URL: {returnUrl}");
+            Console.WriteLine($"Cancel URL: {cancelUrl}");
+
             var orderCode = GenerateOrderCode();
             var amountInVND = (long)(request.Total * 24500); // Convert to VND and ensure it's an integer
+
+            Console.WriteLine($"Generated Order Code: {orderCode}");
+            Console.WriteLine($"Amount in VND: {amountInVND}");
 
             // Determine description and items based on purpose
             string description;
@@ -223,8 +232,12 @@ public class PayOSPaymentService : IPaymentService
             Console.WriteLine($"Items: {items.Length} item(s)");
             foreach (var item in items)
             {
-                var itemDict = (IDictionary<string, object>)item;
-                Console.WriteLine($"  - {itemDict["name"]} (Qty: {itemDict["quantity"]}, Price: {itemDict["price"]})");
+                // Use reflection to get the properties instead of casting to IDictionary
+                var itemType = item.GetType();
+                var name = itemType.GetProperty("name")?.GetValue(item)?.ToString() ?? "Unknown";
+                var quantity = itemType.GetProperty("quantity")?.GetValue(item)?.ToString() ?? "0";
+                var price = itemType.GetProperty("price")?.GetValue(item)?.ToString() ?? "0";
+                Console.WriteLine($"  - {name} (Qty: {quantity}, Price: {price})");
             }
             Console.WriteLine($"Return URL: {returnUrl}");
             Console.WriteLine($"Cancel URL: {cancelUrl}");
@@ -232,13 +245,21 @@ public class PayOSPaymentService : IPaymentService
             Console.WriteLine($"=== End PayOS Official Request with Items ===");
 
             // Validate PayOS credentials
+            Console.WriteLine($"=== PayOS Credentials Validation ===");
+            Console.WriteLine($"PAYOS_CLIENT_ID: {PayOsConstant.PAYOS_CLIENT_ID ?? "NULL"}");
+            Console.WriteLine($"PAYOS_API_KEY: {PayOsConstant.PAYOS_API_KEY ?? "NULL"}");
+            Console.WriteLine($"PAYOS_CHECKSUM_KEY: {PayOsConstant.PAYOS_CHECKSUM_KEY ?? "NULL"}");
+
             if (string.IsNullOrEmpty(PayOsConstant.PAYOS_CLIENT_ID) ||
                 string.IsNullOrEmpty(PayOsConstant.PAYOS_API_KEY) ||
                 string.IsNullOrEmpty(PayOsConstant.PAYOS_CHECKSUM_KEY))
             {
+                Console.WriteLine($"=== PayOS Credentials Validation FAILED ===");
                 return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.PayOS.InvalidCredentials", "PayOS credentials are missing or invalid", ErrorCustom.ErrorType.Validation));
             }
+
+            Console.WriteLine($"=== PayOS Credentials Validation PASSED ===");
 
             var json = JsonSerializer.Serialize(requestWithSignature);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -247,6 +268,12 @@ public class PayOSPaymentService : IPaymentService
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("x-client-id", PayOsConstant.PAYOS_CLIENT_ID);
             _httpClient.DefaultRequestHeaders.Add("x-api-key", PayOsConstant.PAYOS_API_KEY);
+
+            Console.WriteLine($"=== PayOS Request Details ===");
+            Console.WriteLine($"URL: {_httpClient.BaseAddress}/v2/payment-requests");
+            Console.WriteLine($"Headers: x-client-id={PayOsConstant.PAYOS_CLIENT_ID}, x-api-key={PayOsConstant.PAYOS_API_KEY}");
+            Console.WriteLine($"Request Body: {json}");
+            Console.WriteLine($"=== End PayOS Request Details ===");
 
             var response = await _httpClient.PostAsync("/v2/payment-requests", content, ct);
             var responseContent = await response.Content.ReadAsStringAsync(ct);
@@ -320,6 +347,12 @@ public class PayOSPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"=== PayOS CreateCheckoutAsync EXCEPTION ===");
+            Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+            Console.WriteLine($"Exception Message: {ex.Message}");
+            Console.WriteLine($"Exception Stack Trace: {ex.StackTrace}");
+            Console.WriteLine($"=== End PayOS CreateCheckoutAsync EXCEPTION ===");
+
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(
                 new ErrorCustom.Error("Payment.PayOS.Exception", $"Exception occurred: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }

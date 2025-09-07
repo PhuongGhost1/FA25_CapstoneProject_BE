@@ -27,6 +27,16 @@ public class MembershipRepository : IMembershipRepository
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
 
+    public async Task<DomainMembership?> GetByUserOrgWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
+    {
+        return await _context.Memberships
+            .Include(m => m.Organization)
+            .Include(m => m.Plan)
+            .Include(m => m.Status)
+            .OrderByDescending(m => m.StartDate)
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
+    }
+
     public async Task<DomainMembership> UpsertAsync(DomainMembership membership, CancellationToken ct)
     {
         var exists = await _context.Memberships.AnyAsync(m => m.MembershipId == membership.MembershipId, ct);

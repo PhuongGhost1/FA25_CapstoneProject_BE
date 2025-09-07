@@ -19,4 +19,7 @@ public interface IMembershipService
 
     // New method for subscription plan changes
     Task<Option<DomainMembership, ErrorCustom.Error>> ChangeSubscriptionPlanAsync(Guid userId, Guid orgId, int newPlanId, bool autoRenew, CancellationToken ct);
+
+    // Method to get current membership with all related data
+    Task<Option<DomainMembership, ErrorCustom.Error>> GetCurrentMembershipWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct);
 }
