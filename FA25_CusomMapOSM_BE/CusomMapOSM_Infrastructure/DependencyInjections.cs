@@ -114,11 +114,12 @@ public static class DependencyInjections
         services.AddScoped<HangfireEmailService>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
-        
+
         services.AddScoped<IFileProcessorService, Services.FileProcessors.FileProcessorService>();
         services.AddScoped<IVectorProcessor, Services.FileProcessors.VectorProcessor>();
         services.AddScoped<IRasterProcessor, Services.FileProcessors.RasterProcessor>();
@@ -147,7 +148,7 @@ public static class DependencyInjections
         var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
         var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
         var redisConnectionString = $"{redisHost}:{redisPort},password={redisPassword}";
-        
+
         services.AddHangfire(config =>
         {
             config.UseRedisStorage(redisConnectionString, new Hangfire.Redis.RedisStorageOptions
