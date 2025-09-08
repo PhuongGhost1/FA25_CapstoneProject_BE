@@ -65,7 +65,6 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
 
-        // Properties moved from MapLayer
         builder.Property(l => l.IsVisible)
             .HasColumnName("is_visible")
             .HasDefaultValue(true);
@@ -97,7 +96,10 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
 
         builder.HasOne(l => l.User)
             .WithMany()
-            .HasForeignKey(l => l.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(l => l.UserId);
+        
+        builder.HasOne(l => l.Map)
+            .WithMany()    
+            .HasForeignKey(l => l.MapId);
     }
 }

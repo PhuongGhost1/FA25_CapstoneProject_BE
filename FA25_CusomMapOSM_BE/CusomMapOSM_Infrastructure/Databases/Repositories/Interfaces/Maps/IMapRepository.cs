@@ -6,6 +6,9 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 
 public interface IMapRepository
 {
+    // User validation
+    Task<bool> CheckUserExists(Guid userId);
+    
     // Map CRUD operations
     Task<bool> CreateMap(Map map);
     Task<Map?> GetMapById(Guid mapId);
