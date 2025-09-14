@@ -123,6 +123,13 @@ Generate QR Code     Process Payment     Grant Access Tools
   "purpose": "membership",
   "transactionId": "97588bfa-606e-4098-8dec-f0b52d2e5235",
 }
+
+{
+  "paymentGateway": "stripe",
+  "paymentId": "cs_test_a1QyC9UcqG0pa06FcMC0n8RVMeEX5BIpdsJ3TR52FtzEvfL5PIIDbLeSgL",
+  "purpose": "membership",
+  "transactionId": "b7dcc920-f550-4702-a62e-2d25b306c8fb"
+}
 ```
 
 ### Response Payload (Success)

@@ -91,57 +91,98 @@ public class StripePaymentService : IPaymentService
             });
         }
 
-        var service = new SessionService();
-        var session = await service.CreateAsync(options, new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY });
-
-        return Option.Some<ApprovalUrlResponse, Error>(new ApprovalUrlResponse
+        try
         {
-            ApprovalUrl = session.Url,
-            PaymentGateway = PaymentGatewayEnum.Stripe,
-            SessionId = session.Id
-        });
+            var service = new SessionService();
+            var session = await service.CreateAsync(options, new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY });
+
+            Console.WriteLine($"=== Stripe Session Created ===");
+            Console.WriteLine($"Session ID: {session.Id}");
+            Console.WriteLine($"Session URL: {session.Url}");
+            Console.WriteLine($"Payment Status: {session.PaymentStatus}");
+            Console.WriteLine($"=== End Stripe Session Created ===");
+
+            return Option.Some<ApprovalUrlResponse, Error>(new ApprovalUrlResponse
+            {
+                ApprovalUrl = session.Url ?? "",
+                PaymentGateway = PaymentGatewayEnum.Stripe,
+                SessionId = session.Id
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"=== Stripe Session Creation Error ===");
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            Console.WriteLine($"=== End Stripe Session Creation Error ===");
+
+            return Option.None<ApprovalUrlResponse, Error>(new Error("Payment.Stripe.CreateFailed", $"Failed to create Stripe session: {ex.Message}", ErrorType.Failure));
+        }
     }
 
     public async Task<Option<ConfirmPaymentResponse, Error>> ConfirmPaymentAsync(ConfirmPaymentReq req, CancellationToken ct)
     {
-        var service = new PaymentIntentService();
-        var paymentIntent = await service.GetAsync(req.PaymentIntentId, new PaymentIntentGetOptions { ClientSecret = StripeConstant.STRIPE_SECRET_KEY });
-
-        if (paymentIntent.Status == "succeeded")
+        try
         {
-            return Option.Some<ConfirmPaymentResponse, Error>(new ConfirmPaymentResponse
-            {
-                PaymentId = req.PaymentIntentId,
-                PaymentGateway = PaymentGatewayEnum.Stripe,
-                PaymentIntentId = req.PaymentIntentId,
-                ClientSecret = req.ClientSecret
-            });
-        }
+            // For Stripe Checkout, we can use SessionId or PaymentId (which contains the session ID)
+            var sessionId = req.SessionId ?? req.PaymentId;
 
-        return Option.None<ConfirmPaymentResponse, Error>(new Error("Payment.Stripe.Failed", "Payment not successful", ErrorType.Validation));
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Option.None<ConfirmPaymentResponse, Error>(new Error("Payment.Stripe.MissingSessionId", "Session ID or Payment ID is required for Stripe Checkout", ErrorType.Validation));
+            }
+
+            var sessionService = new SessionService();
+            var session = await sessionService.GetAsync(
+                sessionId,
+                new SessionGetOptions(),
+                new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY }
+            );
+
+            // Check if payment was successful
+            if (session.PaymentStatus == "paid")
+            {
+                return Option.Some<ConfirmPaymentResponse, Error>(new ConfirmPaymentResponse
+                {
+                    PaymentId = session.PaymentIntentId ?? session.Id,
+                    PaymentGateway = PaymentGatewayEnum.Stripe,
+                    SessionId = session.Id,
+                    OrderCode = session.Id
+                });
+            }
+
+            return Option.None<ConfirmPaymentResponse, Error>(new Error("Payment.Stripe.NotPaid", $"Payment not successful. Status: {session.PaymentStatus}", ErrorType.Validation));
+        }
+        catch (Exception ex)
+        {
+            return Option.None<ConfirmPaymentResponse, Error>(new Error("Payment.Stripe.Exception", $"Exception occurred: {ex.Message}", ErrorType.Failure));
+        }
     }
 
     public async Task<Option<CancelPaymentResponse, Error>> CancelPaymentAsync(CancelPaymentWithContextReq req, CancellationToken ct)
     {
         try
         {
-            var service = new PaymentIntentService();
-            var paymentIntent = await service.GetAsync(req.PaymentIntentId, new PaymentIntentGetOptions { ClientSecret = StripeConstant.STRIPE_SECRET_KEY });
+            // For Stripe Checkout, we can use PaymentId as SessionId since they're the same for Stripe
+            var sessionId = req.PaymentId; // PaymentId contains the session ID for Stripe
 
-            // Check if payment intent is in a cancellable state
-            if (paymentIntent.Status == "succeeded" || paymentIntent.Status == "processing")
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                return Option.None<CancelPaymentResponse, Error>(new Error("Payment.Stripe.MissingSessionId", "Session ID is required for Stripe Checkout", ErrorType.Validation));
+            }
+
+            var sessionService = new SessionService();
+            var session = await sessionService.GetAsync(sessionId, new SessionGetOptions(), new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY });
+
+            // Check if payment is already completed
+            if (session.PaymentStatus == "paid")
             {
                 return Option.None<CancelPaymentResponse, Error>(
-                    new Error("Payment.Stripe.AlreadyProcessed", "Payment has already been processed and cannot be cancelled", ErrorType.Validation));
+                    new Error("Payment.Stripe.AlreadyPaid", "Payment has already been completed and cannot be cancelled", ErrorType.Validation));
             }
 
-            // For Stripe, we can cancel the payment intent if it's still in a pending state
-            if (paymentIntent.Status == "requires_payment_method" || paymentIntent.Status == "requires_confirmation")
-            {
-                var cancelOptions = new PaymentIntentCancelOptions();
-                await service.CancelAsync(req.PaymentIntentId, cancelOptions, new RequestOptions { ApiKey = StripeConstant.STRIPE_SECRET_KEY });
-            }
-
+            // For Stripe Checkout, cancellation is typically handled by the user not completing the payment
+            // The session will expire automatically after a certain time
             return Option.Some<CancelPaymentResponse, Error>(new CancelPaymentResponse(
                 "cancelled",
                 PaymentGatewayEnum.Stripe.ToString()

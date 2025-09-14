@@ -49,6 +49,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Infrastructure.Features.Maps;
+using CusomMapOSM_Infrastructure.BackgroundJobs;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -171,6 +172,19 @@ public static class DependencyInjections
         // Đăng ký service gửi email và retry
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
+
+        // Register background job services
+        services.AddScoped<MembershipExpirationNotificationJob>();
+        services.AddScoped<MembershipQuotaResetJob>();
+        services.AddScoped<MembershipUsageTrackingJob>();
+        services.AddScoped<OrganizationInvitationCleanupJob>();
+        services.AddScoped<PaymentFailureHandlingJob>();
+        services.AddScoped<ExportFileCleanupJob>();
+        services.AddScoped<MapHistoryCleanupJob>();
+        services.AddScoped<UserAccountDeactivationJob>();
+        services.AddScoped<CollaborationInvitationCleanupJob>();
+        // services.AddScoped<SystemLogCleanupJob>();
+        services.AddScoped<BackgroundJobScheduler>();
 
         return services;
     }
