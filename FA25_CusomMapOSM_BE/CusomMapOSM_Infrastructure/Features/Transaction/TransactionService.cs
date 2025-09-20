@@ -14,6 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.Extensions.Logging;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
@@ -37,6 +39,10 @@ public class TransactionService : ITransactionService
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly HangfireEmailService _hangfireEmailService;
+    private readonly INotificationService _notificationService;
+    private readonly IUserRepository _userRepository;
+    private readonly IMembershipRepository _membershipRepository;
+    private readonly IMembershipPlanRepository _membershipPlanRepository;
     private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
@@ -47,6 +53,10 @@ public class TransactionService : ITransactionService
         IServiceProvider serviceProvider,
         IPaymentGatewayRepository paymentGatewayRepository,
         HangfireEmailService hangfireEmailService,
+        INotificationService notificationService,
+        IUserRepository userRepository,
+        IMembershipRepository membershipRepository,
+        IMembershipPlanRepository membershipPlanRepository,
         ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
@@ -56,6 +66,10 @@ public class TransactionService : ITransactionService
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
         _hangfireEmailService = hangfireEmailService;
+        _notificationService = notificationService;
+        _userRepository = userRepository;
+        _membershipRepository = membershipRepository;
+        _membershipPlanRepository = membershipPlanRepository;
         _logger = logger;
     }
 
@@ -245,8 +259,12 @@ public class TransactionService : ITransactionService
                         none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
                     );
 
-                    // Send purchase confirmation email immediately
-                    await SendMembershipPurchaseConfirmationAsync(m, transaction);
+                    // Send purchase confirmation notification
+                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                        m.User!.Email,
+                        m.User.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
 
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
@@ -265,6 +283,22 @@ public class TransactionService : ITransactionService
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
 
+            var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+            if (user == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("User.NotFound", "User not found", ErrorCustom.ErrorType.NotFound));
+
+            var membership = await _membershipRepository.GetByIdAsync(context.MembershipId.Value, ct);
+            if (membership == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotFound", "Membership not found", ErrorCustom.ErrorType.NotFound));
+
+            var plan = await _membershipPlanRepository.GetPlanByIdAsync(membership.PlanId, ct);
+            if (plan == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Plan.NotFound", "Plan not found", ErrorCustom.ErrorType.NotFound));
+
+
             var addon = await _membershipService.AddAddonAsync(
                 context.MembershipId.Value,
                 context.OrgId.Value,
@@ -278,7 +312,7 @@ public class TransactionService : ITransactionService
                 some: async a =>
                 {
                     // Send addon purchase confirmation email immediately
-                    await SendAddonPurchaseConfirmationAsync(a, transaction, context);
+                    await _notificationService.SendTransactionCompletedNotificationAsync(user!.Email, user.FullName ?? "User", transaction.Amount, plan!.PlanName ?? "Unknown Plan");
 
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
@@ -496,218 +530,7 @@ public class TransactionService : ITransactionService
         }
     }
 
-    /// <summary>
-    /// Send membership purchase confirmation email immediately after successful payment
-    /// </summary>
-    private async Task SendMembershipPurchaseConfirmationAsync(
-        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
-        Transactions transaction)
-    {
-        try
-        {
-            _logger.LogInformation("Sending membership purchase confirmation email for membership {MembershipId}", membership.MembershipId);
 
-            var subject = "Membership Purchase Confirmation - Welcome to Custom Map OSM!";
-            var body = GetMembershipPurchaseConfirmationEmailBody(membership, transaction);
 
-            var mailRequest = new MailRequest
-            {
-                ToEmail = membership.User!.Email,
-                Subject = subject,
-                Body = body
-            };
 
-            var jobId = _hangfireEmailService.EnqueueEmail(mailRequest);
-            await Task.CompletedTask; // Make it properly async
-
-            _logger.LogInformation("Membership purchase confirmation email queued for user {UserId}, job ID: {JobId}", membership.UserId, jobId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send membership purchase confirmation email for user {UserId}", membership.UserId);
-        }
-    }
-
-    /// <summary>
-    /// Send addon purchase confirmation email immediately after successful payment
-    /// </summary>
-    private async Task SendAddonPurchaseConfirmationAsync(
-        CusomMapOSM_Domain.Entities.Memberships.MembershipAddon addon,
-        Transactions transaction,
-        TransactionContext context)
-    {
-        try
-        {
-            _logger.LogInformation("Sending addon purchase confirmation email for addon {AddonId}", addon.AddonId);
-
-            // Get membership details for the email
-            var membership = await _membershipService.GetMembershipAsync(addon.MembershipId, CancellationToken.None);
-
-            if (!membership.HasValue)
-            {
-                _logger.LogWarning("Membership not found for addon {AddonId}", addon.AddonId);
-                return;
-            }
-
-            var membershipData = membership.ValueOr(default(CusomMapOSM_Domain.Entities.Memberships.Membership));
-            if (membershipData?.User == null)
-            {
-                _logger.LogWarning("User not found for membership {MembershipId}", addon.MembershipId);
-                return;
-            }
-
-            var subject = "Addon Purchase Confirmation - Custom Map OSM";
-            var body = GetAddonPurchaseConfirmationEmailBody(addon, transaction, membershipData, context);
-
-            var mailRequest = new MailRequest
-            {
-                ToEmail = membershipData.User.Email,
-                Subject = subject,
-                Body = body
-            };
-
-            var jobId = _hangfireEmailService.EnqueueEmail(mailRequest);
-            await Task.CompletedTask; // Make it properly async
-
-            _logger.LogInformation("Addon purchase confirmation email queued for user {UserId}, job ID: {JobId}", membershipData.UserId, jobId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send addon purchase confirmation email for addon {AddonId}", addon.AddonId);
-        }
-    }
-
-    /// <summary>
-    /// Generate HTML email body for membership purchase confirmation
-    /// </summary>
-    private string GetMembershipPurchaseConfirmationEmailBody(
-        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
-        Transactions transaction)
-    {
-        var startDate = membership.StartDate.ToString("MMMM dd, yyyy");
-        var endDate = membership.EndDate?.ToString("MMMM dd, yyyy") ?? "Ongoing";
-        var autoRenewal = membership.AutoRenew ? "Enabled" : "Disabled";
-
-        return $@"
-            <div class=""notification success"">
-                <h2>🎉 Welcome to Custom Map OSM!</h2>
-                <p>Dear {membership.User!.FullName ?? membership.User.Email},</p>
-                
-                <p>Thank you for your purchase! Your <strong>{membership.Plan!.PlanName}</strong> membership 
-                has been successfully activated for organization <strong>{membership.Organization!.OrgName}</strong>.</p>
-                
-                <div class=""purchase-details"">
-                    <h3>Purchase Details:</h3>
-                    <ul>
-                        <li><strong>Transaction ID:</strong> {transaction.TransactionId}</li>
-                        <li><strong>Plan:</strong> {membership.Plan.PlanName}</li>
-                        <li><strong>Amount:</strong> ${transaction.Amount:F2}</li>
-                        <li><strong>Payment Method:</strong> {transaction.PaymentGateway.Name}</li>
-                        <li><strong>Purchase Date:</strong> {transaction.CreatedAt:MMMM dd, yyyy 'at' h:mm tt}</li>
-                    </ul>
-                </div>
-                
-                <div class=""membership-details"">
-                    <h3>Membership Details:</h3>
-                    <ul>
-                        <li><strong>Organization:</strong> {membership.Organization.OrgName}</li>
-                        <li><strong>Start Date:</strong> {startDate}</li>
-                        <li><strong>End Date:</strong> {endDate}</li>
-                        <li><strong>Auto-renewal:</strong> {autoRenewal}</li>
-                        <li><strong>Status:</strong> {membership.Status!.Name}</li>
-                    </ul>
-                </div>
-                
-                <div class=""plan-features"">
-                    <h3>Your Plan Includes:</h3>
-                    <ul>
-                        <li>✅ Up to {membership.Plan.MaxMapsPerMonth} maps per month</li>
-                        <li>✅ Up to {membership.Plan.ExportQuota} exports per month</li>
-                        <li>✅ Up to {membership.Plan.MaxCustomLayers} custom layers</li>
-                        <li>✅ Up to {membership.Plan.MaxUsersPerOrg} users per organization</li>
-                        <li>✅ {(membership.Plan.PrioritySupport ? "Priority" : "Standard")} support</li>
-                    </ul>
-                </div>
-                
-                <div class=""action-buttons"">
-                    <a href=""https://yourdomain.com/dashboard"" class=""btn btn-primary"">
-                        Go to Dashboard
-                    </a>
-                    <a href=""https://yourdomain.com/maps/create"" class=""btn btn-secondary"">
-                        Create Your First Map
-                    </a>
-                </div>
-                
-                <div class=""getting-started"">
-                    <h3>Getting Started:</h3>
-                    <ol>
-                        <li>Log in to your dashboard</li>
-                        <li>Create your first custom map</li>
-                        <li>Invite team members to collaborate</li>
-                        <li>Upload your custom layers</li>
-                        <li>Export your maps in various formats</li>
-                    </ol>
-                </div>
-                
-                <p>If you have any questions or need assistance getting started, our support team is here to help!</p>
-                
-                <p>Welcome aboard and happy mapping!</p>
-                
-                <p><strong>The Custom Map OSM Team</strong></p>
-            </div>";
-    }
-
-    /// <summary>
-    /// Generate HTML email body for addon purchase confirmation
-    /// </summary>
-    private string GetAddonPurchaseConfirmationEmailBody(
-        CusomMapOSM_Domain.Entities.Memberships.MembershipAddon addon,
-        Transactions transaction,
-        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
-        TransactionContext context)
-    {
-        return $@"
-            <div class=""notification success"">
-                <h2>✅ Addon Purchase Confirmed!</h2>
-                <p>Dear {membership.User!.FullName ?? membership.User.Email},</p>
-                
-                <p>Thank you for your addon purchase! Your <strong>{addon.AddonKey}</strong> addon 
-                has been successfully added to your membership for organization <strong>{membership.Organization!.OrgName}</strong>.</p>
-                
-                <div class=""purchase-details"">
-                    <h3>Purchase Details:</h3>
-                    <ul>
-                        <li><strong>Transaction ID:</strong> {transaction.TransactionId}</li>
-                        <li><strong>Addon:</strong> {addon.AddonKey}</li>
-                        <li><strong>Quantity:</strong> {context.Quantity ?? 1}</li>
-                        <li><strong>Amount:</strong> ${transaction.Amount:F2}</li>
-                        <li><strong>Payment Method:</strong> {transaction.PaymentGateway.Name}</li>
-                        <li><strong>Purchase Date:</strong> {transaction.CreatedAt:MMMM dd, yyyy 'at' h:mm tt}</li>
-                    </ul>
-                </div>
-                
-                <div class=""addon-details"">
-                    <h3>Addon Details:</h3>
-                    <ul>
-                        <li><strong>Organization:</strong> {membership.Organization.OrgName}</li>
-                        <li><strong>Membership Plan:</strong> {membership.Plan!.PlanName}</li>
-                        <li><strong>Effective From:</strong> {addon.EffectiveFrom?.ToString("MMMM dd, yyyy") ?? "Immediately"}</li>
-                        <li><strong>Effective Until:</strong> {addon.EffectiveUntil?.ToString("MMMM dd, yyyy") ?? "No expiration"}</li>
-                    </ul>
-                </div>
-                
-                <div class=""action-buttons"">
-                    <a href=""https://yourdomain.com/dashboard"" class=""btn btn-primary"">
-                        Go to Dashboard
-                    </a>
-                    <a href=""https://yourdomain.com/membership"" class=""btn btn-secondary"">
-                        Manage Membership
-                    </a>
-                </div>
-                
-                <p>Your addon is now active and ready to use. If you have any questions, please contact our support team.</p>
-                
-                <p>Thank you for choosing Custom Map OSM!</p>
-            </div>";
-    }
 }

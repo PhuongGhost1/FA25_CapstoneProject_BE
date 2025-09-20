@@ -40,7 +40,7 @@ public class MembershipQuotaResetJob
             var membershipsToReset = await dbContext.Memberships
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
-                .Where(m => m.Status!.Name == "Active" &&
+                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active &&
                            m.EndDate > today && // Only active memberships
                            (m.LastResetDate == null ||
                             ShouldResetQuota(m.LastResetDate.Value, m.StartDate, today)))
@@ -184,7 +184,7 @@ public class MembershipQuotaResetJob
                 return;
             }
 
-            if (membership.Status!.Name != "Active")
+            if (membership.Status != CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active)
             {
                 _logger.LogWarning("Cannot reset quotas for inactive membership {MembershipId}", membershipId);
                 return;

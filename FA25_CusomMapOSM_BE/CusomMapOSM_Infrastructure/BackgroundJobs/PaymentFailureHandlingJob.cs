@@ -47,14 +47,14 @@ public class PaymentFailureHandlingJob
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
-                .Where(m => m.Status!.Name == "PendingPayment" &&
+                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.PendingPayment &&
                            m.UpdatedAt <= threeDaysAgo) // Failed payment for 3+ days
                 .ToListAsync();
 
             var suspendedCount = 0;
             foreach (var membership in membershipsToSuspend)
             {
-                await SuspendMembershipForFailedPaymentAsync(membership, dbContext, hangfireEmailService);
+                // await SuspendMembershipForFailedPaymentAsync(membership, dbContext, hangfireEmailService);
                 suspendedCount++;
             }
 
@@ -71,45 +71,46 @@ public class PaymentFailureHandlingJob
         }
     }
 
-    private async Task SuspendMembershipForFailedPaymentAsync(
-        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
-        CustomMapOSMDbContext dbContext,
-        HangfireEmailService hangfireEmailService)
-    {
-        try
-        {
-            // Update membership status to Suspended
-            var suspendedStatus = await dbContext.MembershipStatuses
-                .FirstOrDefaultAsync(ms => ms.Name == "Suspended");
+    // private async Task SuspendMembershipForFailedPaymentAsync(
+    //     CusomMapOSM_Domain.Entities.Memberships.Membership membership,
+    //     CustomMapOSMDbContext dbContext,
+    //     HangfireEmailService hangfireEmailService)
+    // {
+    //     try
+    //     {
+    //         // Update membership status to Suspended
+    //         var suspendedStatus = await dbContext.Memberships
+    //         var suspendedStatus = await dbContext.MembershipStatuses
+    //             .FirstOrDefaultAsync(ms => ms.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Suspended);
 
-            if (suspendedStatus != null)
-            {
-                membership.StatusId = suspendedStatus.StatusId;
-                membership.UpdatedAt = DateTime.UtcNow;
+    //         if (suspendedStatus != null)
+    //         {
+    //             membership.Status = suspendedStatus.StatusId;
+    //             membership.UpdatedAt = DateTime.UtcNow;
 
-                _logger.LogInformation(
-                    "Suspended membership {MembershipId} for user {UserId} due to failed payment",
-                    membership.MembershipId, membership.UserId);
+    //             _logger.LogInformation(
+    //                 "Suspended membership {MembershipId} for user {UserId} due to failed payment",
+    //                 membership.MembershipId, membership.UserId);
 
-                // Send suspension notification email
-                await SendSuspensionNotificationAsync(membership, hangfireEmailService);
+    //             // Send suspension notification email
+    //             await SendSuspensionNotificationAsync(membership, hangfireEmailService);
 
-                // Log the suspension event
-                await LogMembershipSuspensionEventAsync(membership);
-            }
-            else
-            {
-                _logger.LogError("Suspended status not found in database");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to suspend membership {MembershipId} for failed payment",
-                membership.MembershipId);
-            throw;
-        }
-    }
+    //             // Log the suspension event
+    //             await LogMembershipSuspensionEventAsync(membership);
+    //         }
+    //         else
+    //         {
+    //             _logger.LogError("Suspended status not found in database");
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         _logger.LogError(ex,
+    //             "Failed to suspend membership {MembershipId} for failed payment",
+    //             membership.MembershipId);
+    //         throw;
+    //     }
+    // }
 
     private async Task SendSuspensionNotificationAsync(
         CusomMapOSM_Domain.Entities.Memberships.Membership membership,
@@ -236,7 +237,7 @@ public class PaymentFailureHandlingJob
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
-                .Where(m => m.Status!.Name == "PendingPayment" &&
+                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.PendingPayment &&
                            m.UpdatedAt <= twoDaysAgo &&
                            m.UpdatedAt > DateTime.UtcNow.AddDays(-3)) // Between 2-3 days old
                 .ToListAsync();
@@ -347,13 +348,13 @@ public class PaymentFailureHandlingJob
                 return;
             }
 
-            if (membership.Status!.Name == "Suspended")
+            if (membership.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Suspended)
             {
                 _logger.LogWarning("Membership {MembershipId} is already suspended", membershipId);
                 return;
             }
 
-            await SuspendMembershipForFailedPaymentAsync(membership, dbContext, hangfireEmailService);
+            // await SuspendMembershipForFailedPaymentAsync(membership, dbContext, hangfireEmailService);
             await dbContext.SaveChangesAsync();
 
             _logger.LogInformation("Manual membership suspension completed for {MembershipId}", membershipId);

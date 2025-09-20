@@ -200,7 +200,7 @@ public class MembershipPurchaseNotificationJob
                         <li><strong>Start Date:</strong> {startDate}</li>
                         <li><strong>End Date:</strong> {endDate}</li>
                         <li><strong>Auto-renewal:</strong> {autoRenewal}</li>
-                        <li><strong>Status:</strong> {membership.Status!.Name}</li>
+                        <li><strong>Status:</strong> {membership.Status}</li>
                     </ul>
                 </div>
                 

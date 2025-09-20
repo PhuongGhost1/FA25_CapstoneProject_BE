@@ -38,7 +38,7 @@ public class UserAccountDeactivationJob
             var cutoffDate = DateTime.UtcNow.AddYears(-2); // 2 years ago
 
             var inactiveUsers = await dbContext.Users
-                .Where(u => u.LastLogin < cutoffDate && u.AccountStatus!.Name == "Active")
+                .Where(u => u.LastLogin < cutoffDate && u.AccountStatus == CusomMapOSM_Domain.Entities.Users.Enums.AccountStatusEnum.Active)
                 .ToListAsync();
 
             var deactivatedCount = 0;
@@ -68,12 +68,12 @@ public class UserAccountDeactivationJob
         try
         {
             // Update account status to inactive
-            var inactiveStatus = await dbContext.AccountStatuses
-                .FirstOrDefaultAsync(ast => ast.Name == "Inactive");
+            var inactiveStatus = await dbContext.Users
+                .FirstOrDefaultAsync(ast => ast.AccountStatus == CusomMapOSM_Domain.Entities.Users.Enums.AccountStatusEnum.Inactive);
 
             if (inactiveStatus != null)
             {
-                user.AccountStatusId = inactiveStatus.StatusId;
+                user.AccountStatus = inactiveStatus.AccountStatus;
             }
 
             _logger.LogInformation(

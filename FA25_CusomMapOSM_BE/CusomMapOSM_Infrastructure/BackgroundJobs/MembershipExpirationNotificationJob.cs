@@ -6,6 +6,7 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using CusomMapOSM_Domain.Entities.Memberships.Enums;
 
 namespace CusomMapOSM_Infrastructure.BackgroundJobs;
 
@@ -38,6 +39,7 @@ public class MembershipExpirationNotificationJob
             using var scope = _serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<CustomMapOSMDbContext>();
             var hangfireEmailService = scope.ServiceProvider.GetRequiredService<HangfireEmailService>();
+            var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
             var today = DateTime.UtcNow.Date;
             var expirationDates = new[]
@@ -56,14 +58,14 @@ public class MembershipExpirationNotificationJob
                     .Include(m => m.Status)
                     .Where(m => m.EndDate.HasValue &&
                                m.EndDate.Value.Date == expirationDate &&
-                               m.Status!.Name == "Active" &&
+                               m.Status! == MembershipStatusEnum.Active &&
                                m.User != null)
                     .ToListAsync();
 
                 foreach (var membership in expiringMemberships)
                 {
                     var daysUntilExpiration = (membership.EndDate!.Value.Date - today).Days;
-                    await SendExpirationNotificationAsync(membership, daysUntilExpiration, hangfireEmailService);
+                    await SendExpirationNotificationAsync(membership, daysUntilExpiration, hangfireEmailService, notificationService);
                 }
             }
 
@@ -79,22 +81,17 @@ public class MembershipExpirationNotificationJob
     private async Task SendExpirationNotificationAsync(
         CusomMapOSM_Domain.Entities.Memberships.Membership membership,
         int daysUntilExpiration,
-        HangfireEmailService hangfireEmailService)
+        HangfireEmailService hangfireEmailService,
+        INotificationService notificationService)
     {
         try
         {
-            var subject = GetExpirationSubject(daysUntilExpiration);
-            var body = GetExpirationEmailBody(membership, daysUntilExpiration);
-
-            var mailRequest = new MailRequest
-            {
-                ToEmail = membership.User!.Email,
-                Subject = subject,
-                Body = body
-            };
-
-            var jobId = hangfireEmailService.EnqueueEmail(mailRequest);
-            await Task.CompletedTask; // Make it properly async
+            // Use the new NotificationService for both database record and email
+            await notificationService.SendMembershipExpirationWarningAsync(
+                membership.User!.Email,
+                membership.User.FullName ?? "User",
+                daysUntilExpiration,
+                membership.Plan?.PlanName ?? "Unknown Plan");
 
             _logger.LogInformation(
                 "Expiration notification queued for user {UserId}, membership expires in {Days} days",
@@ -108,69 +105,4 @@ public class MembershipExpirationNotificationJob
         }
     }
 
-    private string GetExpirationSubject(int daysUntilExpiration)
-    {
-        return daysUntilExpiration switch
-        {
-            7 => "Your Custom Map OSM membership expires in 7 days",
-            3 => "Your Custom Map OSM membership expires in 3 days - Action Required",
-            1 => "URGENT: Your Custom Map OSM membership expires tomorrow",
-            _ => "Your Custom Map OSM membership expires soon"
-        };
-    }
-
-    private string GetExpirationEmailBody(
-        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
-        int daysUntilExpiration)
-    {
-        var urgencyClass = daysUntilExpiration switch
-        {
-            1 => "urgent",
-            3 => "warning",
-            _ => "info"
-        };
-
-        var actionText = daysUntilExpiration switch
-        {
-            1 => "Please renew immediately to avoid service interruption.",
-            3 => "Please consider renewing your membership to continue enjoying our services.",
-            _ => "Please plan to renew your membership to avoid any service interruption."
-        };
-
-        return $@"
-            <div class=""notification {urgencyClass}"">
-                <h2>Membership Expiration Notice</h2>
-                <p>Dear {membership.User!.FullName ?? membership.User.Email},</p>
-                
-                <p>This is a friendly reminder that your <strong>{membership.Plan!.PlanName}</strong> membership 
-                for organization <strong>{membership.Organization!.OrgName}</strong> will expire in 
-                <strong>{daysUntilExpiration} day{(daysUntilExpiration == 1 ? "" : "s")}</strong> 
-                on {membership.EndDate!.Value:MMMM dd, yyyy}.</p>
-                
-                <p>{actionText}</p>
-                
-                <div class=""membership-details"">
-                    <h3>Current Membership Details:</h3>
-                    <ul>
-                        <li><strong>Plan:</strong> {membership.Plan.PlanName}</li>
-                        <li><strong>Organization:</strong> {membership.Organization.OrgName}</li>
-                        <li><strong>Expiration Date:</strong> {membership.EndDate.Value:MMMM dd, yyyy}</li>
-                        <li><strong>Auto-renewal:</strong> {(membership.AutoRenew ? "Enabled" : "Disabled")}</li>
-                    </ul>
-                </div>
-                
-                <div class=""action-buttons"">
-                    <a href=""https://yourdomain.com/membership/renew"" class=""btn btn-primary"">
-                        Renew Membership
-                    </a>
-                    <a href=""https://yourdomain.com/membership/upgrade"" class=""btn btn-secondary"">
-                        Upgrade Plan
-                    </a>
-                </div>
-                
-                <p>If you have any questions or need assistance, please contact our support team.</p>
-                
-                <p>Thank you for using Custom Map OSM!</p>
-            </div>";
-    }
 }

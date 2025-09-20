@@ -40,7 +40,7 @@ public class MembershipUsageTrackingJob
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
                 .Include(m => m.Organization)
-                .Where(m => m.Status!.Name == "Active" && m.EndDate > DateTime.UtcNow)
+                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active && m.EndDate > DateTime.UtcNow)
                 .ToListAsync();
 
             var updatedCount = 0;
@@ -139,7 +139,7 @@ public class MembershipUsageTrackingJob
     {
         // Get the membership start date to determine billing cycle
         var membership = dbContext.Memberships
-            .FirstOrDefault(m => m.OrgId == orgId && m.Status!.Name == "Active");
+            .FirstOrDefault(m => m.OrgId == orgId && m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active);
 
         if (membership?.LastResetDate != null)
         {
@@ -270,7 +270,7 @@ public class MembershipUsageTrackingJob
                 return;
             }
 
-            if (membership.Status!.Name != "Active")
+            if (membership.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active)
             {
                 _logger.LogWarning("Cannot update usage for inactive membership {MembershipId}", membershipId);
                 return;

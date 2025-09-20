@@ -34,8 +34,9 @@ internal class SupportTicketConfiguration : IEntityTypeConfiguration<SupportTick
                      .HasColumnName("message")
                      .HasColumnType("text");
 
-              builder.Property(x => x.StatusId)
-                     .HasColumnName("status_id")
+              builder.Property(x => x.Status)
+                     .HasColumnName("status")
+                     .HasConversion<int>()
                      .IsRequired();
 
               builder.Property(x => x.Priority)
@@ -57,9 +58,5 @@ internal class SupportTicketConfiguration : IEntityTypeConfiguration<SupportTick
                      .HasForeignKey(x => x.UserId)
                      .OnDelete(DeleteBehavior.Cascade);
 
-              builder.HasOne(x => x.TicketStatus)
-                     .WithMany()
-                     .HasForeignKey(x => x.StatusId)
-                     .OnDelete(DeleteBehavior.Restrict);
        }
 }

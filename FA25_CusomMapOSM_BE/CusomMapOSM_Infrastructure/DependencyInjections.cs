@@ -113,6 +113,11 @@ public static class DependencyInjections
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IExportQuotaService, ExportQuotaService>();
+
+        // User Repository
+        services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
