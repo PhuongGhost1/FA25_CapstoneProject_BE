@@ -32,7 +32,6 @@ public class MembershipRepository : IMembershipRepository
         return await _context.Memberships
             .Include(m => m.Organization)
             .Include(m => m.Plan)
-            .Include(m => m.Status)
             .OrderByDescending(m => m.StartDate)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
