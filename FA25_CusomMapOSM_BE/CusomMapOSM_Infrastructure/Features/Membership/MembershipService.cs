@@ -38,7 +38,7 @@ public class MembershipService : IMembershipService
                 PlanId = planId,
                 StartDate = now,
                 EndDate = null,
-                StatusId = SeedDataConstants.ActiveMembershipStatusId, // Use the correct active status ID
+                Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active, // Use the correct active status ID
                 AutoRenew = autoRenew,
                 CurrentUsage = null,
                 LastResetDate = now,

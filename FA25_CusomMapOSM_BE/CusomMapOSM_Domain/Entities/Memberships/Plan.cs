@@ -20,6 +20,7 @@ public class Plan
     public int MapQuota { get; set; }
     public int ExportQuota { get; set; }
     public int MaxCustomLayers { get; set; }
+    public int MonthlyTokens { get; set; } = 10000; // Token-based export quota
     public bool PrioritySupport { get; set; }
     public string? Features { get; set; } // Stored as JSON
     public string? AccessToolIds { get; set; } // Stored as JSON array of AccessTool IDs

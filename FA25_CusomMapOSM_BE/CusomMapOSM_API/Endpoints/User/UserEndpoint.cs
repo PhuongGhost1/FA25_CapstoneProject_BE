@@ -23,7 +23,7 @@ public class UserEndpoint : IEndpoint
             var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
 
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Results.BadRequest("Invalid user ID");
+                return await Task.FromResult(Results.BadRequest("Invalid user ID"));
 
             var userResult = await userService.GetUserByIdAsync(userId, ct);
             return userResult.Match(
@@ -36,7 +36,7 @@ public class UserEndpoint : IEndpoint
                         FullName = userEntity.FullName,
                         Phone = userEntity.Phone,
                         Role = userEntity.Role?.Name ?? "Unknown",
-                        AccountStatus = userEntity.AccountStatus?.Name ?? "Unknown",
+                        AccountStatus = userEntity.AccountStatus.ToString() ?? "Unknown",
                         CreatedAt = userEntity.CreatedAt,
                         LastLogin = userEntity.LastLogin
                     }
@@ -58,7 +58,7 @@ public class UserEndpoint : IEndpoint
             var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
 
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return Results.BadRequest("Invalid user ID");
+                return await Task.FromResult(Results.BadRequest("Invalid user ID"));
 
             var membershipResult = await membershipService.GetCurrentMembershipWithIncludesAsync(userId, orgId, ct);
             return membershipResult.Match(
@@ -74,7 +74,7 @@ public class UserEndpoint : IEndpoint
                         PlanName = membership.Plan?.PlanName ?? "Unknown",
                         StartDate = membership.StartDate,
                         EndDate = membership.EndDate,
-                        Status = membership.Status?.Name ?? "Unknown",
+                        Status = membership.Status.ToString() ?? "Unknown",
                         AutoRenew = membership.AutoRenew,
                         LastResetDate = membership.LastResetDate,
                         CreatedAt = membership.CreatedAt,

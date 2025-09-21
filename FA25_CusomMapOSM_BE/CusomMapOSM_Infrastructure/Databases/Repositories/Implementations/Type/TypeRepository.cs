@@ -24,12 +24,6 @@ public class TypeRepository : ITypeRepository
     {
         _context = context;
     }
-
-    public async Task<AccountStatus?> GetAccountStatusById(AccountStatusEnum name)
-    {
-        return await _context.AccountStatuses.FirstOrDefaultAsync(x => x.Name == name.ToString());
-    }
-
     public async Task<AnnotationType?> GetAnnotationTypeById(AnnotationTypeEnum name)
     {
         return await _context.AnnotationTypes.FirstOrDefaultAsync(x => x.TypeName == name.ToString());
@@ -62,33 +56,21 @@ public class TypeRepository : ITypeRepository
         return entity != null ? Enum.TryParse<LayerTypeEnum>(entity.LayerTypeId.ToString(), out var result) ? result : (LayerTypeEnum?)null : null;
     }
 
-    public async Task<MembershipStatusEnum?> GetMembershipStatusById(MembershipStatusEnum name)
-    {
-        var entity = await _context.MembershipStatuses.FirstOrDefaultAsync(x => x.Name == name.ToString());
-        return entity != null ? Enum.TryParse<MembershipStatusEnum>(entity.Name, out var result) ? result : (MembershipStatusEnum?)null : null;
-    }
-
     public async Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name)
     {
         var entity = await _context.Plans.FirstOrDefaultAsync(x => x.PlanName == name.ToString());
         return entity != null ? Enum.TryParse<MembershipPlanTypeEnum>(entity.PlanName, out var result) ? result : (MembershipPlanTypeEnum?)null : null;
     }
-    
+
     public async Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name)
     {
         var entity = await _context.OrganizationMemberTypes.FirstOrDefaultAsync(x => x.Name == name.ToString());
         return entity != null ? Enum.TryParse<OrganizationMemberTypeEnum>(entity.Name, out var result) ? result : (OrganizationMemberTypeEnum?)null : null;
     }
-    
+
     public async Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name)
     {
         return await _context.OrganizationMemberTypes.FirstOrDefaultAsync(x => x.Name == name);
-    }
-
-    public async Task<TicketStatusEnum?> GetTicketStatusById(TicketStatusEnum name)
-    {
-        var entity = await _context.TicketStatuses.FirstOrDefaultAsync(x => x.Name == name.ToString());
-        return entity != null ? Enum.TryParse<TicketStatusEnum>(entity.Name, out var result) ? result : (TicketStatusEnum?)null : null;
     }
 
     public async Task<PaymentGatewayEnum?> GetPaymentGatewayById(PaymentGatewayEnum name)
