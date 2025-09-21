@@ -107,8 +107,8 @@ public class TransactionService : ITransactionService
         // 5. Create checkout with full request context for multi-item support
         var checkoutResult = await paymentService.CreateCheckoutAsync(
             request,
-            $"https:localhost:3000/select-plantransactionId={pendingTransaction.TransactionId}",
-            $"https:localhost:3000/select-plantransactionId={pendingTransaction.TransactionId}",
+            $"https:localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}",
+            $"https:localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}",
             ct
         );
 
