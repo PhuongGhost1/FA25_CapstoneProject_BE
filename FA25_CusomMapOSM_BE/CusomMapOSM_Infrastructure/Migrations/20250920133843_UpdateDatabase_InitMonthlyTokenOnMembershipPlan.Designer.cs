@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250920133843_UpdateDatabase_InitMonthlyTokenOnMembershipPlan")]
+    partial class UpdateDatabase_InitMonthlyTokenOnMembershipPlan
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -932,40 +935,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("CustomStyle")
-                        .HasColumnType("longtext")
-                        .HasColumnName("custom_style");
-
-                    b.Property<string>("DataBounds")
-                        .HasColumnType("text")
-                        .HasColumnName("data_bounds");
-
-                    b.Property<decimal?>("DataSizeKB")
-                        .HasColumnType("decimal(15,2)")
-                        .HasColumnName("data_size_kb");
-
-                    b.Property<int?>("FeatureCount")
-                        .HasColumnType("int")
-                        .HasColumnName("feature_count");
-
                     b.Property<string>("FilePath")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)")
                         .HasColumnName("file_path");
 
-                    b.Property<string>("FilterConfig")
-                        .HasColumnType("longtext")
-                        .HasColumnName("filter_config");
-
                     b.Property<bool>("IsPublic")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("is_public");
-
-                    b.Property<bool>("IsVisible")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_visible");
 
                     b.Property<string>("LayerData")
                         .HasColumnType("longtext")
@@ -976,12 +953,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("layer_name");
 
-                    b.Property<int>("LayerOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("layer_order");
-
                     b.Property<string>("LayerStyle")
                         .HasColumnType("longtext")
                         .HasColumnName("layer_style");
@@ -989,10 +960,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int>("LayerType")
                         .HasColumnType("int")
                         .HasColumnName("layer_type_id");
-
-                    b.Property<Guid>("MapId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_id");
 
                     b.Property<int>("SourceType")
                         .HasColumnType("int")
@@ -1006,15 +973,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
 
-                    b.Property<int>("ZIndex")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("z_index");
-
                     b.HasKey("LayerId");
-
-                    b.HasIndex("MapId");
 
                     b.HasIndex("UserId");
 
@@ -1470,6 +1429,76 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("MapId");
 
                     b.ToTable("map_images", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapLayer", b =>
+                {
+                    b.Property<Guid>("MapLayerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_layer_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomStyle")
+                        .HasColumnType("longtext")
+                        .HasColumnName("custom_style");
+
+                    b.Property<string>("DataBounds")
+                        .HasColumnType("text")
+                        .HasColumnName("data_bounds");
+
+                    b.Property<decimal?>("DataSizeKB")
+                        .HasColumnType("decimal(15,2)")
+                        .HasColumnName("data_size_kb");
+
+                    b.Property<int?>("FeatureCount")
+                        .HasColumnType("int")
+                        .HasColumnName("feature_count");
+
+                    b.Property<string>("FilterConfig")
+                        .HasColumnType("longtext")
+                        .HasColumnName("filter_config");
+
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_visible");
+
+                    b.Property<Guid>("LayerId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("layer_id");
+
+                    b.Property<int>("LayerOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("layer_order");
+
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("ZIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("z_index");
+
+                    b.HasKey("MapLayerId");
+
+                    b.HasIndex("LayerId");
+
+                    b.HasIndex("MapId");
+
+                    b.ToTable("map_layers", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.Membership", b =>
@@ -2607,19 +2636,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.Layer", b =>
                 {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Map");
 
                     b.Navigation("User");
                 });
@@ -2701,6 +2722,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("MapId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Map");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapLayer", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
+                        .WithMany()
+                        .HasForeignKey("LayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                        .WithMany()
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Layer");
 
                     b.Navigation("Map");
                 });

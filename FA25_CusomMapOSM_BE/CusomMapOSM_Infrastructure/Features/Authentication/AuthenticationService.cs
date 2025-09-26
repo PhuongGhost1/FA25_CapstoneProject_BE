@@ -58,9 +58,10 @@ public class AuthenticationService : IAuthenticationService
         if (user is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.Inactive);
+        var role = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
 
-        user.AccountStatusId = accountStatus.StatusId;
+        user.RoleId = role.RoleId;
+        user.AccountStatus = AccountStatusEnum.Inactive;
 
         await _authenticationRepository.UpdateUser(user);
 
@@ -79,7 +80,6 @@ public class AuthenticationService : IAuthenticationService
             return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
         var userRole = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.PendingVerification);
 
         var user = new DomainUser.User
         {
@@ -88,7 +88,7 @@ public class AuthenticationService : IAuthenticationService
             FullName = $"{req.FirstName} {req.LastName}",
             Phone = req.Phone,
             RoleId = userRole.RoleId,
-            AccountStatusId = accountStatus.StatusId,
+            AccountStatus = AccountStatusEnum.PendingVerification,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -126,9 +126,10 @@ public class AuthenticationService : IAuthenticationService
         if (user is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.Active);
+        var role = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
 
-        user.AccountStatusId = accountStatus.StatusId;
+        user.RoleId = role.RoleId;
+        user.AccountStatus = AccountStatusEnum.Active;
         await _authenticationRepository.UpdateUser(user);
 
         // Grant default Free membership access tools (IDs 1-11)
@@ -196,6 +197,7 @@ public class AuthenticationService : IAuthenticationService
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
         user.PasswordHash = _jwtService.HashObject<string>(req.NewPassword);
+        user.AccountStatus = AccountStatusEnum.Active;
         await _authenticationRepository.UpdateUser(user);
 
         await _redisCacheService.Remove(otp.Otp);

@@ -38,22 +38,30 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                      .HasColumnName("phone")
                      .HasMaxLength(20);
 
+              builder.Property(u => u.AccountStatus)
+                     .HasColumnName("account_status")
+                     .HasConversion<int>()
+                     .IsRequired();
+
+              builder.Property(u => u.MonthlyTokenUsage)
+                     .HasColumnName("monthly_token_usage")
+                     .HasDefaultValue(0);
+
+              builder.Property(u => u.LastTokenReset)
+                     .HasColumnName("last_token_reset")
+                     .HasColumnType("datetime");
+
               builder.Property(u => u.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
                      .HasDefaultValueSql("CURRENT_TIMESTAMP");
-              
+
               builder.Property(u => u.LastLogin)
                      .HasColumnName("last_login")
-                     .HasColumnType("datetime")
-                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                     .HasColumnType("datetime");
 
               builder.HasOne(u => u.Role)
                      .WithMany()
                      .HasForeignKey(u => u.RoleId);
-
-              builder.HasOne(u => u.AccountStatus)
-                     .WithMany()
-                     .HasForeignKey(u => u.AccountStatusId);
        }
 }

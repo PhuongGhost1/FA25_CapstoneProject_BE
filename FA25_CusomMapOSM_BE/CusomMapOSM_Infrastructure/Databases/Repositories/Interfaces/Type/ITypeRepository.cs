@@ -18,17 +18,14 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 public interface ITypeRepository
 {
     Task<UserRole?> GetUserRoleById(UserRoleEnum name);
-    Task<AccountStatus?> GetAccountStatusById(AccountStatusEnum name);
     Task<AnnotationType?> GetAnnotationTypeById(AnnotationTypeEnum name);
     Task<CollaborationPermission?> GetCollaborationPermissionById(CollaborationPermissionEnum name);
     Task<CollaborationTargetType?> GetCollaborationTargetTypeById(CollaborationTargetTypeEnum name);
     Task<ExportType?> GetExportTypeById(ExportTypeEnum name);
     Task<LayerSourceEnum?> GetLayerSourceById(LayerSourceEnum name);
     Task<LayerTypeEnum?> GetLayerTypeById(LayerTypeEnum name);
-    Task<MembershipStatusEnum?> GetMembershipStatusById(MembershipStatusEnum name);
     Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name);
     Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name);
     Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name);
-    Task<TicketStatusEnum?> GetTicketStatusById(TicketStatusEnum name);
     Task<PaymentGatewayEnum?> GetPaymentGatewayById(PaymentGatewayEnum name);
 }

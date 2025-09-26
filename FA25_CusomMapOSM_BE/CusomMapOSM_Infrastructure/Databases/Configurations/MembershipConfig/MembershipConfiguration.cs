@@ -42,8 +42,9 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
             .HasColumnName("end_date")
             .HasColumnType("datetime");
 
-        builder.Property(m => m.StatusId)
-            .HasColumnName("status_id")
+        builder.Property(m => m.Status)
+            .HasColumnName("status")
+            .HasConversion<int>()
             .IsRequired();
 
         builder.Property(m => m.AutoRenew)
@@ -87,9 +88,5 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
             .HasForeignKey(m => m.PlanId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(m => m.Status)
-            .WithMany()
-            .HasForeignKey(m => m.StatusId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

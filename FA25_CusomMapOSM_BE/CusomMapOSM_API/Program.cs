@@ -128,8 +128,7 @@ public class Program
 
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
-
-        app.MapHub<MapHub>("/maphub").RequireCors("FrontendCors");
+        
         app.MapHub<MapHub>("/hubs/map").RequireCors("FrontendCors");
 
         app.Run();

@@ -50,23 +50,20 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
     public DbSet<Membership> Memberships { get; set; }
-    public DbSet<MembershipStatus> MembershipStatuses { get; set; }
     public DbSet<Plan> Plans { get; set; }
     public DbSet<MembershipUsage> MembershipUsages { get; set; }
     public DbSet<MembershipAddon> MembershipAddons { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
-    public DbSet<OrganizationInvitation>  OrganizationInvitations { get; set; }
+    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
 
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
-    public DbSet<TicketStatus> TicketStatuses { get; set; }
     public DbSet<Transactions> Transactions { get; set; }
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
-    public DbSet<AccountStatus> AccountStatuses { get; set; }
     public DbSet<UserAccessTool> UserAccessTools { get; set; }
     public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
     public DbSet<UserPreference> UserPreferences { get; set; }

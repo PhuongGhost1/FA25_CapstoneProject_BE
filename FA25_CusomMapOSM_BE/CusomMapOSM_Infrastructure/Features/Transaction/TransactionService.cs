@@ -12,6 +12,10 @@ using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Infrastructure.Services;
+using Microsoft.Extensions.Logging;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
@@ -34,7 +38,26 @@ public class TransactionService : ITransactionService
     private readonly IUserAccessToolService _userAccessToolService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
-    public TransactionService(ITransactionRepository transactionRepository, IPaymentService paymentService, IMembershipService membershipService, IUserAccessToolService userAccessToolService, IServiceProvider serviceProvider, IPaymentGatewayRepository paymentGatewayRepository)
+    private readonly HangfireEmailService _hangfireEmailService;
+    private readonly INotificationService _notificationService;
+    private readonly IUserRepository _userRepository;
+    private readonly IMembershipRepository _membershipRepository;
+    private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly ILogger<TransactionService> _logger;
+
+    public TransactionService(
+        ITransactionRepository transactionRepository,
+        IPaymentService paymentService,
+        IMembershipService membershipService,
+        IUserAccessToolService userAccessToolService,
+        IServiceProvider serviceProvider,
+        IPaymentGatewayRepository paymentGatewayRepository,
+        HangfireEmailService hangfireEmailService,
+        INotificationService notificationService,
+        IUserRepository userRepository,
+        IMembershipRepository membershipRepository,
+        IMembershipPlanRepository membershipPlanRepository,
+        ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;
@@ -42,6 +65,12 @@ public class TransactionService : ITransactionService
         _userAccessToolService = userAccessToolService;
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
+        _hangfireEmailService = hangfireEmailService;
+        _notificationService = notificationService;
+        _userRepository = userRepository;
+        _membershipRepository = membershipRepository;
+        _membershipPlanRepository = membershipPlanRepository;
+        _logger = logger;
     }
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> ProcessPaymentAsync(ProcessPaymentReq request, CancellationToken ct)
@@ -230,6 +259,13 @@ public class TransactionService : ITransactionService
                         none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
                     );
 
+                    // Send purchase confirmation notification
+                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                        m.User!.Email,
+                        m.User.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
+
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
                         MembershipId = m.MembershipId,
@@ -247,6 +283,22 @@ public class TransactionService : ITransactionService
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
 
+            var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+            if (user == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("User.NotFound", "User not found", ErrorCustom.ErrorType.NotFound));
+
+            var membership = await _membershipRepository.GetByIdAsync(context.MembershipId.Value, ct);
+            if (membership == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotFound", "Membership not found", ErrorCustom.ErrorType.NotFound));
+
+            var plan = await _membershipPlanRepository.GetPlanByIdAsync(membership.PlanId, ct);
+            if (plan == null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Plan.NotFound", "Plan not found", ErrorCustom.ErrorType.NotFound));
+
+
             var addon = await _membershipService.AddAddonAsync(
                 context.MembershipId.Value,
                 context.OrgId.Value,
@@ -256,13 +308,19 @@ public class TransactionService : ITransactionService
                 ct
             );
 
-            return addon.Match(
-                some: a => Option.Some<object, ErrorCustom.Error>(new
+            return await addon.Match(
+                some: async a =>
                 {
-                    AddonId = a.AddonId,
-                    TransactionId = transaction.TransactionId
-                }),
-                none: err => Option.None<object, ErrorCustom.Error>(err)
+                    // Send addon purchase confirmation email immediately
+                    await _notificationService.SendTransactionCompletedNotificationAsync(user!.Email, user.FullName ?? "User", transaction.Amount, plan!.PlanName ?? "Unknown Plan");
+
+                    return Option.Some<object, ErrorCustom.Error>(new
+                    {
+                        AddonId = a.AddonId,
+                        TransactionId = transaction.TransactionId
+                    });
+                },
+                none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
             );
         }
 
@@ -471,4 +529,8 @@ public class TransactionService : ITransactionService
             return (transaction.Purpose, null);
         }
     }
+
+
+
+
 }

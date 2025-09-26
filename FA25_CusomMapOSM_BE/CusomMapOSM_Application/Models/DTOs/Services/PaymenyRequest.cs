@@ -59,6 +59,7 @@ public record ConfirmPaymentReq
     public string? Token { get; set; } // PayPal specific
     public string? PaymentIntentId { get; set; } // Stripe specific
     public string? ClientSecret { get; set; } // Stripe specific
+    public string? SessionId { get; set; } // Stripe specific
     public string? OrderCode { get; set; } // PayOS specific
     public string? Signature { get; set; } // PayOS specific
 }
@@ -80,6 +81,7 @@ public class ConfirmPaymentResponse
     public string? Token { get; set; } // PayPal specific
     public string? PaymentIntentId { get; set; } // Stripe specific
     public string? ClientSecret { get; set; } // Stripe specific
+    public string? SessionId { get; set; } // Stripe specific
     public string? OrderCode { get; set; } // PayOS specific
     public string? Signature { get; set; } // PayOS specific
 }

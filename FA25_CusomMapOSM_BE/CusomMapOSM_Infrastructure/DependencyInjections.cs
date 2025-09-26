@@ -45,6 +45,11 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using Hangfire;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Infrastructure.Features.Maps;
+using CusomMapOSM_Infrastructure.BackgroundJobs;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -106,6 +111,11 @@ public static class DependencyInjections
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IExportQuotaService, ExportQuotaService>();
+
+        // User Repository
+        services.AddScoped<IUserRepository, UserRepository>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
@@ -166,6 +176,19 @@ public static class DependencyInjections
     {
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
+
+        // Register background job services
+        services.AddScoped<MembershipExpirationNotificationJob>();
+        services.AddScoped<MembershipQuotaResetJob>();
+        services.AddScoped<MembershipUsageTrackingJob>();
+        services.AddScoped<OrganizationInvitationCleanupJob>();
+        services.AddScoped<PaymentFailureHandlingJob>();
+        services.AddScoped<ExportFileCleanupJob>();
+        services.AddScoped<MapHistoryCleanupJob>();
+        services.AddScoped<UserAccountDeactivationJob>();
+        services.AddScoped<CollaborationInvitationCleanupJob>();
+        // services.AddScoped<SystemLogCleanupJob>();
+        services.AddScoped<BackgroundJobScheduler>();
 
         return services;
     }
