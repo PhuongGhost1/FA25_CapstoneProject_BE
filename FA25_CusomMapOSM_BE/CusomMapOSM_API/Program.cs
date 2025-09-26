@@ -12,7 +12,11 @@ using CusomMapOSM_API;
 using CusomMapOSM_API.Constants;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
-
+using CusomMapOSM_API.Hubs;
+using CusomMapOSM_Infrastructure.Features.Collaboration;
+using CusomMapOSM_Infrastructure.Services;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace CusomMapOSM_API;
 
@@ -26,11 +30,15 @@ public class Program
         var envPath = Path.Combine(solutionRoot, ".env");
         Console.WriteLine($"Loading environment variables from: {envPath}");
         Env.Load(envPath);
+        var origins = (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
+                allowIntegerValues: true));
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             options.JsonSerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
         });
@@ -38,7 +46,8 @@ public class Program
         builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
         {
             options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true));
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
+                allowIntegerValues: true));
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
             options.SerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
         });
@@ -63,27 +72,43 @@ public class Program
         builder.Services.AddSingleton<ExceptionMiddleware>();
         builder.Services.AddSingleton<LoggingMiddleware>();
 
-        builder.Services.AddHealthChecks()
-            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "ready" });
-
         builder.Services.AddInfrastructureServices(builder.Configuration);
         builder.Services.AddApplicationServices();
+        builder.Services.AddEndpoints();
+        builder.Services.AddValidation();
+        builder.Services.AddSwaggerServices();
 
-        // Add Redis Cache
+        builder.Services.AddHealthChecks()
+            .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
+
         builder.Services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = builder.Configuration.GetConnectionString("Redis")
-                ?? "localhost:6379";
+            options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
             options.InstanceName = "CustomMapOSM:";
         });
 
-        // Add Template Cache Services
-        builder.Services.AddSingleton<CusomMapOSM_Infrastructure.Services.TemplateCacheManager>();
-        builder.Services.AddHostedService<CusomMapOSM_Infrastructure.Services.TemplateCacheHostedService>();
-        builder.Services.AddEndpoints();
-        builder.Services.AddValidation();
+        builder.Services.AddSingleton<TemplateCacheManager>();
+        builder.Services.AddHostedService<TemplateCacheHostedService>();
 
-        builder.Services.AddSwaggerServices();
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("FrontendCors", policy =>
+                (origins.Length > 0
+                    ? policy.WithOrigins(origins)
+                    : policy.SetIsOriginAllowed(_ => true)
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials()
+            );
+        });
+
+        builder.Services.AddSignalR(options =>
+        {
+            options.MaximumReceiveMessageSize = 102400;
+            options.EnableDetailedErrors = true;
+            options.StreamBufferCapacity = 20;
+        });
 
         var app = builder.Build();
 
@@ -95,7 +120,7 @@ public class Program
 
         app.UseHangfireDashboard();
 
-        app.UseCors();
+        app.UseCors("FrontendCors");
         app.UseAuthentication();
         app.UseAuthorization();
 
@@ -103,6 +128,8 @@ public class Program
 
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
+        
+        app.MapHub<MapHub>("/hubs/map").RequireCors("FrontendCors");
 
         app.Run();
     }

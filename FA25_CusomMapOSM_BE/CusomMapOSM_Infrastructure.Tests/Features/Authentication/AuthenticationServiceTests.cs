@@ -1,6 +1,7 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
@@ -29,6 +30,7 @@ public class AuthenticationServiceTests
     private readonly Mock<IMailService> _mockMailService;
     private readonly Mock<IRedisCacheService> _mockRedisCacheService;
     private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
+    private readonly Mock<IUserAccessToolService> _mockUserAccessToolService;
     private readonly AuthenticationService _authenticationService;
     private readonly Faker _faker;
 
@@ -40,13 +42,16 @@ public class AuthenticationServiceTests
         _mockMailService = new Mock<IMailService>();
         _mockRedisCacheService = new Mock<IRedisCacheService>();
         _mockHangfireEmailService = new Mock<HangfireEmailService>();
+        _mockUserAccessToolService = new Mock<IUserAccessToolService>();
 
         _authenticationService = new AuthenticationService(
             _mockAuthenticationRepository.Object,
             _mockJwtService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockHangfireEmailService.Object);
+            _mockHangfireEmailService.Object,
+            _mockUserAccessToolService.Object
+            );
 
         _faker = new Faker();
     }

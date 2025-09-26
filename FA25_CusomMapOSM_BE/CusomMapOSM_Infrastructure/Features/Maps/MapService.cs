@@ -851,6 +851,14 @@ public class MapService : IMapService
 
         try
         {
+            // Guard: ensure user exists to satisfy FK(layers.user_id -> users.user_id)
+            var userExists = await _mapRepository.CheckUserExists(currentUserId.Value);
+            if (!userExists)
+            {
+                return Option.None<CreateMapTemplateFromGeoJsonResponse, Error>(
+                    Error.Failure("Map.InvalidUser", "User does not exist in database"));
+            }
+            
             var mapTemplate = new Map
             {
                 MapName = req.TemplateName,
@@ -879,27 +887,24 @@ public class MapService : IMapService
                 await CompressGeoJsonDataAsync(req.GeoJsonData) : req.GeoJsonData;
 
             var layerId = Guid.NewGuid();
-            
+
             var layer = new Layer
             {
                 LayerId = layerId,
                 MapId = mapTemplate.MapId,
-                UserId = currentUserId.Value,
+                UserId = mapTemplate.UserId, // Ensure we use the same user ID that was verified with the map
                 LayerName = req.LayerName,
                 LayerType = LayerTypeEnum.GEOJSON,
                 SourceType = LayerSourceEnum.UserUploaded,
                 LayerData = compressedGeoJsonData,
                 LayerStyle = req.LayerStyle,
                 IsPublic = req.IsPublic,
-                
-                // Template layer properties
                 IsVisible = true,
                 ZIndex = 1,
                 LayerOrder = 1,
                 FeatureCount = req.FeatureCount,
                 DataSizeKB = req.DataSizeKB,
                 DataBounds = req.DataBounds,
-                
                 CreatedAt = DateTime.UtcNow
             };
 

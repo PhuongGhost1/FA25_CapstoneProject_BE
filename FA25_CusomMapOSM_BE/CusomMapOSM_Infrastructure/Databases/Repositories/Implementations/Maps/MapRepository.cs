@@ -14,6 +14,12 @@ public class MapRepository : IMapRepository
     {
         _context = context;
     }
+    
+    // Check if a user exists in the database
+    public async Task<bool> CheckUserExists(Guid userId)
+    {
+        return await _context.Users.AnyAsync(u => u.UserId == userId);
+    }
 
     // Map CRUD operations
     public async Task<bool> CreateMap(Map map)
@@ -165,11 +171,8 @@ public class MapRepository : IMapRepository
         }
         catch (Exception ex)
         {
-            // Reset timeout on error
+            // Reset timeout on error then bubble up
             _context.Database.SetCommandTimeout(30);
-            
-            // Log the error for debugging
-            Console.WriteLine($"Error saving Layer: {ex.Message}");
             throw;
         }
     }
@@ -188,22 +191,15 @@ public class MapRepository : IMapRepository
                 .Select(l => new { l.LayerId, l.IsVisible, l.LayerName })
                 .ToListAsync();
                 
-            Console.WriteLine($"Layer not found for MapId: {mapId}, LayerId: {layerId}");
-            Console.WriteLine($"Available Layers for MapId {mapId}:");
-            foreach (var l in allLayers)
-            {
-                Console.WriteLine($"  - LayerId:{l.LayerId}, Visible:{l.IsVisible}, Name:{l.LayerName}");
-            }
+            // no-op
             return null;
         }
         
         if (string.IsNullOrEmpty(layer.LayerData))
         {
-            Console.WriteLine($"LayerData is empty for LayerId: {layer.LayerId}, LayerName: {layer.LayerName}");
             return null;
         }
         
-        Console.WriteLine($"Successfully found layer data for LayerId: {layer.LayerId}, Size: {layer.LayerData?.Length ?? 0} chars");
         return layer.LayerData;
     }
 

@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250907110233_UpdateModel")]
+    partial class UpdateModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1163,7 +1166,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>
                 {
                     b.Property<Guid>("MapId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)")
                         .HasColumnName("map_id");
 
@@ -1511,9 +1513,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("start_date");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int")
-                        .HasColumnName("status");
+                    b.Property<Guid>("StatusId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("status_id");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")
@@ -1528,6 +1530,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("OrgId");
 
                     b.HasIndex("PlanId");
+
+                    b.HasIndex("StatusId");
 
                     b.HasIndex("UserId");
 
@@ -1588,6 +1592,51 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("MembershipId", "OrgId", "AddonKey");
 
                     b.ToTable("membership_addons", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.MembershipStatus", b =>
+                {
+                    b.Property<Guid>("StatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("status_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("name");
+
+                    b.HasKey("StatusId");
+
+                    b.ToTable("membership_statuses", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000030"),
+                            Name = "Active"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000031"),
+                            Name = "Expired"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000032"),
+                            Name = "Suspended"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000033"),
+                            Name = "PendingPayment"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000034"),
+                            Name = "Cancelled"
+                        });
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.MembershipUsage", b =>
@@ -1707,12 +1756,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasColumnName("max_users_per_org");
 
-                    b.Property<int>("MonthlyTokens")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(10000)
-                        .HasColumnName("monthly_tokens");
-
                     b.Property<string>("PlanName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1752,7 +1795,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             MaxMapsPerMonth = 5,
                             MaxOrganizations = 1,
                             MaxUsersPerOrg = 1,
-                            MonthlyTokens = 5000,
                             PlanName = "Free",
                             PriceMonthly = 0.00m,
                             PrioritySupport = false
@@ -1773,7 +1815,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             MaxMapsPerMonth = 100,
                             MaxOrganizations = 5,
                             MaxUsersPerOrg = 20,
-                            MonthlyTokens = 50000,
                             PlanName = "Pro",
                             PriceMonthly = 29.99m,
                             PrioritySupport = true
@@ -1794,7 +1835,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             MaxMapsPerMonth = -1,
                             MaxOrganizations = -1,
                             MaxUsersPerOrg = -1,
-                            MonthlyTokens = 200000,
                             PlanName = "Enterprise",
                             PriceMonthly = 99.99m,
                             PrioritySupport = true
@@ -2069,9 +2109,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("resolved_at");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("int")
-                        .HasColumnName("status");
+                    b.Property<Guid>("StatusId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("status_id");
 
                     b.Property<string>("Subject")
                         .HasMaxLength(255)
@@ -2084,9 +2124,56 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("TicketId");
 
+                    b.HasIndex("StatusId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("support_tickets", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.TicketStatus", b =>
+                {
+                    b.Property<Guid>("StatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("status_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("StatusId");
+
+                    b.ToTable("ticket_statuses", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000043"),
+                            Name = "Open"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000044"),
+                            Name = "InProgress"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000045"),
+                            Name = "WaitingForCustomer"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000046"),
+                            Name = "Resolved"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000047"),
+                            Name = "Closed"
+                        });
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Transactions.PaymentGateway", b =>
@@ -2196,6 +2283,46 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("transactions", (string)null);
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.AccountStatus", b =>
+                {
+                    b.Property<Guid>("StatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("status_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("name");
+
+                    b.HasKey("StatusId");
+
+                    b.ToTable("account_statuses", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000004"),
+                            Name = "Active"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000005"),
+                            Name = "Inactive"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000006"),
+                            Name = "Suspended"
+                        },
+                        new
+                        {
+                            StatusId = new Guid("00000000-0000-0000-0000-000000000007"),
+                            Name = "PendingVerification"
+                        });
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.User", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2203,9 +2330,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
 
-                    b.Property<int>("AccountStatus")
-                        .HasColumnType("int")
-                        .HasColumnName("account_status");
+                    b.Property<Guid>("AccountStatusId")
+                        .HasColumnType("char(36)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -2225,18 +2351,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("full_name");
 
                     b.Property<DateTime?>("LastLogin")
-                        .HasColumnType("datetime")
-                        .HasColumnName("last_login");
-
-                    b.Property<DateTime?>("LastTokenReset")
-                        .HasColumnType("datetime")
-                        .HasColumnName("last_token_reset");
-
-                    b.Property<int>("MonthlyTokenUsage")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("monthly_token_usage");
+                        .HasColumnType("datetime")
+                        .HasColumnName("last_login")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -2252,6 +2370,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("UserId");
+
+                    b.HasIndex("AccountStatusId");
 
                     b.HasIndex("RoleId");
 
@@ -2626,6 +2746,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>
                 {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layers")
+                        .WithMany()
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrgId")
@@ -2641,6 +2767,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Layers");
 
                     b.Navigation("Organization");
 
@@ -2719,6 +2847,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.Memberships.MembershipStatus", "Status")
+                        .WithMany()
+                        .HasForeignKey("StatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -2728,6 +2862,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("Plan");
+
+                    b.Navigation("Status");
 
                     b.Navigation("User");
                 });
@@ -2817,11 +2953,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.SupportTicket", b =>
                 {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Tickets.TicketStatus", "TicketStatus")
+                        .WithMany()
+                        .HasForeignKey("StatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("TicketStatus");
 
                     b.Navigation("User");
                 });
@@ -2853,11 +2997,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.User", b =>
                 {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.AccountStatus", "AccountStatus")
+                        .WithMany()
+                        .HasForeignKey("AccountStatusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.UserRole", "Role")
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AccountStatus");
 
                     b.Navigation("Role");
                 });

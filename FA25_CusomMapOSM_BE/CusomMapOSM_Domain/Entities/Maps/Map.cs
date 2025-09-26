@@ -30,10 +30,7 @@ public class Map
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    
-    // Navigation properties
     public User? User { get; set; }
     public Organization? Organization { get; set; }
     public Map? ParentMap { get; set; }
-    public Layer Layers { get; set; } = new Layer();
 }

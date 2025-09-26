@@ -8,7 +8,7 @@ namespace CusomMapOSM_Domain.Entities.Layers;
 public class Layer
 {
     public Guid LayerId { get; set; }
-    public Guid MapId { get; set; }  // Direct relationship to Map
+    public Guid MapId { get; set; }
     public Guid UserId { get; set; }
     public string? LayerName { get; set; }
     public LayerTypeEnum LayerType { get; set; }
@@ -17,8 +17,6 @@ public class Layer
     public string? LayerData { get; set; }
     public string? LayerStyle { get; set; }
     public bool IsPublic { get; set; }
-    
-    // Properties moved from MapLayer
     public bool IsVisible { get; set; } = true;
     public int ZIndex { get; set; } = 0;
     public int LayerOrder { get; set; } = 0;
@@ -30,8 +28,6 @@ public class Layer
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    
-    // Navigation properties
     public Map? Map { get; set; }
     public User? User { get; set; }
 }

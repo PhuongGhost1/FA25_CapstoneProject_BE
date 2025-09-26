@@ -71,14 +71,12 @@ public static class DependencyInjections
 
     public static IServiceCollection AddPersistance(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add DbContext for the application
         services.AddDbContext<CustomMapOSMDbContext>(opt =>
         {
             opt.UseMySql(MySqlDatabase.CONNECTION_STRING,
                 ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING));
         });
 
-        // Register Repositories
         services.AddScoped<ITypeRepository, TypeRepository>();
         services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
 
@@ -93,15 +91,15 @@ public static class DependencyInjections
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
 
-        // Cache Services
-        services.AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService, CusomMapOSM_Infrastructure.Services.RedisCacheService>();
+        services
+            .AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService,
+                CusomMapOSM_Infrastructure.Services.RedisCacheService>();
 
         return services;
     }
 
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Register Services
         services.AddScoped<IMembershipService, MembershipService>();
         services.AddScoped<IMembershipPlanService, MembershipPlanService>();
         services.AddScoped<ITransactionService, TransactionService>();
@@ -131,7 +129,6 @@ public static class DependencyInjections
         services.AddScoped<IRasterProcessor, Services.FileProcessors.RasterProcessor>();
         services.AddScoped<ISpreadsheetProcessor, Services.FileProcessors.SpreadsheetProcessor>();
 
-        // Register Redis Cache
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var host = Environment.GetEnvironmentVariable("REDIS_HOST");
@@ -149,7 +146,6 @@ public static class DependencyInjections
             return policy.Execute(() => ConnectionMultiplexer.Connect(redisConnectionString));
         });
 
-        // Configure Hangfire
         var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
         var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
         var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
@@ -159,7 +155,7 @@ public static class DependencyInjections
         {
             config.UseRedisStorage(redisConnectionString, new Hangfire.Redis.RedisStorageOptions
             {
-                Db = 1 // Use different database for Hangfire
+                Db = 1
             });
         });
 
@@ -169,12 +165,15 @@ public static class DependencyInjections
             options.Queues = new[] { "default", "email", "fallback" };
         });
 
+        services.AddSingleton<CollaborativeMapService>();
+
         return services;
     }
 
+    // API web defaults moved to API layer (CusomMapOSM_API.Extensions.WebHostExtensions)
+
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        // Đăng ký service gửi email và retry
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
 
@@ -196,18 +195,15 @@ public static class DependencyInjections
 
     public static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add payment services
         services.AddScoped<IPaymentService, StripePaymentService>();
         services.AddScoped<IPaymentService, PaypalPaymentService>();
         services.AddScoped<IPaymentService, PayOSPaymentService>();
         services.AddScoped<IPaymentService, VNPayPaymentService>();
 
-        // Add HttpClient for PayOS and VNPay
         services.AddHttpClient<PayOSPaymentService>();
         services.AddHttpClient<VNPayPaymentService>();
 
 
-        // Add payment services here when needed
         return services;
     }
 }
