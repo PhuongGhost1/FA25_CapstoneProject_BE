@@ -1,4 +1,5 @@
 ﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.Faqs;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
@@ -10,18 +11,21 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Features.Authentication;
+using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using CusomMapOSM_Infrastructure.Features.Transaction;
@@ -90,6 +94,7 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
+        services.AddScoped<IFaqRepository, FaqRepository>();
 
         services
             .AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService,
@@ -104,6 +109,7 @@ public static class DependencyInjections
         services.AddScoped<IMembershipPlanService, MembershipPlanService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserAccessToolService, UserAccessToolService>();
+        services.AddScoped<IFaqService, FaqService>();
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
