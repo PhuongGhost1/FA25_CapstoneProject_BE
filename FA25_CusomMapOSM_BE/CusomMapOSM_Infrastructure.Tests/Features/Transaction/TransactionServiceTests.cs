@@ -8,8 +8,11 @@ using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Features.Transaction;
+using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +31,11 @@ public class TransactionServiceTests
     private readonly Mock<IUserAccessToolService> _mockUserAccessToolService;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IPaymentGatewayRepository> _mockPaymentGatewayRepository;
+    private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
+    private readonly Mock<INotificationService> _mockNotificationService;
+    private readonly Mock<IUserRepository> _mockUserRepository;
+    private readonly Mock<IMembershipRepository> _mockMembershipRepository;
+    private readonly Mock<IMembershipPlanRepository> _mockMembershipPlanRepository;
     private readonly TransactionService _transactionService;
     private readonly Faker _faker;
 
@@ -39,6 +47,12 @@ public class TransactionServiceTests
         _mockUserAccessToolService = new Mock<IUserAccessToolService>();
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockPaymentGatewayRepository = new Mock<IPaymentGatewayRepository>();
+        _mockHangfireEmailService = new Mock<HangfireEmailService>();
+        _mockNotificationService = new Mock<INotificationService>();
+        _mockUserRepository = new Mock<IUserRepository>();
+        _mockMembershipRepository = new Mock<IMembershipRepository>();
+        _mockMembershipPlanRepository = new Mock<IMembershipPlanRepository>();
+        
 
         _transactionService = new TransactionService(
             _mockTransactionRepository.Object,
@@ -46,7 +60,14 @@ public class TransactionServiceTests
             _mockMembershipService.Object,
             _mockUserAccessToolService.Object,
             _mockServiceProvider.Object,
-            _mockPaymentGatewayRepository.Object);
+            _mockPaymentGatewayRepository.Object,
+            _mockHangfireEmailService.Object,
+            _mockNotificationService.Object,
+            _mockUserRepository.Object,
+            _mockMembershipRepository.Object,
+            _mockMembershipPlanRepository.Object
+        );
+
 
         _faker = new Faker();
     }
@@ -161,7 +182,8 @@ public class TransactionServiceTests
             Signature = "signature_123"
         };
 
-        _mockPaymentService.Setup(x => x.ConfirmPaymentAsync(It.IsAny<ConfirmPaymentReq>(), It.IsAny<CancellationToken>()))
+        _mockPaymentService.Setup(x =>
+                x.ConfirmPaymentAsync(It.IsAny<ConfirmPaymentReq>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<ConfirmPaymentResponse, Error>(confirmPaymentResponse));
 
         var membership = new Faker<DomainMembership>()
@@ -224,8 +246,9 @@ public class TransactionServiceTests
             "", // Token (not used for PayOS)
             "", // PaymentIntentId (not used for PayOS)
             "", // ClientSecret (not used for PayOS)
-            "ORDER_123", // OrderCode
-            "signature_123", // Signature
+            "ORDER_123", //SectionId
+            "signature_123", // OrderCode
+            "", // Signature  
             Guid.NewGuid() // TransactionId
         );
 

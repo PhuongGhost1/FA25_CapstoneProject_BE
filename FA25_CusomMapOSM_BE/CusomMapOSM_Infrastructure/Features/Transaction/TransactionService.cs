@@ -43,7 +43,6 @@ public class TransactionService : ITransactionService
     private readonly IUserRepository _userRepository;
     private readonly IMembershipRepository _membershipRepository;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
-    private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         ITransactionRepository transactionRepository,
@@ -56,8 +55,7 @@ public class TransactionService : ITransactionService
         INotificationService notificationService,
         IUserRepository userRepository,
         IMembershipRepository membershipRepository,
-        IMembershipPlanRepository membershipPlanRepository,
-        ILogger<TransactionService> logger)
+        IMembershipPlanRepository membershipPlanRepository)
     {
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;
@@ -70,7 +68,6 @@ public class TransactionService : ITransactionService
         _userRepository = userRepository;
         _membershipRepository = membershipRepository;
         _membershipPlanRepository = membershipPlanRepository;
-        _logger = logger;
     }
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> ProcessPaymentAsync(ProcessPaymentReq request, CancellationToken ct)

@@ -40,3 +40,15 @@ public record GetCurrentMembershipResponse
 {
     public required CurrentMembershipDto Membership { get; set; }
 }
+
+public record UpdateUserPersonalInfoRequest
+{
+    public string? FullName { get; set; }
+    public string? Phone { get; set; }
+}
+
+public record UpdateUserPersonalInfoResponse
+{
+    public required string Result { get; set; }
+    public required UserInfoDto User { get; set; }
+}
