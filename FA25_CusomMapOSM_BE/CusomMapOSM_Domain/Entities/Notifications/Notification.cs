@@ -16,6 +16,8 @@ public class Notification
     public string? Status { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? SentAt { get; set; }
+    public bool IsRead { get; set; } = false;
+    public string? Metadata { get; set; } // JSON for additional data like quota details
 
     public User User { get; set; } = new();
 }

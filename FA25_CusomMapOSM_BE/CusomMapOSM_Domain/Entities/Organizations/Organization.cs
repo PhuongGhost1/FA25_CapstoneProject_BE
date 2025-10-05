@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Organizations;
 
@@ -21,6 +18,7 @@ public class Organization
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; }
+    public OrganizationStatusEnum Status { get; set; } = OrganizationStatusEnum.Active;
 
     public User? Owner { get; set; }
 }
