@@ -15,66 +15,66 @@ public class TransactionEndpoint : IEndpoint
     {
         var group = app.MapGroup(API_PREFIX).RequireAuthorization();
 
-        group.MapPost("/process-payment", async (
-            ITransactionService factory,
-            ProcessPaymentReq request,
-            CancellationToken ct) =>
-        {
-            if (request.Total <= 0)
-                return Results.BadRequest("Invalid payment amount");
+        // group.MapPost("/process-payment", async (
+        //     ITransactionService factory,
+        //     ProcessPaymentReq request,
+        //     CancellationToken ct) =>
+        // {
+        //     if (request.Total <= 0)
+        //         return Results.BadRequest("Invalid payment amount");
 
-            var result = await factory.ProcessPaymentAsync(request, ct);
+        //     var result = await factory.ProcessPaymentAsync(request, ct);
 
-            return result.Match<IResult>(
-                some: approval => Results.Ok(approval),
-                none: err => err.ToProblemDetailsResult()
-            );
-        })
-        .WithName("ProcessPayment")
-        .WithDescription("Process a payment with context")
-        .WithTags(Tags.Transaction);
+        //     return result.Match<IResult>(
+        //         some: approval => Results.Ok(approval),
+        //         none: err => err.ToProblemDetailsResult()
+        //     );
+        // })
+        // .WithName("ProcessPayment")
+        // .WithDescription("Process a payment with context")
+        // .WithTags(Tags.Transaction);
 
-        group.MapPost("/confirm-payment-with-context", async (
-            ITransactionService factory,
-            ConfirmPaymentWithContextReq req,
-            CancellationToken ct) =>
-        {
-            var result = await factory.ConfirmPaymentWithContextAsync(req, ct);
+        // group.MapPost("/confirm-payment-with-context", async (
+        //     ITransactionService factory,
+        //     ConfirmPaymentWithContextReq req,
+        //     CancellationToken ct) =>
+        // {
+        //     var result = await factory.ConfirmPaymentWithContextAsync(req, ct);
 
-            return result.Match<IResult>(
-                some: ok => Results.Ok(ok),
-                none: err => err.ToProblemDetailsResult()
-            );
-        })
-        .WithName("ConfirmPayment")
-        .WithDescription("Confirm a payment with context")
-        .WithTags(Tags.Transaction);
+        //     return result.Match<IResult>(
+        //         some: ok => Results.Ok(ok),
+        //         none: err => err.ToProblemDetailsResult()
+        //     );
+        // })
+        // .WithName("ConfirmPayment")
+        // .WithDescription("Confirm a payment with context")
+        // .WithTags(Tags.Transaction);
 
-        group.MapPost("/cancel-payment", async (
-            ITransactionService factory,
-            CancelPaymentWithContextReq req,
-            CancellationToken ct) =>
-        {
-            var result = await factory.CancelPaymentWithContextAsync(req, ct);
-            return result.Match<IResult>(
-                some: ok => Results.Ok(ok),
-                none: err => err.ToProblemDetailsResult()
-            );
-        })
-        .WithName("CancelPayment")
-        .WithDescription("Cancel a payment transaction")
-        .WithTags(Tags.Transaction);
+        // group.MapPost("/cancel-payment", async (
+        //     ITransactionService factory,
+        //     CancelPaymentWithContextReq req,
+        //     CancellationToken ct) =>
+        // {
+        //     var result = await factory.CancelPaymentWithContextAsync(req, ct);
+        //     return result.Match<IResult>(
+        //         some: ok => Results.Ok(ok),
+        //         none: err => err.ToProblemDetailsResult()
+        //     );
+        // })
+        // .WithName("CancelPayment")
+        // .WithDescription("Cancel a payment transaction")
+        // .WithTags(Tags.Transaction);
 
-        group.MapGet("/{transactionId:guid}", async (ITransactionService txService, Guid transactionId, CancellationToken ct) =>
-        {
-            var result = await txService.GetTransactionAsync(transactionId, ct);
-            return result.Match<IResult>(
-                some: transaction => Results.Ok(transaction),
-                none: err => err.ToProblemDetailsResult()
-            );
-        })
-        .WithName("GetTransaction")
-        .WithDescription("Get transaction details by ID")
-        .WithTags(Tags.Transaction);
+        // group.MapGet("/{transactionId:guid}", async (ITransactionService txService, Guid transactionId, CancellationToken ct) =>
+        // {
+        //     var result = await txService.GetTransactionAsync(transactionId, ct);
+        //     return result.Match<IResult>(
+        //         some: transaction => Results.Ok(transaction),
+        //         none: err => err.ToProblemDetailsResult()
+        //     );
+        // })
+        // .WithName("GetTransaction")
+        // .WithDescription("Get transaction details by ID")
+        // .WithTags(Tags.Transaction);
     }
 }
