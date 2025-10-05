@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251005120414_UpdateDatabase_FixTransactionMembershipRelationship")]
+    partial class UpdateDatabase_FixTransactionMembershipRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1551,9 +1554,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("org_id");
 
+                    b.Property<Guid?>("OrganizationOrgId")
+                        .HasColumnType("char(36)");
+
                     b.Property<int>("PlanId")
                         .HasColumnType("int")
                         .HasColumnName("plan_id");
+
+                    b.Property<int?>("PlanId1")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime")
@@ -1571,13 +1580,22 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
 
+                    b.Property<Guid?>("UserId1")
+                        .HasColumnType("char(36)");
+
                     b.HasKey("MembershipId");
 
                     b.HasIndex("OrgId");
 
+                    b.HasIndex("OrganizationOrgId");
+
                     b.HasIndex("PlanId");
 
+                    b.HasIndex("PlanId1");
+
                     b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
 
                     b.ToTable("memberships", (string)null);
                 });
@@ -2044,6 +2062,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("org_id");
 
+                    b.Property<Guid?>("OrganizationOrgId")
+                        .HasColumnType("char(36)");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
@@ -2055,6 +2076,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("MembersRoleId");
 
                     b.HasIndex("OrgId");
+
+                    b.HasIndex("OrganizationOrgId");
 
                     b.HasIndex("UserId");
 
@@ -2774,17 +2797,29 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", null)
+                        .WithMany("Memberships")
+                        .HasForeignKey("OrganizationOrgId");
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Memberships.Plan", "Plan")
                         .WithMany()
                         .HasForeignKey("PlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.Memberships.Plan", null)
+                        .WithMany("Memberships")
+                        .HasForeignKey("PlanId1");
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", null)
+                        .WithMany("Memberships")
+                        .HasForeignKey("UserId1");
 
                     b.Navigation("Organization");
 
@@ -2861,6 +2896,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", null)
+                        .WithMany("Members")
+                        .HasForeignKey("OrganizationOrgId");
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -2895,9 +2934,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Memberships.Membership", "Membership")
-                        .WithMany()
+                        .WithMany("Transactions")
                         .HasForeignKey("MembershipId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Transactions.PaymentGateway", "PaymentGateway")
                         .WithMany()
@@ -2968,6 +3007,28 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.Membership", b =>
+                {
+                    b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Memberships.Plan", b =>
+                {
+                    b.Navigation("Memberships");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.Organization", b =>
+                {
+                    b.Navigation("Members");
+
+                    b.Navigation("Memberships");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.User", b =>
+                {
+                    b.Navigation("Memberships");
                 });
 #pragma warning restore 612, 618
         }
