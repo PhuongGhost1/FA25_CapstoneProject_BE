@@ -67,10 +67,11 @@ public record PurchaseAddonResponse
 public record PaymentConfirmationRequest
 {
     public required PaymentGatewayEnum PaymentGateway { get; set; }
+    public required string Purpose { get; set; }
     public required string TransactionId { get; set; }
-    public required PaymentGatewayEnum PaymentMethod { get; set; }
     public required string Status { get; set; } // "success", "failed", "cancelled"
-    public string? GatewayResponse { get; set; }
+    public required string PaymentId { get; set; } // Stripe and PayOS specific
+    public string? OrderCode { get; set; } // PayOS specific
 }
 
 public record PaymentConfirmationResponse

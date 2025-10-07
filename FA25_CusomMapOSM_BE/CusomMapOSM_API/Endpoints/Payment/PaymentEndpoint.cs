@@ -6,6 +6,7 @@ using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Features.Payment;
 using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Payment;
@@ -118,10 +119,11 @@ public class PaymentEndpoint : IEndpoint
 
                 var confirmRequest = new ConfirmPaymentWithContextReq
                 {
-                    PaymentGateway = CusomMapOSM_Domain.Entities.Transactions.Enums.PaymentGatewayEnum.PayOS, // Default gateway
-                    PaymentId = transactionId.ToString(),
-                    Purpose = "membership", // Default purpose
-                    TransactionId = transactionId
+                    PaymentGateway = request.PaymentGateway,    // payOS, stripe, vnpay
+                    PaymentId = request.PaymentId,   // sessionId on processPayment
+                    Purpose = request.Purpose,   // membership, addon
+                    TransactionId = transactionId,   // transactionId on processPayment
+                    OrderCode = request.OrderCode, // orderCode for payOS
                 };
 
                 var confirmResult = await transactionService.ConfirmPaymentWithContextAsync(confirmRequest, ct);
@@ -159,29 +161,11 @@ public class PaymentEndpoint : IEndpoint
 
         // Cancel payment
         group.MapPost("/cancel", async (
-                [FromBody] CancelPaymentRequest request,
+                [FromBody] CancelPaymentWithContextReq request,
                 [FromServices] ITransactionService transactionService,
                 CancellationToken ct) =>
             {
-                if (!Guid.TryParse(request.TransactionId, out var transactionId))
-                {
-                    return Results.BadRequest("Invalid transaction ID");
-                }
-
-                var cancelRequest = new CancelPaymentWithContextReq(
-                    PaymentGateway: CusomMapOSM_Domain.Entities.Transactions.Enums.PaymentGatewayEnum.PayOS,
-                    PaymentId: transactionId.ToString(),
-                    PayerId: "",
-                    Token: "",
-                    PaymentIntentId: "",
-                    ClientSecret: "",
-                    SessionId: "",
-                    OrderCode: "",
-                    Signature: "",
-                    TransactionId: transactionId
-                );
-
-                var result = await transactionService.CancelPaymentWithContextAsync(cancelRequest, ct);
+                var result = await transactionService.CancelPaymentWithContextAsync(request, ct);
                 return result.Match(
                     success => Results.Ok(new { success = true, message = "Payment cancelled successfully" }),
                     error => error.ToProblemDetailsResult()
@@ -218,9 +202,4 @@ public class PaymentEndpoint : IEndpoint
             .ProducesProblem(401)
             .ProducesProblem(500);
     }
-}
-
-public record CancelPaymentRequest
-{
-    public required string TransactionId { get; set; }
 }
