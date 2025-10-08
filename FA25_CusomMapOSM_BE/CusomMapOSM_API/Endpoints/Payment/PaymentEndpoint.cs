@@ -76,33 +76,6 @@ public class PaymentEndpoint : IEndpoint
             .ProducesProblem(401)
             .ProducesProblem(500);
 
-        // Purchase add-ons
-        group.MapPost("/purchase-addon", async (
-                ClaimsPrincipal user,
-                [FromBody] PurchaseAddonRequest request,
-                [FromServices] ISubscriptionService subscriptionService,
-                CancellationToken ct) =>
-            {
-                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
-
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                    return Results.Unauthorized();
-
-                // Override userId from token for security
-                request = request with { UserId = userId };
-
-                var result = await subscriptionService.PurchaseAddonAsync(request, ct);
-                return result.Match(
-                    success => Results.Ok(success),
-                    error => error.ToProblemDetailsResult()
-                );
-            })
-            .WithName("PurchaseAddon")
-            .WithDescription("Purchase add-ons for additional features")
-            .Produces<PurchaseAddonResponse>(200)
-            .ProducesProblem(400)
-            .ProducesProblem(401)
-            .ProducesProblem(500);
 
         // Confirm payment and process membership (webhook/callback)
         group.MapPost("/confirm", async (
@@ -192,7 +165,14 @@ public class PaymentEndpoint : IEndpoint
 
                 var result = await subscriptionService.GetPaymentHistoryAsync(userId, page, pageSize, ct);
                 return result.Match(
-                    success => Results.Ok(new { payments = success, page, pageSize }),
+                    success => Results.Ok(new
+                    {
+                        payments = success,
+                        page,
+                        pageSize,
+                        totalCount = success.Count,
+                        hasMore = success.Count == pageSize // Simple check if there might be more data
+                    }),
                     error => error.ToProblemDetailsResult()
                 );
             })

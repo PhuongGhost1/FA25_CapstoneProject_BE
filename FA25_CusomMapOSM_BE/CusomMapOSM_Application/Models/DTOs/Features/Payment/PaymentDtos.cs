@@ -43,26 +43,6 @@ public record UpgradeResponse
     public string? OrderCode { get; set; }
 }
 
-public record PurchaseAddonRequest
-{
-    public required Guid UserId { get; set; }
-    public required Guid OrgId { get; set; }
-    public required string AddonKey { get; set; }
-    public required int Quantity { get; set; }
-    public required PaymentGatewayEnum PaymentMethod { get; set; }
-    public bool EffectiveImmediately { get; set; } = true;
-}
-
-public record PurchaseAddonResponse
-{
-    public required PaymentGatewayEnum PaymentGateway { get; set; }
-    public required string TransactionId { get; set; }
-    public required string PaymentUrl { get; set; }
-    public required string Status { get; set; }
-    public required string Message { get; set; }
-    public string? QrCode { get; set; }
-    public string? OrderCode { get; set; }
-}
 
 public record PaymentConfirmationRequest
 {

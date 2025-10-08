@@ -9,6 +9,8 @@ using CusomMapOSM_Application.Common.Errors;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
 using Optional;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using Optional.Unsafe;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using CusomMapOSM_Infrastructure.Features.Transaction;
@@ -22,23 +24,42 @@ public class SubscriptionService : ISubscriptionService
     private readonly IMembershipService _membershipService;
     private readonly INotificationService _notificationService;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly IOrganizationRepository _organizationRepository;
+    private readonly ITransactionRepository _transactionRepository;
+    private readonly IMembershipRepository _membershipRepository;
+    private readonly IPaymentGatewayRepository _paymentGatewayRepository;
 
     public SubscriptionService(
         ITransactionService transactionService,
         IMembershipService membershipService,
         INotificationService notificationService,
-        IMembershipPlanRepository membershipPlanRepository)
+        IMembershipPlanRepository membershipPlanRepository,
+        IOrganizationRepository organizationRepository,
+        ITransactionRepository transactionRepository,
+        IMembershipRepository membershipRepository,
+        IPaymentGatewayRepository paymentGatewayRepository)
     {
         _transactionService = transactionService;
         _membershipService = membershipService;
         _notificationService = notificationService;
         _membershipPlanRepository = membershipPlanRepository;
+        _organizationRepository = organizationRepository;
+        _transactionRepository = transactionRepository;
+        _membershipRepository = membershipRepository;
+        _paymentGatewayRepository = paymentGatewayRepository;
     }
 
     public async Task<Option<SubscribeResponse, Error>> SubscribeToPlanAsync(SubscribeRequest request, CancellationToken ct = default)
     {
         try
         {
+            // Check if user is the owner of the organization
+            var userOrgMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(request.UserId, request.OrgId);
+            if (userOrgMember is null || userOrgMember.Role?.Name != "Owner")
+            {
+                return Option.None<SubscribeResponse, Error>(Error.Forbidden("Organization.NotOwner", "Only the organization owner can purchase memberships for this organization"));
+            }
+
             // Get plan details to calculate amount
             var planResult = await _membershipPlanRepository.GetPlanByIdAsync(request.PlanId, ct);
             if (planResult is null)
@@ -149,50 +170,6 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
-    public async Task<Option<PurchaseAddonResponse, Error>> PurchaseAddonAsync(PurchaseAddonRequest request, CancellationToken ct = default)
-    {
-        try
-        {
-            // Calculate addon price (this would be based on addon configuration)
-            var addonPrice = CalculateAddonPrice(request.AddonKey, request.Quantity);
-
-            // Create payment transaction using existing TransactionService
-            var paymentRequest = new ProcessPaymentReq
-            {
-                UserId = request.UserId,
-                OrgId = request.OrgId,
-                Total = addonPrice,
-                PaymentGateway = request.PaymentMethod,
-                Purpose = "addon",
-                AddonKey = request.AddonKey,
-                Quantity = request.Quantity,
-                MembershipId = null
-            };
-
-            var transactionResult = await _transactionService.ProcessPaymentAsync(paymentRequest, ct);
-            if (!transactionResult.HasValue)
-            {
-                return Option.None<PurchaseAddonResponse, Error>(Error.Failure("Payment.ProcessFailed", "Failed to process payment"));
-            }
-
-            var approval = transactionResult.ValueOrDefault();
-
-            return Option.Some<PurchaseAddonResponse, Error>(new PurchaseAddonResponse
-            {
-                PaymentGateway = approval.PaymentGateway,
-                QrCode = approval.QrCode,
-                OrderCode = approval.OrderCode,
-                TransactionId = approval.SessionId, // Use SessionId as transaction identifier
-                PaymentUrl = approval.ApprovalUrl,
-                Status = "pending", // Payment is pending until confirmed
-                Message = "Payment initiated successfully. Complete payment to activate your addon."
-            });
-        }
-        catch (Exception ex)
-        {
-            return Option.None<PurchaseAddonResponse, Error>(Error.Failure("Payment.PurchaseAddonFailed", $"Failed to purchase addon: {ex.Message}"));
-        }
-    }
 
     public async Task<Option<PaymentConfirmationResponse, Error>> ProcessSuccessfulPaymentAsync(Guid transactionId, CancellationToken ct = default)
     {
@@ -241,16 +218,6 @@ public class SubscriptionService : ISubscriptionService
                         }
                         break;
 
-                    case "addon":
-                        if (context.UserId.HasValue && context.OrgId.HasValue &&
-                            !string.IsNullOrEmpty(context.AddonKey) && context.Quantity.HasValue)
-                        {
-                            var addonResult = await _membershipService.AddAddonAsync(
-                                transaction.MembershipId ?? Guid.Empty, context.OrgId.Value,
-                                context.AddonKey, context.Quantity.Value, true, ct);
-                            response.MembershipUpdated = addonResult.HasValue;
-                        }
-                        break;
                 }
             }
 
@@ -281,10 +248,14 @@ public class SubscriptionService : ISubscriptionService
     {
         try
         {
-            if (string.IsNullOrEmpty(transaction.TransactionReference))
+            if (string.IsNullOrEmpty(transaction.Purpose))
                 return (transaction.Purpose, null);
 
-            var parts = transaction.TransactionReference.Split('|', 2);
+            // Check if Purpose contains the context separator
+            if (!transaction.Purpose.Contains("|"))
+                return (transaction.Purpose, null);
+
+            var parts = transaction.Purpose.Split('|', 2);
             if (parts.Length != 2)
                 return (transaction.Purpose, null);
 
@@ -300,17 +271,113 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
-    public Task<Option<List<object>, Error>> GetPaymentHistoryAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken ct = default)
+    public async Task<Option<List<object>, Error>> GetPaymentHistoryAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
         try
         {
-            // This would be implemented to get payment history from transaction service
-            // For now, return empty list
-            return Task.FromResult(Option.Some<List<object>, Error>(new List<object>()));
+            var transactions = await _transactionRepository.GetByUserIdAsync(userId, ct);
+            if (transactions.Count == 0)
+            {
+                return Option.Some<List<object>, Error>(new List<object>()); // Return empty list instead of error
+            }
+
+            // Apply pagination
+            var paginatedTransactions = transactions
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var paymentHistory = new List<object>();
+
+            foreach (var transaction in paginatedTransactions)
+            {
+                // Fetch PaymentGateway by ID
+                var paymentGateway = await _paymentGatewayRepository.GetByGatewayIdAsync(
+                    transaction.PaymentGatewayId, ct);
+
+                // Fetch Membership if exists
+                DomainMembership.Membership? membership = null;
+                DomainMembership.Plan? plan = null;
+                CusomMapOSM_Domain.Entities.Organizations.Organization? organization = null;
+
+                // Parse transaction context to get UserId and OrgId
+                var (purpose, context) = ParseTransactionContext(transaction);
+
+                if (context?.UserId.HasValue == true && context?.OrgId.HasValue == true)
+                {
+                    // Find membership by UserId and OrgId instead of MembershipId
+                    membership = await _membershipRepository.GetByUserOrgAsync(context.UserId.Value, context.OrgId.Value, ct);
+
+                    if (membership != null)
+                    {
+                        // Fetch Plan
+                        plan = await _membershipPlanRepository.GetPlanByIdAsync(membership.PlanId, ct);
+
+                        // Fetch Organization
+                        organization = await _organizationRepository.GetOrganizationById(membership.OrgId);
+                    }
+                }
+                else if (transaction.MembershipId.HasValue)
+                {
+                    // Fallback: try to find by MembershipId if context parsing fails
+                    membership = await _membershipRepository.GetByIdAsync(transaction.MembershipId.Value, ct);
+
+                    if (membership != null)
+                    {
+                        // Fetch Plan
+                        plan = await _membershipPlanRepository.GetPlanByIdAsync(membership.PlanId, ct);
+
+                        // Fetch Organization
+                        organization = await _organizationRepository.GetOrganizationById(membership.OrgId);
+                    }
+                }
+
+                var paymentHistoryItem = new
+                {
+                    TransactionId = transaction.TransactionId,
+                    Amount = transaction.Amount,
+                    Status = transaction.Status,
+                    Purpose = transaction.Purpose,
+                    TransactionDate = transaction.TransactionDate,
+                    CreatedAt = transaction.CreatedAt,
+                    TransactionReference = transaction.TransactionReference,
+                    PaymentGateway = paymentGateway != null ? new
+                    {
+                        GatewayId = paymentGateway.GatewayId,
+                        Name = paymentGateway.Name
+                    } : null,
+                    Membership = membership != null ? new
+                    {
+                        MembershipId = membership.MembershipId,
+                        StartDate = membership.StartDate,
+                        EndDate = membership.EndDate,
+                        Status = membership.Status.ToString(),
+                        AutoRenew = membership.AutoRenew,
+                        Plan = plan != null ? new
+                        {
+                            PlanId = plan.PlanId,
+                            PlanName = plan.PlanName,
+                            Description = plan.Description,
+                            PriceMonthly = plan.PriceMonthly,
+                            DurationMonths = plan.DurationMonths
+                        } : null,
+                        Organization = organization != null ? new
+                        {
+                            OrgId = organization.OrgId,
+                            OrgName = organization.OrgName,
+                            Abbreviation = organization.Abbreviation
+                        } : null
+                    } : null
+                };
+
+                paymentHistory.Add(paymentHistoryItem);
+            }
+
+            return Option.Some<List<object>, Error>(paymentHistory);
         }
         catch (Exception ex)
         {
-            return Task.FromResult(Option.None<List<object>, Error>(Error.Failure("Payment.HistoryFailed", $"Failed to get payment history: {ex.Message}")));
+            return Option.None<List<object>, Error>(Error.Failure("Payment.HistoryFailed", $"Failed to get payment history: {ex.Message}"));
         }
     }
 
@@ -325,16 +392,4 @@ public class SubscriptionService : ISubscriptionService
         return Math.Max(0, newPlanPrice - currentPlanPrice);
     }
 
-    private decimal CalculateAddonPrice(string addonKey, int quantity)
-    {
-        // This would be based on addon configuration
-        // For now, return a fixed price
-        return addonKey.ToLower() switch
-        {
-            "export_tokens" => 0.10m * quantity, // $0.10 per export token
-            "extra_maps" => 5.00m * quantity,    // $5.00 per extra map
-            "priority_support" => 25.00m,        // $25.00 for priority support
-            _ => 1.00m * quantity                // Default $1.00 per unit
-        };
-    }
 }

@@ -9,7 +9,6 @@ public interface ISubscriptionService
     // Subscription management (business logic layer)
     Task<Option<SubscribeResponse, Error>> SubscribeToPlanAsync(SubscribeRequest request, CancellationToken ct = default);
     Task<Option<UpgradeResponse, Error>> UpgradePlanAsync(UpgradeRequest request, CancellationToken ct = default);
-    Task<Option<PurchaseAddonResponse, Error>> PurchaseAddonAsync(PurchaseAddonRequest request, CancellationToken ct = default);
 
     // Process successful payment and update membership
     Task<Option<PaymentConfirmationResponse, Error>> ProcessSuccessfulPaymentAsync(Guid transactionId, CancellationToken ct = default);
