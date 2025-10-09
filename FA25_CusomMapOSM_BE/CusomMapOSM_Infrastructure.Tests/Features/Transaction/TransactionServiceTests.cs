@@ -16,6 +16,7 @@ using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Optional;
 using Xunit;
@@ -36,6 +37,7 @@ public class TransactionServiceTests
     private readonly Mock<IUserRepository> _mockUserRepository;
     private readonly Mock<IMembershipRepository> _mockMembershipRepository;
     private readonly Mock<IMembershipPlanRepository> _mockMembershipPlanRepository;
+    private readonly Mock<ILogger<TransactionService>> _mockLogger;
     private readonly TransactionService _transactionService;
     private readonly Faker _faker;
 
@@ -52,7 +54,7 @@ public class TransactionServiceTests
         _mockUserRepository = new Mock<IUserRepository>();
         _mockMembershipRepository = new Mock<IMembershipRepository>();
         _mockMembershipPlanRepository = new Mock<IMembershipPlanRepository>();
-        
+        _mockLogger = new Mock<ILogger<TransactionService>>();
 
         _transactionService = new TransactionService(
             _mockTransactionRepository.Object,
@@ -65,7 +67,8 @@ public class TransactionServiceTests
             _mockNotificationService.Object,
             _mockUserRepository.Object,
             _mockMembershipRepository.Object,
-            _mockMembershipPlanRepository.Object
+            _mockMembershipPlanRepository.Object,
+            _mockLogger.Object
         );
 
 

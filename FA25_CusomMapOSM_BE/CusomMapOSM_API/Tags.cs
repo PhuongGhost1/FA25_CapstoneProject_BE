@@ -11,4 +11,12 @@ internal static class Tags
     internal const string Authentication = "Authentication";
     internal const string Transaction = "Transaction";
     internal const string UserAccessTool = "UserAccessTool";
+    internal const string Notification = "Notification";
+    internal const string Usage = "Usage";
+    internal const string Payment = "Payment";
+    internal const string FAQ = "FAQ";
+    internal const string OrganizationAdmin = "OrganizationAdmin";
+    internal const string SystemAdmin = "SystemAdmin";
+    internal const string StoryMaps = "StoryMaps";
+    internal const string PointsOfInterest = "PointsOfInterest";
 }

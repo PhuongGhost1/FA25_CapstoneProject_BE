@@ -50,6 +50,15 @@ internal class NotificationConfiguration : IEntityTypeConfiguration<Notification
             .HasColumnName("sent_at")
             .HasColumnType("datetime");
 
+        builder.Property(n => n.IsRead)
+            .HasColumnName("is_read")
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(n => n.Metadata)
+            .HasColumnName("metadata")
+            .HasColumnType("json");
+
         // Relationships
         builder.HasOne(n => n.User)
             .WithMany()

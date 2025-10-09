@@ -117,6 +117,7 @@ public class Program
 
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseMiddleware<LoggingMiddleware>();
+        app.UseMiddleware<QuotaCheckingMiddleware>();
 
         app.UseHangfireDashboard();
 
@@ -128,7 +129,7 @@ public class Program
 
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
-        
+
         app.MapHub<MapHub>("/hubs/map").RequireCors("FrontendCors");
 
         app.Run();
