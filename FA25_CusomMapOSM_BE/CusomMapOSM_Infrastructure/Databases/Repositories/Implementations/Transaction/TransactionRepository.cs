@@ -30,4 +30,12 @@ public class TransactionRepository : ITransactionRepository
         await _context.SaveChangesAsync(ct);
         return transaction;
     }
+
+    public async Task<List<Transactions>> GetByUserIdAsync(Guid userId, CancellationToken ct)
+    {
+        return await _context.Transactions
+            .Where(t => t.Purpose != null && t.Purpose.Contains(userId.ToString()))
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync(ct);
+    }
 }

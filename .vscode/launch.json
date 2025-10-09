@@ -11,16 +11,18 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/FA25_CusomMapOSM_BE/CusomMapOSM_API/bin/Debug/net9.0/CusomMapOSM_API.dll",
-            "args": [],
+            "args": [ "--launch-profile", "https" ],
             "cwd": "${workspaceFolder}/FA25_CusomMapOSM_BE/CusomMapOSM_API",
             "stopAtEntry": false,
             // Enable launching a web browser when ASP.NET Core starts. For more information: https://aka.ms/VSCode-CS-LaunchJson-WebBrowser
             "serverReadyAction": {
                 "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+                "uriFormat": "%s/swagger"
             },
             "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:7099;http://localhost:5233"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"

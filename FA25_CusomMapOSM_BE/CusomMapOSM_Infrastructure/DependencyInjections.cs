@@ -3,6 +3,9 @@ using CusomMapOSM_Application.Interfaces.Features.Faqs;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using CusomMapOSM_Application.Interfaces.Features.Usage;
+using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -17,6 +20,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membersh
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -24,12 +28,16 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
 using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Infrastructure.Features.User;
+using CusomMapOSM_Infrastructure.Features.Notifications;
+using CusomMapOSM_Infrastructure.Features.Usage;
+using CusomMapOSM_Infrastructure.Features.Payment;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Features.User;
@@ -95,6 +103,7 @@ public static class DependencyInjections
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IFaqRepository, FaqRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         services
             .AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService,
@@ -110,6 +119,17 @@ public static class DependencyInjections
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IUserAccessToolService, UserAccessToolService>();
         services.AddScoped<IFaqService, FaqService>();
+        services.AddScoped<CusomMapOSM_Application.Interfaces.Features.Notifications.INotificationService, CusomMapOSM_Infrastructure.Features.Notifications.NotificationService>();
+        services.AddScoped<IUsageService, UsageService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
+
+        // Organization Admin Services
+        services.AddScoped<CusomMapOSM_Application.Interfaces.Features.OrganizationAdmin.IOrganizationAdminService, CusomMapOSM_Infrastructure.Features.OrganizationAdmin.OrganizationAdminService>();
+        services.AddScoped<CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.OrganizationAdmin.IOrganizationAdminRepository, CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.OrganizationAdmin.OrganizationAdminRepository>();
+
+        // System Admin Services
+        services.AddScoped<CusomMapOSM_Application.Interfaces.Features.SystemAdmin.ISystemAdminService, CusomMapOSM_Infrastructure.Features.SystemAdmin.SystemAdminService>();
+        services.AddScoped<CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SystemAdmin.ISystemAdminRepository, CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SystemAdmin.SystemAdminRepository>();
 
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
@@ -117,7 +137,7 @@ public static class DependencyInjections
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
-        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<CusomMapOSM_Infrastructure.Services.INotificationService, CusomMapOSM_Infrastructure.Services.NotificationService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
 
         // User Repository

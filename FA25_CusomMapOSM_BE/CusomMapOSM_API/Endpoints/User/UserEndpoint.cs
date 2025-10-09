@@ -4,6 +4,7 @@ using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Models.DTOs.Features.User;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.User;
 
@@ -88,5 +89,31 @@ public class UserEndpoint : IEndpoint
         .WithDescription("Get current membership for user in specific organization")
         .WithTags(Tags.User)
         .Produces<GetCurrentMembershipResponse>();
+
+        // Update user personal information
+        group.MapPut("/me/personal-info", async (
+                ClaimsPrincipal user,
+                [FromBody] UpdateUserPersonalInfoRequest request,
+                IUserService userService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return await Task.FromResult(Results.BadRequest("Invalid user ID"));
+
+                var updateResult = await userService.UpdateUserPersonalInfoAsync(userId, request, ct);
+                return updateResult.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("UpdateUserPersonalInfo")
+            .WithDescription("Update user personal information (name and phone)")
+            .WithTags(Tags.User)
+            .Produces<UpdateUserPersonalInfoResponse>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 }

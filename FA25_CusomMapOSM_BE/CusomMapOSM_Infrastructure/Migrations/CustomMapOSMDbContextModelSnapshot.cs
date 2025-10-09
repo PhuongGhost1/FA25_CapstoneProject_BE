@@ -1862,10 +1862,20 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsRead")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_read");
+
                     b.Property<string>("Message")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)")
                         .HasColumnName("message");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("json")
+                        .HasColumnName("metadata");
 
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("datetime")
@@ -1943,6 +1953,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<Guid>("OwnerUserId")
                         .HasColumnType("char(36)")
                         .HasColumnName("owner_user_id");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")
