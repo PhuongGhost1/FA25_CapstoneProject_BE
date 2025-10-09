@@ -7,6 +7,7 @@ using CusomMapOSM_Domain.Entities.Comments;
 using CusomMapOSM_Domain.Entities.Exports;
 using CusomMapOSM_Domain.Entities.Faqs;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Domain.Entities.Notifications;
@@ -14,6 +15,9 @@ using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Tickets;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Timeline;
+using CusomMapOSM_Domain.Entities.Zones;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +53,18 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MapHistory> MapHistories { get; set; }
     public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
+    public DbSet<MapSegment> MapSegments { get; set; }
+    public DbSet<MapSegmentZone> MapSegmentZones { get; set; }
+    public DbSet<MapLocation> MapLocations { get; set; }
+    public DbSet<MapSegmentLayer> MapSegmentLayers { get; set; }
+    public DbSet<SegmentTransition> SegmentTransitions { get; set; }
+    public DbSet<LayerAnimationPreset> LayerAnimationPresets { get; set; }
+    public DbSet<TimelineStep> TimelineSteps { get; set; }
+    public DbSet<TimelineStepLayer> TimelineStepLayers { get; set; }
+    public DbSet<AdministrativeZone> AdministrativeZones { get; set; }
+    public DbSet<MapZoneSelection> MapZoneSelections { get; set; }
+    public DbSet<ZoneStatistic> ZoneStatistics { get; set; }
+    public DbSet<ZoneInsight> ZoneInsights { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }
     public DbSet<MembershipUsage> MembershipUsages { get; set; }

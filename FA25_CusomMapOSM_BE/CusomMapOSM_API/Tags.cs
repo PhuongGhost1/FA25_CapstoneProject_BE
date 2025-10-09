@@ -17,4 +17,6 @@ internal static class Tags
     internal const string FAQ = "FAQ";
     internal const string OrganizationAdmin = "OrganizationAdmin";
     internal const string SystemAdmin = "SystemAdmin";
+    internal const string StoryMaps = "StoryMaps";
+    internal const string PointsOfInterest = "PointsOfInterest";
 }
