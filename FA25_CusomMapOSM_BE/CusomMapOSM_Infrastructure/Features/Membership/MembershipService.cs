@@ -71,6 +71,7 @@ public class MembershipService : IMembershipService
             existing.PlanId = planId;
             existing.AutoRenew = autoRenew;
             existing.UpdatedAt = DateTime.UtcNow;
+            existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
             return Option.Some<DomainMembership, ErrorCustom.Error>(await _membershipRepository.UpsertAsync(existing, ct));
         }
     }

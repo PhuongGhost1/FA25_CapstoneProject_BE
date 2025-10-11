@@ -268,6 +268,10 @@ public class TransactionService : ITransactionService
             return await membership.Match(
                 some: async m =>
                 {
+                    // Update transaction with the created membership ID
+                    transaction.MembershipId = m.MembershipId;
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+
                     // Grant access tools based on the membership plan
                     var accessToolResult = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(
                         context.UserId.Value,
