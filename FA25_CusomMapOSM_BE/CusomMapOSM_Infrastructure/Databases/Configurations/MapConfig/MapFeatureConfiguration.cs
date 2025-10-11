@@ -100,20 +100,5 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
             .HasForeignKey(mf => mf.LayerId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Indexes for performance
-        builder.HasIndex(mf => mf.MapId)
-            .HasDatabaseName("ix_map_features_map_id");
-
-        builder.HasIndex(mf => mf.CreatedBy)
-            .HasDatabaseName("ix_map_features_created_by");
-
-        builder.HasIndex(mf => new { mf.MapId, mf.IsVisible })
-            .HasDatabaseName("ix_map_features_map_visible");
-
-        builder.HasIndex(mf => new { mf.MapId, mf.FeatureCategory, mf.AnnotationType })
-            .HasDatabaseName("ix_map_features_category_annotation");
-
-        builder.HasIndex(mf => mf.LayerId)
-            .HasDatabaseName("ix_map_features_layer_id");
     }
 }

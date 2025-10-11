@@ -57,8 +57,7 @@ public class TransactionService : ITransactionService
         INotificationService notificationService,
         IUserRepository userRepository,
         IMembershipRepository membershipRepository,
-        IMembershipPlanRepository membershipPlanRepository,
-        ILogger<TransactionService> logger)
+        IMembershipPlanRepository membershipPlanRepository, ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;

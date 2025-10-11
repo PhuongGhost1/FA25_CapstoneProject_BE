@@ -6,6 +6,8 @@ using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
+using CusomMapOSM_Application.Interfaces.Features.POIs;
+using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -21,6 +23,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transact
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Notifications;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -29,6 +32,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
@@ -38,6 +42,8 @@ using CusomMapOSM_Infrastructure.Features.User;
 using CusomMapOSM_Infrastructure.Features.Notifications;
 using CusomMapOSM_Infrastructure.Features.Usage;
 using CusomMapOSM_Infrastructure.Features.Payment;
+using CusomMapOSM_Infrastructure.Features.POIs;
+using CusomMapOSM_Infrastructure.Features.StoryMaps;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Features.User;
@@ -104,6 +110,7 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IFaqRepository, FaqRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IStoryMapRepository, StoryMapRepository>();
 
         services
             .AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService,
@@ -122,6 +129,8 @@ public static class DependencyInjections
         services.AddScoped<CusomMapOSM_Application.Interfaces.Features.Notifications.INotificationService, CusomMapOSM_Infrastructure.Features.Notifications.NotificationService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<IPoiService, PoiService>();
+        services.AddScoped<IStoryMapService, StoryMapService>();
 
         // Organization Admin Services
         services.AddScoped<CusomMapOSM_Application.Interfaces.Features.OrganizationAdmin.IOrganizationAdminService, CusomMapOSM_Infrastructure.Features.OrganizationAdmin.OrganizationAdminService>();

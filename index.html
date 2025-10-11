@@ -20,9 +20,6 @@
     body, html { margin: 0; height: 100%; }
     #map        { width: 100%; height: 100%; }
     #header     { position:fixed; top:0; left:0; right:0; height:40px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.1); z-index:1001; padding:0 20px; display:flex; align-items:center; }
-    #onlineUsers{ display:flex; gap:10px; }
-    .user-badge { padding:4px 8px; background:#e9ecef; border-radius:15px; font-size:13px; display:flex; align-items:center; gap:5px; }
-    .user-status{ width:8px; height:8px; border-radius:50%; background:#28a745; }
     #toolbar    { position:absolute; top:48px; left:8px; z-index:1000; background:#fff; padding:6px 10px; border-radius:4px; box-shadow:0 0 6px #0003;}
     #toolbar input{ width:90px }
     #error      { color:#d00; font-size:0.8rem }
@@ -55,10 +52,9 @@
     <span id="error"></span>
   </div>
 
-  <!-- Header with Online Users -->
+  <!-- Header -->
   <div id="header">
     <div style="flex:1">🗺️ Map Editor</div>
-    <div id="onlineUsers"></div>
   </div>
 
   <!-- Drawing Tools Panel -->
@@ -97,19 +93,11 @@
   <!-- Leaflet Draw JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
   
-  <!-- SignalR -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
 
   <script>
     const apiBase = "https://localhost:7099";      // ⭐ URL gốc API của bạn
     // ⭐ Lấy token từ localStorage nếu có
-    const token = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTcyOTg1NjMsIm5iZiI6MTc1NzI5NDk2MywiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoibmdveHVhbnNvbjEyMUBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjA4ZGRlZTA3LTBlM2UtNDc4OS04YzQ5LWY4OTk5NzdmOGUxMiJ9.1K82EbDSJwLrf-ctetNmKrAp9PCUcpZrLqww-x3_Eq8";
-    
-    // SignalR connection
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${apiBase}/maphub`, { accessTokenFactory: () => token })
-        .withAutomaticReconnect()
-        .build();
+    const token = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk2NjYxNjcsIm5iZiI6MTc1OTY2MjU2NywiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZWlkZW50aWZpZXIiOiIwOGRlMDNmZi03MTU5LTQxZmEtOGE5MC0yMTY1ZjllYzhiNzEifQ.E2L0umMEWeb0bcNE3Mk7vm5fEtm5SNo4VfSBlFslf94";
 
     // Global variables
     let currentMapId = null;
@@ -1385,78 +1373,11 @@
       }
     }
 
-    // SignalR event handlers
-    connection.on("UserJoined", (userId, userName) => {
-      const usersDiv = document.getElementById('onlineUsers');
-      if (!document.getElementById(`user-${userId}`)) {
-        const userBadge = document.createElement('div');
-        userBadge.id = `user-${userId}`;
-        userBadge.className = 'user-badge';
-        userBadge.innerHTML = `
-          <span class="user-status"></span>
-          <span>${userName}</span>
-        `;
-        usersDiv.appendChild(userBadge);
-      }
-    });
 
-    connection.on("UserLeft", (userId) => {
-      const userBadge = document.getElementById(`user-${userId}`);
-      if (userBadge) {
-        userBadge.remove();
-      }
-    });
-
-    connection.on("ReceiveFeature", (feature) => {
-      if (feature.mapId === currentMapId) {
-        const layer = createLayerFromFeature(feature);
-        if (layer) {
-          drawnItems.addLayer(layer);
-        }
-      }
-    });
-
-    async function startSignalR() {
-      try {
-        await connection.start();
-        console.log("✅ Connected to SignalR hub");
-        
-        // Join current map room if any
-        if (currentMapId) {
-          await connection.invoke("JoinMap", currentMapId);
-        }
-      } catch (err) {
-        console.error("❌ SignalR Connection Error:", err);
-        setTimeout(startSignalR, 5000);
-      }
-    }
-
-    // Enhanced saveFeature to broadcast changes
-    const originalSaveFeature = saveFeature;
-    saveFeature = async function(feature) {
-      const saved = await originalSaveFeature(feature);
-      if (saved && connection.state === "Connected") {
-        await connection.invoke("BroadcastFeature", saved);
-      }
-      return saved;
-    }
-
-    // Enhanced loadMapById to handle collaboration
-    const originalLoadMapById = loadMapById;
-    loadMapById = async function(mapId) {
-      const result = await originalLoadMapById(mapId);
-      if (result && connection.state === "Connected") {
-        await connection.invoke("LeaveCurrentMap");
-        await connection.invoke("JoinMap", mapId);
-      }
-      return result;
-    }
-
-    // ✅ Load templates, restore state and connect SignalR when page loads
+    // ✅ Load templates and restore state when page loads
     window.onload = async function() {
       await loadTemplateList();
       await autoRestoreState();
-      await startSignalR();
     };
   </script>
 </body>

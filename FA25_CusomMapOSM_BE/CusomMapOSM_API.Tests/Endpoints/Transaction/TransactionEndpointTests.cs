@@ -30,10 +30,7 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
 
         _factory = factory.WithWebHostBuilder(builder =>
         {
-            builder.ConfigureServices(services =>
-            {
-                services.AddScoped(_ => _mockTransactionService.Object);
-            });
+            builder.ConfigureServices(services => { services.AddScoped(_ => _mockTransactionService.Object); });
         });
     }
 
@@ -158,13 +155,14 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
         var request = new CancelPaymentWithContextReq(
             PaymentGatewayEnum.PayOS,
             "payment_123",
-            "payer_123",
-            "token_123",
-            "intent_123",
-            "secret_123",
-            "order_123",
-            "signature_123",
-            Guid.NewGuid()
+            "", // PayerId (not used for PayOS)
+            "", // Token (not used for PayOS)
+            "", // PaymentIntentId (not used for PayOS)
+            "", // ClientSecret (not used for PayOS)
+            "ORDER_123", //SectionId
+            "signature_123", // OrderCode
+            "", // Signature  
+            Guid.NewGuid() // TransactionId
         );
 
         var cancelResponse = new CancelPaymentResponse("cancelled", PaymentGatewayEnum.PayOS.ToString());
@@ -187,13 +185,14 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
         var request = new CancelPaymentWithContextReq(
             PaymentGatewayEnum.PayOS,
             "payment_123",
-            "payer_123",
-            "token_123",
-            "intent_123",
-            "secret_123",
-            "order_123",
-            "signature_123",
-            Guid.NewGuid()
+            "", // PayerId (not used for PayOS)
+            "", // Token (not used for PayOS)
+            "", // PaymentIntentId (not used for PayOS)
+            "", // ClientSecret (not used for PayOS)
+            "ORDER_123", //SectionId
+            "signature_123", // OrderCode
+            "", // Signature  
+            Guid.NewGuid() // TransactionId
         );
 
         var error = new Error("Payment.Cancellation.Failed", "Payment cancellation failed", ErrorType.Failure);
