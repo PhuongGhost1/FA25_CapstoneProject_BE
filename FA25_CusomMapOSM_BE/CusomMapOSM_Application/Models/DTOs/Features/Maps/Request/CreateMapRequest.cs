@@ -13,17 +13,10 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
         
         public bool IsPublic { get; set; } = false;
         
-        [Required]
-        public double InitialLatitude { get; set; }
+        public string? DefaultBounds { get; set; }  // GeoJSON Polygon or null
         
-        [Required]
-        public double InitialLongitude { get; set; }
+        public string? ViewState { get; set; }       // JSON object {"center":[lat,lng],"zoom":zoom}
         
-        [Required]
-        [Range(1, 20)]
-        public int InitialZoom { get; set; }
-        
-        [Required]
-        public string BaseMapProvider { get; set; } = "OSM";
+        public string? BaseMapProvider { get; set; } = "osm";
     }
 }
