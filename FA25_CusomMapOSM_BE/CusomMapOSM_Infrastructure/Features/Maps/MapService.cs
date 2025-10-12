@@ -724,24 +724,8 @@ public class MapService : IMapService
             }
         }
 
-        // Parse view state for zoom
-        int zoom = 10;
-        if (!string.IsNullOrEmpty(map.ViewState))
-        {
-            // Simple parsing - in real implementation, use JSON parsing
-            var zoomIndex = map.ViewState.IndexOf("\"zoom\":");
-            if (zoomIndex >= 0)
-            {
-                var zoomValue = map.ViewState.Substring(zoomIndex + 7);
-                var commaIndex = zoomValue.IndexOf(',');
-                if (commaIndex > 0)
-                {
-                    zoomValue = zoomValue.Substring(0, commaIndex);
-                    int.TryParse(zoomValue, out zoom);
-                }
-            }
-        }
-
+        var viewState = JsonDocument.Parse(map.ViewState);
+        
         return new MapDetailDTO
         {
             Id = map.MapId,
@@ -752,8 +736,8 @@ public class MapService : IMapService
             UpdatedAt = map.UpdatedAt,
             InitialLatitude = latitude,
             InitialLongitude = longitude,
-            InitialZoom = zoom,
-            BaseMapProvider = map.BaseLayer,
+            ViewState = viewState,
+            BaseLayer = map.BaseLayer,
             OwnerId = map.UserId,
             OwnerName = map.User?.FullName ?? "Unknown",
             IsOwner = map.UserId == currentUserId,

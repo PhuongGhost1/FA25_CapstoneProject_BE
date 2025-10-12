@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
 {
@@ -11,11 +12,13 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
         public bool IsPublic { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        
+        public string? PreviewImage { get; set; }       
+
         public double InitialLatitude { get; set; }
         public double InitialLongitude { get; set; }
-        public int InitialZoom { get; set; }
-        public string BaseMapProvider { get; set; }
+        public JsonDocument ViewState { get; set; }
+        public string BaseLayer { get; set; }
+
         
         public Guid OwnerId { get; set; }
         public string OwnerName { get; set; }
