@@ -205,7 +205,7 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<RemoveLayerFromMapResponse>(200);
 
-        group.MapPut("/{mapId:guid}/layers/{layerId:guid}", async (
+        group.MapPatch("/{mapId:guid}/layers/{layerId:guid}", async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid layerId,
                 [FromBody] UpdateMapLayerRequest req,
@@ -220,6 +220,20 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Update a map layer")
             .RequireAuthorization()
             .Produces<UpdateMapLayerResponse>(200);
+
+        group.MapGet("/{mapId:guid}/layers", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.GetMapLayers(mapId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMapLayers")
+            .WithDescription("Get all layers for a map")
+            .RequireAuthorization()
+            .Produces<List<LayerInfoResponse>>(200);
 
         group.MapPost("/{mapId:guid}/share", async (
                 [FromRoute] Guid mapId,
@@ -251,7 +265,7 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<UnshareMapResponse>(200);
 
-        group.MapPost("/create-template", CreateTemplateHandler)
+        group.MapPost("/template", CreateTemplateHandler)
             .WithName("CreateMapTemplateFromGeoJson")
             .WithDescription("Create MapTemplate from uploaded GeoJSON file")
             .RequireAuthorization()
@@ -356,6 +370,54 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Delete a feature from a map")
             .RequireAuthorization()
             .Produces(200);
+        // Zone/Feature Operations
+        group.MapPost("/{mapId:guid}/layers/{sourceLayerId:guid}/copy-feature", async (
+                Guid mapId,
+                Guid sourceLayerId,
+                [FromBody] CopyFeatureToLayerRequest req,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.CopyFeatureToLayer(mapId, sourceLayerId, req);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("CopyFeatureToLayer")
+            .WithDescription("Copy a feature/zone from one layer to another")
+            .RequireAuthorization()
+            .Produces<CopyFeatureToLayerResponse>(200);
+
+        group.MapDelete("/{mapId:guid}/layers/{layerId:guid}/features/{featureIndex:int}", async (
+                Guid mapId,
+                Guid layerId,
+                int featureIndex,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.DeleteFeatureFromLayer(mapId, layerId, featureIndex);
+                return result.Match(
+                    success => Results.NoContent(),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("DeleteFeatureFromLayer")
+            .WithDescription("Delete a feature/zone from a layer")
+            .RequireAuthorization()
+            .Produces(204);
+
+        group.MapPut("/{mapId:guid}/layers/{layerId:guid}/data", async (
+                Guid mapId,
+                Guid layerId,
+                [FromBody] UpdateLayerDataRequest req,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.UpdateLayerData(mapId, layerId, req);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("UpdateLayerData")
+            .WithDescription("Update layer's GeoJSON data")
+            .RequireAuthorization()
+            .Produces<UpdateLayerDataResponse>(200);
     }
 
     private static async Task<IResult> CreateTemplateHandler(
@@ -467,5 +529,7 @@ public class MapEndpoints : IEndpoint
                 statusCode: 500
             );
         }
+
+        
     }
 }
