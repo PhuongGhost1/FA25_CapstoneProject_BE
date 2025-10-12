@@ -27,4 +27,9 @@ public interface IOrganizationAdminRepository
     Task<List<TransactionEntity>> GetOrganizationTransactionsAsync(Guid orgId, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<List<TransactionEntity>> GetTransactionsByDateRangeAsync(Guid orgId, DateTime startDate, DateTime endDate, CancellationToken ct = default);
     Task<decimal> GetTotalSpentInPeriodAsync(Guid orgId, DateTime startDate, DateTime endDate, CancellationToken ct = default);
+
+    // Organization Data
+    Task<OrganizationEntity?> GetOrganizationByIdAsync(Guid orgId, CancellationToken ct = default);
+    Task<bool> IsUserOrganizationAdminAsync(Guid userId, Guid orgId, CancellationToken ct = default);
+    Task<bool> IsUserOrganizationOwnerAsync(Guid userId, Guid orgId, CancellationToken ct = default);
 }
