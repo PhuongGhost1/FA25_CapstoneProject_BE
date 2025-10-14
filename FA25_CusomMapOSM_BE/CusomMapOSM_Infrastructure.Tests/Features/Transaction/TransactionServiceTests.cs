@@ -29,7 +29,6 @@ public class TransactionServiceTests
     private readonly Mock<ITransactionRepository> _mockTransactionRepository;
     private readonly Mock<IPaymentService> _mockPaymentService;
     private readonly Mock<IMembershipService> _mockMembershipService;
-    private readonly Mock<IUserAccessToolService> _mockUserAccessToolService;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IPaymentGatewayRepository> _mockPaymentGatewayRepository;
     private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
@@ -46,7 +45,6 @@ public class TransactionServiceTests
         _mockTransactionRepository = new Mock<ITransactionRepository>();
         _mockPaymentService = new Mock<IPaymentService>();
         _mockMembershipService = new Mock<IMembershipService>();
-        _mockUserAccessToolService = new Mock<IUserAccessToolService>();
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockPaymentGatewayRepository = new Mock<IPaymentGatewayRepository>();
         _mockHangfireEmailService = new Mock<HangfireEmailService>();
@@ -60,7 +58,6 @@ public class TransactionServiceTests
             _mockTransactionRepository.Object,
             _mockPaymentService.Object,
             _mockMembershipService.Object,
-            _mockUserAccessToolService.Object,
             _mockServiceProvider.Object,
             _mockPaymentGatewayRepository.Object,
             _mockHangfireEmailService.Object,
@@ -202,12 +199,6 @@ public class TransactionServiceTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<DomainMembership, Error>(membership));
 
-        _mockUserAccessToolService.Setup(x => x.UpdateAccessToolsForMembershipAsync(
-                request.UserId!.Value,
-                request.PlanId!.Value,
-                It.IsAny<DateTime>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.Some<bool, Error>(true));
 
         // Act
         var result = await _transactionService.ConfirmPaymentWithContextAsync(request, CancellationToken.None);

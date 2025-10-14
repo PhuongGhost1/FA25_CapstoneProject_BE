@@ -80,7 +80,6 @@ public class SubscriptionService : ISubscriptionService
                 Purpose = "membership",
                 PlanId = request.PlanId,
                 AutoRenew = request.AutoRenew,
-                MembershipId = null
             };
 
             var transactionResult = await _transactionService.ProcessPaymentAsync(paymentRequest, ct);
@@ -191,7 +190,6 @@ public class SubscriptionService : ISubscriptionService
                 Status = "success",
                 Message = "Payment processed successfully",
                 MembershipUpdated = false,
-                AccessToolsGranted = false,
                 NotificationSent = false
             };
 
@@ -224,8 +222,6 @@ public class SubscriptionService : ISubscriptionService
             // Grant access tools if membership was updated
             if (response.MembershipUpdated)
             {
-                // This would be implemented to grant access tools based on the plan
-                response.AccessToolsGranted = true;
             }
 
             // Send notification

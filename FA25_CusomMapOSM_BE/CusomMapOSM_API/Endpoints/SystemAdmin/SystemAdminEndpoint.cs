@@ -39,10 +39,10 @@ public class SystemAdminEndpoint : IEndpoint
             .WithSummary("Delete user")
             .WithDescription("Permanently delete a user from the system");
 
-        group.MapPost("/users/{userId:guid}/impersonate", ImpersonateUserBySystemAdmin)
-            .WithName("ImpersonateUserBySystemAdmin")
-            .WithSummary("Impersonate user")
-            .WithDescription("Impersonate a user for support purposes (super admin only)");
+        // group.MapPost("/users/{userId:guid}/impersonate", ImpersonateUserBySystemAdmin)
+        //     .WithName("ImpersonateUserBySystemAdmin")
+        //     .WithSummary("Impersonate user")
+        //     .WithDescription("Impersonate a user for support purposes (super admin only)");
 
         // System Organization Management
         group.MapGet("/organizations", GetAllOrganizationsBySystemAdmin)
@@ -65,10 +65,10 @@ public class SystemAdminEndpoint : IEndpoint
             .WithSummary("Delete organization")
             .WithDescription("Permanently delete an organization from the system");
 
-        group.MapPost("/organizations/{orgId:guid}/transfer-ownership", TransferOrganizationOwnershipBySystemAdmin)
-            .WithName("TransferOrganizationOwnershipBySystemAdmin")
-            .WithSummary("Transfer organization ownership")
-            .WithDescription("Transfer ownership of an organization to another user");
+        // group.MapPost("/organizations/{orgId:guid}/transfer-ownership", TransferOrganizationOwnershipBySystemAdmin)
+        //     .WithName("TransferOrganizationOwnershipBySystemAdmin")
+        //     .WithSummary("Transfer organization ownership")
+        //     .WithDescription("Transfer ownership of an organization to another user");
 
         // System Subscription Plan Management
         group.MapGet("/subscription-plans", GetAllSubscriptionPlansBySystemAdmin)
@@ -112,30 +112,30 @@ public class SystemAdminEndpoint : IEndpoint
             .WithSummary("Get all support tickets")
             .WithDescription("Retrieve paginated list of all support tickets with filter options");
 
-        group.MapGet("/support-tickets/{ticketId:guid}", GetSupportTicketDetailsBySystemAdmin)
+        group.MapGet("/support-tickets/{ticketId:int}", GetSupportTicketDetailsBySystemAdmin)
             .WithName("GetSupportTicketDetailsBySystemAdmin")
             .WithSummary("Get support ticket details")
             .WithDescription("Retrieve detailed information about a specific support ticket");
 
-        group.MapPut("/support-tickets/{ticketId:guid}", UpdateSupportTicketBySystemAdmin)
+        group.MapPut("/support-tickets/{ticketId:int}", UpdateSupportTicketBySystemAdmin)
             .WithName("UpdateSupportTicketBySystemAdmin")
             .WithSummary("Update support ticket")
             .WithDescription("Update a support ticket (status, priority, assignment, etc.)");
 
-        group.MapPost("/support-tickets/{ticketId:guid}/close", CloseSupportTicketBySystemAdmin)
+        group.MapPost("/support-tickets/{ticketId:int}/close", CloseSupportTicketBySystemAdmin)
             .WithName("CloseSupportTicketBySystemAdmin")
             .WithSummary("Close support ticket")
             .WithDescription("Close a support ticket with resolution");
 
-        group.MapPost("/support-tickets/{ticketId:guid}/assign", AssignSupportTicketBySystemAdmin)
-            .WithName("AssignSupportTicketBySystemAdmin")
-            .WithSummary("Assign support ticket")
-            .WithDescription("Assign a support ticket to a specific admin");
+        // group.MapPost("/support-tickets/{ticketId:int}/assign", AssignSupportTicketBySystemAdmin)
+        //     .WithName("AssignSupportTicketBySystemAdmin")
+        //     .WithSummary("Assign support ticket")
+        //     .WithDescription("Assign a support ticket to a specific admin");
 
-        group.MapPost("/support-tickets/{ticketId:guid}/escalate", EscalateSupportTicketBySystemAdmin)
-            .WithName("EscalateSupportTicketBySystemAdmin")
-            .WithSummary("Escalate support ticket")
-            .WithDescription("Escalate a support ticket to higher priority");
+        // group.MapPost("/support-tickets/{ticketId:int}/escalate", EscalateSupportTicketBySystemAdmin)
+        //     .WithName("EscalateSupportTicketBySystemAdmin")
+        //     .WithSummary("Escalate support ticket")
+        //     .WithDescription("Escalate a support ticket to higher priority");
 
         // System Usage Monitoring
         group.MapGet("/system-usage", GetSystemUsageStatsBySystemAdmin)
@@ -148,20 +148,20 @@ public class SystemAdminEndpoint : IEndpoint
             .WithSummary("Get system dashboard")
             .WithDescription("Retrieve system dashboard with key metrics, alerts, and recent activities");
 
-        group.MapGet("/alerts", GetActiveAlertsBySystemAdmin)
-            .WithName("GetActiveAlertsBySystemAdmin")
-            .WithSummary("Get active alerts")
-            .WithDescription("Retrieve all active system alerts");
+        // group.MapGet("/alerts", GetActiveAlertsBySystemAdmin)
+        //     .WithName("GetActiveAlertsBySystemAdmin")
+        //     .WithSummary("Get active alerts")
+        //     .WithDescription("Retrieve all active system alerts");
 
-        group.MapPost("/alerts/{alertId:guid}/resolve", ResolveAlertBySystemAdmin)
-            .WithName("ResolveAlertBySystemAdmin")
-            .WithSummary("Resolve alert")
-            .WithDescription("Resolve a system alert");
+        // group.MapPost("/alerts/{alertId:guid}/resolve", ResolveAlertBySystemAdmin)
+        //     .WithName("ResolveAlertBySystemAdmin")
+        //     .WithSummary("Resolve alert")
+        //     .WithDescription("Resolve a system alert");
 
-        group.MapGet("/activities", GetRecentActivitiesBySystemAdmin)
-            .WithName("GetRecentActivitiesBySystemAdmin")
-            .WithSummary("Get recent activities")
-            .WithDescription("Retrieve recent system activities and events");
+        // group.MapGet("/activities", GetRecentActivitiesBySystemAdmin)
+        //     .WithName("GetRecentActivitiesBySystemAdmin")
+        //     .WithSummary("Get recent activities")
+        //     .WithDescription("Retrieve recent system activities and events");
 
         // System Analytics
         group.MapGet("/analytics", GetSystemAnalyticsBySystemAdmin)
@@ -185,41 +185,41 @@ public class SystemAdminEndpoint : IEndpoint
             .WithDescription("Retrieve revenue analytics for a specific date range");
 
         // System Maintenance
-        group.MapPost("/maintenance", PerformSystemMaintenanceBySystemAdmin)
-            .WithName("PerformSystemMaintenanceBySystemAdmin")
-            .WithSummary("Perform system maintenance")
-            .WithDescription("Perform system maintenance operations (super admin only)");
+        // group.MapPost("/maintenance", PerformSystemMaintenanceBySystemAdmin)
+        //     .WithName("PerformSystemMaintenanceBySystemAdmin")
+        //     .WithSummary("Perform system maintenance")
+        //     .WithDescription("Perform system maintenance operations (super admin only)");
 
-        group.MapPost("/cache/clear", ClearSystemCacheBySystemAdmin)
-            .WithName("ClearSystemCacheBySystemAdmin")
-            .WithSummary("Clear system cache")
-            .WithDescription("Clear all system caches");
+        // group.MapPost("/cache/clear", ClearSystemCacheBySystemAdmin)
+        //     .WithName("ClearSystemCacheBySystemAdmin")
+        //     .WithSummary("Clear system cache")
+        //     .WithDescription("Clear all system caches");
 
-        group.MapPost("/backup", BackupSystemDataBySystemAdmin)
-            .WithName("BackupSystemDataBySystemAdmin")
-            .WithSummary("Backup system data")
-            .WithDescription("Create a backup of system data");
+        // group.MapPost("/backup", BackupSystemDataBySystemAdmin)
+        //     .WithName("BackupSystemDataBySystemAdmin")
+        //     .WithSummary("Backup system data")
+        //     .WithDescription("Create a backup of system data");
 
-        group.MapPost("/restore", RestoreSystemDataBySystemAdmin)
-            .WithName("RestoreSystemDataBySystemAdmin")
-            .WithSummary("Restore system data")
-            .WithDescription("Restore system data from backup");
+        // group.MapPost("/restore", RestoreSystemDataBySystemAdmin)
+        //     .WithName("RestoreSystemDataBySystemAdmin")
+        //     .WithSummary("Restore system data")
+        //     .WithDescription("Restore system data from backup");
 
-        // System Configuration
-        group.MapGet("/configuration", GetSystemConfigurationBySystemAdmin)
-            .WithName("GetSystemConfigurationBySystemAdmin")
-            .WithSummary("Get system configuration")
-            .WithDescription("Retrieve current system configuration");
+        // // System Configuration
+        // group.MapGet("/configuration", GetSystemConfigurationBySystemAdmin)
+        //     .WithName("GetSystemConfigurationBySystemAdmin")
+        //     .WithSummary("Get system configuration")
+        //     .WithDescription("Retrieve current system configuration");
 
-        group.MapPut("/configuration", UpdateSystemConfigurationBySystemAdmin)
-            .WithName("UpdateSystemConfigurationBySystemAdmin")
-            .WithSummary("Update system configuration")
-            .WithDescription("Update system configuration (super admin only)");
+        // group.MapPut("/configuration", UpdateSystemConfigurationBySystemAdmin)
+        //     .WithName("UpdateSystemConfigurationBySystemAdmin")
+        //     .WithSummary("Update system configuration")
+        //     .WithDescription("Update system configuration (super admin only)");
 
-        group.MapPost("/configuration/reset", ResetSystemConfigurationBySystemAdmin)
-            .WithName("ResetSystemConfigurationBySystemAdmin")
-            .WithSummary("Reset system configuration")
-            .WithDescription("Reset system configuration to defaults (super admin only)");
+        // group.MapPost("/configuration/reset", ResetSystemConfigurationBySystemAdmin)
+        //     .WithName("ResetSystemConfigurationBySystemAdmin")
+        //     .WithSummary("Reset system configuration")
+        //     .WithDescription("Reset system configuration to defaults (super admin only)");
     }
 
     // System User Management
@@ -528,7 +528,7 @@ public class SystemAdminEndpoint : IEndpoint
     }
 
     private static async Task<IResult> GetSupportTicketDetailsBySystemAdmin(
-        Guid ticketId,
+        int ticketId,
         ISystemAdminService systemAdminService,
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -544,8 +544,8 @@ public class SystemAdminEndpoint : IEndpoint
     }
 
     private static async Task<IResult> UpdateSupportTicketBySystemAdmin(
-        Guid ticketId,
-        [FromBody] UpdateSupportTicketRequest request,
+        int ticketId,
+        [FromBody] SystemAdminUpdateSupportTicketRequest request,
         ISystemAdminService systemAdminService,
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -553,6 +553,7 @@ public class SystemAdminEndpoint : IEndpoint
         if (!await IsSystemAdmin(user, systemAdminService, ct))
             return Results.Forbid();
 
+        request.TicketId = ticketId;
         var result = await systemAdminService.UpdateSupportTicketAsync(request, ct);
         return result.Match(
             some: data => Results.Ok(data),
@@ -561,8 +562,8 @@ public class SystemAdminEndpoint : IEndpoint
     }
 
     private static async Task<IResult> CloseSupportTicketBySystemAdmin(
-        Guid ticketId,
-        [FromBody] CloseTicketRequest request,
+        int ticketId,
+        [FromBody] SystemAdminCloseTicketRequest request,
         ISystemAdminService systemAdminService,
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -578,8 +579,8 @@ public class SystemAdminEndpoint : IEndpoint
     }
 
     private static async Task<IResult> AssignSupportTicketBySystemAdmin(
-        Guid ticketId,
-        [FromBody] AssignTicketRequest request,
+        int ticketId,
+        [FromBody] SystemAdminAssignTicketRequest request,
         ISystemAdminService systemAdminService,
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -595,8 +596,8 @@ public class SystemAdminEndpoint : IEndpoint
     }
 
     private static async Task<IResult> EscalateSupportTicketBySystemAdmin(
-        Guid ticketId,
-        [FromBody] EscalateTicketRequest request,
+        int ticketId,
+        [FromBody] SystemAdminEscalateTicketRequest request,
         ISystemAdminService systemAdminService,
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -900,17 +901,17 @@ public record TransferOwnershipRequest
     public required Guid NewOwnerId { get; set; }
 }
 
-public record CloseTicketRequest
+public record SystemAdminCloseTicketRequest
 {
     public required string Resolution { get; set; }
 }
 
-public record AssignTicketRequest
+public record SystemAdminAssignTicketRequest
 {
     public required Guid AssignedToUserId { get; set; }
 }
 
-public record EscalateTicketRequest
+public record SystemAdminEscalateTicketRequest
 {
     public required string Reason { get; set; }
 }

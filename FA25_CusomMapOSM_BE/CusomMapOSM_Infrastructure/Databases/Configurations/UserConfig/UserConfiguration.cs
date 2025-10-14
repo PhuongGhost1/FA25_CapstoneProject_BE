@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Users.Enums;
+using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -11,6 +14,23 @@ namespace CusomMapOSM_Infrastructure.Databases.Configurations.UserConfig;
 
 internal class UserConfiguration : IEntityTypeConfiguration<User>
 {
+       private static string HashPassword(string password)
+       {
+              using (SHA256 sha256 = SHA256.Create())
+              {
+                     byte[] bytes = Encoding.UTF8.GetBytes(password);
+                     byte[] hashBytes = sha256.ComputeHash(bytes);
+
+                     StringBuilder hashString = new StringBuilder();
+                     foreach (byte b in hashBytes)
+                     {
+                            hashString.Append(b.ToString("x2"));
+                     }
+
+                     return hashString.ToString();
+              }
+       }
+
        public void Configure(EntityTypeBuilder<User> builder)
        {
               builder.ToTable("users");
@@ -63,5 +83,48 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
               builder.HasOne(u => u.Role)
                      .WithMany()
                      .HasForeignKey(u => u.RoleId);
+
+              // Seed admin users
+              builder.HasData(
+                  new User
+                  {
+                         UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                         Email = "admin@cusommaposm.com",
+                         PasswordHash = HashPassword("Admin123!"), // Default password
+                         FullName = "System Administrator",
+                         Phone = "+1234567890",
+                         RoleId = SeedDataConstants.AdminRoleId,
+                         AccountStatus = AccountStatusEnum.Active,
+                         CreatedAt = DateTime.UtcNow,
+                         MonthlyTokenUsage = 0,
+                         LastTokenReset = DateTime.UtcNow
+                  }
+              //     new User
+              //     {
+              //            UserId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+              //            Email = "superadmin@cusommaposm.com",
+              //            PasswordHash = HashPassword("SuperAdmin123!"), // Default password
+              //            FullName = "Super Administrator",
+              //            Phone = "+1234567891",
+              //            RoleId = SeedDataConstants.AdminRoleId,
+              //            AccountStatus = AccountStatusEnum.Active,
+              //            CreatedAt = DateTime.UtcNow,
+              //            MonthlyTokenUsage = 0,
+              //            LastTokenReset = DateTime.UtcNow
+              //     },
+              //     new User
+              //     {
+              //            UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+              //            Email = "staff@cusommaposm.com",
+              //            PasswordHash = HashPassword("Staff123!"), // Default password
+              //            FullName = "Staff Member",
+              //            Phone = "+1234567892",
+              //            RoleId = SeedDataConstants.StaffRoleId,
+              //            AccountStatus = AccountStatusEnum.Active,
+              //            CreatedAt = DateTime.UtcNow,
+              //            MonthlyTokenUsage = 0,
+              //            LastTokenReset = DateTime.UtcNow
+              //     }
+              );
        }
 }

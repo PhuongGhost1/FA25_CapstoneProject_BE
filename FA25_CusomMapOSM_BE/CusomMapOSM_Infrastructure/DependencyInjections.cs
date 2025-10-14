@@ -55,11 +55,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using StackExchange.Redis;
 using System.Net.Sockets;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.AccessToolRepo;
 using CusomMapOSM_Application.Interfaces.Features.Organization;
 using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.AccessTool;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using Hangfire;
@@ -68,6 +66,10 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Infrastructure.Features.Maps;
 using CusomMapOSM_Infrastructure.BackgroundJobs;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTicket;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
+using CusomMapOSM_Application.Interfaces.Features.SupportTicket;
+using CusomMapOSM_Infrastructure.Features.SupportTicket;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -101,8 +103,6 @@ public static class DependencyInjections
         services.AddScoped<IMembershipRepository, MembershipRepository>();
         services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
-        services.AddScoped<IAccessToolRepository, AccessToolRepository>();
-        services.AddScoped<IUserAccessToolRepository, UserAccessToolRepository>();
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
 
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
@@ -111,6 +111,7 @@ public static class DependencyInjections
         services.AddScoped<IFaqRepository, FaqRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
+        services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 
         services
             .AddScoped<CusomMapOSM_Application.Interfaces.Services.Cache.ICacheService,
@@ -124,13 +125,13 @@ public static class DependencyInjections
         services.AddScoped<IMembershipService, MembershipService>();
         services.AddScoped<IMembershipPlanService, MembershipPlanService>();
         services.AddScoped<ITransactionService, TransactionService>();
-        services.AddScoped<IUserAccessToolService, UserAccessToolService>();
         services.AddScoped<IFaqService, FaqService>();
         services.AddScoped<CusomMapOSM_Application.Interfaces.Features.Notifications.INotificationService, CusomMapOSM_Infrastructure.Features.Notifications.NotificationService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IPoiService, PoiService>();
         services.AddScoped<IStoryMapService, StoryMapService>();
+        services.AddScoped<ISupportTicketService, SupportTicketService>();
 
         // Organization Admin Services
         services.AddScoped<CusomMapOSM_Application.Interfaces.Features.OrganizationAdmin.IOrganizationAdminService, CusomMapOSM_Infrastructure.Features.OrganizationAdmin.OrganizationAdminService>();

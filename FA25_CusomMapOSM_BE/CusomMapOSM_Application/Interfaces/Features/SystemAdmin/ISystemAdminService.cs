@@ -31,11 +31,11 @@ public interface ISystemAdminService
 
     // System Support Ticket Management
     Task<Option<SystemSupportTicketListResponse, Error>> GetAllSupportTicketsAsync(int page = 1, int pageSize = 20, string? status = null, string? priority = null, string? category = null, CancellationToken ct = default);
-    Task<Option<SystemSupportTicketDto, Error>> GetSupportTicketDetailsAsync(Guid ticketId, CancellationToken ct = default);
-    Task<Option<UpdateSupportTicketResponse, Error>> UpdateSupportTicketAsync(UpdateSupportTicketRequest request, CancellationToken ct = default);
-    Task<Option<bool, Error>> CloseSupportTicketAsync(Guid ticketId, string resolution, CancellationToken ct = default);
-    Task<Option<bool, Error>> AssignSupportTicketAsync(Guid ticketId, Guid assignedToUserId, CancellationToken ct = default);
-    Task<Option<bool, Error>> EscalateSupportTicketAsync(Guid ticketId, string reason, CancellationToken ct = default);
+    Task<Option<SystemSupportTicketDto, Error>> GetSupportTicketDetailsAsync(int ticketId, CancellationToken ct = default);
+    Task<Option<SystemAdminUpdateSupportTicketResponse, Error>> UpdateSupportTicketAsync(SystemAdminUpdateSupportTicketRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> CloseSupportTicketAsync(int ticketId, string resolution, CancellationToken ct = default);
+    Task<Option<bool, Error>> AssignSupportTicketAsync(int ticketId, Guid assignedToUserId, CancellationToken ct = default);
+    Task<Option<bool, Error>> EscalateSupportTicketAsync(int ticketId, string reason, CancellationToken ct = default);
 
     // System Usage Monitoring
     Task<Option<SystemUsageStatsDto, Error>> GetSystemUsageStatsAsync(CancellationToken ct = default);

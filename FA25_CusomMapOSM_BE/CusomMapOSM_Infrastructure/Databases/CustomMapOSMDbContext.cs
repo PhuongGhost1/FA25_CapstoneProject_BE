@@ -1,5 +1,4 @@
-﻿using CusomMapOSM_Domain.Entities.AccessTools;
-using CusomMapOSM_Domain.Entities.Advertisements;
+﻿using CusomMapOSM_Domain.Entities.Advertisements;
 using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Bookmarks;
 using CusomMapOSM_Domain.Entities.Collaborations;
@@ -33,7 +32,6 @@ public class CustomMapOSMDbContext : DbContext
 
     // DbSet properties for your entities here
     #region DbSet Properties
-    public DbSet<AccessTool> AccessTools { get; set; }
     public DbSet<Advertisement> Advertisements { get; set; }
     public DbSet<Annotation> Annotations { get; set; }
     public DbSet<AnnotationType> AnnotationTypes { get; set; }
@@ -66,7 +64,6 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }
     public DbSet<MembershipUsage> MembershipUsages { get; set; }
-    public DbSet<MembershipAddon> MembershipAddons { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
@@ -74,11 +71,11 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
+    public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
     public DbSet<Transactions> Transactions { get; set; }
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
-    public DbSet<UserAccessTool> UserAccessTools { get; set; }
     public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
     public DbSet<UserPreference> UserPreferences { get; set; }
     #endregion

@@ -141,7 +141,7 @@ public record UpdateSubscriptionPlanRequest
 // System Support Ticket Management DTOs
 public record SystemSupportTicketDto
 {
-    public required Guid TicketId { get; set; }
+    public required int TicketId { get; set; }
     public required string Title { get; set; }
     public required string Description { get; set; }
     public required string Status { get; set; }
@@ -168,18 +168,18 @@ public record SystemSupportTicketListResponse
     public required int TotalPages { get; set; }
 }
 
-public record UpdateSupportTicketRequest
+public record SystemAdminUpdateSupportTicketRequest
 {
-    public required Guid TicketId { get; set; }
+    public required int TicketId { get; set; }
     public string? Status { get; set; }
     public string? Priority { get; set; }
     public Guid? AssignedToUserId { get; set; }
     public string? Response { get; set; }
 }
 
-public record UpdateSupportTicketResponse
+public record SystemAdminUpdateSupportTicketResponse
 {
-    public required Guid TicketId { get; set; }
+    public required int TicketId { get; set; }
     public required string Message { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

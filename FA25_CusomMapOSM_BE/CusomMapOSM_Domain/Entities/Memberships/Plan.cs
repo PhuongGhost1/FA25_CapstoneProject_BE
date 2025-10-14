@@ -19,7 +19,6 @@ public class Plan
     public int MonthlyTokens { get; set; } = 10000; // Token-based export quota
     public bool PrioritySupport { get; set; }
     public string? Features { get; set; } // Stored as JSON
-    public string? AccessToolIds { get; set; } // Stored as JSON array of AccessTool IDs
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

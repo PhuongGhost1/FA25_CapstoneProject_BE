@@ -94,7 +94,7 @@ public class PaymentEndpoint : IEndpoint
                 {
                     PaymentGateway = request.PaymentGateway,    // payOS, stripe, vnpay
                     PaymentId = request.PaymentId,   // sessionId on processPayment
-                    Purpose = request.Purpose,   // membership, addon
+                    Purpose = request.Purpose,   // membership
                     TransactionId = transactionId,   // transactionId on processPayment
                     OrderCode = request.OrderCode, // orderCode for payOS
                 };
@@ -121,7 +121,6 @@ public class PaymentEndpoint : IEndpoint
                     Status = request.Status,
                     Message = "Payment confirmation processed",
                     MembershipUpdated = false,
-                    AccessToolsGranted = false,
                     NotificationSent = false
                 });
             })

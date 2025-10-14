@@ -16,13 +16,8 @@ public class ProcessPaymentReqValidator : AbstractValidator<ProcessPaymentReq>
 
         RuleFor(x => x.Purpose)
             .NotEmpty().WithMessage("Purpose is required")
-            .Must(p => p.Equals("membership", StringComparison.OrdinalIgnoreCase) || p.Equals("addon", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Purpose must be either 'membership' or 'addon'");
-
-        When(x => x.Purpose.Equals("addon", StringComparison.OrdinalIgnoreCase), () =>
-        {
-            RuleFor(x => x.MembershipId).NotNull().WithMessage("MembershipId is required for addon purchases");
-        });
+            .Must(p => p.Equals("membership", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Purpose must be 'membership'");
     }
 }
 
