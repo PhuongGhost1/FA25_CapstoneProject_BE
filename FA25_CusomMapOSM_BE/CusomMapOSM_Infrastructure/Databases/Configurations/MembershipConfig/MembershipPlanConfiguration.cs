@@ -81,9 +81,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             .HasColumnName("features")
             .HasColumnType("json");
 
-        builder.Property(p => p.AccessToolIds)
-            .HasColumnName("access_tool_ids")
-            .HasColumnType("json");
 
         builder.Property(p => p.IsActive)
             .HasColumnName("is_active")
@@ -117,7 +114,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MonthlyTokens = 5000,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -138,7 +134,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MonthlyTokens = 50000,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -159,7 +154,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MonthlyTokens = 200000,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             }

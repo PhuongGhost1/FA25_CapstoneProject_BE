@@ -27,8 +27,6 @@ public class TransactionContext
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
     public Guid? MembershipId { get; set; }
-    public string? AddonKey { get; set; }
-    public int? Quantity { get; set; }
 }
 
 public class TransactionService : ITransactionService
@@ -36,7 +34,6 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentService _paymentService;
     private readonly IMembershipService _membershipService;
-    private readonly IUserAccessToolService _userAccessToolService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly HangfireEmailService _hangfireEmailService;
@@ -50,7 +47,6 @@ public class TransactionService : ITransactionService
         ITransactionRepository transactionRepository,
         IPaymentService paymentService,
         IMembershipService membershipService,
-        IUserAccessToolService userAccessToolService,
         IServiceProvider serviceProvider,
         IPaymentGatewayRepository paymentGatewayRepository,
         HangfireEmailService hangfireEmailService,
@@ -62,7 +58,6 @@ public class TransactionService : ITransactionService
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;
         _membershipService = membershipService;
-        _userAccessToolService = userAccessToolService;
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
         _hangfireEmailService = hangfireEmailService;
@@ -95,7 +90,7 @@ public class TransactionService : ITransactionService
             gatewayId,
             request.Total,
             request.Purpose,
-            request.MembershipId, // This will be null for new memberships, which is correct
+            null, // MembershipId - will be set after membership creation
             null, // ExportId
             "pending",
             ct
@@ -267,18 +262,10 @@ public class TransactionService : ITransactionService
             return await membership.Match(
                 some: async m =>
                 {
-                    // Grant access tools based on the membership plan
-                    var accessToolResult = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(
-                        context.UserId.Value,
-                        context.PlanId.Value,
-                        m.EndDate ?? DateTime.UtcNow.AddMonths(1), // Default to 1 month if no end date
-                        ct
-                    );
+                    // Update transaction with the created membership ID
+                    transaction.MembershipId = m.MembershipId;
+                    await _transactionRepository.UpdateAsync(transaction, ct);
 
-                    accessToolResult.Match(
-                        some: _ => { /* Success - do nothing */ },
-                        none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
-                    );
 
                     // Send purchase confirmation notification
                     var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
@@ -291,60 +278,13 @@ public class TransactionService : ITransactionService
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
                         MembershipId = m.MembershipId,
-                        TransactionId = transaction.TransactionId,
-                        AccessToolsGranted = accessToolResult.HasValue
-                    });
-                },
-                none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
-            );
-        }
-
-        if (string.Equals(purpose, "addon", StringComparison.OrdinalIgnoreCase))
-        {
-            if (context?.MembershipId is null || context?.OrgId is null || string.IsNullOrWhiteSpace(context?.AddonKey))
-                return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
-
-            var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
-            if (user == null)
-                return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("User.NotFound", "User not found", ErrorCustom.ErrorType.NotFound));
-
-            var membership = await _membershipRepository.GetByIdAsync(context.MembershipId.Value, ct);
-            if (membership == null)
-                return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Membership.NotFound", "Membership not found", ErrorCustom.ErrorType.NotFound));
-
-            var plan = await _membershipPlanRepository.GetPlanByIdAsync(membership.PlanId, ct);
-            if (plan == null)
-                return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Plan.NotFound", "Plan not found", ErrorCustom.ErrorType.NotFound));
-
-
-            var addon = await _membershipService.AddAddonAsync(
-                context.MembershipId.Value,
-                context.OrgId.Value,
-                context.AddonKey,
-                context.Quantity,
-                true,
-                ct
-            );
-
-            return await addon.Match(
-                some: async a =>
-                {
-                    // Send addon purchase confirmation email immediately
-                    await _notificationService.SendTransactionCompletedNotificationAsync(user!.Email, user.FullName ?? "User", transaction.Amount, plan!.PlanName ?? "Unknown Plan");
-
-                    return Option.Some<object, ErrorCustom.Error>(new
-                    {
-                        AddonId = a.AddonId,
                         TransactionId = transaction.TransactionId
                     });
                 },
                 none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
             );
         }
+
 
         return Option.Some<object, ErrorCustom.Error>(new
         {
@@ -494,8 +434,6 @@ public class TransactionService : ITransactionService
                 OrgId = request.OrgId,
                 PlanId = request.PlanId,
                 AutoRenew = request.AutoRenew,
-                AddonKey = request.AddonKey,
-                Quantity = request.Quantity
             };
 
             // Store the purpose and context as JSON with a separator

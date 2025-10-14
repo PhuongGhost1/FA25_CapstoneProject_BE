@@ -27,6 +27,5 @@ public class MembershipEndpoint : IEndpoint
         .WithDescription("Check features of an organization")
         .WithTags(Tags.Membership);
 
-        // Add-on purchase is now handled by /api/payment/purchase-addon endpoint
     }
 }

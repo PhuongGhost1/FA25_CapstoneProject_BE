@@ -16,13 +16,6 @@ public class UserErrors
     public const string StatusRequired = "Account status is required";
 }
 
-public class UserAccessToolErrors
-{
-    public const string NotFound = "User access tool not found";
-    public const string AccessToolNotFound = "Access tool not found";
-    public const string AccessToolAlreadyExists = "Access tool already exists";
-    public const string AccessToolNotValid = "Access tool is not valid";
-}
 
 public class UserFavoriteTemplateErrors
 {

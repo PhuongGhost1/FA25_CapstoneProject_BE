@@ -19,5 +19,5 @@ public class SupportTicket
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
 
-    public User User { get; set; } = new();
+    public User? User { get; set; }
 }

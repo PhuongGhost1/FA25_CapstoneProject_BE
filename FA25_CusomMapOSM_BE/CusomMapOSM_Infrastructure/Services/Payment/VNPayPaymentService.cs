@@ -75,10 +75,6 @@ public class VNPayPaymentService : IPaymentService
             Console.WriteLine($"Order ID: {orderId}");
             Console.WriteLine($"Purpose: {request.Purpose}");
             Console.WriteLine($"Amount: {amountInVND}");
-            if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
-            {
-                Console.WriteLine($"Addon: {request.AddonKey} (Qty: {request.Quantity ?? 1})");
-            }
             Console.WriteLine($"Return URL: {returnUrl}");
             Console.WriteLine($"Cancel URL: {cancelUrl}");
             Console.WriteLine($"=== End VNPay Payment Request ===");

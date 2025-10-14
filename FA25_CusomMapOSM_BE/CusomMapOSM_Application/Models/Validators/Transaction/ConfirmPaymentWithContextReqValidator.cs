@@ -13,8 +13,8 @@ public class ConfirmPaymentWithContextReqValidator : AbstractValidator<ConfirmPa
 
         RuleFor(x => x.Purpose)
             .NotEmpty().WithMessage("Purpose is required")
-            .Must(p => p.Equals("membership", StringComparison.OrdinalIgnoreCase) || p.Equals("addon", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Purpose must be either 'membership' or 'addon'");
+            .Must(p => p.Equals("membership", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Purpose must be 'membership'");
 
         RuleFor(x => x.TransactionId)
             .NotEqual(Guid.Empty).WithMessage("TransactionId is required");
@@ -41,13 +41,6 @@ public class ConfirmPaymentWithContextReqValidator : AbstractValidator<ConfirmPa
             RuleFor(x => x.PlanId).NotNull().WithMessage("PlanId is required for membership purchases");
         });
 
-        When(x => x.Purpose.Equals("addon", StringComparison.OrdinalIgnoreCase), () =>
-        {
-            RuleFor(x => x.MembershipId).NotNull().WithMessage("MembershipId is required for addon purchases");
-            RuleFor(x => x.OrgId).NotNull().WithMessage("OrgId is required for addon purchases");
-            RuleFor(x => x.AddonKey).NotEmpty().WithMessage("AddonKey is required for addon purchases");
-            RuleFor(x => x.Quantity).GreaterThan(0).When(x => x.Quantity.HasValue).WithMessage("Quantity must be greater than 0 when specified");
-        });
     }
 }
 
