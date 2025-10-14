@@ -43,19 +43,7 @@ public class TypeRepository : ITypeRepository
     {
         return await _context.ExportTypes.FirstOrDefaultAsync(x => x.Name == name.ToString());
     }
-
-    public async Task<LayerSourceEnum?> GetLayerSourceById(LayerSourceEnum name)
-    {
-        var entity = await _context.LayerSources.FirstOrDefaultAsync(x => x.Name == name.ToString());
-        return entity != null ? Enum.TryParse<LayerSourceEnum>(entity.Name, out var result) ? result : (LayerSourceEnum?)null : null;
-    }
-
-    public async Task<LayerTypeEnum?> GetLayerTypeById(LayerTypeEnum name)
-    {
-        var entity = await _context.LayerTypes.FirstOrDefaultAsync(x => x.LayerTypeId == (int)name);
-        return entity != null ? Enum.TryParse<LayerTypeEnum>(entity.LayerTypeId.ToString(), out var result) ? result : (LayerTypeEnum?)null : null;
-    }
-
+    
     public async Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name)
     {
         var entity = await _context.Plans.FirstOrDefaultAsync(x => x.PlanName == name.ToString());

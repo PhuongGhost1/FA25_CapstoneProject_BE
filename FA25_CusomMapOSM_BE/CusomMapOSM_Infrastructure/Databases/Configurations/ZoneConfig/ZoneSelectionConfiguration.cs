@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CusomMapOSM_Infrastructure.Databases.Configurations.ZoneConfig;
 
-internal class MapZoneSelectionConfiguration : IEntityTypeConfiguration<MapZoneSelection>
+internal class ZoneSelectionConfiguration : IEntityTypeConfiguration<ZoneSelection>
 {
-    public void Configure(EntityTypeBuilder<MapZoneSelection> builder)
+    public void Configure(EntityTypeBuilder<ZoneSelection> builder)
     {
         builder.ToTable("map_zone_selections");
 

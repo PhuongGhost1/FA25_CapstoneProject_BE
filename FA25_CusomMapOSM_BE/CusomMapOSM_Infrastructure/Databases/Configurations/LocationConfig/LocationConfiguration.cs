@@ -1,20 +1,22 @@
 using CusomMapOSM_Domain.Entities.Locations;
+using CusomMapOSM_Domain.Entities.Locations.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace CusomMapOSM_Infrastructure.Databases.Configurations.MapConfig;
+namespace CusomMapOSM_Infrastructure.Databases.Configurations.LocationConfig;
 
-internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
+internal class LocationConfiguration : IEntityTypeConfiguration<Location>
 {
-    public void Configure(EntityTypeBuilder<MapLocation> builder)
+    public void Configure(EntityTypeBuilder<Location> builder)
     {
-        builder.ToTable("map_locations");
+        builder.ToTable("locations");
 
-        builder.HasKey(l => l.MapLocationId);
+        builder.HasKey(l => l.LocationId);
 
-        builder.Property(l => l.MapLocationId)
-            .HasColumnName("map_location_id")
-            .IsRequired();
+        builder.Property(l => l.LocationId)
+            .HasColumnName("location_id")
+            .IsRequired()
+            .ValueGeneratedOnAdd();
 
         builder.Property(l => l.MapId)
             .HasColumnName("map_id")
@@ -28,45 +30,46 @@ internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
 
         builder.Property(l => l.Title)
             .HasColumnName("title")
-            .HasMaxLength(255)
-            .IsRequired();
+            .IsRequired()
+            .HasMaxLength(255);
 
         builder.Property(l => l.Subtitle)
-            .HasColumnName("subtitle");
+            .HasColumnName("subtitle")
+            .HasMaxLength(255);
 
         builder.Property(l => l.LocationType)
             .HasColumnName("location_type")
+            .IsRequired()
             .HasConversion<string>()
-            .HasMaxLength(50)
-            .IsRequired();
+            .HasMaxLength(50);
 
         builder.Property(l => l.MarkerGeometry)
             .HasColumnName("marker_geometry")
-            .HasColumnType("longtext");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.StoryContent)
             .HasColumnName("story_content")
-            .HasColumnType("longtext");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.MediaResources)
             .HasColumnName("media_resources")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.DisplayOrder)
             .HasColumnName("display_order")
-            .HasDefaultValue(0);
+            .IsRequired();
 
         builder.Property(l => l.HighlightOnEnter)
             .HasColumnName("highlight_on_enter")
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(l => l.ShowTooltip)
             .HasColumnName("show_tooltip")
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(l => l.TooltipContent)
             .HasColumnName("tooltip_content")
-            .HasColumnType("longtext");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.EffectType)
             .HasColumnName("effect_type")
@@ -74,26 +77,26 @@ internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
 
         builder.Property(l => l.OpenSlideOnClick)
             .HasColumnName("open_slide_on_click")
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(l => l.SlideContent)
             .HasColumnName("slide_content")
-            .HasColumnType("longtext");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.LinkedLocationId)
             .HasColumnName("linked_location_id");
 
         builder.Property(l => l.PlayAudioOnClick)
             .HasColumnName("play_audio_on_click")
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(l => l.AudioUrl)
             .HasColumnName("audio_url")
-            .HasMaxLength(1024);
+            .HasMaxLength(500);
 
         builder.Property(l => l.ExternalUrl)
             .HasColumnName("external_url")
-            .HasMaxLength(1024);
+            .HasMaxLength(500);
 
         builder.Property(l => l.AssociatedLayerId)
             .HasColumnName("associated_layer_id");
@@ -103,7 +106,7 @@ internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
 
         builder.Property(l => l.AnimationOverrides)
             .HasColumnName("animation_overrides")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.CreatedAt)
             .HasColumnName("created_at")
@@ -114,6 +117,7 @@ internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
 
+        // Relationships
         builder.HasOne(l => l.Map)
             .WithMany()
             .HasForeignKey(l => l.MapId)
@@ -143,5 +147,6 @@ internal class MapLocationConfiguration : IEntityTypeConfiguration<MapLocation>
             .WithMany()
             .HasForeignKey(l => l.LinkedLocationId)
             .OnDelete(DeleteBehavior.SetNull);
+
     }
 }

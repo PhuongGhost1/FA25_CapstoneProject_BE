@@ -1,4 +1,4 @@
-﻿namespace CusomMapOSM_Domain.Entities.Maps.Enums;
+﻿namespace CusomMapOSM_Domain.Entities.Locations.Enums;
 
 public enum SegmentLocationType
 {

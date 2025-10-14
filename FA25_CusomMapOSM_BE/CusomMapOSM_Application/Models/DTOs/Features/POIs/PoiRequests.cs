@@ -1,4 +1,5 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
+using CusomMapOSM_Domain.Entities.Locations.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.POIs;
 

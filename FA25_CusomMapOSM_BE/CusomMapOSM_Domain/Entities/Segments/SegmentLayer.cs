@@ -4,7 +4,7 @@ using CusomMapOSM_Domain.Entities.Segments.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Segments;
 
-public class MapSegmentLayer
+public class SegmentLayer
 {
     public Guid SegmentLayerId { get; set; }
     public Guid SegmentId { get; set; }
@@ -26,8 +26,8 @@ public class MapSegmentLayer
     public string? OverrideStyle { get; set; }                 // JSON style override
     public string? Metadata { get; set; }                      // optional: extra info
 
-    public MapSegment? Segment { get; set; }
-    public MapSegmentZone? SegmentZone { get; set; }
+    public Segment? Segment { get; set; }
+    public SegmentZone? SegmentZone { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
     public Layer? Layer { get; set; }
 }

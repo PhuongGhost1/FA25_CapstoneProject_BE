@@ -4,7 +4,7 @@ using CusomMapOSM_Domain.Entities.Users;
 
 namespace CusomMapOSM_Domain.Entities.Zones;
 
-public class MapZoneSelection
+public class ZoneSelection
 {
     public Guid MapZoneSelectionId { get; set; }
     public Guid MapId { get; set; }

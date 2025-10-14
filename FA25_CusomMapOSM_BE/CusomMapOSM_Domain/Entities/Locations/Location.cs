@@ -1,14 +1,14 @@
 using System;
 using CusomMapOSM_Domain.Entities.Layers;
+using CusomMapOSM_Domain.Entities.Locations.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
-using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Segments;
 
 namespace CusomMapOSM_Domain.Entities.Locations;
 
-public class MapLocation
+public class Location
 {
-    public Guid MapLocationId { get; set; }
+    public Guid LocationId { get; set; }
     public Guid MapId { get; set; }
     public Guid? SegmentId { get; set; }
     public Guid? SegmentZoneId { get; set; }
@@ -36,9 +36,9 @@ public class MapLocation
     public DateTime? UpdatedAt { get; set; }
 
     public Map? Map { get; set; }
-    public MapSegment? Segment { get; set; }
-    public MapSegmentZone? SegmentZone { get; set; }
+    public Segment? Segment { get; set; }
+    public SegmentZone? SegmentZone { get; set; }
     public Layer? AssociatedLayer { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
-    public MapLocation? LinkedLocation { get; set; }
+    public Location? LinkedLocation { get; set; }
 }

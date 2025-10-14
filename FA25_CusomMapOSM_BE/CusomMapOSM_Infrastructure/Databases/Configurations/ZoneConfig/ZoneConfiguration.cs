@@ -1,59 +1,63 @@
 using CusomMapOSM_Domain.Entities.Zones;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CusomMapOSM_Infrastructure.Databases.Configurations.ZoneConfig;
 
-internal class AdministrativeZoneConfiguration : IEntityTypeConfiguration<AdministrativeZone>
+internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
 {
-    public void Configure(EntityTypeBuilder<AdministrativeZone> builder)
+    public void Configure(EntityTypeBuilder<Zone> builder)
     {
-        builder.ToTable("administrative_zones");
+        builder.ToTable("zones");
 
         builder.HasKey(z => z.ZoneId);
 
         builder.Property(z => z.ZoneId)
             .HasColumnName("zone_id")
-            .IsRequired();
+            .IsRequired()
+            .ValueGeneratedOnAdd();
+
+        builder.Property(z => z.Name)
+            .HasColumnName("name")
+            .IsRequired()
+            .HasMaxLength(255);
 
         builder.Property(z => z.ExternalId)
             .HasColumnName("external_id")
+            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(z => z.ZoneCode)
             .HasColumnName("zone_code")
+            .IsRequired()
             .HasMaxLength(50);
-
-        builder.Property(z => z.Name)
-            .HasColumnName("name")
-            .HasMaxLength(255)
-            .IsRequired();
 
         builder.Property(z => z.AdminLevel)
             .HasColumnName("admin_level")
+            .IsRequired()
             .HasConversion<string>()
-            .HasMaxLength(50)
-            .IsRequired();
+            .HasMaxLength(50);
 
         builder.Property(z => z.ParentZoneId)
             .HasColumnName("parent_zone_id");
 
         builder.Property(z => z.Geometry)
             .HasColumnName("geometry")
-            .HasColumnType("longtext")
-            .IsRequired();
+            .IsRequired()
+            .HasColumnType("TEXT");
 
         builder.Property(z => z.SimplifiedGeometry)
             .HasColumnName("simplified_geometry")
-            .HasColumnType("longtext");
+            .HasColumnType("TEXT");
 
         builder.Property(z => z.Centroid)
             .HasColumnName("centroid")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(z => z.BoundingBox)
             .HasColumnName("bounding_box")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(z => z.LastSyncedAt)
             .HasColumnName("last_synced_at")
@@ -62,11 +66,14 @@ internal class AdministrativeZoneConfiguration : IEntityTypeConfiguration<Admini
 
         builder.Property(z => z.IsActive)
             .HasColumnName("is_active")
-            .HasDefaultValue(true);
+            .IsRequired();
 
+        // Relationships
         builder.HasOne(z => z.ParentZone)
             .WithMany()
             .HasForeignKey(z => z.ParentZoneId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
+
+
     }
 }

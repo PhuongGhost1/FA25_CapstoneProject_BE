@@ -47,22 +47,20 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<ExportType> ExportTypes { get; set; }
     public DbSet<Faq> Faqs { get; set; }
     public DbSet<Layer> Layers { get; set; }
-    public DbSet<LayerSource> LayerSources { get; set; }
-    public DbSet<LayerType> LayerTypes { get; set; }
     public DbSet<Map> Maps { get; set; }
     public DbSet<MapHistory> MapHistories { get; set; }
     public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
-    public DbSet<MapSegment> MapSegments { get; set; }
-    public DbSet<MapSegmentZone> MapSegmentZones { get; set; }
-    public DbSet<MapLocation> MapLocations { get; set; }
-    public DbSet<MapSegmentLayer> MapSegmentLayers { get; set; }
+    public DbSet<Segment> MapSegments { get; set; }
+    public DbSet<SegmentZone> MapSegmentZones { get; set; }
+    public DbSet<Location> MapLocations { get; set; }
+    public DbSet<SegmentLayer> MapSegmentLayers { get; set; }
     public DbSet<SegmentTransition> SegmentTransitions { get; set; }
     public DbSet<LayerAnimationPreset> LayerAnimationPresets { get; set; }
     public DbSet<TimelineStep> TimelineSteps { get; set; }
     public DbSet<TimelineStepLayer> TimelineStepLayers { get; set; }
-    public DbSet<AdministrativeZone> AdministrativeZones { get; set; }
-    public DbSet<MapZoneSelection> MapZoneSelections { get; set; }
+    public DbSet<Zone> AdministrativeZones { get; set; }
+    public DbSet<ZoneSelection> MapZoneSelections { get; set; }
     public DbSet<ZoneStatistic> ZoneStatistics { get; set; }
     public DbSet<ZoneInsight> ZoneInsights { get; set; }
     public DbSet<Membership> Memberships { get; set; }
@@ -83,7 +81,6 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<UserAccessTool> UserAccessTools { get; set; }
     public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
     public DbSet<UserPreference> UserPreferences { get; set; }
-    public DbSet<FailedEmail> FailedEmails { get; set; }
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

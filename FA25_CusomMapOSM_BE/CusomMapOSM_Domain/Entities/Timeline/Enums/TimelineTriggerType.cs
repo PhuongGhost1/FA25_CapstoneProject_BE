@@ -1,4 +1,4 @@
-﻿namespace CusomMapOSM_Domain.Entities.Maps.Enums;
+﻿namespace CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 public enum TimelineTriggerType
 {

@@ -3,7 +3,7 @@ using CusomMapOSM_Domain.Entities.Zones.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Zones;
 
-public class AdministrativeZone
+public class Zone
 {
     public Guid ZoneId { get; set; }
     public string ExternalId { get; set; } = string.Empty;     // e.g. OSM id or national code
@@ -18,5 +18,5 @@ public class AdministrativeZone
     public DateTime LastSyncedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
 
-    public AdministrativeZone? ParentZone { get; set; }
+    public Zone? ParentZone { get; set; }
 }

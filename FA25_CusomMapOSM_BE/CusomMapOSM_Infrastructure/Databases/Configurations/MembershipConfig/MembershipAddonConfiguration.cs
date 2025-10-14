@@ -59,7 +59,6 @@ internal class MembershipAddonConfiguration : IEntityTypeConfiguration<Membershi
                .HasColumnName("updated_at")
                .HasColumnType("datetime");
 
-        builder.HasIndex(a => new { a.MembershipId, a.OrgId, a.AddonKey });
     }
 }
 

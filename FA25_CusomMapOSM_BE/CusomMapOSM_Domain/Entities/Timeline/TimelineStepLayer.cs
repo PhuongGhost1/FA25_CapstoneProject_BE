@@ -1,6 +1,6 @@
 using System;
 using CusomMapOSM_Domain.Entities.Layers;
-using CusomMapOSM_Domain.Entities.Maps.Enums;
+using CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Timeline;
 

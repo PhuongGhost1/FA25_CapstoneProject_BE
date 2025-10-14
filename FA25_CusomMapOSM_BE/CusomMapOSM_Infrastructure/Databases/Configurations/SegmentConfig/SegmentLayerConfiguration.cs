@@ -1,20 +1,22 @@
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Segments.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace CusomMapOSM_Infrastructure.Databases.Configurations.MapConfig;
+namespace CusomMapOSM_Infrastructure.Databases.Configurations.SegmentConfig;
 
-internal class MapSegmentLayerConfiguration : IEntityTypeConfiguration<MapSegmentLayer>
+internal class SegmentLayerConfiguration : IEntityTypeConfiguration<SegmentLayer>
 {
-    public void Configure(EntityTypeBuilder<MapSegmentLayer> builder)
+    public void Configure(EntityTypeBuilder<SegmentLayer> builder)
     {
-        builder.ToTable("map_segment_layers");
+        builder.ToTable("segment_layers");
 
         builder.HasKey(sl => sl.SegmentLayerId);
 
         builder.Property(sl => sl.SegmentLayerId)
             .HasColumnName("segment_layer_id")
-            .IsRequired();
+            .IsRequired()
+            .ValueGeneratedOnAdd();
 
         builder.Property(sl => sl.SegmentId)
             .HasColumnName("segment_id")
@@ -29,73 +31,71 @@ internal class MapSegmentLayerConfiguration : IEntityTypeConfiguration<MapSegmen
 
         builder.Property(sl => sl.ExpandToZone)
             .HasColumnName("expand_to_zone")
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(sl => sl.HighlightZoneBoundary)
             .HasColumnName("highlight_zone_boundary")
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(sl => sl.DisplayOrder)
             .HasColumnName("display_order")
-            .HasDefaultValue(0);
+            .IsRequired();
 
         builder.Property(sl => sl.DelayMs)
             .HasColumnName("delay_ms")
-            .HasDefaultValue(0);
+            .IsRequired();
 
         builder.Property(sl => sl.FadeInMs)
             .HasColumnName("fade_in_ms")
-            .HasDefaultValue(400);
+            .IsRequired();
 
         builder.Property(sl => sl.FadeOutMs)
             .HasColumnName("fade_out_ms")
-            .HasDefaultValue(400);
+            .IsRequired();
 
         builder.Property(sl => sl.StartOpacity)
             .HasColumnName("start_opacity")
-            .HasDefaultValue(0.0);
+            .IsRequired()
+            .HasColumnType("decimal(3,2)");
 
         builder.Property(sl => sl.EndOpacity)
             .HasColumnName("end_opacity")
-            .HasDefaultValue(1.0);
+            .IsRequired()
+            .HasColumnType("decimal(3,2)");
 
         builder.Property(sl => sl.Easing)
             .HasColumnName("easing")
+            .IsRequired()
             .HasConversion<string>()
-            .HasMaxLength(50)
-            .IsRequired();
+            .HasMaxLength(50);
 
         builder.Property(sl => sl.AnimationPresetId)
             .HasColumnName("animation_preset_id");
 
         builder.Property(sl => sl.AutoPlayAnimation)
             .HasColumnName("auto_play_animation")
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(sl => sl.RepeatCount)
             .HasColumnName("repeat_count")
-            .HasDefaultValue(1);
+            .IsRequired();
 
         builder.Property(sl => sl.AnimationOverrides)
             .HasColumnName("animation_overrides")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(sl => sl.OverrideStyle)
             .HasColumnName("override_style")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
         builder.Property(sl => sl.Metadata)
             .HasColumnName("metadata")
-            .HasColumnType("json");
+            .HasColumnType("TEXT");
 
+        // Relationships
         builder.HasOne(sl => sl.Segment)
             .WithMany()
             .HasForeignKey(sl => sl.SegmentId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne(sl => sl.Layer)
-            .WithMany()
-            .HasForeignKey(sl => sl.LayerId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(sl => sl.SegmentZone)
@@ -103,9 +103,15 @@ internal class MapSegmentLayerConfiguration : IEntityTypeConfiguration<MapSegmen
             .HasForeignKey(sl => sl.SegmentZoneId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(sl => sl.Layer)
+            .WithMany()
+            .HasForeignKey(sl => sl.LayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne(sl => sl.AnimationPreset)
             .WithMany()
             .HasForeignKey(sl => sl.AnimationPresetId)
             .OnDelete(DeleteBehavior.SetNull);
+
     }
 }

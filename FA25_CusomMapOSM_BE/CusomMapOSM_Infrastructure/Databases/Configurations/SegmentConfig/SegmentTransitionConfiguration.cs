@@ -2,7 +2,7 @@ using CusomMapOSM_Domain.Entities.Segments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace CusomMapOSM_Infrastructure.Databases.Configurations.MapConfig;
+namespace CusomMapOSM_Infrastructure.Databases.Configurations.SegmentConfig;
 
 internal class SegmentTransitionConfiguration : IEntityTypeConfiguration<SegmentTransition>
 {

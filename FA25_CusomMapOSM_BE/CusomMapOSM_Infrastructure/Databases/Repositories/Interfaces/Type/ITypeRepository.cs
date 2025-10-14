@@ -22,8 +22,6 @@ public interface ITypeRepository
     Task<CollaborationPermission?> GetCollaborationPermissionById(CollaborationPermissionEnum name);
     Task<CollaborationTargetType?> GetCollaborationTargetTypeById(CollaborationTargetTypeEnum name);
     Task<ExportType?> GetExportTypeById(ExportTypeEnum name);
-    Task<LayerSourceEnum?> GetLayerSourceById(LayerSourceEnum name);
-    Task<LayerTypeEnum?> GetLayerTypeById(LayerTypeEnum name);
     Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name);
     Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name);
     Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name);

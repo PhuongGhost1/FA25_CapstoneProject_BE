@@ -3,7 +3,7 @@ using CusomMapOSM_Domain.Entities.Segments.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Segments;
 
-public class MapSegmentZone
+public class SegmentZone
 {
     public Guid SegmentZoneId { get; set; }
     public Guid SegmentId { get; set; }
@@ -17,5 +17,5 @@ public class MapSegmentZone
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public MapSegment? Segment { get; set; }
+    public Segment? Segment { get; set; }
 }

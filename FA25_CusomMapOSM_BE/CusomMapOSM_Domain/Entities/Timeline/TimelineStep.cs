@@ -1,7 +1,7 @@
 using System;
 using CusomMapOSM_Domain.Entities.Maps;
-using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 namespace CusomMapOSM_Domain.Entities.Timeline;
 
@@ -22,5 +22,5 @@ public class TimelineStep
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Map? Map { get; set; }
-    public MapSegment? Segment { get; set; }
+    public Segment? Segment { get; set; }
 }
