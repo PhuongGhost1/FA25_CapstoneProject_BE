@@ -47,7 +47,7 @@ public class AuthenticationServiceTests
             _mockJwtService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockHangfireEmailService.Object,
+            _mockHangfireEmailService.Object
             );
 
         _faker = new Faker();

@@ -12,6 +12,8 @@ public interface IMapFeatureRepository
     Task<Guid> Create(MapFeature feature);
     Task<bool> Update(MapFeature feature);
     Task<bool> Delete(Guid featureId);
+    Task<int> DeleteByMap(Guid mapId);
+    Task<int> AddRange(IEnumerable<MapFeature> features);
 }
 
 

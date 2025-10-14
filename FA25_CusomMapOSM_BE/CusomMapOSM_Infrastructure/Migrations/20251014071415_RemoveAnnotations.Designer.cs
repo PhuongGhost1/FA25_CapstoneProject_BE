@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251014071415_RemoveAnnotations")]
+    partial class RemoveAnnotations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2422,15 +2425,88 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 14, 8, 12, 19, 654, DateTimeKind.Utc).AddTicks(7669),
+                            CreatedAt = new DateTime(2025, 10, 14, 7, 14, 14, 684, DateTimeKind.Utc).AddTicks(2525),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 14, 8, 12, 19, 654, DateTimeKind.Utc).AddTicks(7856),
+                            LastTokenReset = new DateTime(2025, 10, 14, 7, 14, 14, 684, DateTimeKind.Utc).AddTicks(2826),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",
                             RoleId = new Guid("00000000-0000-0000-0000-000000000003")
                         });
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserFavoriteTemplate", b =>
+                {
+                    b.Property<int>("UserFavoriteTemplateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("user_favorite_template_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserFavoriteTemplateId"));
+
+                    b.Property<DateTime>("FavoriteAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("favorite_at");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("UserFavoriteTemplateId");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_favorite_templates", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserPreference", b =>
+                {
+                    b.Property<int>("UserPreferenceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("user_preference_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserPreferenceId"));
+
+                    b.Property<string>("DefaultMapStyle")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("default")
+                        .HasColumnName("default_map_style");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("en")
+                        .HasColumnName("language");
+
+                    b.Property<string>("MeasurementUnit")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("metric")
+                        .HasColumnName("measurement_unit");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("UserPreferenceId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_preferences", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserRole", b =>
@@ -3282,6 +3358,34 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserFavoriteTemplate", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Template");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserPreference", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.Zone", b =>

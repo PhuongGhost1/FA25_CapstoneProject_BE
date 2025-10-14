@@ -44,7 +44,10 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
             PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
-            MembershipId = Guid.NewGuid()
+            UserId = Guid.NewGuid(),
+            OrgId = null,
+            PlanId = 1,
+            AutoRenew = true
         };
 
         var approvalResponse = new ApprovalUrlResponse
@@ -78,7 +81,10 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
             PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
-            MembershipId = Guid.NewGuid()
+            UserId = Guid.NewGuid(),
+            OrgId = null,
+            PlanId = 1,
+            AutoRenew = true
         };
 
         var error = new Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorType.NotFound);
@@ -265,7 +271,10 @@ public class TransactionEndpointTests : IClassFixture<WebApplicationFactory<Cuso
             PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 0, // Invalid amount
             Purpose = "membership",
-            MembershipId = Guid.NewGuid()
+            UserId = Guid.NewGuid(),
+            OrgId = null,
+            PlanId = 1,
+            AutoRenew = true
         };
 
         // Act

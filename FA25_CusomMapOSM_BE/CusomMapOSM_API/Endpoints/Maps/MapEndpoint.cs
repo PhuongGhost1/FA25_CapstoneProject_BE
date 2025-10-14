@@ -306,6 +306,47 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<List<MapFeatureResponse>>(200);
 
+        // Undo map history (up to last 10 snapshots)
+        group.MapPost("/{mapId:guid}/history/undo", async (
+                [FromRoute] Guid mapId,
+                [FromQuery] int steps,
+                [FromServices] IMapHistoryService historyService,
+                [FromServices] IMapService mapService) =>
+            {
+                var canEdit = await mapService.HasEditPermission(mapId);
+                if (!canEdit) return Results.Forbid();
+                var result = await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
+                return result.Match(
+                    success => Results.Ok(new { Snapshot = success }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("UndoMapHistory")
+            .WithDescription("Get a prior snapshot of the map by stepping back N (<=10)")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400);
+
+        group.MapPost("/{mapId:guid}/history/apply", async (
+                [FromRoute] Guid mapId,
+                [FromBody] string snapshot,
+                [FromServices] IMapFeatureService featureService,
+                [FromServices] IMapService mapService) =>
+            {
+                var canEdit = await mapService.HasEditPermission(mapId);
+                if (!canEdit) return Results.Forbid();
+                var result = await featureService.ApplySnapshot(mapId, snapshot);
+                return result.Match(
+                    success => Results.Ok(new { applied = success }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("ApplyMapHistorySnapshot")
+            .WithDescription("Apply a provided snapshot JSON to restore map features")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400);
+
         group.MapGet("/{mapId:guid}/features/by-category/{category}", async (
                 [FromRoute] Guid mapId,
                 [FromRoute] FeatureCategoryEnum category,

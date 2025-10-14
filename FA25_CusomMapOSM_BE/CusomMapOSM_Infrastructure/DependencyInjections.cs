@@ -108,6 +108,7 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
+        services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
         services.AddScoped<IFaqRepository, FaqRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
@@ -155,6 +156,7 @@ public static class DependencyInjections
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
+        services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
