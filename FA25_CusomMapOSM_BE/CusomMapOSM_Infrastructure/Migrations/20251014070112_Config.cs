@@ -9,69 +9,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class POI : Migration
+    public partial class Config : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "access_tools",
-                columns: table => new
-                {
-                    access_tool_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    access_tool_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    access_tool_description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    icon_url = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    required_membership = table.Column<bool>(type: "tinyint(1)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_access_tools", x => x.access_tool_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "administrative_zones",
-                columns: table => new
-                {
-                    zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    external_id = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    zone_code = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    admin_level = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    parent_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    geometry = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    simplified_geometry = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    centroid = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    bounding_box = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    last_synced_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_administrative_zones", x => x.zone_id);
-                    table.ForeignKey(
-                        name: "FK_administrative_zones_administrative_zones_parent_zone_id",
-                        column: x => x.parent_zone_id,
-                        principalTable: "administrative_zones",
-                        principalColumn: "zone_id",
-                        onDelete: ReferentialAction.SetNull);
-                })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
@@ -162,35 +105,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "failed_emails",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    ToEmail = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Subject = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Body = table.Column<string>(type: "TEXT", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    EmailData = table.Column<string>(type: "TEXT", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    FailureReason = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    RetryCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
-                    LastRetryAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_failed_emails", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "faqs",
                 columns: table => new
                 {
@@ -236,65 +150,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_layer_animation_presets", x => x.animation_preset_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "layer_sources",
-                columns: table => new
-                {
-                    source_type_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_layer_sources", x => x.source_type_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "layer_types",
-                columns: table => new
-                {
-                    layer_type_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    type_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    icon_url = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    is_active = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_layer_types", x => x.layer_type_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "membership_addons",
-                columns: table => new
-                {
-                    addon_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    membership_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    org_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    addon_key = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    quantity = table.Column<int>(type: "int", nullable: true),
-                    feature_payload = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    purchased_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    effective_from = table.Column<DateTime>(type: "datetime", nullable: true),
-                    effective_until = table.Column<DateTime>(type: "datetime", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_membership_addons", x => x.addon_id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -372,8 +227,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     priority_support = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     features = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    access_tool_ids = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
@@ -395,6 +248,75 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_user_roles", x => x.role_id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "zones",
+                columns: table => new
+                {
+                    zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    external_id = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    zone_code = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    admin_level = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    parent_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    geometry = table.Column<string>(type: "TEXT", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    simplified_geometry = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    centroid = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    bounding_box = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    last_synced_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    is_active = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_zones", x => x.zone_id);
+                    table.ForeignKey(
+                        name: "FK_zones_zones_parent_zone_id",
+                        column: x => x.parent_zone_id,
+                        principalTable: "zones",
+                        principalColumn: "zone_id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "users",
+                columns: table => new
+                {
+                    user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    email = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    password_hash = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    full_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    phone = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RoleId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    account_status = table.Column<int>(type: "int", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    last_login = table.Column<DateTime>(type: "datetime", nullable: true),
+                    monthly_token_usage = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    last_token_reset = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_users", x => x.user_id);
+                    table.ForeignKey(
+                        name: "FK_users_user_roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "user_roles",
+                        principalColumn: "role_id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -427,9 +349,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_zone_insights", x => x.zone_insight_id);
                     table.ForeignKey(
-                        name: "FK_zone_insights_administrative_zones_zone_id",
+                        name: "FK_zone_insights_zones_zone_id",
                         column: x => x.zone_id,
-                        principalTable: "administrative_zones",
+                        principalTable: "zones",
                         principalColumn: "zone_id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -460,42 +382,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_zone_statistics", x => x.zone_statistic_id);
                     table.ForeignKey(
-                        name: "FK_zone_statistics_administrative_zones_zone_id",
+                        name: "FK_zone_statistics_zones_zone_id",
                         column: x => x.zone_id,
-                        principalTable: "administrative_zones",
+                        principalTable: "zones",
                         principalColumn: "zone_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "users",
-                columns: table => new
-                {
-                    user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    email = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    password_hash = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    full_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    phone = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    RoleId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    account_status = table.Column<int>(type: "int", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    last_login = table.Column<DateTime>(type: "datetime", nullable: true),
-                    monthly_token_usage = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    last_token_reset = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_users", x => x.user_id);
-                    table.ForeignKey(
-                        name: "FK_users_user_roles_RoleId",
-                        column: x => x.RoleId,
-                        principalTable: "user_roles",
-                        principalColumn: "role_id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -661,35 +551,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_support_tickets_users_user_id",
                         column: x => x.user_id,
-                        principalTable: "users",
-                        principalColumn: "user_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "user_access_tools",
-                columns: table => new
-                {
-                    user_access_tool_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    AccessToolId = table.Column<int>(type: "int", nullable: false),
-                    granted_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    ExpiredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_user_access_tools", x => x.user_access_tool_id);
-                    table.ForeignKey(
-                        name: "FK_user_access_tools_access_tools_AccessToolId",
-                        column: x => x.AccessToolId,
-                        principalTable: "access_tools",
-                        principalColumn: "access_tool_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_user_access_tools_users_UserId",
-                        column: x => x.UserId,
                         principalTable: "users",
                         principalColumn: "user_id",
                         onDelete: ReferentialAction.Cascade);
@@ -899,6 +760,30 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "support_ticket_messages",
+                columns: table => new
+                {
+                    message_id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ticket_id = table.Column<int>(type: "int", nullable: false),
+                    message = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    is_from_user = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_support_ticket_messages", x => x.message_id);
+                    table.ForeignKey(
+                        name: "FK_support_ticket_messages_support_tickets_ticket_id",
+                        column: x => x.ticket_id,
+                        principalTable: "support_tickets",
+                        principalColumn: "ticket_id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "annotations",
                 columns: table => new
                 {
@@ -1079,65 +964,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "map_segments",
-                columns: table => new
-                {
-                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    summary = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    story_content = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    auto_fit_bounds = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    entry_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    exit_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    default_layer_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    playback_mode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_map_segments", x => x.segment_id);
-                    table.ForeignKey(
-                        name: "FK_map_segments_layer_animation_presets_default_layer_animation~",
-                        column: x => x.default_layer_animation_preset_id,
-                        principalTable: "layer_animation_presets",
-                        principalColumn: "animation_preset_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_map_segments_layer_animation_presets_entry_animation_preset_~",
-                        column: x => x.entry_animation_preset_id,
-                        principalTable: "layer_animation_presets",
-                        principalColumn: "animation_preset_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_map_segments_layer_animation_presets_exit_animation_preset_id",
-                        column: x => x.exit_animation_preset_id,
-                        principalTable: "layer_animation_presets",
-                        principalColumn: "animation_preset_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_map_segments_maps_map_id",
-                        column: x => x.map_id,
-                        principalTable: "maps",
-                        principalColumn: "map_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_map_segments_users_created_by",
-                        column: x => x.created_by,
-                        principalTable: "users",
-                        principalColumn: "user_id",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "map_zone_selections",
                 columns: table => new
                 {
@@ -1168,6 +994,62 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         principalTable: "users",
                         principalColumn: "user_id",
                         onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "segments",
+                columns: table => new
+                {
+                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    summary = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    story_content = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    display_order = table.Column<int>(type: "int", nullable: false),
+                    auto_fit_bounds = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    entry_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    exit_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    default_layer_animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    playback_mode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true),
+                    CreatorUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_segments", x => x.segment_id);
+                    table.ForeignKey(
+                        name: "FK_segments_layer_animation_presets_default_layer_animation_pre~",
+                        column: x => x.default_layer_animation_preset_id,
+                        principalTable: "layer_animation_presets",
+                        principalColumn: "animation_preset_id");
+                    table.ForeignKey(
+                        name: "FK_segments_layer_animation_presets_entry_animation_preset_id",
+                        column: x => x.entry_animation_preset_id,
+                        principalTable: "layer_animation_presets",
+                        principalColumn: "animation_preset_id");
+                    table.ForeignKey(
+                        name: "FK_segments_layer_animation_presets_exit_animation_preset_id",
+                        column: x => x.exit_animation_preset_id,
+                        principalTable: "layer_animation_presets",
+                        principalColumn: "animation_preset_id");
+                    table.ForeignKey(
+                        name: "FK_segments_maps_map_id",
+                        column: x => x.map_id,
+                        principalTable: "maps",
+                        principalColumn: "map_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_segments_users_CreatorUserId",
+                        column: x => x.CreatorUserId,
+                        principalTable: "users",
+                        principalColumn: "user_id");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1340,39 +1222,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "map_segment_zones",
-                columns: table => new
-                {
-                    segment_zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    description = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    zone_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    zone_geometry = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    focus_camera_state = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    is_primary = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_map_segment_zones", x => x.segment_zone_id);
-                    table.ForeignKey(
-                        name: "FK_map_segment_zones_map_segments_segment_id",
-                        column: x => x.segment_id,
-                        principalTable: "map_segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "segment_transitions",
                 columns: table => new
                 {
@@ -1401,17 +1250,50 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         principalColumn: "animation_preset_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_segment_transitions_map_segments_from_segment_id",
+                        name: "FK_segment_transitions_segments_from_segment_id",
                         column: x => x.from_segment_id,
-                        principalTable: "map_segments",
+                        principalTable: "segments",
                         principalColumn: "segment_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_segment_transitions_map_segments_to_segment_id",
+                        name: "FK_segment_transitions_segments_to_segment_id",
                         column: x => x.to_segment_id,
-                        principalTable: "map_segments",
+                        principalTable: "segments",
                         principalColumn: "segment_id",
                         onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "segment_zones",
+                columns: table => new
+                {
+                    segment_zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    zone_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    zone_geometry = table.Column<string>(type: "TEXT", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    focus_camera_state = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    display_order = table.Column<int>(type: "int", nullable: false),
+                    is_primary = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_segment_zones", x => x.segment_zone_id);
+                    table.ForeignKey(
+                        name: "FK_segment_zones_segments_segment_id",
+                        column: x => x.segment_id,
+                        principalTable: "segments",
+                        principalColumn: "segment_id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1443,17 +1325,17 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_timeline_steps", x => x.timeline_step_id);
                     table.ForeignKey(
-                        name: "FK_timeline_steps_map_segments_segment_id",
-                        column: x => x.segment_id,
-                        principalTable: "map_segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
                         name: "FK_timeline_steps_maps_map_id",
                         column: x => x.map_id,
                         principalTable: "maps",
                         principalColumn: "map_id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_timeline_steps_segments_segment_id",
+                        column: x => x.segment_id,
+                        principalTable: "segments",
+                        principalColumn: "segment_id",
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1500,143 +1382,143 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "map_locations",
+                name: "locations",
                 columns: table => new
                 {
-                    map_location_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    location_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     segment_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     segment_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     title = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    subtitle = table.Column<string>(type: "longtext", nullable: true)
+                    subtitle = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     location_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    marker_geometry = table.Column<string>(type: "longtext", nullable: true)
+                    marker_geometry = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    story_content = table.Column<string>(type: "longtext", nullable: true)
+                    story_content = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    media_resources = table.Column<string>(type: "json", nullable: true)
+                    media_resources = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    highlight_on_enter = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    show_tooltip = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    tooltip_content = table.Column<string>(type: "longtext", nullable: true)
+                    display_order = table.Column<int>(type: "int", nullable: false),
+                    highlight_on_enter = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    show_tooltip = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    tooltip_content = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     effect_type = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    open_slide_on_click = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    slide_content = table.Column<string>(type: "longtext", nullable: true)
+                    open_slide_on_click = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    slide_content = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     linked_location_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    play_audio_on_click = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    audio_url = table.Column<string>(type: "varchar(1024)", maxLength: 1024, nullable: true)
+                    play_audio_on_click = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    audio_url = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    external_url = table.Column<string>(type: "varchar(1024)", maxLength: 1024, nullable: true)
+                    external_url = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     associated_layer_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    animation_overrides = table.Column<string>(type: "json", nullable: true)
+                    animation_overrides = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_map_locations", x => x.map_location_id);
+                    table.PrimaryKey("PK_locations", x => x.location_id);
                     table.ForeignKey(
-                        name: "FK_map_locations_layer_animation_presets_animation_preset_id",
+                        name: "FK_locations_layer_animation_presets_animation_preset_id",
                         column: x => x.animation_preset_id,
                         principalTable: "layer_animation_presets",
                         principalColumn: "animation_preset_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_map_locations_layers_associated_layer_id",
+                        name: "FK_locations_layers_associated_layer_id",
                         column: x => x.associated_layer_id,
                         principalTable: "layers",
                         principalColumn: "layer_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_map_locations_map_locations_linked_location_id",
+                        name: "FK_locations_locations_linked_location_id",
                         column: x => x.linked_location_id,
-                        principalTable: "map_locations",
-                        principalColumn: "map_location_id",
+                        principalTable: "locations",
+                        principalColumn: "location_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_map_locations_map_segment_zones_segment_zone_id",
-                        column: x => x.segment_zone_id,
-                        principalTable: "map_segment_zones",
-                        principalColumn: "segment_zone_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_map_locations_map_segments_segment_id",
-                        column: x => x.segment_id,
-                        principalTable: "map_segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_map_locations_maps_map_id",
+                        name: "FK_locations_maps_map_id",
                         column: x => x.map_id,
                         principalTable: "maps",
                         principalColumn: "map_id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_locations_segment_zones_segment_zone_id",
+                        column: x => x.segment_zone_id,
+                        principalTable: "segment_zones",
+                        principalColumn: "segment_zone_id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_locations_segments_segment_id",
+                        column: x => x.segment_id,
+                        principalTable: "segments",
+                        principalColumn: "segment_id",
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "map_segment_layers",
+                name: "segment_layers",
                 columns: table => new
                 {
                     segment_layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     segment_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    expand_to_zone = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    highlight_zone_boundary = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    delay_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    fade_in_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 400),
-                    fade_out_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 400),
-                    start_opacity = table.Column<double>(type: "double", nullable: false, defaultValue: 0.0),
-                    end_opacity = table.Column<double>(type: "double", nullable: false, defaultValue: 1.0),
+                    expand_to_zone = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    highlight_zone_boundary = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    display_order = table.Column<int>(type: "int", nullable: false),
+                    delay_ms = table.Column<int>(type: "int", nullable: false),
+                    fade_in_ms = table.Column<int>(type: "int", nullable: false),
+                    fade_out_ms = table.Column<int>(type: "int", nullable: false),
+                    start_opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false),
+                    end_opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false),
                     easing = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    auto_play_animation = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    repeat_count = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    animation_overrides = table.Column<string>(type: "json", nullable: true)
+                    auto_play_animation = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    repeat_count = table.Column<int>(type: "int", nullable: false),
+                    animation_overrides = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    override_style = table.Column<string>(type: "json", nullable: true)
+                    override_style = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    metadata = table.Column<string>(type: "json", nullable: true)
+                    metadata = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_map_segment_layers", x => x.segment_layer_id);
+                    table.PrimaryKey("PK_segment_layers", x => x.segment_layer_id);
                     table.ForeignKey(
-                        name: "FK_map_segment_layers_layer_animation_presets_animation_preset_~",
+                        name: "FK_segment_layers_layer_animation_presets_animation_preset_id",
                         column: x => x.animation_preset_id,
                         principalTable: "layer_animation_presets",
                         principalColumn: "animation_preset_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_map_segment_layers_layers_layer_id",
+                        name: "FK_segment_layers_layers_layer_id",
                         column: x => x.layer_id,
                         principalTable: "layers",
                         principalColumn: "layer_id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_map_segment_layers_map_segment_zones_segment_zone_id",
+                        name: "FK_segment_layers_segment_zones_segment_zone_id",
                         column: x => x.segment_zone_id,
-                        principalTable: "map_segment_zones",
+                        principalTable: "segment_zones",
                         principalColumn: "segment_zone_id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_map_segment_layers_map_segments_segment_id",
+                        name: "FK_segment_layers_segments_segment_id",
                         column: x => x.segment_id,
-                        principalTable: "map_segments",
+                        principalTable: "segments",
                         principalColumn: "segment_id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -1678,44 +1560,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.InsertData(
-                table: "access_tools",
-                columns: new[] { "access_tool_id", "access_tool_description", "access_tool_name", "icon_url", "required_membership" },
-                values: new object[,]
-                {
-                    { 1, "Add pin markers to maps", "Pin", "/icons/pin.svg", false },
-                    { 2, "Draw lines on maps", "Line", "/icons/line.svg", false },
-                    { 3, "Create and display routes", "Route", "/icons/route.svg", false },
-                    { 4, "Draw polygon shapes on maps", "Polygon", "/icons/polygon.svg", false },
-                    { 5, "Draw circular areas on maps", "Circle", "/icons/circle.svg", false },
-                    { 6, "Add custom markers to maps", "Marker", "/icons/marker.svg", false },
-                    { 7, "Highlight areas on maps", "Highlighter", "/icons/highlighter.svg", false },
-                    { 8, "Add text annotations to maps", "Text", "/icons/text.svg", false },
-                    { 9, "Add notes to map locations", "Note", "/icons/note.svg", false },
-                    { 10, "Add clickable links to map elements", "Link", "/icons/link.svg", false },
-                    { 11, "Embed videos in map popups", "Video", "/icons/video.svg", false },
-                    { 12, "Calculate and display map bounds", "Bounds", "/icons/bounds.svg", true },
-                    { 13, "Create buffer zones around features", "Buffer", "/icons/buffer.svg", true },
-                    { 14, "Calculate centroids of features", "Centroid", "/icons/centroid.svg", true },
-                    { 15, "Dissolve overlapping features", "Dissolve", "/icons/dissolve.svg", true },
-                    { 16, "Clip features to specified boundaries", "Clip", "/icons/clip.svg", true },
-                    { 17, "Count points within areas", "Count Points", "/icons/count-points.svg", true },
-                    { 18, "Find intersections between features", "Intersect", "/icons/intersect.svg", true },
-                    { 19, "Join data from different sources", "Join", "/icons/join.svg", true },
-                    { 20, "Subtract one feature from another", "Subtract", "/icons/subtract.svg", true },
-                    { 21, "Generate statistical analysis", "Statistic", "/icons/statistic.svg", true },
-                    { 22, "Create bar charts from map data", "Bar Chart", "/icons/bar-chart.svg", true },
-                    { 23, "Generate histograms from data", "Histogram", "/icons/histogram.svg", true },
-                    { 24, "Filter map data by criteria", "Filter", "/icons/filter.svg", true },
-                    { 25, "Analyze data over time", "Time Series", "/icons/time-series.svg", true },
-                    { 26, "Search and find features", "Find", "/icons/find.svg", true },
-                    { 27, "Measure distances and areas", "Measure", "/icons/measure.svg", true },
-                    { 28, "Filter by spatial relationships", "Spatial Filter", "/icons/spatial-filter.svg", true },
-                    { 29, "Create custom map extensions", "Custom Extension", "/icons/custom-extension.svg", true },
-                    { 30, "Design custom popup templates", "Custom Popup", "/icons/custom-popup.svg", true },
-                    { 31, "Get AI-powered map suggestions", "AI Suggestion", "/icons/ai-suggestion.svg", true }
-                });
 
             migrationBuilder.InsertData(
                 table: "annotation_types",
@@ -1782,31 +1626,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 });
 
             migrationBuilder.InsertData(
-                table: "layer_sources",
-                columns: new[] { "source_type_id", "name" },
-                values: new object[,]
-                {
-                    { new Guid("00000000-0000-0000-0000-000000000025"), "OpenStreetMap" },
-                    { new Guid("00000000-0000-0000-0000-000000000026"), "UserUploaded" },
-                    { new Guid("00000000-0000-0000-0000-000000000027"), "ExternalAPI" },
-                    { new Guid("00000000-0000-0000-0000-000000000028"), "Database" },
-                    { new Guid("00000000-0000-0000-0000-000000000029"), "WebMapService" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "layer_types",
-                columns: new[] { "layer_type_id", "created_at", "description", "icon_url", "is_active", "type_name" },
-                values: new object[,]
-                {
-                    { 1, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Street and road networks from OpenStreetMap", "/icons/roads.svg", true, "GEOJSON" },
-                    { 2, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Building footprints and structures", "/icons/buildings.svg", true, "KML" },
-                    { 3, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Points of Interest including amenities and landmarks", "/icons/poi.svg", true, "Shapefile" },
-                    { 4, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "User uploaded GeoJSON data layers", "/icons/geojson.svg", true, "GEOJSON" },
-                    { 5, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "User uploaded KML data layers", "/icons/kml.svg", true, "KML" },
-                    { 6, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "User uploaded CSV data with coordinates", "/icons/csv.svg", true, "CSV" }
-                });
-
-            migrationBuilder.InsertData(
                 table: "organization_member_types",
                 columns: new[] { "type_id", "name" },
                 values: new object[,]
@@ -1831,12 +1650,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "plans",
-                columns: new[] { "plan_id", "access_tool_ids", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "max_custom_layers", "max_locations_per_org", "max_maps_per_month", "max_organizations", "max_users_per_org", "monthly_tokens", "plan_name", "price_monthly", "priority_support", "updated_at" },
+                columns: new[] { "plan_id", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "max_custom_layers", "max_locations_per_org", "max_maps_per_month", "max_organizations", "max_users_per_org", "monthly_tokens", "plan_name", "price_monthly", "priority_support", "updated_at" },
                 values: new object[,]
                 {
-                    { 1, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, 5000, "Free", 0.00m, false, null },
-                    { 2, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, 50000, "Pro", 29.99m, true, null },
-                    { 3, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, 200000, "Enterprise", 99.99m, true, null }
+                    { 1, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, 5000, "Free", 0.00m, false, null },
+                    { 2, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, 50000, "Pro", 29.99m, true, null },
+                    { 3, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, 200000, "Enterprise", 99.99m, true, null }
                 });
 
             migrationBuilder.InsertData(
@@ -1849,10 +1668,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     { new Guid("00000000-0000-0000-0000-000000000003"), "Admin" }
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_administrative_zones_parent_zone_id",
-                table: "administrative_zones",
-                column: "parent_zone_id");
+            migrationBuilder.InsertData(
+                table: "users",
+                columns: new[] { "user_id", "account_status", "created_at", "email", "full_name", "last_login", "last_token_reset", "password_hash", "phone", "RoleId" },
+                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(894), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(1128), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", new Guid("00000000-0000-0000-0000-000000000003") });
 
             migrationBuilder.CreateIndex(
                 name: "IX_annotations_map_id",
@@ -1935,26 +1754,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_failed_emails_CreatedAt",
-                table: "failed_emails",
-                column: "CreatedAt");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_failed_emails_Status",
-                table: "failed_emails",
-                column: "Status");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_failed_emails_Status_RetryCount",
-                table: "failed_emails",
-                columns: new[] { "Status", "RetryCount" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_failed_emails_ToEmail",
-                table: "failed_emails",
-                column: "ToEmail");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_layers_map_id",
                 table: "layers",
                 column: "map_id");
@@ -1963,6 +1762,36 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_layers_user_id",
                 table: "layers",
                 column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_animation_preset_id",
+                table: "locations",
+                column: "animation_preset_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_associated_layer_id",
+                table: "locations",
+                column: "associated_layer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_linked_location_id",
+                table: "locations",
+                column: "linked_location_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_map_id",
+                table: "locations",
+                column: "map_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_segment_id",
+                table: "locations",
+                column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_segment_zone_id",
+                table: "locations",
+                column: "segment_zone_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_map_features_created_by",
@@ -1995,86 +1824,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "map_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_map_locations_animation_preset_id",
-                table: "map_locations",
-                column: "animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_locations_associated_layer_id",
-                table: "map_locations",
-                column: "associated_layer_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_locations_linked_location_id",
-                table: "map_locations",
-                column: "linked_location_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_locations_map_id",
-                table: "map_locations",
-                column: "map_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_locations_segment_id",
-                table: "map_locations",
-                column: "segment_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_locations_segment_zone_id",
-                table: "map_locations",
-                column: "segment_zone_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segment_layers_animation_preset_id",
-                table: "map_segment_layers",
-                column: "animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segment_layers_layer_id",
-                table: "map_segment_layers",
-                column: "layer_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segment_layers_segment_id",
-                table: "map_segment_layers",
-                column: "segment_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segment_layers_segment_zone_id",
-                table: "map_segment_layers",
-                column: "segment_zone_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segment_zones_segment_id",
-                table: "map_segment_zones",
-                column: "segment_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segments_created_by",
-                table: "map_segments",
-                column: "created_by");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segments_default_layer_animation_preset_id",
-                table: "map_segments",
-                column: "default_layer_animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segments_entry_animation_preset_id",
-                table: "map_segments",
-                column: "entry_animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segments_exit_animation_preset_id",
-                table: "map_segments",
-                column: "exit_animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_map_segments_map_id",
-                table: "map_segments",
-                column: "map_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_map_zone_selections_created_by",
                 table: "map_zone_selections",
                 column: "created_by");
@@ -2098,17 +1847,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_maps_user_id",
                 table: "maps",
                 column: "user_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_membership_addons_membership_id_org_id_addon_key",
-                table: "membership_addons",
-                columns: new[] { "membership_id", "org_id", "addon_key" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_membership_usages_membership_id_org_id",
-                table: "membership_usages",
-                columns: new[] { "membership_id", "org_id" },
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_memberships_org_id",
@@ -2171,6 +1909,26 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "owner_user_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_segment_layers_animation_preset_id",
+                table: "segment_layers",
+                column: "animation_preset_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segment_layers_layer_id",
+                table: "segment_layers",
+                column: "layer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segment_layers_segment_id",
+                table: "segment_layers",
+                column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segment_layers_segment_zone_id",
+                table: "segment_layers",
+                column: "segment_zone_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_segment_transitions_animation_preset_id",
                 table: "segment_transitions",
                 column: "animation_preset_id");
@@ -2184,6 +1942,46 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_segment_transitions_to_segment_id",
                 table: "segment_transitions",
                 column: "to_segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segment_zones_segment_id",
+                table: "segment_zones",
+                column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segments_CreatorUserId",
+                table: "segments",
+                column: "CreatorUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segments_default_layer_animation_preset_id",
+                table: "segments",
+                column: "default_layer_animation_preset_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segments_entry_animation_preset_id",
+                table: "segments",
+                column: "entry_animation_preset_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segments_exit_animation_preset_id",
+                table: "segments",
+                column: "exit_animation_preset_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segments_map_id",
+                table: "segments",
+                column: "map_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_support_ticket_messages_created_at",
+                table: "support_ticket_messages",
+                column: "created_at");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_support_ticket_messages_ticket_id",
+                table: "support_ticket_messages",
+                column: "ticket_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_support_tickets_user_id",
@@ -2226,16 +2024,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "payment_gateway_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_access_tools_AccessToolId",
-                table: "user_access_tools",
-                column: "AccessToolId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_user_access_tools_UserId",
-                table: "user_access_tools",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_user_favorite_templates_template_id",
                 table: "user_favorite_templates",
                 column: "template_id");
@@ -2264,6 +2052,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_zone_statistics_zone_id",
                 table: "zone_statistics",
                 column: "zone_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_zones_parent_zone_id",
+                table: "zones",
+                column: "parent_zone_id");
         }
 
         /// <inheritdoc />
@@ -2288,16 +2081,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "data_source_bookmarks");
 
             migrationBuilder.DropTable(
-                name: "failed_emails");
-
-            migrationBuilder.DropTable(
                 name: "faqs");
 
             migrationBuilder.DropTable(
-                name: "layer_sources");
-
-            migrationBuilder.DropTable(
-                name: "layer_types");
+                name: "locations");
 
             migrationBuilder.DropTable(
                 name: "map_features");
@@ -2309,16 +2096,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "map_images");
 
             migrationBuilder.DropTable(
-                name: "map_locations");
-
-            migrationBuilder.DropTable(
-                name: "map_segment_layers");
-
-            migrationBuilder.DropTable(
                 name: "map_zone_selections");
-
-            migrationBuilder.DropTable(
-                name: "membership_addons");
 
             migrationBuilder.DropTable(
                 name: "membership_usages");
@@ -2333,19 +2111,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "organization_members");
 
             migrationBuilder.DropTable(
+                name: "segment_layers");
+
+            migrationBuilder.DropTable(
                 name: "segment_transitions");
 
             migrationBuilder.DropTable(
-                name: "support_tickets");
+                name: "support_ticket_messages");
 
             migrationBuilder.DropTable(
                 name: "timeline_step_layers");
 
             migrationBuilder.DropTable(
                 name: "transactions");
-
-            migrationBuilder.DropTable(
-                name: "user_access_tools");
 
             migrationBuilder.DropTable(
                 name: "user_favorite_templates");
@@ -2369,10 +2147,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "collaboration_target_types");
 
             migrationBuilder.DropTable(
-                name: "map_segment_zones");
+                name: "organization_member_types");
 
             migrationBuilder.DropTable(
-                name: "organization_member_types");
+                name: "segment_zones");
+
+            migrationBuilder.DropTable(
+                name: "support_tickets");
 
             migrationBuilder.DropTable(
                 name: "layers");
@@ -2387,13 +2168,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "payment_gateways");
 
             migrationBuilder.DropTable(
-                name: "access_tools");
+                name: "zones");
 
             migrationBuilder.DropTable(
-                name: "administrative_zones");
-
-            migrationBuilder.DropTable(
-                name: "map_segments");
+                name: "segments");
 
             migrationBuilder.DropTable(
                 name: "export_types");

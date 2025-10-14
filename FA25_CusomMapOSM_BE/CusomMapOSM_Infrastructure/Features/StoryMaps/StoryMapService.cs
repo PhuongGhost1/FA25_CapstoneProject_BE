@@ -80,7 +80,7 @@ public class StoryMapService : IStoryMapService
                 l.Metadata)).ToList();
 
             var locations = locationTasks[index].Result.Select(loc => new PoiDto(
-                loc.MapLocationId,
+                loc.LocationId,
                 loc.MapId,
                 loc.SegmentId,
                 loc.SegmentZoneId,
@@ -144,7 +144,7 @@ public class StoryMapService : IStoryMapService
             throw new UnauthorizedAccessException("User is not authenticated");
         }
 
-        var segment = new MapSegment
+        var segment = new Segment
         {
             SegmentId = Guid.NewGuid(),
             MapId = request.MapId,
@@ -246,7 +246,7 @@ public class StoryMapService : IStoryMapService
             l.Metadata)).ToList();
 
         var poiDtos = locations.Select(loc => new PoiDto(
-            loc.MapLocationId,
+            loc.LocationId,
             loc.MapId,
             loc.SegmentId,
             loc.SegmentZoneId,
@@ -339,7 +339,7 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var zone = new MapSegmentZone
+        var zone = new SegmentZone
         {
             SegmentZoneId = Guid.NewGuid(),
             SegmentId = request.SegmentId,
@@ -470,7 +470,7 @@ public class StoryMapService : IStoryMapService
             }
         }
 
-        var layer = new MapSegmentLayer
+        var layer = new SegmentLayer
         {
             SegmentLayerId = Guid.NewGuid(),
             SegmentId = segmentId,

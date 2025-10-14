@@ -5,7 +5,7 @@ using CusomMapOSM_Domain.Entities.Users;
 
 namespace CusomMapOSM_Domain.Entities.Segments;
 
-public class MapSegment
+public class Segment
 {
     public Guid SegmentId { get; set; }
     public Guid MapId { get; set; }

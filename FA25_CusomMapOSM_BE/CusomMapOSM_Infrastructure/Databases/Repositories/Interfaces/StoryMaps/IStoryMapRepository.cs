@@ -10,30 +10,30 @@ public interface IStoryMapRepository
 {
     Task<Map?> GetMapAsync(Guid mapId, CancellationToken ct);
 
-    Task<MapSegment?> GetSegmentAsync(Guid segmentId, CancellationToken ct);
-    Task<List<MapSegment>> GetSegmentsByMapAsync(Guid mapId, CancellationToken ct);
-    Task AddSegmentAsync(MapSegment segment, CancellationToken ct);
-    void UpdateSegment(MapSegment segment);
-    void RemoveSegment(MapSegment segment);
+    Task<Segment?> GetSegmentAsync(Guid segmentId, CancellationToken ct);
+    Task<List<Segment>> GetSegmentsByMapAsync(Guid mapId, CancellationToken ct);
+    Task AddSegmentAsync(Segment segment, CancellationToken ct);
+    void UpdateSegment(Segment segment);
+    void RemoveSegment(Segment segment);
 
-    Task<MapSegmentZone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct);
-    Task<List<MapSegmentZone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct);
-    Task AddSegmentZoneAsync(MapSegmentZone zone, CancellationToken ct);
-    void UpdateSegmentZone(MapSegmentZone zone);
-    void RemoveSegmentZone(MapSegmentZone zone);
+    Task<SegmentZone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct);
+    Task<List<SegmentZone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task AddSegmentZoneAsync(SegmentZone zone, CancellationToken ct);
+    void UpdateSegmentZone(SegmentZone zone);
+    void RemoveSegmentZone(SegmentZone zone);
 
-    Task<MapLocation?> GetLocationAsync(Guid locationId, CancellationToken ct);
-    Task<List<MapLocation>> GetLocationsByMapAsync(Guid mapId, CancellationToken ct);
-    Task<List<MapLocation>> GetLocationsBySegmentAsync(Guid segmentId, CancellationToken ct);
-    Task AddLocationAsync(MapLocation location, CancellationToken ct);
-    void UpdateLocation(MapLocation location);
-    void RemoveLocation(MapLocation location);
+    Task<Location?> GetLocationAsync(Guid locationId, CancellationToken ct);
+    Task<List<Location>> GetLocationsByMapAsync(Guid mapId, CancellationToken ct);
+    Task<List<Location>> GetLocationsBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task AddLocationAsync(Location location, CancellationToken ct);
+    void UpdateLocation(Location location);
+    void RemoveLocation(Location location);
 
-    Task<MapSegmentLayer?> GetSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct);
-    Task<List<MapSegmentLayer>> GetSegmentLayersBySegmentAsync(Guid segmentId, CancellationToken ct);
-    Task AddSegmentLayerAsync(MapSegmentLayer layer, CancellationToken ct);
-    void UpdateSegmentLayer(MapSegmentLayer layer);
-    void RemoveSegmentLayer(MapSegmentLayer layer);
+    Task<SegmentLayer?> GetSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct);
+    Task<List<SegmentLayer>> GetSegmentLayersBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task AddSegmentLayerAsync(SegmentLayer layer, CancellationToken ct);
+    void UpdateSegmentLayer(SegmentLayer layer);
+    void RemoveSegmentLayer(SegmentLayer layer);
 
     Task<TimelineStep?> GetTimelineStepAsync(Guid timelineStepId, CancellationToken ct);
     Task<List<TimelineStep>> GetTimelineByMapAsync(Guid mapId, CancellationToken ct);
@@ -45,7 +45,7 @@ public interface IStoryMapRepository
     void AddTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
     void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
 
-    Task<List<AdministrativeZone>> GetAdministrativeZonesAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
+    Task<List<Zone>> GetAdministrativeZonesAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
     Task<List<ZoneStatistic>> GetZoneStatisticsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
     Task<List<ZoneInsight>> GetZoneInsightsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
 

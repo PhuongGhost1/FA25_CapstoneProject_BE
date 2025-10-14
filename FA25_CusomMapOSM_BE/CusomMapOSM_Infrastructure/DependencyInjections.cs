@@ -145,7 +145,6 @@ public static class DependencyInjections
         services.AddScoped<IMailService, MailService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-        services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
         services.AddScoped<CusomMapOSM_Infrastructure.Services.INotificationService, CusomMapOSM_Infrastructure.Services.NotificationService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
@@ -198,7 +197,7 @@ public static class DependencyInjections
         services.AddHangfireServer(options =>
         {
             options.WorkerCount = Environment.ProcessorCount * 2;
-            options.Queues = new[] { "default", "email", "fallback" };
+            options.Queues = new[] { "default", "email" };
         });
 
         services.AddSingleton<CollaborativeMapService>();
@@ -210,7 +209,6 @@ public static class DependencyInjections
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
 
         // Register background job services

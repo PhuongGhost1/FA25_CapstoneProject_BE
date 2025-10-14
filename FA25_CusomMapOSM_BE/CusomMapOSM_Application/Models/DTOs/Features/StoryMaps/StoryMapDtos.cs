@@ -2,6 +2,7 @@ using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
+using CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 

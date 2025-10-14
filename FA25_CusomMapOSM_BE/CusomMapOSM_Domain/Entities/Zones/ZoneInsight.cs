@@ -18,5 +18,5 @@ public class ZoneInsight
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public AdministrativeZone? Zone { get; set; }
+    public Zone? Zone { get; set; }
 }

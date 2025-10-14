@@ -17,7 +17,7 @@ public class SegmentTransition
     public string? TransitionConfig { get; set; }              // JSON override values
     public string? Metadata { get; set; }
 
-    public MapSegment? FromSegment { get; set; }
-    public MapSegment? ToSegment { get; set; }
+    public Segment? FromSegment { get; set; }
+    public Segment? ToSegment { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
 }

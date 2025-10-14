@@ -17,5 +17,5 @@ public class ZoneStatistic
     public string? Metadata { get; set; }                      // Additional JSON metadata
     public DateTime CollectedAt { get; set; }
 
-    public AdministrativeZone? Zone { get; set; }
+    public Zone? Zone { get; set; }
 }

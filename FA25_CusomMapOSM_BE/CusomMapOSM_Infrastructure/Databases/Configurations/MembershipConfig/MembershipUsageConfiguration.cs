@@ -60,8 +60,6 @@ internal class MembershipUsageConfiguration : IEntityTypeConfiguration<Membershi
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
 
-        builder.HasIndex(u => new { u.MembershipId, u.OrgId })
-            .IsUnique();
     }
 }
 
