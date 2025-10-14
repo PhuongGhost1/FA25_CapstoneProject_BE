@@ -71,6 +71,20 @@ public class MapFeatureRepository : IMapFeatureRepository
         _dbContext.MapFeatures.Remove(existed);
         return await _dbContext.SaveChangesAsync() > 0;
     }
+
+    public async Task<int> DeleteByMap(Guid mapId)
+    {
+        var features = await _dbContext.MapFeatures.Where(f => f.MapId == mapId).ToListAsync();
+        if (features.Count == 0) return 0;
+        _dbContext.MapFeatures.RemoveRange(features);
+        return await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<int> AddRange(IEnumerable<MapFeature> features)
+    {
+        await _dbContext.MapFeatures.AddRangeAsync(features);
+        return await _dbContext.SaveChangesAsync();
+    }
 }
 
 

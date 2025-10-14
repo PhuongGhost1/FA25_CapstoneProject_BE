@@ -1,5 +1,4 @@
 ﻿using CusomMapOSM_Domain.Entities.Advertisements;
-using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Bookmarks;
 using CusomMapOSM_Domain.Entities.Collaborations;
 using CusomMapOSM_Domain.Entities.Comments;
@@ -33,8 +32,6 @@ public class CustomMapOSMDbContext : DbContext
     // DbSet properties for your entities here
     #region DbSet Properties
     public DbSet<Advertisement> Advertisements { get; set; }
-    public DbSet<Annotation> Annotations { get; set; }
-    public DbSet<AnnotationType> AnnotationTypes { get; set; }
     public DbSet<Bookmark> Bookmarks { get; set; }
     public DbSet<DataSourceBookmark> DataSourceBookmarks { get; set; }
     public DbSet<Collaboration> Collaborations { get; set; }
@@ -76,8 +73,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
-    public DbSet<UserFavoriteTemplate> UserFavoriteTemplates { get; set; }
-    public DbSet<UserPreference> UserPreferences { get; set; }
+    
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

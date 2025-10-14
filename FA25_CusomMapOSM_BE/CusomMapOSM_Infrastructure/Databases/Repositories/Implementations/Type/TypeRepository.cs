@@ -1,5 +1,3 @@
-using CusomMapOSM_Domain.Entities.Annotations;
-using CusomMapOSM_Domain.Entities.Annotations.Enums;
 using CusomMapOSM_Domain.Entities.Collaborations;
 using CusomMapOSM_Domain.Entities.Collaborations.Enums;
 using CusomMapOSM_Domain.Entities.Exports;
@@ -24,10 +22,7 @@ public class TypeRepository : ITypeRepository
     {
         _context = context;
     }
-    public async Task<AnnotationType?> GetAnnotationTypeById(AnnotationTypeEnum name)
-    {
-        return await _context.AnnotationTypes.FirstOrDefaultAsync(x => x.TypeName == name.ToString());
-    }
+    // AnnotationType removed; repository no longer serves annotation types
 
     public async Task<CollaborationPermission?> GetCollaborationPermissionById(CollaborationPermissionEnum name)
     {

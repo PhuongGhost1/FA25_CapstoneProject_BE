@@ -38,6 +38,7 @@ public interface IMapRepository
     Task<bool> UpdateLayer(Layer layer);
     Task<Layer?> GetMapLayer(Guid mapId, Guid layerId);
     Task<List<Layer>> GetMapLayers(Guid mapId);
+    Task<List<MapFeature>> GetMapFeatures(Guid mapId);
 
     // Collaboration operations
     Task<bool> ShareMap(Guid mapId, Guid userId, string permission);

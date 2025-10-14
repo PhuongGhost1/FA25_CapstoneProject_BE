@@ -261,6 +261,15 @@ public class MapRepository : IMapRepository
             .ToListAsync();
     }
 
+    public async Task<List<MapFeature>> GetMapFeatures(Guid mapId)
+    {
+        return await _context.MapFeatures
+            .Where(f => f.MapId == mapId)
+            .OrderBy(f => f.ZIndex)
+            .ThenBy(f => f.CreatedAt)
+            .ToListAsync();
+    }
+
     // Collaboration operations
     public async Task<bool> ShareMap(Guid mapId, Guid userId, string permission)
     {

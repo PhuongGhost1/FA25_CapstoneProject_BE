@@ -81,7 +81,10 @@ public class TransactionServiceTests
             PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
-            MembershipId = Guid.NewGuid()
+            UserId = Guid.NewGuid(),
+            OrgId = Guid.NewGuid(),
+            PlanId = 1,
+            AutoRenew = true
         };
 
         var gatewayId = Guid.NewGuid();
@@ -131,7 +134,10 @@ public class TransactionServiceTests
             PaymentGateway = PaymentGatewayEnum.PayOS,
             Total = 99.99m,
             Purpose = "membership",
-            MembershipId = Guid.NewGuid()
+            UserId = Guid.NewGuid(),
+            OrgId = Guid.NewGuid(),
+            PlanId = 1,
+            AutoRenew = true
         };
 
         _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))

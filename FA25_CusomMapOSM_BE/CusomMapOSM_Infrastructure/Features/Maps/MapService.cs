@@ -1,11 +1,11 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
-using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases;
@@ -21,14 +21,16 @@ public class MapService : IMapService
     private readonly IMapRepository _mapRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService; 
+    private readonly IMapHistoryService _mapHistoryService;
 
     public MapService(
         IMapRepository mapRepository,
-        ICurrentUserService currentUserService, ICacheService cacheService)
+        ICurrentUserService currentUserService, ICacheService cacheService, IMapHistoryService mapHistoryService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
+        _mapHistoryService = mapHistoryService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -261,6 +263,10 @@ public class MapService : IMapService
             return Option.None<UpdateMapResponse, Error>(
                 Error.Failure("Map.UpdateFailed", "Failed to update map"));
         }
+
+        // Record snapshot after map update
+        var features = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(features));
 
         return Option.Some<UpdateMapResponse, Error>(new UpdateMapResponse());
     }
@@ -536,6 +542,10 @@ public class MapService : IMapService
                 Error.Failure("Map.AddLayerFailed", "Failed to add layer to map"));
         }
 
+        // Record snapshot after adding layer
+        var featuresAfterAdd = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterAdd));
+
         return Option.Some<AddLayerToMapResponse, Error>(new AddLayerToMapResponse
         {
             MapLayerId = layer.LayerId // Using LayerId since MapLayerId no longer exists
@@ -570,6 +580,10 @@ public class MapService : IMapService
             return Option.None<RemoveLayerFromMapResponse, Error>(
                 Error.Failure("Map.RemoveLayerFailed", "Failed to remove layer from map"));
         }
+
+        // Record snapshot after removing layer
+        var featuresAfterRemove = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterRemove));
 
         return Option.Some<RemoveLayerFromMapResponse, Error>(new RemoveLayerFromMapResponse());
     }
@@ -621,6 +635,10 @@ public class MapService : IMapService
             return Option.None<UpdateMapLayerResponse, Error>(
                 Error.Failure("Map.UpdateLayerFailed", "Failed to update map layer"));
         }
+
+        // Record snapshot after update layer
+        var featuresAfterUpdateLayer = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterUpdateLayer));
 
         return Option.Some<UpdateMapLayerResponse, Error>(new UpdateMapLayerResponse());
     }
@@ -1038,6 +1056,16 @@ public class MapService : IMapService
         }
     }
 
+    public async Task<bool> HasEditPermission(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null) return false;
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null) return false;
+        // Owner can edit; future: check collaboration permissions for editors
+        return map.UserId == currentUserId.Value;
+    }
+
     #region Zone/Feature Operations
 
     public async Task<Option<CopyFeatureToLayerResponse, Error>> CopyFeatureToLayer(
@@ -1191,6 +1219,10 @@ public class MapService : IMapService
                     Error.Failure("Map.UpdateFailed", "Failed to update target layer"));
             }
 
+            // Record snapshot after copy feature
+            var featuresAfterCopy = await _mapRepository.GetMapFeatures(mapId);
+            await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterCopy));
+
             return Option.Some<CopyFeatureToLayerResponse, Error>(new CopyFeatureToLayerResponse
             {
                 Success = true,
@@ -1293,6 +1325,10 @@ public class MapService : IMapService
                     Error.Failure("Map.UpdateFailed", "Failed to update layer"));
             }
 
+            // Record snapshot after delete feature
+            var featuresAfterDelete = await _mapRepository.GetMapFeatures(mapId);
+            await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterDelete));
+
             return Option.Some<bool, Error>(true);
         }
         catch (Exception ex)
@@ -1369,6 +1405,10 @@ public class MapService : IMapService
                     return Option.None<UpdateLayerDataResponse, Error>(
                         Error.Failure("Map.UpdateFailed", "Failed to update layer data"));
                 }
+
+                // Record snapshot after update layer data
+                var featuresAfterUpdateData = await _mapRepository.GetMapFeatures(mapId);
+                await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterUpdateData));
 
                 return Option.Some<UpdateLayerDataResponse, Error>(new UpdateLayerDataResponse
                 {
