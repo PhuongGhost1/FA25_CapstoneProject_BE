@@ -18,26 +18,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "access_tools",
-                columns: table => new
-                {
-                    access_tool_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    access_tool_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    access_tool_description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    icon_url = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    required_membership = table.Column<bool>(type: "tinyint(1)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_access_tools", x => x.access_tool_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "advertisements",
                 columns: table => new
                 {
@@ -174,30 +154,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "membership_addons",
-                columns: table => new
-                {
-                    addon_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    membership_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    org_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    addon_key = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    quantity = table.Column<int>(type: "int", nullable: true),
-                    feature_payload = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    purchased_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    effective_from = table.Column<DateTime>(type: "datetime", nullable: true),
-                    effective_until = table.Column<DateTime>(type: "datetime", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_membership_addons", x => x.addon_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "membership_usages",
                 columns: table => new
                 {
@@ -270,8 +226,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     monthly_tokens = table.Column<int>(type: "int", nullable: false, defaultValue: 10000),
                     priority_support = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     features = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    access_tool_ids = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false),
@@ -604,35 +558,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "user_access_tools",
-                columns: table => new
-                {
-                    user_access_tool_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    AccessToolId = table.Column<int>(type: "int", nullable: false),
-                    granted_at = table.Column<DateTime>(type: "datetime", nullable: false),
-                    ExpiredAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_user_access_tools", x => x.user_access_tool_id);
-                    table.ForeignKey(
-                        name: "FK_user_access_tools_access_tools_AccessToolId",
-                        column: x => x.AccessToolId,
-                        principalTable: "access_tools",
-                        principalColumn: "access_tool_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_user_access_tools_users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "users",
-                        principalColumn: "user_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "user_preferences",
                 columns: table => new
                 {
@@ -830,6 +755,30 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         column: x => x.user_id,
                         principalTable: "users",
                         principalColumn: "user_id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "support_ticket_messages",
+                columns: table => new
+                {
+                    message_id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ticket_id = table.Column<int>(type: "int", nullable: false),
+                    message = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    is_from_user = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_support_ticket_messages", x => x.message_id);
+                    table.ForeignKey(
+                        name: "FK_support_ticket_messages_support_tickets_ticket_id",
+                        column: x => x.ticket_id,
+                        principalTable: "support_tickets",
+                        principalColumn: "ticket_id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -1613,44 +1562,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.InsertData(
-                table: "access_tools",
-                columns: new[] { "access_tool_id", "access_tool_description", "access_tool_name", "icon_url", "required_membership" },
-                values: new object[,]
-                {
-                    { 1, "Add pin markers to maps", "Pin", "/icons/pin.svg", false },
-                    { 2, "Draw lines on maps", "Line", "/icons/line.svg", false },
-                    { 3, "Create and display routes", "Route", "/icons/route.svg", false },
-                    { 4, "Draw polygon shapes on maps", "Polygon", "/icons/polygon.svg", false },
-                    { 5, "Draw circular areas on maps", "Circle", "/icons/circle.svg", false },
-                    { 6, "Add custom markers to maps", "Marker", "/icons/marker.svg", false },
-                    { 7, "Highlight areas on maps", "Highlighter", "/icons/highlighter.svg", false },
-                    { 8, "Add text annotations to maps", "Text", "/icons/text.svg", false },
-                    { 9, "Add notes to map locations", "Note", "/icons/note.svg", false },
-                    { 10, "Add clickable links to map elements", "Link", "/icons/link.svg", false },
-                    { 11, "Embed videos in map popups", "Video", "/icons/video.svg", false },
-                    { 12, "Calculate and display map bounds", "Bounds", "/icons/bounds.svg", true },
-                    { 13, "Create buffer zones around features", "Buffer", "/icons/buffer.svg", true },
-                    { 14, "Calculate centroids of features", "Centroid", "/icons/centroid.svg", true },
-                    { 15, "Dissolve overlapping features", "Dissolve", "/icons/dissolve.svg", true },
-                    { 16, "Clip features to specified boundaries", "Clip", "/icons/clip.svg", true },
-                    { 17, "Count points within areas", "Count Points", "/icons/count-points.svg", true },
-                    { 18, "Find intersections between features", "Intersect", "/icons/intersect.svg", true },
-                    { 19, "Join data from different sources", "Join", "/icons/join.svg", true },
-                    { 20, "Subtract one feature from another", "Subtract", "/icons/subtract.svg", true },
-                    { 21, "Generate statistical analysis", "Statistic", "/icons/statistic.svg", true },
-                    { 22, "Create bar charts from map data", "Bar Chart", "/icons/bar-chart.svg", true },
-                    { 23, "Generate histograms from data", "Histogram", "/icons/histogram.svg", true },
-                    { 24, "Filter map data by criteria", "Filter", "/icons/filter.svg", true },
-                    { 25, "Analyze data over time", "Time Series", "/icons/time-series.svg", true },
-                    { 26, "Search and find features", "Find", "/icons/find.svg", true },
-                    { 27, "Measure distances and areas", "Measure", "/icons/measure.svg", true },
-                    { 28, "Filter by spatial relationships", "Spatial Filter", "/icons/spatial-filter.svg", true },
-                    { 29, "Create custom map extensions", "Custom Extension", "/icons/custom-extension.svg", true },
-                    { 30, "Design custom popup templates", "Custom Popup", "/icons/custom-popup.svg", true },
-                    { 31, "Get AI-powered map suggestions", "AI Suggestion", "/icons/ai-suggestion.svg", true }
-                });
-
-            migrationBuilder.InsertData(
                 table: "annotation_types",
                 columns: new[] { "type_id", "type_name" },
                 values: new object[,]
@@ -1739,12 +1650,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "plans",
-                columns: new[] { "plan_id", "access_tool_ids", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "max_custom_layers", "max_locations_per_org", "max_maps_per_month", "max_organizations", "max_users_per_org", "monthly_tokens", "plan_name", "price_monthly", "priority_support", "updated_at" },
+                columns: new[] { "plan_id", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "max_custom_layers", "max_locations_per_org", "max_maps_per_month", "max_organizations", "max_users_per_org", "monthly_tokens", "plan_name", "price_monthly", "priority_support", "updated_at" },
                 values: new object[,]
                 {
-                    { 1, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, 5000, "Free", 0.00m, false, null },
-                    { 2, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, 50000, "Pro", 29.99m, true, null },
-                    { 3, "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]", new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, 200000, "Enterprise", 99.99m, true, null }
+                    { 1, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 3, 1, 5, 1, 1, 5000, "Free", 0.00m, false, null },
+                    { 2, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 50, 20, 100, 5, 20, 50000, "Pro", 29.99m, true, null },
+                    { 3, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, -1, -1, -1, -1, -1, 200000, "Enterprise", 99.99m, true, null }
                 });
 
             migrationBuilder.InsertData(
@@ -1756,6 +1667,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     { new Guid("00000000-0000-0000-0000-000000000002"), "RegisteredUser" },
                     { new Guid("00000000-0000-0000-0000-000000000003"), "Admin" }
                 });
+
+            migrationBuilder.InsertData(
+                table: "users",
+                columns: new[] { "user_id", "account_status", "created_at", "email", "full_name", "last_login", "last_token_reset", "password_hash", "phone", "RoleId" },
+                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(894), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(1128), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", new Guid("00000000-0000-0000-0000-000000000003") });
 
             migrationBuilder.CreateIndex(
                 name: "IX_annotations_map_id",
@@ -2058,6 +1974,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "map_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_support_ticket_messages_created_at",
+                table: "support_ticket_messages",
+                column: "created_at");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_support_ticket_messages_ticket_id",
+                table: "support_ticket_messages",
+                column: "ticket_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_support_tickets_user_id",
                 table: "support_tickets",
                 column: "user_id");
@@ -2096,16 +2022,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_transactions_payment_gateway_id",
                 table: "transactions",
                 column: "payment_gateway_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_user_access_tools_AccessToolId",
-                table: "user_access_tools",
-                column: "AccessToolId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_user_access_tools_UserId",
-                table: "user_access_tools",
-                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_user_favorite_templates_template_id",
@@ -2183,9 +2099,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "map_zone_selections");
 
             migrationBuilder.DropTable(
-                name: "membership_addons");
-
-            migrationBuilder.DropTable(
                 name: "membership_usages");
 
             migrationBuilder.DropTable(
@@ -2204,16 +2117,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "segment_transitions");
 
             migrationBuilder.DropTable(
-                name: "support_tickets");
+                name: "support_ticket_messages");
 
             migrationBuilder.DropTable(
                 name: "timeline_step_layers");
 
             migrationBuilder.DropTable(
                 name: "transactions");
-
-            migrationBuilder.DropTable(
-                name: "user_access_tools");
 
             migrationBuilder.DropTable(
                 name: "user_favorite_templates");
@@ -2243,6 +2153,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "segment_zones");
 
             migrationBuilder.DropTable(
+                name: "support_tickets");
+
+            migrationBuilder.DropTable(
                 name: "layers");
 
             migrationBuilder.DropTable(
@@ -2253,9 +2166,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "payment_gateways");
-
-            migrationBuilder.DropTable(
-                name: "access_tools");
 
             migrationBuilder.DropTable(
                 name: "zones");

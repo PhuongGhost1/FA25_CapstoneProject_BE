@@ -2510,10 +2510,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(74),
+                            CreatedAt = new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(894),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(367),
+                            LastTokenReset = new DateTime(2025, 10, 14, 7, 1, 11, 866, DateTimeKind.Utc).AddTicks(1128),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",
