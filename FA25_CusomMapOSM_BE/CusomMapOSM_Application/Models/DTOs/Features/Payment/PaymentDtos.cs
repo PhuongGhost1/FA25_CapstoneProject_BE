@@ -60,6 +60,5 @@ public record PaymentConfirmationResponse
     public required string Status { get; set; }
     public required string Message { get; set; }
     public bool MembershipUpdated { get; set; }
-    public bool AccessToolsGranted { get; set; }
     public bool NotificationSent { get; set; }
 }

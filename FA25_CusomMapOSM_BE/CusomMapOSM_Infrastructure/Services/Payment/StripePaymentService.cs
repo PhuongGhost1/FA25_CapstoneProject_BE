@@ -37,43 +37,7 @@ public class StripePaymentService : IPaymentService
         };
 
         // Determine line items based on purpose
-        if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey) && request.Quantity.HasValue && request.Quantity.Value > 1)
-        {
-            // Multi-quantity addon purchase
-            var unitPrice = (long)((request.Total / request.Quantity.Value) * 100);
-            options.LineItems.Add(new SessionLineItemOptions
-            {
-                PriceData = new SessionLineItemPriceDataOptions
-                {
-                    Currency = "usd",
-                    UnitAmount = unitPrice,
-                    ProductData = new SessionLineItemPriceDataProductDataOptions
-                    {
-                        Name = $"CustomMapOSM Addon: {request.AddonKey}"
-                    }
-                },
-                Quantity = request.Quantity.Value
-            });
-        }
-        else if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
-        {
-            // Single addon purchase
-            var unitPrice = (long)((request.Total / (request.Quantity ?? 1)) * 100);
-            options.LineItems.Add(new SessionLineItemOptions
-            {
-                PriceData = new SessionLineItemPriceDataOptions
-                {
-                    Currency = "usd",
-                    UnitAmount = unitPrice,
-                    ProductData = new SessionLineItemPriceDataProductDataOptions
-                    {
-                        Name = $"CustomMapOSM Addon: {request.AddonKey}"
-                    }
-                },
-                Quantity = request.Quantity ?? 1
-            });
-        }
-        else
+        if (request.Purpose?.ToLower() == "membership")
         {
             // Membership purchase (default)
             options.LineItems.Add(new SessionLineItemOptions

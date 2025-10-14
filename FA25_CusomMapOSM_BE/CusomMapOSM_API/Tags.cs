@@ -10,7 +10,6 @@ internal static class Tags
     internal const string User = "User";
     internal const string Authentication = "Authentication";
     internal const string Transaction = "Transaction";
-    internal const string UserAccessTool = "UserAccessTool";
     internal const string Notification = "Notification";
     internal const string Usage = "Usage";
     internal const string Payment = "Payment";

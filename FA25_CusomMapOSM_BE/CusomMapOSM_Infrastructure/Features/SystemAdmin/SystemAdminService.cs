@@ -3,12 +3,14 @@ using CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SystemAdmin;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.OrganizationAdmin;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using Optional;
 using Optional.Unsafe;
 using CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
 using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Infrastructure.Databases;
+using System.Text.Json;
 
 namespace CusomMapOSM_Infrastructure.Features.SystemAdmin;
 
@@ -16,13 +18,16 @@ public class SystemAdminService : ISystemAdminService
 {
     private readonly ISystemAdminRepository _systemAdminRepository;
     private readonly IOrganizationAdminRepository _organizationAdminRepository;
+    private readonly INotificationService _notificationService;
 
     public SystemAdminService(
         ISystemAdminRepository systemAdminRepository,
-        IOrganizationAdminRepository organizationAdminRepository)
+        IOrganizationAdminRepository organizationAdminRepository,
+        INotificationService notificationService)
     {
         _systemAdminRepository = systemAdminRepository;
         _organizationAdminRepository = organizationAdminRepository;
+        _notificationService = notificationService;
     }
 
     // System User Management
@@ -563,14 +568,19 @@ public class SystemAdminService : ISystemAdminService
     {
         try
         {
-            // Would need to implement support ticket system
+            var tickets = await _systemAdminRepository.GetAllSupportTicketsAsync(page, pageSize, status, priority, category, ct);
+            var totalCount = await _systemAdminRepository.GetTotalSupportTicketsCountAsync(status, priority, category, ct);
+
+            // Convert objects to DTOs (placeholder implementation)
+            var ticketDtos = tickets.Cast<SystemSupportTicketDto>().ToList();
+
             return Option.Some<SystemSupportTicketListResponse, Error>(new SystemSupportTicketListResponse
             {
-                Tickets = new List<SystemSupportTicketDto>(),
-                TotalCount = 0,
+                Tickets = ticketDtos,
+                TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize,
-                TotalPages = 0
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
             });
         }
         catch (Exception ex)
@@ -579,12 +589,16 @@ public class SystemAdminService : ISystemAdminService
         }
     }
 
-    public async Task<Option<SystemSupportTicketDto, Error>> GetSupportTicketDetailsAsync(Guid ticketId, CancellationToken ct = default)
+    public async Task<Option<SystemSupportTicketDto, Error>> GetSupportTicketDetailsAsync(int ticketId, CancellationToken ct = default)
     {
         try
         {
-            // Would need to implement support ticket system
-            return Option.None<SystemSupportTicketDto, Error>(Error.NotFound("Ticket.NotFound", "Support ticket not found"));
+            var ticket = await _systemAdminRepository.GetSupportTicketByIdAsync(ticketId, ct);
+            if (ticket == null)
+            {
+                return Option.None<SystemSupportTicketDto, Error>(Error.NotFound("Ticket.NotFound", "Support ticket not found"));
+            }
+            return Option.Some<SystemSupportTicketDto, Error>((SystemSupportTicketDto)ticket);
         }
         catch (Exception ex)
         {
@@ -592,25 +606,76 @@ public class SystemAdminService : ISystemAdminService
         }
     }
 
-    public async Task<Option<UpdateSupportTicketResponse, Error>> UpdateSupportTicketAsync(UpdateSupportTicketRequest request, CancellationToken ct = default)
+    public async Task<Option<SystemAdminUpdateSupportTicketResponse, Error>> UpdateSupportTicketAsync(SystemAdminUpdateSupportTicketRequest request, CancellationToken ct = default)
     {
         try
         {
-            // Would need to implement support ticket system
-            return Option.None<UpdateSupportTicketResponse, Error>(Error.Failure("SystemAdmin.SupportTicketUpdateFailed", "Support ticket system not implemented"));
+            // Get ticket details before updating
+            var ticket = await _systemAdminRepository.GetSupportTicketByIdAsync(request.TicketId, ct);
+            if (ticket == null)
+            {
+                return Option.None<SystemAdminUpdateSupportTicketResponse, Error>(Error.NotFound("Ticket.NotFound", "Support ticket not found"));
+            }
+
+            var updates = new Dictionary<string, object>();
+            if (!string.IsNullOrEmpty(request.Status)) updates["Status"] = request.Status;
+            if (!string.IsNullOrEmpty(request.Priority)) updates["Priority"] = request.Priority;
+            if (request.AssignedToUserId.HasValue) updates["AssignedToUserId"] = request.AssignedToUserId.Value;
+            if (!string.IsNullOrEmpty(request.Response)) updates["Response"] = request.Response;
+
+            var success = await _systemAdminRepository.UpdateSupportTicketAsync(request.TicketId, updates, ct);
+
+            if (success)
+            {
+                // Send notification to user about ticket update
+                var notificationMessage = $"Your support ticket #{request.TicketId} has been updated. Please check the latest status.";
+                await _notificationService.CreateNotificationAsync(
+                    ((SystemSupportTicketDto)ticket).UserId,
+                    "SupportTicketUpdated",
+                    notificationMessage,
+                    JsonSerializer.Serialize(new { ticketId = request.TicketId, updates = updates }),
+                    ct);
+            }
+
+            return Option.Some<SystemAdminUpdateSupportTicketResponse, Error>(new SystemAdminUpdateSupportTicketResponse
+            {
+                TicketId = request.TicketId,
+                Message = "Support ticket updated successfully",
+                UpdatedAt = DateTime.UtcNow
+            });
         }
         catch (Exception ex)
         {
-            return Option.None<UpdateSupportTicketResponse, Error>(Error.Failure("SystemAdmin.SupportTicketUpdateFailed", $"Failed to update support ticket: {ex.Message}"));
+            return Option.None<SystemAdminUpdateSupportTicketResponse, Error>(Error.Failure("SystemAdmin.SupportTicketUpdateFailed", $"Failed to update support ticket: {ex.Message}"));
         }
     }
 
-    public async Task<Option<bool, Error>> CloseSupportTicketAsync(Guid ticketId, string resolution, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> CloseSupportTicketAsync(int ticketId, string resolution, CancellationToken ct = default)
     {
         try
         {
-            // Would need to implement support ticket system
-            return Option.Some<bool, Error>(true);
+            // Get ticket details before closing
+            var ticket = await _systemAdminRepository.GetSupportTicketByIdAsync(ticketId, ct);
+            if (ticket == null)
+            {
+                return Option.None<bool, Error>(Error.NotFound("Ticket.NotFound", "Support ticket not found"));
+            }
+
+            var success = await _systemAdminRepository.CloseSupportTicketAsync(ticketId, resolution, ct);
+
+            if (success)
+            {
+                // Send notification to user about ticket closure
+                var notificationMessage = $"Your support ticket #{ticketId} has been closed with resolution: {resolution}";
+                await _notificationService.CreateNotificationAsync(
+                    ((SystemSupportTicketDto)ticket).UserId,
+                    "SupportTicketClosed",
+                    notificationMessage,
+                    JsonSerializer.Serialize(new { ticketId = ticketId, resolution = resolution }),
+                    ct);
+            }
+
+            return Option.Some<bool, Error>(success);
         }
         catch (Exception ex)
         {
@@ -618,12 +683,32 @@ public class SystemAdminService : ISystemAdminService
         }
     }
 
-    public async Task<Option<bool, Error>> AssignSupportTicketAsync(Guid ticketId, Guid assignedToUserId, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> AssignSupportTicketAsync(int ticketId, Guid assignedToUserId, CancellationToken ct = default)
     {
         try
         {
-            // Would need to implement support ticket system
-            return Option.Some<bool, Error>(true);
+            // Get ticket details before assigning
+            var ticket = await _systemAdminRepository.GetSupportTicketByIdAsync(ticketId, ct);
+            if (ticket == null)
+            {
+                return Option.None<bool, Error>(Error.NotFound("Ticket.NotFound", "Support ticket not found"));
+            }
+
+            var success = await _systemAdminRepository.AssignSupportTicketAsync(ticketId, assignedToUserId, ct);
+
+            if (success)
+            {
+                // Send notification to user about ticket assignment
+                var notificationMessage = $"Your support ticket #{ticketId} has been assigned to a support agent and is being reviewed.";
+                await _notificationService.CreateNotificationAsync(
+                    ((SystemSupportTicketDto)ticket).UserId,
+                    "SupportTicketAssigned",
+                    notificationMessage,
+                    JsonSerializer.Serialize(new { ticketId = ticketId, assignedToUserId = assignedToUserId }),
+                    ct);
+            }
+
+            return Option.Some<bool, Error>(success);
         }
         catch (Exception ex)
         {
@@ -631,11 +716,11 @@ public class SystemAdminService : ISystemAdminService
         }
     }
 
-    public async Task<Option<bool, Error>> EscalateSupportTicketAsync(Guid ticketId, string reason, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> EscalateSupportTicketAsync(int ticketId, string reason, CancellationToken ct = default)
     {
         try
         {
-            // Would need to implement support ticket system
+            var success = await _systemAdminRepository.EscalateSupportTicketAsync(ticketId, reason, ct);
             return Option.Some<bool, Error>(true);
         }
         catch (Exception ex)
@@ -1020,8 +1105,7 @@ public class SystemAdminService : ISystemAdminService
         try
         {
             var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
-            // Would need to implement role-based authorization
-            return Option.Some<bool, Error>(user?.Role.RoleId == SeedDataConstants.AdminRoleId || user?.Role.RoleId == SeedDataConstants.AdminRoleId);
+            return Option.Some<bool, Error>(user?.RoleId == SeedDataConstants.AdminRoleId);
         }
         catch (Exception ex)
         {
@@ -1035,7 +1119,7 @@ public class SystemAdminService : ISystemAdminService
         {
             var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
             // Would need to implement role-based authorization
-            return Option.Some<bool, Error>(user?.Role.RoleId == SeedDataConstants.AdminRoleId);
+            return Option.Some<bool, Error>(user?.RoleId == SeedDataConstants.AdminRoleId);
         }
         catch (Exception ex)
         {

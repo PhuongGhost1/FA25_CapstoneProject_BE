@@ -19,5 +19,5 @@ public class Notification
     public bool IsRead { get; set; } = false;
     public string? Metadata { get; set; } // JSON for additional data like quota details
 
-    public User User { get; set; } = new();
+    public User? User { get; set; }
 }

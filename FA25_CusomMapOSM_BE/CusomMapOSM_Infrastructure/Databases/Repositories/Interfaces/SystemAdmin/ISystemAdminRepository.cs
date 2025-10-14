@@ -66,10 +66,11 @@ public interface ISystemAdminRepository
     // Support Ticket Management (would need to implement support ticket entities)
     Task<List<object>> GetAllSupportTicketsAsync(int page = 1, int pageSize = 20, string? status = null, string? priority = null, string? category = null, CancellationToken ct = default);
     Task<int> GetTotalSupportTicketsCountAsync(string? status = null, string? priority = null, string? category = null, CancellationToken ct = default);
-    Task<object?> GetSupportTicketByIdAsync(Guid ticketId, CancellationToken ct = default);
-    Task<bool> UpdateSupportTicketAsync(Guid ticketId, Dictionary<string, object> updates, CancellationToken ct = default);
-    Task<bool> CloseSupportTicketAsync(Guid ticketId, string resolution, CancellationToken ct = default);
-    Task<bool> AssignSupportTicketAsync(Guid ticketId, Guid assignedToUserId, CancellationToken ct = default);
+    Task<object?> GetSupportTicketByIdAsync(int ticketId, CancellationToken ct = default);
+    Task<bool> UpdateSupportTicketAsync(int ticketId, Dictionary<string, object> updates, CancellationToken ct = default);
+    Task<bool> CloseSupportTicketAsync(int ticketId, string resolution, CancellationToken ct = default);
+    Task<bool> AssignSupportTicketAsync(int ticketId, Guid assignedToUserId, CancellationToken ct = default);
+    Task<bool> EscalateSupportTicketAsync(int ticketId, string reason, CancellationToken ct = default);
 
     // System Analytics
     Task<Dictionary<string, object>> GetSystemAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);

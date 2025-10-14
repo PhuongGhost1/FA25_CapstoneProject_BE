@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251011111619_UpdateDatabase_RemoveMembershipAddonsEntity")]
+    partial class UpdateDatabase_RemoveMembershipAddonsEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2330,45 +2333,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("support_tickets", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.SupportTicketMessage", b =>
-                {
-                    b.Property<int>("MessageId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("message_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MessageId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsFromUser")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_from_user");
-
-                    b.Property<string>("Message")
-                        .HasMaxLength(4000)
-                        .HasColumnType("varchar(4000)")
-                        .HasColumnName("message");
-
-                    b.Property<int>("TicketId")
-                        .HasColumnType("int")
-                        .HasColumnName("ticket_id");
-
-                    b.HasKey("MessageId");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_support_ticket_messages_created_at");
-
-                    b.HasIndex("TicketId")
-                        .HasDatabaseName("IX_support_ticket_messages_ticket_id");
-
-                    b.ToTable("support_ticket_messages", (string)null);
-                });
-
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.TimelineStep", b =>
                 {
                     b.Property<Guid>("TimelineStepId")
@@ -2684,10 +2648,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(74),
+                            CreatedAt = new DateTime(2025, 10, 11, 11, 16, 18, 233, DateTimeKind.Utc).AddTicks(386),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(367),
+                            LastTokenReset = new DateTime(2025, 10, 11, 11, 16, 18, 233, DateTimeKind.Utc).AddTicks(619),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",
@@ -3624,17 +3588,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.SupportTicketMessage", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Tickets.SupportTicket", "SupportTicket")
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SupportTicket");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.TimelineStep", b =>

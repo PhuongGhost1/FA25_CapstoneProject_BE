@@ -150,35 +150,7 @@ public class PayOSPaymentService : IPaymentService
             string description;
             object[] items;
 
-            if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey) && request.Quantity.HasValue && request.Quantity.Value > 1)
-            {
-                // Multi-quantity addon purchase
-                description = $"Addon: {request.AddonKey} x{request.Quantity}";
-                items = new[]
-                {
-                    new
-                    {
-                        name = $"CustomMapOSM Addon: {request.AddonKey}",
-                        quantity = request.Quantity.Value,
-                        price = amountInVND / request.Quantity.Value // Price per unit
-                    }
-                };
-            }
-            else if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
-            {
-                // Single addon purchase
-                description = $"Addon: {request.AddonKey}";
-                items = new[]
-                {
-                    new
-                    {
-                        name = $"CustomMapOSM Addon: {request.AddonKey}",
-                        quantity = request.Quantity ?? 1,
-                        price = amountInVND / (request.Quantity ?? 1)
-                    }
-                };
-            }
-            else
+            if (request.Purpose?.ToLower() == "membership")
             {
                 // Membership purchase (default)
                 description = "CustomMapOSM Membership";
@@ -187,6 +159,20 @@ public class PayOSPaymentService : IPaymentService
                     new
                     {
                         name = "CustomMapOSM Membership",
+                        quantity = 1,
+                        price = amountInVND
+                    }
+                };
+            }
+            else
+            {
+                // Default case for other purposes
+                description = "CustomMapOSM Service";
+                items = new[]
+                {
+                    new
+                    {
+                        name = "CustomMapOSM Service",
                         quantity = 1,
                         price = amountInVND
                     }
