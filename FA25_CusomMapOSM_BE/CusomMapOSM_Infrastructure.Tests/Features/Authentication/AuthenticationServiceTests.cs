@@ -30,7 +30,6 @@ public class AuthenticationServiceTests
     private readonly Mock<IMailService> _mockMailService;
     private readonly Mock<IRedisCacheService> _mockRedisCacheService;
     private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
-    private readonly Mock<IUserAccessToolService> _mockUserAccessToolService;
     private readonly AuthenticationService _authenticationService;
     private readonly Faker _faker;
 
@@ -42,15 +41,13 @@ public class AuthenticationServiceTests
         _mockMailService = new Mock<IMailService>();
         _mockRedisCacheService = new Mock<IRedisCacheService>();
         _mockHangfireEmailService = new Mock<HangfireEmailService>();
-        _mockUserAccessToolService = new Mock<IUserAccessToolService>();
 
         _authenticationService = new AuthenticationService(
             _mockAuthenticationRepository.Object,
             _mockJwtService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockHangfireEmailService.Object,
-            _mockUserAccessToolService.Object
+            _mockHangfireEmailService.Object
             );
 
         _faker = new Faker();
@@ -71,7 +68,6 @@ public class AuthenticationServiceTests
             .RuleFor(u => u.PasswordHash, "hashed_password")
             .RuleFor(u => u.FullName, f => f.Name.FullName())
             .RuleFor(u => u.RoleId, Guid.NewGuid())
-            .RuleFor(u => u.AccountStatusId, Guid.NewGuid())
             .Generate();
 
         var token = "valid_jwt_token";
@@ -202,7 +198,6 @@ public class AuthenticationServiceTests
         var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, userId)
             .RuleFor(u => u.Email, f => f.Internet.Email())
-            .RuleFor(u => u.AccountStatusId, Guid.NewGuid())
             .Generate();
 
         var inactiveStatus = new Faker<DomainUsers.AccountStatus>()
@@ -212,10 +207,7 @@ public class AuthenticationServiceTests
 
         _mockAuthenticationRepository.Setup(x => x.GetUserById(userId))
             .ReturnsAsync(user);
-
-        _mockTypeRepository.Setup(x => x.GetAccountStatusById(AccountStatusEnum.Inactive))
-            .ReturnsAsync(inactiveStatus);
-
+        
         _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<DomainUsers.User>()))
             .ReturnsAsync(true);
 
@@ -228,9 +220,7 @@ public class AuthenticationServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Logout successfully");
-
-        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<DomainUsers.User>(u =>
-            u.AccountStatusId == inactiveStatus.StatusId)), Times.Once);
+        
     }
 
     [Fact]
@@ -281,9 +271,6 @@ public class AuthenticationServiceTests
         _mockTypeRepository.Setup(x => x.GetUserRoleById(UserRoleEnum.RegisteredUser))
             .ReturnsAsync(userRole);
 
-        _mockTypeRepository.Setup(x => x.GetAccountStatusById(AccountStatusEnum.PendingVerification))
-            .ReturnsAsync(accountStatus);
-
         _mockJwtService.Setup(x => x.HashObject<string>(request.Password))
             .Returns("hashed_password");
 
@@ -309,8 +296,7 @@ public class AuthenticationServiceTests
         _mockAuthenticationRepository.Verify(x => x.Register(It.Is<DomainUsers.User>(u =>
             u.Email == request.Email &&
             u.FullName == $"{request.FirstName} {request.LastName}" &&
-            u.RoleId == userRole.RoleId &&
-            u.AccountStatusId == accountStatus.StatusId)), Times.Once);
+            u.RoleId == userRole.RoleId)), Times.Once);
     }
 
     [Fact]
@@ -378,7 +364,6 @@ public class AuthenticationServiceTests
         var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, email)
-            .RuleFor(u => u.AccountStatusId, Guid.NewGuid())
             .Generate();
 
         var activeStatus = new Faker<DomainUsers.AccountStatus>()
@@ -392,9 +377,6 @@ public class AuthenticationServiceTests
         _mockAuthenticationRepository.Setup(x => x.GetUserByEmail(email))
             .ReturnsAsync(user);
 
-        _mockTypeRepository.Setup(x => x.GetAccountStatusById(AccountStatusEnum.Active))
-            .ReturnsAsync(activeStatus);
-
         _mockAuthenticationRepository.Setup(x => x.UpdateUser(It.IsAny<DomainUsers.User>()))
             .ReturnsAsync(true);
 
@@ -407,9 +389,7 @@ public class AuthenticationServiceTests
         // Assert
         result.HasValue.Should().BeTrue();
         result.ValueOrFailure().Result.Should().Be("Email verified successfully");
-
-        _mockAuthenticationRepository.Verify(x => x.UpdateUser(It.Is<DomainUsers.User>(u =>
-            u.AccountStatusId == activeStatus.StatusId)), Times.Once);
+        
     }
 
     [Fact]

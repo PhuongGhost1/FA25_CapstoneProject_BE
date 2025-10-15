@@ -33,4 +33,15 @@ public interface IMapService
     // Map Template Creation from GeoJSON
     Task<Option<CreateMapTemplateFromGeoJsonResponse, Error>> CreateMapTemplateFromGeoJson(CreateMapTemplateFromGeoJsonRequest req);
     Task<Option<string, Error>> GetLayerData(Guid templateId, Guid layerId);
+    
+    // Zone/Feature Operations
+    Task<Option<CopyFeatureToLayerResponse, Error>> CopyFeatureToLayer(Guid mapId, Guid sourceLayerId, CopyFeatureToLayerRequest req);
+    Task<Option<bool, Error>> DeleteFeatureFromLayer(Guid mapId, Guid layerId, int featureIndex);
+    Task<Option<UpdateLayerDataResponse, Error>> UpdateLayerData(Guid mapId, Guid layerId, UpdateLayerDataRequest req);
+    
+    // Layer Operations
+    Task<Option<List<LayerInfoResponse>, Error>> GetMapLayers(Guid mapId);
+
+    // Permissions
+    Task<bool> HasEditPermission(Guid mapId);
 }

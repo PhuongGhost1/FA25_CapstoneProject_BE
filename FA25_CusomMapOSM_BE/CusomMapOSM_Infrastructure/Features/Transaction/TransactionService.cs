@@ -12,6 +12,11 @@ using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Infrastructure.Services;
+using Microsoft.Extensions.Logging;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
@@ -22,8 +27,6 @@ public class TransactionContext
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
     public Guid? MembershipId { get; set; }
-    public string? AddonKey { get; set; }
-    public int? Quantity { get; set; }
 }
 
 public class TransactionService : ITransactionService
@@ -31,34 +34,63 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentService _paymentService;
     private readonly IMembershipService _membershipService;
-    private readonly IUserAccessToolService _userAccessToolService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
-    public TransactionService(ITransactionRepository transactionRepository, IPaymentService paymentService, IMembershipService membershipService, IUserAccessToolService userAccessToolService, IServiceProvider serviceProvider, IPaymentGatewayRepository paymentGatewayRepository)
+    private readonly HangfireEmailService _hangfireEmailService;
+    private readonly INotificationService _notificationService;
+    private readonly IUserRepository _userRepository;
+    private readonly IMembershipRepository _membershipRepository;
+    private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly ILogger<TransactionService> _logger;
+
+    public TransactionService(
+        ITransactionRepository transactionRepository,
+        IPaymentService paymentService,
+        IMembershipService membershipService,
+        IServiceProvider serviceProvider,
+        IPaymentGatewayRepository paymentGatewayRepository,
+        HangfireEmailService hangfireEmailService,
+        INotificationService notificationService,
+        IUserRepository userRepository,
+        IMembershipRepository membershipRepository,
+        IMembershipPlanRepository membershipPlanRepository, ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;
         _membershipService = membershipService;
-        _userAccessToolService = userAccessToolService;
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
+        _hangfireEmailService = hangfireEmailService;
+        _notificationService = notificationService;
+        _userRepository = userRepository;
+        _membershipRepository = membershipRepository;
+        _membershipPlanRepository = membershipPlanRepository;
+        _logger = logger;
     }
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> ProcessPaymentAsync(ProcessPaymentReq request, CancellationToken ct)
     {
+        _logger.LogInformation("=== TransactionService.ProcessPaymentAsync START ===");
+        _logger.LogInformation("Request Details: Total={Total}, PaymentGateway={PaymentGateway}, Purpose={Purpose}, UserId={UserId}, OrgId={OrgId}, PlanId={PlanId}",
+            request.Total, request.PaymentGateway, request.Purpose, request.UserId, request.OrgId, request.PlanId);
+
         // 1. Get Gateway ID
-        var gatewayIdResult = await GetPaymentGatewayIdAsync(request.PaymentGateway, ct);
+        var gatewayIdResult = GetPaymentGatewayId(request.PaymentGateway);
         if (!gatewayIdResult.HasValue)
+        {
+            _logger.LogError("Payment gateway not found: {PaymentGateway}", request.PaymentGateway);
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
+        }
 
         var gatewayId = gatewayIdResult.ValueOr(default(Guid));
+        _logger.LogInformation("Gateway ID found: {GatewayId}", gatewayId);
 
         // 2. Create pending transaction with business context
         var pendingTransactionResult = await CreateTransactionRecordAsync(
             gatewayId,
             request.Total,
             request.Purpose,
-            request.MembershipId, // This will be null for new memberships, which is correct
+            null, // MembershipId - will be set after membership creation
             null, // ExportId
             "pending",
             ct
@@ -73,20 +105,32 @@ public class TransactionService : ITransactionService
         await StoreTransactionContextAsync(pendingTransaction.TransactionId, request, ct);
 
         // 4. Get PaymentService
+        _logger.LogInformation("Getting payment service for gateway: {PaymentGateway}", request.PaymentGateway);
         var paymentService = GetPaymentService(request.PaymentGateway);
+        _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
+        var returnUrl = $"https://localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"https://localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}";
+
+        _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
+
         var checkoutResult = await paymentService.CreateCheckoutAsync(
             request,
-            $"http://localhost:5233/transaction/confirm-payment-with-context?transactionId={pendingTransaction.TransactionId}",
-            $"http://localhost:5233/transaction/cancel-payment?transactionId={pendingTransaction.TransactionId}",
+            returnUrl,
+            cancelUrl,
             ct
         );
 
         if (!checkoutResult.HasValue)
+        {
+            _logger.LogError("Checkout creation failed for transaction: {TransactionId}", pendingTransaction.TransactionId);
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Checkout.Failed", "Failed to create checkout", ErrorCustom.ErrorType.Failure));
+        }
 
         var approval = checkoutResult.ValueOr(default(ApprovalUrlResponse));
+        _logger.LogInformation("Checkout created successfully - SessionId: {SessionId}, ApprovalUrl: {ApprovalUrl}",
+            approval.SessionId, approval.ApprovalUrl);
 
         // 6. Save gateway session/payment ID
         await UpdateTransactionGatewayInfoAsync(
@@ -95,6 +139,7 @@ public class TransactionService : ITransactionService
             ct
         );
 
+        _logger.LogInformation("=== TransactionService.ProcessPaymentAsync SUCCESS ===");
         return Option.Some<ApprovalUrlResponse, ErrorCustom.Error>(approval);
     }
 
@@ -140,7 +185,7 @@ public class TransactionService : ITransactionService
         else
         {
             // Fallback: Create a new transaction if none exists
-            var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
+            var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
             if (!gatewayIdResult.HasValue)
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
@@ -217,54 +262,29 @@ public class TransactionService : ITransactionService
             return await membership.Match(
                 some: async m =>
                 {
-                    // Grant access tools based on the membership plan
-                    var accessToolResult = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(
-                        context.UserId.Value,
-                        context.PlanId.Value,
-                        m.EndDate ?? DateTime.UtcNow.AddMonths(1), // Default to 1 month if no end date
-                        ct
-                    );
+                    // Update transaction with the created membership ID
+                    transaction.MembershipId = m.MembershipId;
+                    await _transactionRepository.UpdateAsync(transaction, ct);
 
-                    accessToolResult.Match(
-                        some: _ => { /* Success - do nothing */ },
-                        none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
-                    );
+
+                    // Send purchase confirmation notification
+                    var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                        user?.Email ?? "unknown@example.com",
+                        user?.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
 
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
                         MembershipId = m.MembershipId,
-                        TransactionId = transaction.TransactionId,
-                        AccessToolsGranted = accessToolResult.HasValue
+                        TransactionId = transaction.TransactionId
                     });
                 },
                 none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
             );
         }
 
-        if (string.Equals(purpose, "addon", StringComparison.OrdinalIgnoreCase))
-        {
-            if (context?.MembershipId is null || context?.OrgId is null || string.IsNullOrWhiteSpace(context?.AddonKey))
-                return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
-
-            var addon = await _membershipService.AddAddonAsync(
-                context.MembershipId.Value,
-                context.OrgId.Value,
-                context.AddonKey,
-                context.Quantity,
-                true,
-                ct
-            );
-
-            return addon.Match(
-                some: a => Option.Some<object, ErrorCustom.Error>(new
-                {
-                    AddonId = a.AddonId,
-                    TransactionId = transaction.TransactionId
-                }),
-                none: err => Option.None<object, ErrorCustom.Error>(err)
-            );
-        }
 
         return Option.Some<object, ErrorCustom.Error>(new
         {
@@ -273,13 +293,27 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Option<Guid, ErrorCustom.Error>> GetPaymentGatewayIdAsync(PaymentGatewayEnum paymentGateway, CancellationToken ct)
+    public Option<Guid, ErrorCustom.Error> GetPaymentGatewayId(PaymentGatewayEnum paymentGateway)
     {
-        var gateway = await _paymentGatewayRepository.GetByIdAsync(paymentGateway, ct);
-        if (gateway == null)
+        // Use the predefined GUIDs from PaymentGatewayConfiguration instead of database lookup
+        var gatewayId = GetPaymentGatewayIdInternal(paymentGateway);
+        if (gatewayId == Guid.Empty)
             return Option.None<Guid, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
 
-        return Option.Some<Guid, ErrorCustom.Error>(gateway.GatewayId);
+        return Option.Some<Guid, ErrorCustom.Error>(gatewayId);
+    }
+
+    private static Guid GetPaymentGatewayIdInternal(PaymentGatewayEnum paymentGateway)
+    {
+        return paymentGateway switch
+        {
+            PaymentGatewayEnum.VNPay => SeedDataConstants.VnPayPaymentGatewayId,
+            PaymentGatewayEnum.PayPal => SeedDataConstants.PayPalPaymentGatewayId,
+            PaymentGatewayEnum.Stripe => SeedDataConstants.StripePaymentGatewayId,
+            PaymentGatewayEnum.BankTransfer => SeedDataConstants.BankTransferPaymentGatewayId,
+            PaymentGatewayEnum.PayOS => SeedDataConstants.PayOSPaymentGatewayId,
+            _ => Guid.Empty
+        };
     }
 
     public async Task<Option<Transactions, ErrorCustom.Error>> CreateTransactionRecordAsync(Guid paymentGatewayId, decimal amount, string purpose, Guid? membershipId, int? exportId, string status, CancellationToken ct)
@@ -327,7 +361,7 @@ public class TransactionService : ITransactionService
     public async Task<Option<CancelPaymentResponse, ErrorCustom.Error>> CancelPaymentWithContextAsync(CancelPaymentWithContextReq req, CancellationToken ct)
     {
         // 1. Get gateway ID
-        var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
+        var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
 
         return await gatewayIdResult.Match(
             some: async gatewayId =>
@@ -400,8 +434,6 @@ public class TransactionService : ITransactionService
                 OrgId = request.OrgId,
                 PlanId = request.PlanId,
                 AutoRenew = request.AutoRenew,
-                AddonKey = request.AddonKey,
-                Quantity = request.Quantity
             };
 
             // Store the purpose and context as JSON with a separator
@@ -471,4 +503,8 @@ public class TransactionService : ITransactionService
             return (transaction.Purpose, null);
         }
     }
+
+
+
+
 }

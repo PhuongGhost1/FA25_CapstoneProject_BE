@@ -39,15 +39,15 @@ public class JwtService : IJwtService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Claims = claims,
-            IssuedAt = null,
+            IssuedAt = DateTime.UtcNow,
             NotBefore = DateTime.UtcNow,
             Expires = DateTime.UtcNow.AddSeconds(exp),
-            Issuer = null,
-            Audience = null,
+            Issuer = "IMOS",
+            Audience = "IMOS_Users",
             SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature)
         };
 
-        _handler.SetDefaultTimesOnTokenCreation = false;
+        _handler.SetDefaultTimesOnTokenCreation = true;
 
         var tokenString = _handler.CreateToken(tokenDescriptor);
         return tokenString;

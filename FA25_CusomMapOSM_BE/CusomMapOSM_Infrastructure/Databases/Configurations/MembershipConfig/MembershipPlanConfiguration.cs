@@ -68,6 +68,11 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             .HasColumnName("max_custom_layers")
             .IsRequired();
 
+        builder.Property(p => p.MonthlyTokens)
+            .HasColumnName("monthly_tokens")
+            .IsRequired()
+            .HasDefaultValue(10000);
+
         builder.Property(p => p.PrioritySupport)
             .HasColumnName("priority_support")
             .IsRequired();
@@ -76,9 +81,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             .HasColumnName("features")
             .HasColumnType("json");
 
-        builder.Property(p => p.AccessToolIds)
-            .HasColumnName("access_tool_ids")
-            .HasColumnType("json");
 
         builder.Property(p => p.IsActive)
             .HasColumnName("is_active")
@@ -109,9 +111,9 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MapQuota = 10,
                 ExportQuota = 5,
                 MaxCustomLayers = 3,
+                MonthlyTokens = 5000,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -129,9 +131,9 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MapQuota = 200,
                 ExportQuota = 200,
                 MaxCustomLayers = 50,
+                MonthlyTokens = 50000,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             },
@@ -149,9 +151,9 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MapQuota = -1, // Unlimited
                 ExportQuota = -1, // Unlimited
                 MaxCustomLayers = -1, // Unlimited
+                MonthlyTokens = 200000,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
-                AccessToolIds = "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             }

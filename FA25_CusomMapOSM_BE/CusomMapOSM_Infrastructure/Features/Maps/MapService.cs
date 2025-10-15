@@ -1,11 +1,11 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
-using CusomMapOSM_Domain.Entities.Annotations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases;
@@ -21,14 +21,16 @@ public class MapService : IMapService
     private readonly IMapRepository _mapRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService; 
+    private readonly IMapHistoryService _mapHistoryService;
 
     public MapService(
         IMapRepository mapRepository,
-        ICurrentUserService currentUserService, ICacheService cacheService)
+        ICurrentUserService currentUserService, ICacheService cacheService, IMapHistoryService mapHistoryService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
+        _mapHistoryService = mapHistoryService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -111,9 +113,9 @@ public class MapService : IMapService
             Description = req.Description,
             IsPublic = req.IsPublic,
             UserId = currentUserId.Value,
-            OrgId = null, 
-            DefaultBounds = $"{req.InitialLatitude},{req.InitialLongitude}",
-            ViewState = $"{{\"center\":[{req.InitialLatitude},{req.InitialLongitude}],\"zoom\":{req.InitialZoom}}}",
+            OrgId = null,
+            DefaultBounds = req.DefaultBounds,
+            ViewState = req.ViewState,
             BaseLayer = req.BaseMapProvider ?? "osm",
             CreatedAt = DateTime.UtcNow,
             IsActive = true
@@ -261,6 +263,10 @@ public class MapService : IMapService
             return Option.None<UpdateMapResponse, Error>(
                 Error.Failure("Map.UpdateFailed", "Failed to update map"));
         }
+
+        // Record snapshot after map update
+        var features = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(features));
 
         return Option.Some<UpdateMapResponse, Error>(new UpdateMapResponse());
     }
@@ -536,6 +542,10 @@ public class MapService : IMapService
                 Error.Failure("Map.AddLayerFailed", "Failed to add layer to map"));
         }
 
+        // Record snapshot after adding layer
+        var featuresAfterAdd = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterAdd));
+
         return Option.Some<AddLayerToMapResponse, Error>(new AddLayerToMapResponse
         {
             MapLayerId = layer.LayerId // Using LayerId since MapLayerId no longer exists
@@ -570,6 +580,10 @@ public class MapService : IMapService
             return Option.None<RemoveLayerFromMapResponse, Error>(
                 Error.Failure("Map.RemoveLayerFailed", "Failed to remove layer from map"));
         }
+
+        // Record snapshot after removing layer
+        var featuresAfterRemove = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterRemove));
 
         return Option.Some<RemoveLayerFromMapResponse, Error>(new RemoveLayerFromMapResponse());
     }
@@ -621,6 +635,10 @@ public class MapService : IMapService
             return Option.None<UpdateMapLayerResponse, Error>(
                 Error.Failure("Map.UpdateLayerFailed", "Failed to update map layer"));
         }
+
+        // Record snapshot after update layer
+        var featuresAfterUpdateLayer = await _mapRepository.GetMapFeatures(mapId);
+        await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterUpdateLayer));
 
         return Option.Some<UpdateMapLayerResponse, Error>(new UpdateMapLayerResponse());
     }
@@ -712,36 +730,55 @@ public class MapService : IMapService
             FilterConfig = l.FilterConfig ?? ""
         }).ToList();
 
-        // Parse geographic bounds
+        // Parse geographic bounds - Support both legacy and new format
         double latitude = 0, longitude = 0;
         if (!string.IsNullOrEmpty(map.DefaultBounds))
         {
+            // Try legacy simple format first: "lat,lng"
             var parts = map.DefaultBounds.Split(',');
-            if (parts.Length >= 2)
+            if (parts.Length == 2 && 
+                double.TryParse(parts[0], out var lat) && 
+                double.TryParse(parts[1], out var lng))
             {
-                double.TryParse(parts[0], out latitude);
-                double.TryParse(parts[1], out longitude);
+                latitude = lat;
+                longitude = lng;
             }
-        }
-
-        // Parse view state for zoom
-        int zoom = 10;
-        if (!string.IsNullOrEmpty(map.ViewState))
-        {
-            // Simple parsing - in real implementation, use JSON parsing
-            var zoomIndex = map.ViewState.IndexOf("\"zoom\":");
-            if (zoomIndex >= 0)
+            else
             {
-                var zoomValue = map.ViewState.Substring(zoomIndex + 7);
-                var commaIndex = zoomValue.IndexOf(',');
-                if (commaIndex > 0)
+                // Try new GeoJSON Polygon format
+                try
                 {
-                    zoomValue = zoomValue.Substring(0, commaIndex);
-                    int.TryParse(zoomValue, out zoom);
+                    using var boundsDoc = JsonDocument.Parse(map.DefaultBounds);
+                    if (boundsDoc.RootElement.TryGetProperty("type", out var typeElement) && 
+                        typeElement.GetString() == "Polygon")
+                    {
+                        var coordinates = boundsDoc.RootElement.GetProperty("coordinates")[0];
+                        double minLat = double.MaxValue, maxLat = double.MinValue;
+                        double minLng = double.MaxValue, maxLng = double.MinValue;
+                        
+                        foreach (var coord in coordinates.EnumerateArray())
+                        {
+                            var coordLng = coord[0].GetDouble();
+                            var coordLat = coord[1].GetDouble();
+                            minLat = Math.Min(minLat, coordLat);
+                            maxLat = Math.Max(maxLat, coordLat);
+                            minLng = Math.Min(minLng, coordLng);
+                            maxLng = Math.Max(maxLng, coordLng);
+                        }
+                        
+                        latitude = (minLat + maxLat) / 2;
+                        longitude = (minLng + maxLng) / 2;
+                    }
+                }
+                catch
+                {
+                    // If parsing fails, keep latitude/longitude as 0
                 }
             }
         }
 
+        var viewState = string.IsNullOrEmpty(map.ViewState) ? null : JsonDocument.Parse(map.ViewState);
+        
         return new MapDetailDTO
         {
             Id = map.MapId,
@@ -752,8 +789,8 @@ public class MapService : IMapService
             UpdatedAt = map.UpdatedAt,
             InitialLatitude = latitude,
             InitialLongitude = longitude,
-            InitialZoom = zoom,
-            BaseMapProvider = map.BaseLayer,
+            ViewState = viewState,
+            BaseLayer = map.BaseLayer,
             OwnerId = map.UserId,
             OwnerName = map.User?.FullName ?? "Unknown",
             IsOwner = map.UserId == currentUserId,
@@ -865,7 +902,7 @@ public class MapService : IMapService
                 Description = req.Description,
                 Category = req.Category,
                 DefaultBounds = req.DataBounds,
-                BaseLayer = "osm",
+                BaseLayer = "OSM",
                 IsPublic = req.IsPublic,
                 IsActive = true,
                 IsTemplate = true,
@@ -892,7 +929,7 @@ public class MapService : IMapService
             {
                 LayerId = layerId,
                 MapId = mapTemplate.MapId,
-                UserId = mapTemplate.UserId, // Ensure we use the same user ID that was verified with the map
+                UserId = mapTemplate.UserId,
                 LayerName = req.LayerName,
                 LayerType = LayerTypeEnum.GEOJSON,
                 SourceType = LayerSourceEnum.UserUploaded,
@@ -973,4 +1010,425 @@ public class MapService : IMapService
                 Error.Failure("Map.GetLayerDataException", $"Failed to get layer data: {ex.Message}"));
         }
     }
+
+    public async Task<Option<List<LayerInfoResponse>, Error>> GetMapLayers(Guid mapId)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserId();
+            if (currentUserId is null)
+            {
+                return Option.None<List<LayerInfoResponse>, Error>(
+                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+            }
+
+            var map = await _mapRepository.GetMapById(mapId);
+            if (map is null)
+            {
+                return Option.None<List<LayerInfoResponse>, Error>(
+                    Error.NotFound("Map.NotFound", "Map not found"));
+            }
+
+            if (map.UserId != currentUserId)
+            {
+                return Option.None<List<LayerInfoResponse>, Error>(
+                    Error.Forbidden("Map.Forbidden", "You don't have permission to access this map"));
+            }
+
+            var layers = await _mapRepository.GetMapLayers(mapId);
+            var layerInfos = layers.Select(layer => new LayerInfoResponse
+            {
+                LayerId = layer.LayerId.ToString(),
+                LayerName = layer.LayerName,
+                Description = null, // Layer entity doesn't have Description property
+                LayerType = layer.LayerType.ToString(),
+                FeatureCount = layer.FeatureCount ?? 0, // Handle nullable FeatureCount
+                IsVisible = layer.IsVisible,
+                ZIndex = layer.ZIndex // ZIndex is not nullable
+            }).ToList();
+
+            return Option.Some<List<LayerInfoResponse>, Error>(layerInfos);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<List<LayerInfoResponse>, Error>(
+                Error.Failure("Map.GetLayersException", $"Failed to get map layers: {ex.Message}"));
+        }
+    }
+
+    public async Task<bool> HasEditPermission(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null) return false;
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null) return false;
+        // Owner can edit; future: check collaboration permissions for editors
+        return map.UserId == currentUserId.Value;
+    }
+
+    #region Zone/Feature Operations
+
+    public async Task<Option<CopyFeatureToLayerResponse, Error>> CopyFeatureToLayer(
+        Guid mapId, 
+        Guid sourceLayerId, 
+        CopyFeatureToLayerRequest req)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserId();
+            if (currentUserId is null)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+            }
+
+            // Get map and verify ownership
+            var map = await _mapRepository.GetMapById(mapId);
+            if (map is null)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.NotFound("Map.NotFound", "Map not found"));
+            }
+
+            if (map.UserId != currentUserId)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.Forbidden("Map.Forbidden", "You don't have permission to modify this map"));
+            }
+
+            // Get source layer
+            var sourceLayer = await _mapRepository.GetMapLayer(mapId, sourceLayerId);
+            if (sourceLayer is null)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.NotFound("Map.SourceLayerNotFound", "Source layer not found"));
+            }
+
+            // Handle target layer (existing or new)
+            Layer? targetLayer;
+            bool newLayerCreated = false;
+            
+            if (!string.IsNullOrEmpty(req.TargetLayerId))
+            {
+                // Copy to existing layer
+                targetLayer = await _mapRepository.GetMapLayer(mapId, Guid.Parse(req.TargetLayerId));
+                if (targetLayer is null)
+                {
+                    return Option.None<CopyFeatureToLayerResponse, Error>(
+                        Error.NotFound("Map.TargetLayerNotFound", "Target layer not found"));
+                }
+            }
+            else
+            {
+                // Create new layer
+                if (string.IsNullOrEmpty(req.NewLayerName))
+                {
+                    return Option.None<CopyFeatureToLayerResponse, Error>(
+                        Error.ValidationError("Map.NewLayerNameRequired", "New layer name is required when creating a new layer"));
+                }
+
+                var newLayerId = Guid.NewGuid();
+                targetLayer = new Layer
+                {
+                    LayerId = newLayerId,
+                    MapId = mapId,
+                    UserId = currentUserId.Value,
+                    LayerName = req.NewLayerName,
+                    LayerType = LayerTypeEnum.GEOJSON,
+                    SourceType = LayerSourceEnum.UserUploaded,
+                    LayerData = JsonSerializer.Serialize(new { type = "FeatureCollection", features = new object[0] }),
+                    LayerStyle = JsonSerializer.Serialize(new { color = "#3388ff", weight = 2, fillColor = "#3388ff", fillOpacity = 0.2 }),
+                    IsPublic = false,
+                    IsVisible = true,
+                    ZIndex = 1,
+                    LayerOrder = 1,
+                    FeatureCount = 0,
+                    DataSizeKB = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var layerCreated = await _mapRepository.CreateLayer(targetLayer);
+                if (!layerCreated)
+                {
+                    return Option.None<CopyFeatureToLayerResponse, Error>(
+                        Error.Failure("Map.CreateLayerFailed", "Failed to create new layer"));
+                }
+                
+                newLayerCreated = true;
+            }
+
+            // Parse source layer GeoJSON
+            var sourceGeoJson = JsonSerializer.Deserialize<JsonElement>(sourceLayer.LayerData);
+            if (!sourceGeoJson.TryGetProperty("features", out var featuresArray) || 
+                featuresArray.ValueKind != JsonValueKind.Array)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.ValidationError("Map.InvalidGeoJson", "Source layer does not contain valid GeoJSON FeatureCollection"));
+            }
+
+            var features = featuresArray.EnumerateArray().ToList();
+            
+            // Validate feature index
+            if (req.FeatureIndex < 0 || req.FeatureIndex >= features.Count)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.ValidationError("Map.InvalidFeatureIndex", $"Feature index {req.FeatureIndex} is out of range (0-{features.Count - 1})"));
+            }
+
+            // Get the feature to copy
+            var featureToCopy = features[req.FeatureIndex];
+
+            // Parse target layer GeoJSON
+            var targetGeoJson = JsonSerializer.Deserialize<JsonElement>(targetLayer.LayerData);
+            var targetFeatures = new List<JsonElement>();
+            
+            if (targetGeoJson.TryGetProperty("features", out var targetFeaturesArray) && 
+                targetFeaturesArray.ValueKind == JsonValueKind.Array)
+            {
+                targetFeatures = targetFeaturesArray.EnumerateArray().ToList();
+            }
+
+            // Add feature to target
+            targetFeatures.Add(featureToCopy);
+
+            // Reconstruct target GeoJSON
+            var updatedTargetGeoJson = new Dictionary<string, object>
+            {
+                ["type"] = "FeatureCollection",
+                ["features"] = targetFeatures.Select(f => JsonSerializer.Deserialize<object>(f.GetRawText())).ToList()
+            };
+
+            // Copy other properties if they exist
+            if (targetGeoJson.TryGetProperty("name", out var name))
+            {
+                updatedTargetGeoJson["name"] = name.GetString() ?? string.Empty;
+            }
+            if (targetGeoJson.TryGetProperty("crs", out var crs))
+            {
+                updatedTargetGeoJson["crs"] = JsonSerializer.Deserialize<object>(crs.GetRawText())!;
+            }
+
+            // Update target layer
+            targetLayer.LayerData = JsonSerializer.Serialize(updatedTargetGeoJson);
+            targetLayer.UpdatedAt = DateTime.UtcNow;
+
+            var updateResult = await _mapRepository.UpdateLayer(targetLayer);
+            if (!updateResult)
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.Failure("Map.UpdateFailed", "Failed to update target layer"));
+            }
+
+            // Record snapshot after copy feature
+            var featuresAfterCopy = await _mapRepository.GetMapFeatures(mapId);
+            await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterCopy));
+
+            return Option.Some<CopyFeatureToLayerResponse, Error>(new CopyFeatureToLayerResponse
+            {
+                Success = true,
+                Message = newLayerCreated ? "Feature copied to new layer successfully" : "Feature copied successfully",
+                TargetLayerFeatureCount = targetFeatures.Count,
+                TargetLayerId = targetLayer.LayerId.ToString(),
+                TargetLayerName = targetLayer.LayerName,
+                NewLayerCreated = newLayerCreated
+            });
+        }
+        catch (Exception ex)
+        {
+            return Option.None<CopyFeatureToLayerResponse, Error>(
+                Error.Failure("Map.CopyFeatureException", $"Failed to copy feature: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<bool, Error>> DeleteFeatureFromLayer(
+        Guid mapId, 
+        Guid layerId, 
+        int featureIndex)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserId();
+            if (currentUserId is null)
+            {
+                return Option.None<bool, Error>(
+                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+            }
+
+            // Get map and verify ownership
+            var map = await _mapRepository.GetMapById(mapId);
+            if (map is null)
+            {
+                return Option.None<bool, Error>(
+                    Error.NotFound("Map.NotFound", "Map not found"));
+            }
+
+            if (map.UserId != currentUserId)
+            {
+                return Option.None<bool, Error>(
+                    Error.Forbidden("Map.Forbidden", "You don't have permission to modify this map"));
+            }
+
+            // Get layer
+            var layer = await _mapRepository.GetMapLayer(mapId, layerId);
+            if (layer is null)
+            {
+                return Option.None<bool, Error>(
+                    Error.NotFound("Map.LayerNotFound", "Layer not found"));
+            }
+
+            // Parse layer GeoJSON
+            var geoJson = JsonSerializer.Deserialize<JsonElement>(layer.LayerData);
+            if (!geoJson.TryGetProperty("features", out var featuresArray) || 
+                featuresArray.ValueKind != JsonValueKind.Array)
+            {
+                return Option.None<bool, Error>(
+                    Error.ValidationError("Map.InvalidGeoJson", "Layer does not contain valid GeoJSON FeatureCollection"));
+            }
+
+            var features = featuresArray.EnumerateArray().ToList();
+
+            // Validate feature index
+            if (featureIndex < 0 || featureIndex >= features.Count)
+            {
+                return Option.None<bool, Error>(
+                    Error.ValidationError("Map.InvalidFeatureIndex", $"Feature index {featureIndex} is out of range (0-{features.Count - 1})"));
+            }
+
+            // Remove feature
+            features.RemoveAt(featureIndex);
+
+            // Reconstruct GeoJSON
+            var updatedGeoJson = new Dictionary<string, object>
+            {
+                ["type"] = "FeatureCollection",
+                ["features"] = features.Select(f => JsonSerializer.Deserialize<object>(f.GetRawText())).ToList()
+            };
+
+            // Copy other properties if they exist
+            if (geoJson.TryGetProperty("name", out var name))
+            {
+                updatedGeoJson["name"] = name.GetString() ?? string.Empty;
+            }
+            if (geoJson.TryGetProperty("crs", out var crs))
+            {
+                updatedGeoJson["crs"] = JsonSerializer.Deserialize<object>(crs.GetRawText())!;
+            }
+
+            // Update layer
+            layer.LayerData = JsonSerializer.Serialize(updatedGeoJson);
+            layer.UpdatedAt = DateTime.UtcNow;
+
+            var updateResult = await _mapRepository.UpdateLayer(layer);
+            if (!updateResult)
+            {
+                return Option.None<bool, Error>(
+                    Error.Failure("Map.UpdateFailed", "Failed to update layer"));
+            }
+
+            // Record snapshot after delete feature
+            var featuresAfterDelete = await _mapRepository.GetMapFeatures(mapId);
+            await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterDelete));
+
+            return Option.Some<bool, Error>(true);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Map.DeleteFeatureException", $"Failed to delete feature: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<UpdateLayerDataResponse, Error>> UpdateLayerData(
+        Guid mapId, 
+        Guid layerId, 
+        UpdateLayerDataRequest req)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserId();
+            if (currentUserId is null)
+            {
+                return Option.None<UpdateLayerDataResponse, Error>(
+                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+            }
+
+            // Get map and verify ownership
+            var map = await _mapRepository.GetMapById(mapId);
+            if (map is null)
+            {
+                return Option.None<UpdateLayerDataResponse, Error>(
+                    Error.NotFound("Map.NotFound", "Map not found"));
+            }
+
+            if (map.UserId != currentUserId)
+            {
+                return Option.None<UpdateLayerDataResponse, Error>(
+                    Error.Forbidden("Map.Forbidden", "You don't have permission to modify this map"));
+            }
+
+            // Get layer
+            var layer = await _mapRepository.GetMapLayer(mapId, layerId);
+            if (layer is null)
+            {
+                return Option.None<UpdateLayerDataResponse, Error>(
+                    Error.NotFound("Map.LayerNotFound", "Layer not found"));
+            }
+
+            // Validate GeoJSON
+            try
+            {
+                var geoJson = JsonSerializer.Deserialize<JsonElement>(req.LayerData);
+                
+                if (!geoJson.TryGetProperty("type", out var typeProperty) || 
+                    typeProperty.GetString() != "FeatureCollection")
+                {
+                    return Option.None<UpdateLayerDataResponse, Error>(
+                        Error.ValidationError("Map.InvalidGeoJson", "Data must be a valid GeoJSON FeatureCollection"));
+                }
+
+                if (!geoJson.TryGetProperty("features", out var featuresArray) || 
+                    featuresArray.ValueKind != JsonValueKind.Array)
+                {
+                    return Option.None<UpdateLayerDataResponse, Error>(
+                        Error.ValidationError("Map.InvalidGeoJson", "FeatureCollection must contain a 'features' array"));
+                }
+
+                var featureCount = featuresArray.GetArrayLength();
+
+                // Update layer data
+                layer.LayerData = req.LayerData;
+                layer.UpdatedAt = DateTime.UtcNow;
+
+                var updateResult = await _mapRepository.UpdateLayer(layer);
+                if (!updateResult)
+                {
+                    return Option.None<UpdateLayerDataResponse, Error>(
+                        Error.Failure("Map.UpdateFailed", "Failed to update layer data"));
+                }
+
+                // Record snapshot after update layer data
+                var featuresAfterUpdateData = await _mapRepository.GetMapFeatures(mapId);
+                await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value, JsonSerializer.Serialize(featuresAfterUpdateData));
+
+                return Option.Some<UpdateLayerDataResponse, Error>(new UpdateLayerDataResponse
+                {
+                    Success = true,
+                    Message = "Layer data updated successfully",
+                    FeatureCount = featureCount
+                });
+            }
+            catch (JsonException)
+            {
+                return Option.None<UpdateLayerDataResponse, Error>(
+                    Error.ValidationError("Map.InvalidJson", "Invalid JSON format"));
+            }
+        }
+        catch (Exception ex)
+        {
+            return Option.None<UpdateLayerDataResponse, Error>(
+                Error.Failure("Map.UpdateLayerDataException", $"Failed to update layer data: {ex.Message}"));
+        }
+    }
+
+    #endregion
 }

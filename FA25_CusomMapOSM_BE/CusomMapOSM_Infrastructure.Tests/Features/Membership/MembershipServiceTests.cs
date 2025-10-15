@@ -62,7 +62,6 @@ public class MembershipServiceTests
             .RuleFor(m => m.PlanId, 2) // Basic plan
             .RuleFor(m => m.StartDate, DateTime.UtcNow.AddDays(-15))
             .RuleFor(m => m.AutoRenew, true)
-            .RuleFor(m => m.StatusId, Guid.Empty)
             .Generate();
 
         var currentUsage = new Faker<DomainMembership.MembershipUsage>()
@@ -141,7 +140,6 @@ public class MembershipServiceTests
             .RuleFor(m => m.PlanId, 3) // Pro plan
             .RuleFor(m => m.StartDate, DateTime.UtcNow.AddDays(-15))
             .RuleFor(m => m.AutoRenew, true)
-            .RuleFor(m => m.StatusId, Guid.Empty)
             .Generate();
 
         var currentUsage = new Faker<DomainMembership.MembershipUsage>()

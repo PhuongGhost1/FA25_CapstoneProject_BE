@@ -20,7 +20,7 @@ public class CancelPaymentWithContextReqValidator : AbstractValidator<CancelPaym
 
         When(x => x.PaymentGateway == PaymentGatewayEnum.Stripe, () =>
         {
-            RuleFor(x => x.PaymentIntentId).NotEmpty().WithMessage("PaymentIntentId is required for Stripe");
+            RuleFor(x => x.PaymentId).NotEmpty().WithMessage("PaymentId is required for Stripe");
             // ClientSecret may not be present during cancel redirect; keep optional unless enforced
         });
     }

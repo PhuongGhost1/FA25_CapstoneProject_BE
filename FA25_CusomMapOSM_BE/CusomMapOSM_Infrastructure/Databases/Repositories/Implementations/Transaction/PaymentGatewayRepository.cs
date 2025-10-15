@@ -17,4 +17,9 @@ public class PaymentGatewayRepository : IPaymentGatewayRepository
     {
         return await _context.PaymentGateways.FirstOrDefaultAsync(x => x.Name == name.ToString(), ct);
     }
+
+    public async Task<PaymentGateway?> GetByGatewayIdAsync(Guid gatewayId, CancellationToken ct)
+    {
+        return await _context.PaymentGateways.FirstOrDefaultAsync(x => x.GatewayId == gatewayId, ct);
+    }
 }

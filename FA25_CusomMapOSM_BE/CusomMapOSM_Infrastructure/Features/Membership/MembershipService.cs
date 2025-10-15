@@ -2,7 +2,6 @@ using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using DomainMembershipUsage = CusomMapOSM_Domain.Entities.Memberships.MembershipUsage;
-using DomainMembershipAddon = CusomMapOSM_Domain.Entities.Memberships.MembershipAddon;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using Microsoft.EntityFrameworkCore;
 using Optional;
@@ -38,7 +37,7 @@ public class MembershipService : IMembershipService
                 PlanId = planId,
                 StartDate = now,
                 EndDate = null,
-                StatusId = SeedDataConstants.ActiveMembershipStatusId, // Use the correct active status ID
+                Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active, // Use the correct active status ID
                 AutoRenew = autoRenew,
                 CurrentUsage = null,
                 LastResetDate = now,
@@ -71,6 +70,7 @@ public class MembershipService : IMembershipService
             existing.PlanId = planId;
             existing.AutoRenew = autoRenew;
             existing.UpdatedAt = DateTime.UtcNow;
+            existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
             return Option.Some<DomainMembership, ErrorCustom.Error>(await _membershipRepository.UpsertAsync(existing, ct));
         }
     }
@@ -228,13 +228,6 @@ public class MembershipService : IMembershipService
         return await usageResult.Match(
             some: async usage =>
             {
-                // Fetch addons to extend quotas if available
-                var addons = await _membershipRepository.GetActiveAddonsAsync(membershipId, orgId, DateTime.UtcNow, ct);
-
-                int GetAddonExtra(string key)
-                {
-                    return addons.Where(a => a.AddonKey == $"extra_{key}").Sum(a => a.Quantity ?? 0);
-                }
 
                 switch (resourceKey)
                 {
@@ -272,10 +265,7 @@ public class MembershipService : IMembershipService
     public async Task<Option<bool, ErrorCustom.Error>> HasFeatureAsync(Guid membershipId, Guid orgId, string featureKey, CancellationToken ct)
     {
         var usage = await GetOrCreateUsageAsync(membershipId, orgId, ct);
-        var addons = await _membershipRepository.GetActiveAddonsAsync(membershipId, orgId, DateTime.UtcNow, ct);
-
-        // Check feature flags in usage or addons
-        bool fromAddon = addons.Any(a => a.AddonKey == $"feature_{featureKey}");
+        // Check feature flags in usage
         bool fromUsage = false;
         if (!string.IsNullOrWhiteSpace(usage.Match(
             some: u => u.FeatureFlags,
@@ -296,27 +286,9 @@ public class MembershipService : IMembershipService
                 // ignore invalid JSON
             }
         }
-        return Option.Some<bool, ErrorCustom.Error>(fromAddon || fromUsage);
+        return Option.Some<bool, ErrorCustom.Error>(fromUsage);
     }
 
-    public async Task<Option<DomainMembershipAddon, ErrorCustom.Error>> AddAddonAsync(Guid membershipId, Guid orgId, string addonKey, int? quantity, bool effectiveImmediately, CancellationToken ct)
-    {
-        var addon = new DomainMembershipAddon
-        {
-            AddonId = Guid.NewGuid(),
-            MembershipId = membershipId,
-            OrgId = orgId,
-            AddonKey = addonKey,
-            Quantity = quantity,
-            FeaturePayload = null,
-            PurchasedAt = DateTime.UtcNow,
-            EffectiveFrom = effectiveImmediately ? DateTime.UtcNow : null,
-            EffectiveUntil = null,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        return Option.Some<DomainMembershipAddon, ErrorCustom.Error>(await _membershipRepository.AddAddonAsync(addon, ct));
-    }
 
     public async Task<Option<DomainMembership, ErrorCustom.Error>> GetCurrentMembershipWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
