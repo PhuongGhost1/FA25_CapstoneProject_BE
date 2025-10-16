@@ -18,14 +18,12 @@ public class UserRepository : IUserRepository
     public async Task<DomainUser.User?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
         return await _context.Users
-            .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.UserId == userId, ct);
     }
 
     public async Task<DomainUser.User?> GetUserByEmailAsync(string email, CancellationToken ct = default)
     {
         return await _context.Users
-            .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Email == email, ct);
     }
 

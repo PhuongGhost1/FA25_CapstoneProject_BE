@@ -67,7 +67,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationInvitations
             .Include(x => x.Organization)
-            .Include(x => x.Role)
             .Include(x => x.Inviter)
             .FirstOrDefaultAsync(x => x.InvitationId == invitationId);
     }
@@ -88,7 +87,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationInvitations
             .Include(x => x.Organization)
-            .Include(x => x.Role)
             .Include(x => x.Inviter)
             .Where(x => x.Email == email)
             .OrderByDescending(x => x.InvitedAt)
@@ -99,7 +97,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationMembers
             .Include(x => x.User)
-            .Include(x => x.Role)
             .Where(x => x.OrgId == orgId && x.Status == MemberStatus.Active)
             .OrderBy(x => x.JoinedAt)
             .ToListAsync();
@@ -109,7 +106,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationMembers
             .Include(x => x.User)
-            .Include(x => x.Role)
             .Include(x => x.Organization)
             .FirstOrDefaultAsync(x => x.MemberId == memberId);
     }
@@ -118,7 +114,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationMembers
             .Include(x => x.User)
-            .Include(x => x.Role)
             .Include(x => x.Organization)
             .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId && x.Status == MemberStatus.Active);
     }
@@ -159,7 +154,6 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.OrganizationMembers
             .Include(x => x.Organization)
-            .Include(x => x.Role)
             .Where(x => x.UserId == userId && x.Status == MemberStatus.Active && (x.Organization != null && x.Organization.IsActive))
             .OrderBy(x => x.JoinedAt)
             .ToListAsync();
