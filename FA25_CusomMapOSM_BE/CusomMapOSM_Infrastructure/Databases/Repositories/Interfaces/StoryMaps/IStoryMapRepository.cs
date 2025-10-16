@@ -45,5 +45,11 @@ public interface IStoryMapRepository
     void AddTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
     void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
 
+    Task<SegmentTransition?> GetSegmentTransitionAsync(Guid transitionId, CancellationToken ct);
+    Task<List<SegmentTransition>> GetSegmentTransitionsByMapAsync(Guid mapId, CancellationToken ct);
+    Task AddSegmentTransitionAsync(SegmentTransition transition, CancellationToken ct);
+    void UpdateSegmentTransition(SegmentTransition transition);
+    void RemoveSegmentTransition(SegmentTransition transition);
+
     Task<int> SaveChangesAsync(CancellationToken ct);
 }

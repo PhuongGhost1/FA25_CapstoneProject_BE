@@ -33,6 +33,10 @@
 <body>
   <div id="toolbar">
     <div style="margin-bottom: 8px;">
+      <input id="tokenInput" placeholder="Bearer Token" style="width: 300px; padding: 4px; font-size: 0.85em;" type="password" />
+      <button id="btnSetToken" style="padding: 4px 8px;">Set Token</button>
+    </div>
+    <div style="margin-bottom: 8px;">
       <select id="templateSelect" style="width: 200px; padding: 4px;">
         <option value="">Loading templates...</option>
       </select>
@@ -52,10 +56,7 @@
     <span id="error"></span>
   </div>
 
-  <!-- Header -->
-  <div id="header">
-    <div style="flex:1">🗺️ Map Editor</div>
-  </div>
+
 
   <!-- Drawing Tools Panel -->
   <div id="drawingPanel">
@@ -97,7 +98,7 @@
   <script>
     const apiBase = "https://localhost:7099";      // ⭐ URL gốc API của bạn
     // ⭐ Lấy token từ localStorage nếu có
-    const token = "eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk2NjYxNjcsIm5iZiI6MTc1OTY2MjU2NywiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoic3RyaW5nIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZWlkZW50aWZpZXIiOiIwOGRlMDNmZi03MTU5LTQxZmEtOGE5MC0yMTY1ZjllYzhiNzEifQ.E2L0umMEWeb0bcNE3Mk7vm5fEtm5SNo4VfSBlFslf94";
+    let token = localStorage.getItem('apiToken') || "";
 
     // Global variables
     let currentMapId = null;
@@ -285,6 +286,69 @@
       }
     }
 
+    // Helper function to format feature data according to new API format
+    function formatFeatureData(layer, name, geometryType, properties = {}) {
+      let coordinates = [];
+      let geoType = geometryType;
+      
+      if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
+        const latlng = layer.getLatLng();
+        coordinates = [latlng.lng, latlng.lat];
+        geoType = "Point";
+      } else if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+        coordinates = layer.getLatLngs().map(ll => [ll.lng, ll.lat]);
+        geoType = "LineString";
+      } else if (layer instanceof L.Polygon) {
+        coordinates = [layer.getLatLngs()[0].map(ll => [ll.lng, ll.lat])];
+        geoType = "Polygon";
+      } else if (layer instanceof L.Circle) {
+        const latlng = layer.getLatLng();
+        coordinates = [latlng.lng, latlng.lat];
+        geoType = "Point";
+        properties.radius = layer.getRadius();
+      }
+
+      return {
+        name: name,
+        project_id: currentMapId,
+        style: {
+          "fill-color": "#dc3c6e",
+          "fill-opacity": 0.5,
+          "fill-visible": true,
+          "fill-field": null,
+          "fill-color-scale": "quantize",
+          "fill-extrusion-color": "#dc3c6e",
+          "fill-extrusion-opacity": 0.5,
+          "outline-color": "#dc3c6e",
+          "outline-opacity": 1,
+          "outline-visible": true,
+          "outline-field": null,
+          "outline-width": 2,
+          "outline-dasharray": ["literal", [1]],
+          "outline-color-scale": "quantize",
+          "line-color": "#dc3c6e",
+          "line-opacity": 1,
+          "line-width": 2,
+          "line-dasharray": ["literal", [1]],
+          "line-cap": "butt",
+          "circle-color": "#dc3c6e",
+          "circle-opacity": 0.5,
+          "circle-stroke-color": "#dc3c6e",
+          "circle-stroke-opacity": 1,
+          "circle-stroke-width": 2
+        },
+        geometries: [
+          {
+            geometry: {
+              coordinates: coordinates,
+              type: geoType
+            },
+            properties: properties
+          }
+        ]
+      };
+    }
+
     async function saveFeature(feature) {
       if (!currentMapId) {
         console.warn("No map selected for saving feature");
@@ -295,7 +359,7 @@
         console.log('🔄 Saving feature:', feature);
         console.log('🔄 To mapId:', currentMapId);
         
-        const response = await fetch(`${apiBase}/api/v1/maps/${currentMapId}/features`, {
+        const response = await fetch(`${apiBase}/api/v1/maps/${currentMapId}/layers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -745,59 +809,26 @@
       switch (drawingMode) {
         case 'point':
           layer = L.circleMarker(latlng, drawingStyles.pin);
-          feature = {
-            featureCategory: 'data',
-            geometryType: 'point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Pin',
-            style: JSON.stringify(drawingStyles.pin),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Pin', 'Point');
           break;
           
         case 'marker':
           layer = L.circleMarker(latlng, drawingStyles.marker);
-          feature = {
-            featureCategory: 'annotation',
-            annotationType: 'marker',
-            geometryType: 'point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Marker',
-            style: JSON.stringify(drawingStyles.marker),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Marker', 'Point');
           break;
           
         case 'text':
           const text = prompt('Enter text:') || 'Text';
           layer = L.circleMarker(latlng, drawingStyles.text);
           layer.bindPopup(text);
-          feature = {
-            featureCategory: 'annotation',
-            annotationType: 'text',
-            geometryType: 'point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: text,
-            properties: JSON.stringify({ text: text }),
-            style: JSON.stringify(drawingStyles.text),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, text, 'Point', { text: text });
           break;
           
         case 'note':
           const note = prompt('Enter note:') || 'Note';
           layer = L.circleMarker(latlng, drawingStyles.note);
           layer.bindPopup(note);
-          feature = {
-            featureCategory: 'annotation',
-            annotationType: 'note',
-            geometryType: 'point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Note',
-            properties: JSON.stringify({ note: note }),
-            style: JSON.stringify(drawingStyles.note),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Note', 'Point', { note: note });
           break;
       }
       
@@ -807,7 +838,7 @@
         // Save to API
         const saved = await saveFeature(feature);
         if (saved) {
-          layer._featureId = saved.featureId;
+          layer._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = `✅ ${feature.name} saved`;
         }
         
@@ -897,18 +928,11 @@
         const line = L.polyline(currentPath, drawingStyles.line);
         drawnItems.addLayer(line);
         
-        const feature = {
-          featureCategory: 'Data',
-          geometryType: 'LineString',
-          coordinates: JSON.stringify(currentPath.map(p => [p.lng, p.lat])),
-          name: 'Line',
-          style: JSON.stringify(drawingStyles.line),
-          layerId: currentLayerId
-        };
+        const feature = formatFeatureData(line, 'Line', 'LineString');
         
         const saved = await saveFeature(feature);
         if (saved) {
-          line._featureId = saved.featureId;
+          line._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = '✅ Line saved';
         }
       }
@@ -923,18 +947,11 @@
         const polygon = L.polygon(currentPath, drawingStyles.polygon);
         drawnItems.addLayer(polygon);
         
-        const feature = {
-          featureCategory: 'Data',
-          geometryType: 'Polygon',
-          coordinates: JSON.stringify([currentPath.map(p => [p.lng, p.lat])]),
-          name: 'Polygon',
-          style: JSON.stringify(drawingStyles.polygon),
-          layerId: currentLayerId
-        };
+        const feature = formatFeatureData(polygon, 'Polygon', 'Polygon');
         
         const saved = await saveFeature(feature);
         if (saved) {
-          polygon._featureId = saved.featureId;
+          polygon._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = '✅ Polygon saved';
         }
       }
@@ -995,19 +1012,11 @@
         const highlighter = L.polyline(currentFreePath, drawingStyles.highlighter);
         drawnItems.addLayer(highlighter);
         
-        const feature = {
-          featureCategory: 'Annotation',
-          annotationType: 'Highlighter',
-          geometryType: 'LineString',
-          coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
-          name: 'Highlighter',
-          style: JSON.stringify(drawingStyles.highlighter),
-          layerId: currentLayerId
-        };
+        const feature = formatFeatureData(highlighter, 'Highlighter', 'LineString');
         
         const saved = await saveFeature(feature);
         if (saved) {
-          highlighter._featureId = saved.featureId;
+          highlighter._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = '✅ Highlighter saved';
         }
       }
@@ -1022,19 +1031,11 @@
         const route = L.polyline(currentFreePath, drawingStyles.route);
         drawnItems.addLayer(route);
         
-        const feature = {
-          featureCategory: 'Annotation',
-          annotationType: 'Route',
-          geometryType: 'LineString',
-          coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
-          name: 'Route',
-          style: JSON.stringify(drawingStyles.route),
-          layerId: currentLayerId
-        };
+        const feature = formatFeatureData(route, 'Route', 'LineString');
         
         const saved = await saveFeature(feature);
         if (saved) {
-          route._featureId = saved.featureId;
+          route._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = '✅ Route saved';
         }
       }
@@ -1122,73 +1123,32 @@
       switch (drawingMode) {
         case 'point':
           layer = L.circleMarker(latlng, drawingStyles.pin);
-          feature = {
-            featureCategory: 'Data',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Pin',
-            style: JSON.stringify(drawingStyles.pin),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Pin', 'Point');
           break;
           
         case 'marker':
           layer = L.circleMarker(latlng, drawingStyles.marker);
-          feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Marker',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Marker',
-            style: JSON.stringify(drawingStyles.marker),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Marker', 'Point');
           break;
           
         case 'text':
           const text = prompt('Enter text:') || 'Text';
           layer = L.circleMarker(latlng, drawingStyles.text);
           layer.bindPopup(text);
-          feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Text',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: text,
-            properties: JSON.stringify({ text: text }),
-            style: JSON.stringify(drawingStyles.text),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, text, 'Point', { text: text });
           break;
           
         case 'note':
           const note = prompt('Enter note:') || 'Note';
           layer = L.circleMarker(latlng, drawingStyles.note);
           layer.bindPopup(note);
-          feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Note',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Note',
-            properties: JSON.stringify({ note: note }),
-            style: JSON.stringify(drawingStyles.note),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Note', 'Point', { note: note });
           break;
           
         case 'circle':
           const radius = parseFloat(prompt('Enter radius in meters:')) || 1000;
           layer = L.circle(latlng, { ...drawingStyles.circle, radius: radius });
-          feature = {
-            featureCategory: 'Data',
-            geometryType: 'Circle',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: 'Circle',
-            properties: JSON.stringify({ radiusMeters: radius }),
-            style: JSON.stringify(drawingStyles.circle),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, 'Circle', 'Point', { radiusMeters: radius });
           break;
           
         case 'link':
@@ -1196,16 +1156,7 @@
           const linkName = prompt('Enter link name:') || 'Link';
           layer = L.circleMarker(latlng, drawingStyles.link);
           layer.bindPopup(`<a href="${url}" target="_blank">${linkName}</a>`);
-          feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Link',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: linkName,
-            properties: JSON.stringify({ url: url }),
-            style: JSON.stringify(drawingStyles.link),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, linkName, 'Point', { url: url });
           break;
           
         case 'video':
@@ -1218,16 +1169,7 @@
               <a href="${videoUrl}" target="_blank">🎥 Watch Video</a>
             </div>
           `);
-          feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Video',
-            geometryType: 'Point',
-            coordinates: JSON.stringify([latlng.lng, latlng.lat]),
-            name: videoTitle,
-            properties: JSON.stringify({ videoUrl: videoUrl }),
-            style: JSON.stringify(drawingStyles.video),
-            layerId: currentLayerId
-          };
+          feature = formatFeatureData(layer, videoTitle, 'Point', { videoUrl: videoUrl });
           break;
       }
       
@@ -1237,7 +1179,7 @@
         // Save to API
         const saved = await saveFeature(feature);
         if (saved) {
-          layer._featureId = saved.featureId;
+          layer._featureId = saved.id || saved.featureId || saved.feature_id;
           document.getElementById('drawStatus').textContent = `✅ ${feature.name} saved`;
         }
         
@@ -1298,22 +1240,14 @@
           const highlighter = L.polyline(currentFreePath, drawingStyles.highlighter);
           drawnItems.addLayer(highlighter);
           
-          const feature = {
-            featureCategory: 'Annotation',
-            annotationType: 'Highlighter',
-            geometryType: 'LineString',
-            coordinates: JSON.stringify(currentFreePath.map(p => [p.lng, p.lat])),
-            name: 'Highlighter',
-            style: JSON.stringify(drawingStyles.highlighter),
-            layerId: currentLayerId
-          };
+          const feature = formatFeatureData(highlighter, 'Highlighter', 'LineString');
           
           // Remove temp line and save
           if (tempFreeLine) map.removeLayer(tempFreeLine);
           
           const saved = await saveFeature(feature);
           if (saved) {
-            highlighter._featureId = saved.featureId;
+            highlighter._featureId = saved.id || saved.featureId || saved.feature_id;
             document.getElementById('drawStatus').textContent = '✅ Highlighter saved automatically';
             console.log('✅ Highlighter auto-saved:', saved);
           } else {
@@ -1373,6 +1307,25 @@
       }
     }
 
+    // Token management
+    document.getElementById('btnSetToken').onclick = () => {
+      const inputToken = document.getElementById('tokenInput').value.trim();
+      if (inputToken) {
+        token = inputToken;
+        localStorage.setItem('apiToken', token);
+        document.getElementById('error').style.color = '#28a745';
+        document.getElementById('error').textContent = '✅ Token saved successfully';
+        console.log('🔑 Token updated');
+      } else {
+        document.getElementById('error').style.color = '#dc3545';
+        document.getElementById('error').textContent = '❌ Please enter a token';
+      }
+    };
+
+    // Load saved token on page load
+    if (token) {
+      document.getElementById('tokenInput').value = token;
+    }
 
     // ✅ Load templates and restore state when page loads
     window.onload = async function() {

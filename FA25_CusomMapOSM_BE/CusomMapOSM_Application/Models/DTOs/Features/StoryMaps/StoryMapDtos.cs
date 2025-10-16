@@ -85,3 +85,29 @@ public record TimelineStepLayerDto(
     TimelineLayerDisplayMode DisplayMode,
     string? StyleOverride,
     string? Metadata);
+
+public record SegmentTransitionDto(
+    Guid SegmentTransitionId,
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    TransitionEffectType EffectType,
+    Guid? AnimationPresetId,
+    int DurationMs,
+    int DelayMs,
+    bool AutoPlay,
+    bool IsSkippable,
+    string? TransitionConfig,
+    string? Metadata);
+
+public record TransitionPreviewDto(
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    string? FromCameraState,
+    string? ToCameraState,
+    int SuggestedDurationMs,
+    string Easing);
+
+public record ExportedStoryDto(
+    Guid MapId,
+    IReadOnlyCollection<SegmentDto> Segments,
+    IReadOnlyCollection<TimelineStepDto> Timeline);

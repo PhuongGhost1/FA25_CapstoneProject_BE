@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251016082300_Update")]
-    partial class Update
+    [Migration("20251016184940_Update_animation")]
+    partial class Update_animation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -67,6 +67,73 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasKey("AdvertisementId");
 
                     b.ToTable("advertisements", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Animations.LayerAnimation", b =>
+                {
+                    b.Property<Guid>("LayerAnimationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("layer_animation_id");
+
+                    b.Property<string>("Coordinates")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("coordinates");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("LayerId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("layer_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("RotationDeg")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("rotation_deg");
+
+                    b.Property<decimal>("Scale")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("scale");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("source_url");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("ZIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1000)
+                        .HasColumnName("z_index");
+
+                    b.HasKey("LayerAnimationId");
+
+                    b.HasIndex("LayerId");
+
+                    b.ToTable("layer_animations", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Bookmarks.Bookmark", b =>
@@ -2272,10 +2339,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 16, 8, 22, 59, 820, DateTimeKind.Utc).AddTicks(1042),
+                            CreatedAt = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5678),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 16, 8, 22, 59, 820, DateTimeKind.Utc).AddTicks(1338),
+                            LastTokenReset = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5960),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",
@@ -2348,6 +2415,17 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("ParentZoneId");
 
                     b.ToTable("zones", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Animations.LayerAnimation", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
+                        .WithMany()
+                        .HasForeignKey("LayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Layer");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Bookmarks.Bookmark", b =>
