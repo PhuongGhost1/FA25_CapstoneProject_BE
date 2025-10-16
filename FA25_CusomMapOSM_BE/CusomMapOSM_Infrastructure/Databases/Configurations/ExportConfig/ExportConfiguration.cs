@@ -55,9 +55,9 @@ internal class ExportConfiguration : IEntityTypeConfiguration<Export>
             .HasForeignKey(e => e.MapId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(e => e.ExportType)
-            .WithMany()
-            .HasForeignKey(e => e.ExportTypeId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(e => e.ExportType)
+            .HasColumnName("export_type")
+            .HasConversion<string>()
+            .HasMaxLength(50);
     }
 }

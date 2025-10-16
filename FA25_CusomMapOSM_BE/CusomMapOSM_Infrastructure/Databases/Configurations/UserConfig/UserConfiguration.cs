@@ -80,9 +80,11 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                      .HasColumnName("last_login")
                      .HasColumnType("datetime");
 
-              builder.HasOne(u => u.Role)
-                     .WithMany()
-                     .HasForeignKey(u => u.RoleId);
+              builder.Property(u => u.Role)
+                     .HasColumnName("role")
+                     .HasConversion<string>()
+                     .HasMaxLength(50)
+                     .IsRequired();
 
               // Seed admin users
               builder.HasData(
@@ -93,7 +95,7 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                          PasswordHash = HashPassword("Admin123!"), // Default password
                          FullName = "System Administrator",
                          Phone = "+1234567890",
-                         RoleId = SeedDataConstants.AdminRoleId,
+                         Role = UserRoleEnum.Admin,
                          AccountStatus = AccountStatusEnum.Active,
                          CreatedAt = DateTime.UtcNow,
                          MonthlyTokenUsage = 0,

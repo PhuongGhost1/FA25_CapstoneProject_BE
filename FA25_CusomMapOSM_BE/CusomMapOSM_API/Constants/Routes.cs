@@ -71,9 +71,6 @@ public static class Routes
         public const string CreateTimelineStep = "{mapId:guid}/timeline";
         public const string UpdateTimelineStep = "{mapId:guid}/timeline/{stepId:guid}";
         public const string DeleteTimelineStep = "{mapId:guid}/timeline/{stepId:guid}";
-        
-        // Analytics
-        public const string GetZoneAnalytics = "{mapId:guid}/analytics/zones";
     }
 
     public static class PoiEndpoints

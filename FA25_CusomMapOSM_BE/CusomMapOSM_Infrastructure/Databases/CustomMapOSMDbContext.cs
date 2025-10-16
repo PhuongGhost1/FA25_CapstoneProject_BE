@@ -35,11 +35,8 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Bookmark> Bookmarks { get; set; }
     public DbSet<DataSourceBookmark> DataSourceBookmarks { get; set; }
     public DbSet<Collaboration> Collaborations { get; set; }
-    public DbSet<CollaborationPermission> CollaborationPermissions { get; set; }
-    public DbSet<CollaborationTargetType> CollaborationTargetTypes { get; set; }
     public DbSet<Comment> Comments { get; set; }
     public DbSet<Export> Exports { get; set; }
-    public DbSet<ExportType> ExportTypes { get; set; }
     public DbSet<Faq> Faqs { get; set; }
     public DbSet<Layer> Layers { get; set; }
     public DbSet<Map> Maps { get; set; }
@@ -55,9 +52,6 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<TimelineStep> TimelineSteps { get; set; }
     public DbSet<TimelineStepLayer> TimelineStepLayers { get; set; }
     public DbSet<Zone> AdministrativeZones { get; set; }
-    public DbSet<ZoneSelection> MapZoneSelections { get; set; }
-    public DbSet<ZoneStatistic> ZoneStatistics { get; set; }
-    public DbSet<ZoneInsight> ZoneInsights { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }
     public DbSet<MembershipUsage> MembershipUsages { get; set; }
@@ -66,13 +60,11 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
 
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
-    public DbSet<OrganizationMemberType> OrganizationMemberTypes { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
     public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
     public DbSet<Transactions> Transactions { get; set; }
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<UserRole> UserRoles { get; set; }
     
     #endregion
 

@@ -135,21 +135,6 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
         _context.TimelineStepLayers.RemoveRange(layers);
 
-    public Task<List<Zone>> GetAdministrativeZonesAsync(IEnumerable<Guid> zoneIds, CancellationToken ct) =>
-        _context.AdministrativeZones
-            .Where(z => zoneIds.Contains(z.ZoneId))
-            .ToListAsync(ct);
-
-    public Task<List<ZoneStatistic>> GetZoneStatisticsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct) =>
-        _context.ZoneStatistics
-            .Where(s => zoneIds.Contains(s.ZoneId))
-            .ToListAsync(ct);
-
-    public Task<List<ZoneInsight>> GetZoneInsightsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct) =>
-        _context.ZoneInsights
-            .Where(i => zoneIds.Contains(i.ZoneId))
-            .ToListAsync(ct);
-
     public Task<int> SaveChangesAsync(CancellationToken ct) =>
         _context.SaveChangesAsync(ct);
 }

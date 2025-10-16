@@ -55,7 +55,7 @@ public class SubscriptionService : ISubscriptionService
         {
             // Check if user is the owner of the organization
             var userOrgMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(request.UserId, request.OrgId);
-            if (userOrgMember is null || userOrgMember.Role?.Name != "Owner")
+            if (userOrgMember is null || userOrgMember.Role.ToString() != "Owner")
             {
                 return Option.None<SubscribeResponse, Error>(Error.Forbidden("Organization.NotOwner", "Only the organization owner can purchase memberships for this organization"));
             }

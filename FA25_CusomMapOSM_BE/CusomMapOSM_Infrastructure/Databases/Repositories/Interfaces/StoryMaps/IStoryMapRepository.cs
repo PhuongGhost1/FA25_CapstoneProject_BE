@@ -45,9 +45,5 @@ public interface IStoryMapRepository
     void AddTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
     void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers);
 
-    Task<List<Zone>> GetAdministrativeZonesAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
-    Task<List<ZoneStatistic>> GetZoneStatisticsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
-    Task<List<ZoneInsight>> GetZoneInsightsAsync(IEnumerable<Guid> zoneIds, CancellationToken ct);
-
     Task<int> SaveChangesAsync(CancellationToken ct);
 }
