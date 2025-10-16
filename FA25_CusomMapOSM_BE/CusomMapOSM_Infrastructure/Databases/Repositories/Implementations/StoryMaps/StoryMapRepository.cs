@@ -135,6 +135,30 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
         _context.TimelineStepLayers.RemoveRange(layers);
 
+    public Task<SegmentTransition?> GetSegmentTransitionAsync(Guid transitionId, CancellationToken ct) =>
+        _context.SegmentTransitions
+            .Include(t => t.FromSegment)
+            .Include(t => t.ToSegment)
+            .Include(t => t.AnimationPreset)
+            .FirstOrDefaultAsync(t => t.SegmentTransitionId == transitionId, ct);
+
+    public Task<List<SegmentTransition>> GetSegmentTransitionsByMapAsync(Guid mapId, CancellationToken ct) =>
+        _context.SegmentTransitions
+            .Include(t => t.FromSegment)
+            .Include(t => t.ToSegment)
+            .Include(t => t.AnimationPreset)
+            .Where(t => t.FromSegment!.MapId == mapId || t.ToSegment!.MapId == mapId)
+            .ToListAsync(ct);
+
+    public Task AddSegmentTransitionAsync(SegmentTransition transition, CancellationToken ct) =>
+        _context.SegmentTransitions.AddAsync(transition, ct).AsTask();
+
+    public void UpdateSegmentTransition(SegmentTransition transition) =>
+        _context.SegmentTransitions.Update(transition);
+
+    public void RemoveSegmentTransition(SegmentTransition transition) =>
+        _context.SegmentTransitions.Remove(transition);
+
     public Task<int> SaveChangesAsync(CancellationToken ct) =>
         _context.SaveChangesAsync(ct);
 }

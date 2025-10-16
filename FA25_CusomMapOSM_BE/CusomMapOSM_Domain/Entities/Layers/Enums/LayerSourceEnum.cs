@@ -1,3 +1,5 @@
+using System;
+
 namespace CusomMapOSM_Domain.Entities.Layers.Enums;
 
 public enum LayerSourceEnum
@@ -6,5 +8,6 @@ public enum LayerSourceEnum
     UserUploaded = 2,
     ExternalAPI = 3,
     Database = 4,
-    WebMapService = 5
+    WebMapService = 5,
+    InDbVector = 6
 }

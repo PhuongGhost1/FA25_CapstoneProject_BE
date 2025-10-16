@@ -109,7 +109,7 @@ public class Program
             options.EnableDetailedErrors = true;
             options.StreamBufferCapacity = 20;
         });
-
+        
         var app = builder.Build();
 
         app.UseSwaggerServices();

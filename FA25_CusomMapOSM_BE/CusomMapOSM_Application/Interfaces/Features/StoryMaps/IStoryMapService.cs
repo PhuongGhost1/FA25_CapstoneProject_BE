@@ -25,4 +25,13 @@ public interface IStoryMapService
     Task<Option<TimelineStepDto, Error>> CreateTimelineStepAsync(CreateTimelineStepRequest request, CancellationToken ct = default);
     Task<Option<TimelineStepDto, Error>> UpdateTimelineStepAsync(Guid timelineStepId, UpdateTimelineStepRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteTimelineStepAsync(Guid timelineStepId, CancellationToken ct = default);
+
+    Task<Option<IReadOnlyCollection<SegmentTransitionDto>, Error>> GetSegmentTransitionsAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<SegmentTransitionDto, Error>> CreateSegmentTransitionAsync(CreateSegmentTransitionRequest request, CancellationToken ct = default);
+    Task<Option<SegmentTransitionDto, Error>> UpdateSegmentTransitionAsync(Guid transitionId, UpdateSegmentTransitionRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteSegmentTransitionAsync(Guid transitionId, CancellationToken ct = default);
+    Task<Option<TransitionPreviewDto, Error>> PreviewTransitionAsync(PreviewTransitionRequest request, CancellationToken ct = default);
+
+    Task<Option<ExportedStoryDto, Error>> ExportAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<bool, Error>> ImportAsync(ImportStoryRequest request, CancellationToken ct = default);
 }

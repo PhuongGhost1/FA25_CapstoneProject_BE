@@ -16,6 +16,7 @@ using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Zones;
+using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +50,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<SegmentLayer> MapSegmentLayers { get; set; }
     public DbSet<SegmentTransition> SegmentTransitions { get; set; }
     public DbSet<LayerAnimationPreset> LayerAnimationPresets { get; set; }
+    public DbSet<LayerAnimation> LayerAnimations { get; set; }
     public DbSet<TimelineStep> TimelineSteps { get; set; }
     public DbSet<TimelineStepLayer> TimelineStepLayers { get; set; }
     public DbSet<Zone> AdministrativeZones { get; set; }

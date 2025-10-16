@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Update : Migration
+    public partial class Update_animation : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -875,6 +875,37 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "layer_animations",
+                columns: table => new
+                {
+                    layer_animation_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    source_url = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    coordinates = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    rotation_deg = table.Column<decimal>(type: "decimal(18,2)", nullable: false, defaultValue: 0m),
+                    scale = table.Column<decimal>(type: "decimal(18,2)", nullable: false, defaultValue: 1m),
+                    z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 1000),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true),
+                    is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_layer_animations", x => x.layer_animation_id);
+                    table.ForeignKey(
+                        name: "FK_layer_animations_layers_layer_id",
+                        column: x => x.layer_id,
+                        principalTable: "layers",
+                        principalColumn: "layer_id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "map_features",
                 columns: table => new
                 {
@@ -1311,7 +1342,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
             migrationBuilder.InsertData(
                 table: "users",
                 columns: new[] { "user_id", "account_status", "created_at", "email", "full_name", "last_login", "last_token_reset", "password_hash", "phone", "role" },
-                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 10, 16, 8, 22, 59, 820, DateTimeKind.Utc).AddTicks(1042), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 10, 16, 8, 22, 59, 820, DateTimeKind.Utc).AddTicks(1338), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", "Admin" });
+                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5678), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5960), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", "Admin" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_bookmarks_map_id",
@@ -1367,6 +1398,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_exports_UserId",
                 table: "exports",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_layer_animations_layer_id",
+                table: "layer_animations",
+                column: "layer_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_layers_map_id",
@@ -1670,6 +1706,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "faqs");
+
+            migrationBuilder.DropTable(
+                name: "layer_animations");
 
             migrationBuilder.DropTable(
                 name: "locations");
