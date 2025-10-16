@@ -55,9 +55,7 @@ public class AuthenticationService : IAuthenticationService
         if (user is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
-        var role = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
-
-        user.RoleId = role.RoleId;
+        user.Role = UserRoleEnum.RegisteredUser;
         user.AccountStatus = AccountStatusEnum.Inactive;
 
         await _authenticationRepository.UpdateUser(user);
@@ -76,15 +74,13 @@ public class AuthenticationService : IAuthenticationService
         if (isEmailExists)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
-        var userRole = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
-
         var user = new DomainUser.User
         {
             Email = req.Email,
             PasswordHash = _jwtService.HashObject<string>(req.Password),
             FullName = $"{req.FirstName} {req.LastName}",
             Phone = req.Phone,
-            RoleId = userRole.RoleId,
+            Role = UserRoleEnum.RegisteredUser,
             AccountStatus = AccountStatusEnum.PendingVerification,
             CreatedAt = DateTime.UtcNow,
         };
@@ -123,9 +119,7 @@ public class AuthenticationService : IAuthenticationService
         if (user is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
-        var role = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
-
-        user.RoleId = role.RoleId;
+        user.Role = UserRoleEnum.RegisteredUser;
         user.AccountStatus = AccountStatusEnum.Active;
         await _authenticationRepository.UpdateUser(user);
 

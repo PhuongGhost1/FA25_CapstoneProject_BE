@@ -9,6 +9,7 @@ using Optional.Unsafe;
 using CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases;
 using System.Text.Json;
 
@@ -1105,7 +1106,7 @@ public class SystemAdminService : ISystemAdminService
         try
         {
             var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
-            return Option.Some<bool, Error>(user?.RoleId == SeedDataConstants.AdminRoleId);
+            return Option.Some<bool, Error>(user?.Role == UserRoleEnum.Admin);
         }
         catch (Exception ex)
         {
@@ -1119,7 +1120,7 @@ public class SystemAdminService : ISystemAdminService
         {
             var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
             // Would need to implement role-based authorization
-            return Option.Some<bool, Error>(user?.RoleId == SeedDataConstants.AdminRoleId);
+            return Option.Some<bool, Error>(user?.Role == UserRoleEnum.Admin);
         }
         catch (Exception ex)
         {

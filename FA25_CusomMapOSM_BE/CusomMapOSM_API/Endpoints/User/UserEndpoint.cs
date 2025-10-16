@@ -36,8 +36,8 @@ public class UserEndpoint : IEndpoint
                         Email = userEntity.Email,
                         FullName = userEntity.FullName,
                         Phone = userEntity.Phone,
-                        Role = userEntity.Role?.Name ?? "Unknown",
-                        AccountStatus = userEntity.AccountStatus.ToString() ?? "Unknown",
+                        Role = userEntity.Role.ToString(),
+                        AccountStatus = userEntity.AccountStatus.ToString(),
                         CreatedAt = userEntity.CreatedAt,
                         LastLogin = userEntity.LastLogin
                     }

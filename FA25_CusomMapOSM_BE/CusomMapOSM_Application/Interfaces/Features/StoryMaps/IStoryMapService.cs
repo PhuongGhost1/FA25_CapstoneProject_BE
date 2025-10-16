@@ -25,6 +25,4 @@ public interface IStoryMapService
     Task<Option<TimelineStepDto, Error>> CreateTimelineStepAsync(CreateTimelineStepRequest request, CancellationToken ct = default);
     Task<Option<TimelineStepDto, Error>> UpdateTimelineStepAsync(Guid timelineStepId, UpdateTimelineStepRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteTimelineStepAsync(Guid timelineStepId, CancellationToken ct = default);
-
-    Task<Option<ZoneAnalyticsResponse, Error>> GetZoneAnalyticsAsync(ZoneAnalyticsRequest request, CancellationToken ct = default);
 }

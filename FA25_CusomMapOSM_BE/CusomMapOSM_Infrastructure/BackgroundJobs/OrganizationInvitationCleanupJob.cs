@@ -1,4 +1,5 @@
 using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -41,8 +42,8 @@ public class OrganizationInvitationCleanupJob
             var expiredInvitations = await dbContext.OrganizationInvitations
                 .Include(oi => oi.Organization)
                 .Include(oi => oi.Inviter)
-                .Where(oi => oi.InvitedAt < expirationDate &&
-                           !oi.IsAccepted) // Not accepted yet
+                .Where(oi => oi.ExpiresAt < DateTime.UtcNow &&
+                           oi.Status == InvitationStatus.Pending) // Not accepted yet
                 .ToListAsync();
 
             var cleanedCount = 0;
@@ -141,7 +142,7 @@ public class OrganizationInvitationCleanupJob
                 return;
             }
 
-            if (invitation.IsAccepted)
+            if (invitation.Status == InvitationStatus.Accepted)
             {
                 _logger.LogWarning("Cannot cleanup accepted invitation {InvitationId}", invitationId);
                 return;
@@ -175,13 +176,13 @@ public class OrganizationInvitationCleanupJob
             var threeDaysAgo = now.AddDays(-3);
 
             var totalPending = await dbContext.OrganizationInvitations
-                .CountAsync(oi => !oi.IsAccepted);
+                .CountAsync(oi => oi.Status != InvitationStatus.Accepted);
 
             var expiringSoon = await dbContext.OrganizationInvitations
-                .CountAsync(oi => !oi.IsAccepted && oi.InvitedAt < threeDaysAgo);
+                .CountAsync(oi => oi.Status != InvitationStatus.Accepted && oi.InvitedAt < threeDaysAgo);
 
             var expired = await dbContext.OrganizationInvitations
-                .CountAsync(oi => !oi.IsAccepted && oi.InvitedAt < sevenDaysAgo);
+                .CountAsync(oi => oi.Status != InvitationStatus.Accepted && oi.InvitedAt < sevenDaysAgo);
 
             var statistics = new InvitationStatistics
             {

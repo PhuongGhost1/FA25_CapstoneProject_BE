@@ -7,6 +7,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Models.Templates.Email;
 using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
@@ -71,25 +72,21 @@ public class OrganizationService : IOrganizationService
         }
 
         // Add creator as organization member with Owner role
-        var ownerRole = await _typeRepository.GetOrganizationMemberTypeByName("Owner");
-        if (ownerRole != null)
+        var creatorMember = new OrganizationMember()
         {
-            var creatorMember = new OrganizationMember()
-            {
-                OrgId = createdOrg.OrgId,
-                UserId = currentUserId,
-                MembersRoleId = ownerRole.TypeId,
-                InvitedBy = currentUserId, // Self-invited
-                JoinedAt = DateTime.UtcNow,
-                IsActive = true
-            };
+            OrgId = createdOrg.OrgId,
+            UserId = currentUserId,
+            Role = OrganizationMemberTypeEnum.Owner,
+            InvitedBy = currentUserId, // Self-invited
+            JoinedAt = DateTime.UtcNow,
+            Status = MemberStatus.Active
+        };
 
-            var memberResult = await _organizationRepository.AddMemberToOrganization(creatorMember);
-            if (!memberResult)
-            {
-                // Log warning but don't fail organization creation
-                // The organization is created successfully, member addition is secondary
-            }
+        var memberResult = await _organizationRepository.AddMemberToOrganization(creatorMember);
+        if (!memberResult)
+        {
+            // Log warning but don't fail organization creation
+            // The organization is created successfully, member addition is secondary
         }
 
         // Create free membership for the organization owner
@@ -239,15 +236,15 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
 
-        var memberType = await _typeRepository.GetOrganizationMemberTypeByName(req.MemberType);
-        if (memberType is null)
+        // Parse member type from request
+        if (!Enum.TryParse<OrganizationMemberTypeEnum>(req.MemberType, out var memberTypeEnum))
         {
             return Option.None<InviteMemberOrganizationResDto, Error>(
-                Error.NotFound("Organization.MemberTypeNotFound", "Member type not found"));
+                Error.NotFound("Organization.MemberTypeNotFound", "Invalid member type"));
         }
 
         var existingInvitation = await _organizationRepository.GetInvitationByEmailAndOrg(req.MemberEmail, req.OrgId);
-        if (existingInvitation != null && !existingInvitation.IsAccepted)
+        if (existingInvitation != null && existingInvitation.Status == InvitationStatus.Pending)
         {
             return Option.None<InviteMemberOrganizationResDto, Error>(
                 Error.Conflict("Organization.InvitationAlreadyExists",
@@ -259,9 +256,11 @@ public class OrganizationService : IOrganizationService
             OrgId = req.OrgId,
             Email = req.MemberEmail,
             InvitedBy = currentUserId.Value,
-            MembersRoleId = memberType.TypeId,
+            Role = memberTypeEnum,
             InvitedAt = DateTime.UtcNow,
-            IsAccepted = false
+            Status = InvitationStatus.Pending,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            InvitationToken = Guid.NewGuid().ToString()
         };
 
         var invitationResult = await _organizationRepository.InviteMemberToOrganization(newInvitation);
@@ -307,10 +306,16 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.InvitationNotFound", "Invitation not found"));
         }
 
-        if (invitation.IsAccepted)
+        if (invitation.Status == InvitationStatus.Accepted)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
                 Error.Conflict("Organization.InvitationAlreadyAccepted", "Invitation has already been accepted"));
+        }
+
+        if (invitation.Status == InvitationStatus.Expired || invitation.ExpiresAt < DateTime.UtcNow)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.Conflict("Organization.InvitationExpired", "Invitation has expired"));
         }
 
         var currentUserEmail = _currentUserService.GetEmail();
@@ -331,10 +336,11 @@ public class OrganizationService : IOrganizationService
         {
             OrgId = invitation.OrgId,
             UserId = user.UserId,
-            MembersRoleId = invitation.MembersRoleId,
+            Role = invitation.Role,
+            InvitationId = invitation.InvitationId,
             InvitedBy = invitation.InvitedBy,
             JoinedAt = DateTime.UtcNow,
-            IsActive = true
+            Status = MemberStatus.Active
         };
 
         var memberResult = await _organizationRepository.AddMemberToOrganization(newMember);
@@ -344,8 +350,8 @@ public class OrganizationService : IOrganizationService
                 Error.Failure("Organization.MemberAddFailed", "Failed to add member to organization"));
         }
 
-        invitation.IsAccepted = true;
-        invitation.AcceptedAt = DateTime.UtcNow;
+        invitation.Status = InvitationStatus.Accepted;
+        invitation.RespondedAt = DateTime.UtcNow;
 
         var updateResult = await _organizationRepository.UpdateInvitation(invitation);
         if (!updateResult)
@@ -376,10 +382,10 @@ public class OrganizationService : IOrganizationService
             OrgName = invitation.Organization?.OrgName ?? "Unknown Organization",
             Email = invitation.Email,
             InviterEmail = invitation.Inviter?.Email ?? "Unknown User",
-            MemberType = invitation.Role?.Name ?? "Unknown Role",
+            MemberType = invitation.Role.ToString(),
             InvitedAt = invitation.InvitedAt,
-            IsAccepted = invitation.IsAccepted,
-            AcceptedAt = invitation.AcceptedAt
+            IsAccepted = invitation.Status == InvitationStatus.Accepted,
+            AcceptedAt = invitation.RespondedAt
         }).ToList();
 
         return Option.Some<GetInvitationsResDto, Error>(
@@ -409,9 +415,9 @@ public class OrganizationService : IOrganizationService
             MemberId = member.MemberId,
             Email = member.User?.Email ?? "Unknown Email",
             FullName = member.User?.FullName ?? "Unknown User",
-            Role = member.Role?.Name ?? "Unknown Role",
-            JoinedAt = member.JoinedAt ?? DateTime.UtcNow,
-            IsActive = member.IsActive
+            Role = member.Role.ToString(),
+            JoinedAt = member.JoinedAt,
+            IsActive = member.Status == MemberStatus.Active
         }).ToList();
 
         return Option.Some<GetOrganizationMembersResDto, Error>(
@@ -428,7 +434,7 @@ public class OrganizationService : IOrganizationService
         }
 
         var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
-        if (currentUserRole is null || currentUserRole.Role?.Name != "Owner")
+        if (currentUserRole is null || currentUserRole.Role.ToString() != "Owner")
         {
             return Option.None<UpdateMemberRoleResDto, Error>(
                 Error.Forbidden("Organization.NotOwner", "Only the owner can update member roles"));
@@ -448,14 +454,14 @@ public class OrganizationService : IOrganizationService
                     "Member does not belong to this organization"));
         }
 
-        var newRole = await _typeRepository.GetOrganizationMemberTypeByName(req.NewRole);
-        if (newRole is null)
+        // Parse new role from request
+        if (!Enum.TryParse<OrganizationMemberTypeEnum>(req.NewRole, out var newRoleEnum))
         {
             return Option.None<UpdateMemberRoleResDto, Error>(
-                Error.NotFound("Organization.RoleNotFound", "Role not found"));
+                Error.NotFound("Organization.RoleNotFound", "Invalid role"));
         }
 
-        member.MembersRoleId = newRole.TypeId;
+        member.Role = newRoleEnum;
         var updateResult = await _organizationRepository.UpdateOrganizationMember(member);
 
         if (!updateResult)
@@ -477,7 +483,7 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
         var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
-        if (currentUserRole is null || currentUserRole.Role?.Name != "Owner")
+        if (currentUserRole is null || currentUserRole.Role.ToString() != "Owner")
         {
             return Option.None<RemoveMemberResDto, Error>(
                 Error.Forbidden("Organization.NotOwner", "Only the owner can remove members"));
@@ -524,7 +530,7 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.InvitationNotFound", "Invitation not found"));
         }
 
-        if (invitation.IsAccepted)
+        if (invitation.Status == InvitationStatus.Accepted)
         {
             return Option.None<RejectInviteOrganizationResDto, Error>(
                 Error.Conflict("Organization.InvitationAlreadyAccepted", "Invitation has already been accepted"));
@@ -564,7 +570,7 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.InvitationNotFound", "Invitation not found"));
         }
 
-        if (invitation.IsAccepted)
+        if (invitation.Status == InvitationStatus.Accepted)
         {
             return Option.None<CancelInviteOrganizationResDto, Error>(
                 Error.Conflict("Organization.InvitationAlreadyAccepted", "Cannot cancel an accepted invitation"));
@@ -603,8 +609,8 @@ public class OrganizationService : IOrganizationService
             OrgId = member.Organization.OrgId,
             OrgName = member.Organization.OrgName,
             Abbreviation = member.Organization.Abbreviation,
-            MyRole = member.Role?.Name ?? "Unknown Role",
-            JoinedAt = member.JoinedAt ?? DateTime.UtcNow,
+            MyRole = member.Role.ToString(),
+            JoinedAt = member.JoinedAt,
             LogoUrl = member.Organization.LogoUrl
         }).ToList();
 
@@ -635,21 +641,14 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.NewOwnerNotMember", "New owner is not a member of this organization"));
         }
 
-        var ownerRole = await _typeRepository.GetOrganizationMemberTypeByName("Owner");
-        if (ownerRole is null)
-        {
-            return Option.None<TransferOwnershipResDto, Error>(
-                Error.NotFound("Organization.OwnerRoleNotFound", "Owner role not found"));
-        }
-
         var currentOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
-        if (currentOwnerMember is null || currentOwnerMember.Role?.Name != "Owner")
+        if (currentOwnerMember is null || currentOwnerMember.Role.ToString() != "Owner")
         {
             return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));
         }
 
-        // Update new owner's role
-        newOwnerMember.MembersRoleId = ownerRole.TypeId;
+        // Update new owner's role to Owner
+        newOwnerMember.Role = OrganizationMemberTypeEnum.Owner;
         var updateNewOwnerResult = await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
 
         if (!updateNewOwnerResult)
@@ -658,13 +657,9 @@ public class OrganizationService : IOrganizationService
                 Error.Failure("Organization.TransferOwnershipFailed", "Failed to transfer ownership"));
         }
 
-        // Optionally, demote current owner to a different role (e.g., Admin)
-        var adminRole = await _typeRepository.GetOrganizationMemberTypeByName("Admin");
-        if (adminRole != null)
-        {
-            currentOwnerMember.MembersRoleId = adminRole.TypeId;
-            await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
-        }
+        // Demote current owner to Admin
+        currentOwnerMember.Role = OrganizationMemberTypeEnum.Admin;
+        await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
 
         return Option.Some<TransferOwnershipResDto, Error>(
             new TransferOwnershipResDto { Result = "Ownership transferred successfully" });

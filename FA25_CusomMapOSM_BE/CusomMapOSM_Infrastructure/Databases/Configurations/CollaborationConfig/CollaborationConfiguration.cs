@@ -51,21 +51,16 @@ internal class CollaborationConfiguration : IEntityTypeConfiguration<Collaborati
                      .HasColumnName("updated_at")
                      .HasColumnType("datetime");
 
-              // Relationships
-              builder.HasOne(c => c.TargetType)
-                     .WithMany()
-                     .HasForeignKey(c => c.TargetTypeId)
-                     .OnDelete(DeleteBehavior.Restrict);
+              builder.Property(c => c.TargetType)
+                     .HasColumnName("target_type")
+                     .HasConversion<string>()
+                     .HasMaxLength(50);
 
+              // Relationships
               builder.HasOne(c => c.User)
                      .WithMany()
                      .HasForeignKey(c => c.UserId)
                      .OnDelete(DeleteBehavior.Cascade);
-
-              builder.HasOne(c => c.Permission)
-                     .WithMany()
-                     .HasForeignKey(c => c.PermissionId)
-                     .OnDelete(DeleteBehavior.Restrict);
 
               builder.HasOne(c => c.Inviter)
                      .WithMany()

@@ -20,7 +20,6 @@ public class StoryMapEndpoint : IEndpoint
         MapSegmentZonesEndpoints(group);
         MapSegmentLayersEndpoints(group);
         MapTimelineEndpoints(group);
-        MapAnalyticsEndpoints(group);
     }
 
     private static void MapSegmentsEndpoints(RouteGroupBuilder group)
@@ -347,27 +346,6 @@ public class StoryMapEndpoint : IEndpoint
             .Produces(204)
             .ProducesProblem(400)
             .ProducesProblem(404)
-            .ProducesProblem(500);
-    }
-
-    private static void MapAnalyticsEndpoints(RouteGroupBuilder group)
-    {
-        group.MapPost(Routes.StoryMapEndpoints.GetZoneAnalytics, async (
-                [FromRoute] Guid mapId,
-                [FromBody] ZoneAnalyticsRequest request,
-                [FromServices] IStoryMapService service,
-                CancellationToken ct) =>
-            {
-                var result = await service.GetZoneAnalyticsAsync(request, ct);
-                return result.Match<IResult>(
-                    analytics => Results.Ok(analytics),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("GetZoneAnalytics")
-            .WithDescription("Retrieve aggregated analytics for administrative zones")
-            .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
-            .ProducesProblem(400)
             .ProducesProblem(500);
     }
 }

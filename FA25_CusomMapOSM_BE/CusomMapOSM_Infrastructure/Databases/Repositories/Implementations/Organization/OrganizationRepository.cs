@@ -1,4 +1,5 @@
 ﻿using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,7 +100,7 @@ public class OrganizationRepository : IOrganizationRepository
         return await _context.OrganizationMembers
             .Include(x => x.User)
             .Include(x => x.Role)
-            .Where(x => x.OrgId == orgId && x.IsActive)
+            .Where(x => x.OrgId == orgId && x.Status == MemberStatus.Active)
             .OrderBy(x => x.JoinedAt)
             .ToListAsync();
     }
@@ -119,7 +120,7 @@ public class OrganizationRepository : IOrganizationRepository
             .Include(x => x.User)
             .Include(x => x.Role)
             .Include(x => x.Organization)
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId && x.IsActive);
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId && x.Status == MemberStatus.Active);
     }
 
     public async Task<bool> UpdateOrganizationMember(OrganizationMember member)
@@ -136,8 +137,8 @@ public class OrganizationRepository : IOrganizationRepository
         if (member == null)
             return false;
             
-        // Soft delete by setting IsActive to false
-        member.IsActive = false;
+        // Soft delete by setting status to Removed
+        member.Status = MemberStatus.Removed;
         _context.OrganizationMembers.Update(member);
         return await _context.SaveChangesAsync() > 0;
     }
@@ -159,7 +160,7 @@ public class OrganizationRepository : IOrganizationRepository
         return await _context.OrganizationMembers
             .Include(x => x.Organization)
             .Include(x => x.Role)
-            .Where(x => x.UserId == userId && x.IsActive && (x.Organization != null && x.Organization.IsActive))
+            .Where(x => x.UserId == userId && x.Status == MemberStatus.Active && (x.Organization != null && x.Organization.IsActive))
             .OrderBy(x => x.JoinedAt)
             .ToListAsync();
     }

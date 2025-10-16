@@ -8,30 +8,47 @@ internal class OrganizationInvitationConfiguration : IEntityTypeConfiguration<Or
 {
     public void Configure(EntityTypeBuilder<OrganizationInvitation> builder)
     {
-        builder.ToTable("organization_invitation");
+        builder.ToTable("organization_invitations");
 
         builder.HasKey(o => o.InvitationId);
-        builder.Property(o => o.InvitationId).HasColumnName("invite_id").IsRequired();
-        builder.Property(m => m.OrgId).HasColumnName("org_id").IsRequired();
-        builder.Property(o => o.Email).HasColumnName("member_email").HasMaxLength(255).IsRequired();
-        builder.Property(o => o.InvitedBy).HasColumnName("invited_by").HasMaxLength(50);
-        builder.Property(m => m.MembersRoleId).HasColumnName("role_id").IsRequired();
-        builder.Property(m => m.InvitedAt).HasColumnName("invited_at").HasColumnType("datetime").IsRequired();
-        builder.Property(o => o.IsAccepted).HasColumnName("is_accepted").IsRequired();
-        builder.Property(m => m.AcceptedAt).HasColumnName("accepted_at").HasColumnType("datetime"); 
         
+        builder.Property(o => o.InvitationId).HasColumnName("invitation_id").IsRequired();
+        builder.Property(o => o.OrgId).HasColumnName("org_id").IsRequired();
+        builder.Property(o => o.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
+        builder.Property(o => o.InvitedBy).HasColumnName("invited_by").IsRequired();
+        
+        builder.Property(o => o.Role)
+            .HasColumnName("role")
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+        
+        builder.Property(o => o.Status)
+            .HasColumnName("status")
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+        
+        builder.Property(o => o.InvitationToken).HasColumnName("invitation_token").HasMaxLength(255);
+        builder.Property(o => o.InvitedAt).HasColumnName("invited_at").HasColumnType("datetime").IsRequired();
+        builder.Property(o => o.ExpiresAt).HasColumnName("expires_at").HasColumnType("datetime").IsRequired();
+        builder.Property(o => o.RespondedAt).HasColumnName("responded_at").HasColumnType("datetime");
+        builder.Property(o => o.Message).HasColumnName("message").HasMaxLength(500);
+        
+        // Relationships
         builder.HasOne(o => o.Inviter)
             .WithMany()
             .HasForeignKey(o => o.InvitedBy)
             .OnDelete(DeleteBehavior.Restrict);
+            
         builder.HasOne(o => o.Organization)
             .WithMany()
             .HasForeignKey(o => o.OrgId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne(o => o.Role)
-            .WithMany()
-            .HasForeignKey(o => o.MembersRoleId)
-            .OnDelete(DeleteBehavior.Restrict);
 
+        // Indexes
+        builder.HasIndex(o => o.Email);
+        builder.HasIndex(o => o.Status);
+        builder.HasIndex(o => o.ExpiresAt);
     }
 }

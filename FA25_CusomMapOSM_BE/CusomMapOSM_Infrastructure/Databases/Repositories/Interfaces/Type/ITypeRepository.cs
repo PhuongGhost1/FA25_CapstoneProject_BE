@@ -15,13 +15,7 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 
 public interface ITypeRepository
 {
-    Task<UserRole?> GetUserRoleById(UserRoleEnum name);
     // AnnotationType removed; no longer exposed via repository
-    Task<CollaborationPermission?> GetCollaborationPermissionById(CollaborationPermissionEnum name);
-    Task<CollaborationTargetType?> GetCollaborationTargetTypeById(CollaborationTargetTypeEnum name);
-    Task<ExportType?> GetExportTypeById(ExportTypeEnum name);
     Task<MembershipPlanTypeEnum?> GetMembershipPlanTypeById(MembershipPlanTypeEnum name);
-    Task<OrganizationMemberTypeEnum?> GetOrganizationMemberTypeById(OrganizationMemberTypeEnum name);
-    Task<OrganizationMemberType?> GetOrganizationMemberTypeByName(string name);
     Task<PaymentGatewayEnum?> GetPaymentGatewayById(PaymentGatewayEnum name);
 }
