@@ -254,6 +254,57 @@ public class OrganizationService : IOrganizationService
                     "An invitation has already been sent to this email for this organization"));
         }
 
+        // Check if organization has active membership and quota available
+        var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
+        if (organization is null)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.NotFound("Organization.NotFound", "Organization not found"));
+        }
+
+        // Get organization owner's active membership (since memberships are tied to users, not orgs directly)
+        var organizationOwner = await _organizationRepository.GetOrganizationMemberByUserAndOrg(organization.OwnerUserId, req.OrgId);
+        if (organizationOwner == null)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.NotFound("Organization.OwnerNotFound", "Organization owner not found"));
+        }
+
+        var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+        if (!activeMembership.HasValue)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.NotFound("Organization.NoActiveMembership", "Organization has no active membership"));
+        }
+
+        var membership = activeMembership.Match(some: m => m, none: _ => null!);
+        // Get plan details from the membership
+        var membershipWithPlan = await _membershipService.GetCurrentMembershipWithIncludesAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+        if (!membershipWithPlan.HasValue)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
+        }
+
+        var plan = membershipWithPlan.Match(some: m => m.Plan, none: _ => null!);
+        if (plan == null)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
+        }
+
+        // Check current user count and quota limits before sending invitation
+        var currentMembers = await _organizationRepository.GetOrganizationMembers(req.OrgId);
+        var currentUserCount = currentMembers.Count(m => m.IsActive);
+
+        // Check if adding this user would exceed quota (only if plan has user limits)
+        if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.Conflict("Organization.UserQuotaExceeded",
+                    $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
+        }
+
         var newInvitation = new OrganizationInvitation()
         {
             OrgId = req.OrgId,
@@ -272,7 +323,6 @@ public class OrganizationService : IOrganizationService
         }
 
         // Send email notification asynchronously
-        var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
         var inviter = await _authenticationRepository.GetUserById(currentUserId.Value);
 
         var mail = new MailRequest
@@ -281,7 +331,7 @@ public class OrganizationService : IOrganizationService
             Subject = $"Invitation to join {organization?.OrgName ?? "Organization"}",
             Body = EmailTemplates.Organization.GetInvitationTemplate(
                 inviter?.FullName ?? "Unknown User",
-                organization?.OrgName ?? "an organization",
+                organization.OrgName,
                 req.MemberType)
         };
 
@@ -327,6 +377,71 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.UserNotFound", "User not found"));
         }
 
+        // Check if organization has active membership and quota available
+        var organization = await _organizationRepository.GetOrganizationById(invitation.OrgId);
+        if (organization is null)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.NotFound("Organization.NotFound", "Organization not found"));
+        }
+
+        // Get organization owner's active membership (since memberships are tied to users, not orgs directly)
+        var organizationOwner = await _organizationRepository.GetOrganizationMemberByUserAndOrg(organization.OwnerUserId, invitation.OrgId);
+        if (organizationOwner == null)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.NotFound("Organization.OwnerNotFound", "Organization owner not found"));
+        }
+
+        var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, invitation.OrgId, CancellationToken.None);
+        if (!activeMembership.HasValue)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.NotFound("Organization.NoActiveMembership", "Organization has no active membership"));
+        }
+
+        var membership = activeMembership.Match(some: m => m, none: _ => null!);
+        // Get plan details from the membership
+        var membershipWithPlan = await _membershipService.GetCurrentMembershipWithIncludesAsync(organization.OwnerUserId, invitation.OrgId, CancellationToken.None);
+        if (!membershipWithPlan.HasValue)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
+        }
+
+        var plan = membershipWithPlan.Match(some: m => m.Plan, none: _ => null!);
+        if (plan == null)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
+        }
+
+        // Check current user count and quota limits
+        var currentMembers = await _organizationRepository.GetOrganizationMembers(invitation.OrgId);
+        var currentUserCount = currentMembers.Count(m => m.IsActive);
+
+        // Check if adding this user would exceed quota (only if plan has user limits)
+        if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.Conflict("Organization.UserQuotaExceeded",
+                    $"Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
+        }
+
+        // Consume user quota
+        var quotaResult = await _membershipService.TryConsumeQuotaAsync(
+            membership.MembershipId,
+            invitation.OrgId,
+            "users",
+            1,
+            CancellationToken.None);
+
+        if (!quotaResult.HasValue)
+        {
+            return Option.None<AcceptInviteOrganizationResDto, Error>(
+                Error.Failure("Organization.QuotaConsumptionFailed", "Failed to consume user quota"));
+        }
+
         var newMember = new OrganizationMember()
         {
             OrgId = invitation.OrgId,
@@ -340,6 +455,14 @@ public class OrganizationService : IOrganizationService
         var memberResult = await _organizationRepository.AddMemberToOrganization(newMember);
         if (!memberResult)
         {
+            // Rollback quota consumption if member addition fails
+            await _membershipService.TryConsumeQuotaAsync(
+                membership.MembershipId,
+                invitation.OrgId,
+                "users",
+                -1, // Negative amount to release quota
+                CancellationToken.None);
+
             return Option.None<AcceptInviteOrganizationResDto, Error>(
                 Error.Failure("Organization.MemberAddFailed", "Failed to add member to organization"));
         }
@@ -495,6 +618,31 @@ public class OrganizationService : IOrganizationService
             return Option.None<RemoveMemberResDto, Error>(
                 Error.Failure("Organization.MemberNotInOrganization",
                     "Member does not belong to this organization"));
+        }
+
+        // Get organization owner's active membership to release quota
+        var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
+        if (organization != null)
+        {
+            var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+            if (activeMembership.HasValue)
+            {
+                var membership = activeMembership.Match(some: m => m, none: _ => null!);
+
+                // Release user quota when removing member
+                var quotaResult = await _membershipService.TryConsumeQuotaAsync(
+                    membership.MembershipId,
+                    req.OrgId,
+                    "users",
+                    -1, // Negative amount to release quota
+                    CancellationToken.None);
+
+                if (!quotaResult.HasValue)
+                {
+                    // Log warning but don't fail the removal - quota release is secondary
+                    Console.WriteLine($"Failed to release user quota for organization {req.OrgId} when removing member {req.MemberId}");
+                }
+            }
         }
 
         var removeResult = await _organizationRepository.RemoveOrganizationMember(req.MemberId);
