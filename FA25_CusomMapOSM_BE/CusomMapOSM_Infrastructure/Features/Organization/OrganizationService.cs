@@ -292,7 +292,7 @@ public class OrganizationService : IOrganizationService
 
         // Check current user count and quota limits before sending invitation
         var currentMembers = await _organizationRepository.GetOrganizationMembers(req.OrgId);
-        var currentUserCount = currentMembers.Count(m => m.IsActive);
+        var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
 
         // Check if adding this user would exceed quota (only if plan has user limits)
         if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
@@ -423,7 +423,7 @@ public class OrganizationService : IOrganizationService
 
         // Check current user count and quota limits
         var currentMembers = await _organizationRepository.GetOrganizationMembers(invitation.OrgId);
-        var currentUserCount = currentMembers.Count(m => m.IsActive);
+        var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
 
         // Check if adding this user would exceed quota (only if plan has user limits)
         if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
