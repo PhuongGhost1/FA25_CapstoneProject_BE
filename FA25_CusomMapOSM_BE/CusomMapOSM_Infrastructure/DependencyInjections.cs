@@ -137,6 +137,8 @@ public static class DependencyInjections
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IPoiService, PoiService>();
         services.AddScoped<IStoryMapService, StoryMapService>();
+        services.AddScoped<ISegmentExecutor, SegmentExecutor>();
+        services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
 

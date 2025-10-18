@@ -19,8 +19,8 @@ public class MapEndpoints : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/maps")
-            .WithTags("Maps")
+        var group = app.MapGroup(Routes.Prefix.Maps)
+            .WithTags(Tags.Map)
             .WithDescription("Map management endpoints");
 
         group.MapPost("/", async (
@@ -127,13 +127,13 @@ public class MapEndpoints : IEndpoint
             {
                 var result = await mapService.GetLayerData(templateId, layerId);
                 return result.Match(
-                    success => Results.Ok(new { layerData = success }),
+                    success => Results.Ok(new LayerDataResponse { LayerData = success }),
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("GetMapTemplateLayerData")
             .WithDescription("Get layer GeoJSON data for map template")
             .AllowAnonymous()
-            .Produces<object>(200)
+            .Produces<LayerDataResponse>(200)
             .Produces(404);
 
         group.MapGet("/{mapId:guid}", async (
@@ -321,14 +321,14 @@ public class MapEndpoints : IEndpoint
                 if (!canEdit) return Results.Forbid();
                 var result = await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
                 return result.Match(
-                    success => Results.Ok(new { Snapshot = success }),
+                    success => Results.Ok(new MapSnapshotResponse { Snapshot = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("UndoMapHistory")
             .WithDescription("Get a prior snapshot of the map by stepping back N (<=10)")
             .RequireAuthorization()
-            .Produces(200)
+            .Produces<MapSnapshotResponse>(200)
             .Produces(400);
 
         group.MapPost("/{mapId:guid}/history/apply", async (
@@ -341,14 +341,14 @@ public class MapEndpoints : IEndpoint
                 if (!canEdit) return Results.Forbid();
                 var result = await featureService.ApplySnapshot(mapId, snapshot);
                 return result.Match(
-                    success => Results.Ok(new { applied = success }),
+                    success => Results.Ok(new ApplySnapshotResponse { Applied = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("ApplyMapHistorySnapshot")
             .WithDescription("Apply a provided snapshot JSON to restore map features")
             .RequireAuthorization()
-            .Produces(200)
+            .Produces<ApplySnapshotResponse>(200)
             .Produces(400);
 
         group.MapGet("/{mapId:guid}/features/by-category/{category}", async (
@@ -407,14 +407,14 @@ public class MapEndpoints : IEndpoint
             {
                 var result = await featureService.Delete(featureId);
                 return result.Match(
-                    success => Results.Ok(new { deleted = success }),
+                    success => Results.Ok(new DeleteFeatureResponse { Deleted = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("DeleteMapFeature")
             .WithDescription("Delete a feature from a map")
             .RequireAuthorization()
-            .Produces(200);
+            .Produces<DeleteFeatureResponse>(200);
         // Zone/Feature Operations
         group.MapPost("/{mapId:guid}/layers/{sourceLayerId:guid}/copy-feature", async (
                 Guid mapId,
@@ -787,7 +787,7 @@ public class MapEndpoints : IEndpoint
                 var withMap = request with { MapId = mapId };
                 var result = await storyService.ImportAsync(withMap, ct);
                 return result.Match<IResult>(
-                    ok => Results.Ok(new { imported = ok }),
+                    ok => Results.Ok(new ImportStoryResponse { Imported = ok }),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("Map_ImportStory")
@@ -883,7 +883,7 @@ public class MapEndpoints : IEndpoint
                 [FromServices] IMapService mapService) =>
             {
                 var can = await mapService.HasEditPermission(mapId);
-                return Results.Ok(new { canEdit = can });
+                return Results.Ok(new CanEditResponse { CanEdit = can });
             })
             .WithName("Map_CanEdit")
             .WithDescription("Check if current user can edit this map")

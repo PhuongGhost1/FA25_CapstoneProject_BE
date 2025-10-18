@@ -37,6 +37,7 @@ public interface IStoryMapRepository
 
     Task<TimelineStep?> GetTimelineStepAsync(Guid timelineStepId, CancellationToken ct);
     Task<List<TimelineStep>> GetTimelineByMapAsync(Guid mapId, CancellationToken ct);
+    Task<List<TimelineStep>> GetTimelineStepsBySegmentAsync(Guid segmentId, CancellationToken ct);
     Task AddTimelineStepAsync(TimelineStep step, CancellationToken ct);
     void UpdateTimelineStep(TimelineStep step);
     void RemoveTimelineStep(TimelineStep step);
