@@ -26,7 +26,7 @@ public class PoiService : IPoiService
 
         var locations = await _storyMapRepository.GetLocationsByMapAsync(mapId, ct);
         var poiDtos = locations.Select(l => new PoiDto(
-            l.MapLocationId,
+            l.LocationId,
             l.MapId,
             l.SegmentId,
             l.SegmentZoneId,
@@ -65,7 +65,7 @@ public class PoiService : IPoiService
 
         var locations = await _storyMapRepository.GetLocationsBySegmentAsync(segmentId, ct);
         var poiDtos = locations.Select(l => new PoiDto(
-            l.MapLocationId,
+            l.LocationId,
             l.MapId,
             l.SegmentId,
             l.SegmentZoneId,
@@ -146,9 +146,9 @@ public class PoiService : IPoiService
             }
         }
 
-        var location = new MapLocation
+        var location = new Location
         {
-            MapLocationId = Guid.NewGuid(),
+            LocationId = Guid.NewGuid(),
             MapId = request.MapId,
             SegmentId = segmentId,
             SegmentZoneId = segmentZoneId,
@@ -179,7 +179,7 @@ public class PoiService : IPoiService
         await _storyMapRepository.SaveChangesAsync(ct);
 
         var poiDto = new PoiDto(
-            location.MapLocationId,
+            location.LocationId,
             location.MapId,
             location.SegmentId,
             location.SegmentZoneId,
@@ -289,7 +289,7 @@ public class PoiService : IPoiService
         await _storyMapRepository.SaveChangesAsync(ct);
 
         var poiDto = new PoiDto(
-            location.MapLocationId,
+            location.LocationId,
             location.MapId,
             location.SegmentId,
             location.SegmentZoneId,

@@ -7,6 +7,7 @@ using OrganizationMemberEntity = CusomMapOSM_Domain.Entities.Organizations.Organ
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.OrganizationAdmin;
 
@@ -65,7 +66,7 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
     public async Task<int> GetTotalActiveUsersAsync(Guid orgId, CancellationToken ct = default)
     {
         return await _context.OrganizationMembers
-            .Where(om => om.OrgId == orgId && om.IsActive)
+            .Where(om => om.OrgId == orgId && om.Status == MemberStatus.Active)
             .CountAsync(ct);
     }
 
@@ -444,21 +445,15 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
         var organizationMembers = await _context.OrganizationMembers
             .Where(om => om.OrgId == orgId &&
                         om.UserId == userId &&
-                        om.IsActive)
+                        om.Status == MemberStatus.Active)
             .ToListAsync(ct);
 
         foreach (var member in organizationMembers)
         {
-            if (member.MembersRoleId != Guid.Empty)
+            if (member.Role == OrganizationMemberTypeEnum.Admin || 
+                member.Role == OrganizationMemberTypeEnum.Owner)
             {
-                var role = await _context.OrganizationMemberTypes
-                    .FirstOrDefaultAsync(omt => omt.TypeId == member.MembersRoleId, ct);
-
-                if (role != null &&
-                    (role.Name.ToLower().Contains("admin") || role.Name.ToLower().Contains("owner")))
-                {
-                    return true;
-                }
+                return true;
             }
         }
 

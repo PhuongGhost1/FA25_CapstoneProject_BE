@@ -7,6 +7,7 @@ using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
+using System.Text.Json;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -14,11 +15,13 @@ public class MapFeatureService : IMapFeatureService
 {
     private readonly IMapFeatureRepository _repository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IMapHistoryService _mapHistoryService;
 
-    public MapFeatureService(IMapFeatureRepository repository, ICurrentUserService currentUserService)
+    public MapFeatureService(IMapFeatureRepository repository, ICurrentUserService currentUserService, IMapHistoryService mapHistoryService)
     {
         _repository = repository;
         _currentUserService = currentUserService;
+        _mapHistoryService = mapHistoryService;
     }
 
     public async Task<Option<MapFeatureResponse, Error>> Create(CreateMapFeatureRequest req)
@@ -56,6 +59,9 @@ public class MapFeatureService : IMapFeatureService
         };
 
         var id = await _repository.Create(entity);
+        // record snapshot after create
+        var snapshot = await _repository.GetByMap(req.MapId);
+        await _mapHistoryService.RecordSnapshot(req.MapId, userId.Value, System.Text.Json.JsonSerializer.Serialize(snapshot));
         var created = await _repository.GetById(id);
         return created == null
             ? Option.None<MapFeatureResponse, Error>(Error.Failure("Feature.CreateFailed", "Create failed"))
@@ -95,6 +101,11 @@ public class MapFeatureService : IMapFeatureService
         existed.UpdatedAt = DateTime.UtcNow;
 
         var ok = await _repository.Update(existed);
+        if (ok)
+        {
+            var snapshot = await _repository.GetByMap(existed.MapId);
+            await _mapHistoryService.RecordSnapshot(existed.MapId, _currentUserService.GetUserId()!.Value, System.Text.Json.JsonSerializer.Serialize(snapshot));
+        }
         return ok
             ? Option.Some<MapFeatureResponse, Error>(ToResponse(existed))
             : Option.None<MapFeatureResponse, Error>(Error.Failure("Feature.UpdateFailed", "Update failed"));
@@ -102,7 +113,15 @@ public class MapFeatureService : IMapFeatureService
 
     public async Task<Option<bool, Error>> Delete(Guid featureId)
     {
+        var existed = await _repository.GetById(featureId);
         var ok = await _repository.Delete(featureId);
+        if (ok && existed != null)
+        {
+            var snapshot = await _repository.GetByMap(existed.MapId);
+            var uid = _currentUserService.GetUserId();
+            if (uid != null)
+                await _mapHistoryService.RecordSnapshot(existed.MapId, uid.Value, System.Text.Json.JsonSerializer.Serialize(snapshot));
+        }
         return ok
             ? Option.Some<bool, Error>(true)
             : Option.None<bool, Error>(Error.NotFound("Feature.NotFound", "Feature not found"));
@@ -147,6 +166,44 @@ public class MapFeatureService : IMapFeatureService
             CreatedAt = f.CreatedAt,
             UpdatedAt = f.UpdatedAt
         };
+    }
+
+    public async Task<Option<bool, Error>> ApplySnapshot(Guid mapId, string snapshotJson)
+    {
+        try
+        {
+            var currentUser = _currentUserService.GetUserId();
+            if (currentUser == null)
+            {
+                return Option.None<bool, Error>(Error.Unauthorized("Feature.Unauthorized", "Unauthorized"));
+            }
+
+            var features = JsonSerializer.Deserialize<List<MapFeature>>(snapshotJson);
+            if (features == null)
+            {
+                return Option.None<bool, Error>(Error.ValidationError("Feature.InvalidSnapshot", "Snapshot parse failed"));
+            }
+
+            // Ensure mapId consistency and regenerate ids if missing
+            foreach (var f in features)
+            {
+                f.MapId = mapId;
+                if (f.FeatureId == Guid.Empty) f.FeatureId = Guid.NewGuid();
+            }
+
+            await _repository.DeleteByMap(mapId);
+            await _repository.AddRange(features);
+
+            // Record snapshot after applying to support redo forward navigation
+            var appliedSnapshotJson = JsonSerializer.Serialize(features);
+            await _mapHistoryService.RecordSnapshot(mapId, currentUser.Value, appliedSnapshotJson);
+
+            return Option.Some<bool, Error>(true);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<bool, Error>(Error.Failure("Feature.ApplySnapshotFailed", ex.Message));
+        }
     }
 
     private static bool IsGeometryValidForRequest(FeatureCategoryEnum category, AnnotationTypeEnum? annotationType, GeometryTypeEnum geometryType)

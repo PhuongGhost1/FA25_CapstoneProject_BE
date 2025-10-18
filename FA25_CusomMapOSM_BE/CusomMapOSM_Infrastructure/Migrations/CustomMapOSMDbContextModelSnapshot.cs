@@ -66,92 +66,71 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("advertisements", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Annotations.Annotation", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Animations.LayerAnimation", b =>
                 {
-                    b.Property<int>("AnnotationId")
+                    b.Property<Guid>("LayerAnimationId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("annotation_id");
+                        .HasColumnType("char(36)")
+                        .HasColumnName("layer_animation_id");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("AnnotationId"));
+                    b.Property<string>("Coordinates")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("coordinates");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Geometry")
-                        .HasColumnType("json")
-                        .HasColumnName("geometry");
-
-                    b.Property<Guid>("MapId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_id");
-
-                    b.Property<string>("Properties")
-                        .HasColumnType("json")
-                        .HasColumnName("properties");
-
-                    b.Property<Guid>("TypeId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("type_id");
-
-                    b.HasKey("AnnotationId");
-
-                    b.HasIndex("MapId");
-
-                    b.HasIndex("TypeId");
-
-                    b.ToTable("annotations", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Annotations.AnnotationType", b =>
-                {
-                    b.Property<Guid>("TypeId")
+                    b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("LayerId")
                         .HasColumnType("char(36)")
-                        .HasColumnName("type_id");
+                        .HasColumnName("layer_id");
 
-                    b.Property<string>("TypeName")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("type_name");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("name");
 
-                    b.HasKey("TypeId");
+                    b.Property<decimal>("RotationDeg")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("rotation_deg");
 
-                    b.ToTable("annotation_types", (string)null);
+                    b.Property<decimal>("Scale")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(1m)
+                        .HasColumnName("scale");
 
-                    b.HasData(
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000008"),
-                            TypeName = "Marker"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000009"),
-                            TypeName = "Line"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000010"),
-                            TypeName = "Polygon"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000011"),
-                            TypeName = "Circle"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000012"),
-                            TypeName = "Rectangle"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000013"),
-                            TypeName = "TextLabel"
-                        });
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("source_url");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("ZIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1000)
+                        .HasColumnName("z_index");
+
+                    b.HasKey("LayerAnimationId");
+
+                    b.HasIndex("LayerId");
+
+                    b.ToTable("layer_animations", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Bookmarks.Bookmark", b =>
@@ -245,6 +224,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("invited_by");
 
+                    b.Property<int>("Permission")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("PermissionId")
                         .HasColumnType("char(36)")
                         .HasColumnName("permission_id");
@@ -254,6 +236,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)")
                         .HasColumnName("target_id");
+
+                    b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("target_type");
 
                     b.Property<Guid>("TargetTypeId")
                         .HasColumnType("char(36)")
@@ -271,132 +259,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("InvitedBy");
 
-                    b.HasIndex("PermissionId");
-
-                    b.HasIndex("TargetTypeId");
-
                     b.HasIndex("UserId");
 
                     b.ToTable("collaborations", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Collaborations.CollaborationPermission", b =>
-                {
-                    b.Property<Guid>("PermissionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("permission_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
-
-                    b.Property<int>("LevelOrder")
-                        .HasColumnType("int")
-                        .HasColumnName("level_order");
-
-                    b.Property<string>("PermissionName")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("permission_name");
-
-                    b.HasKey("PermissionId");
-
-                    b.ToTable("collaboration_permissions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            PermissionId = new Guid("00000000-0000-0000-0000-000000000014"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Can view maps and layers",
-                            IsActive = true,
-                            LevelOrder = 1,
-                            PermissionName = "View"
-                        },
-                        new
-                        {
-                            PermissionId = new Guid("00000000-0000-0000-0000-000000000015"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Can edit maps and layers",
-                            IsActive = true,
-                            LevelOrder = 2,
-                            PermissionName = "Edit"
-                        },
-                        new
-                        {
-                            PermissionId = new Guid("00000000-0000-0000-0000-000000000016"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Can manage maps, layers, and permissions",
-                            IsActive = true,
-                            LevelOrder = 3,
-                            PermissionName = "Manage"
-                        });
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Collaborations.CollaborationTargetType", b =>
-                {
-                    b.Property<Guid>("TargetTypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("target_type_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("TypeName")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("type_name");
-
-                    b.HasKey("TargetTypeId");
-
-                    b.ToTable("collaboration_target_types", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            TargetTypeId = new Guid("00000000-0000-0000-0000-000000000017"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Share entire maps with team members",
-                            IsActive = true,
-                            TypeName = "Map"
-                        },
-                        new
-                        {
-                            TargetTypeId = new Guid("00000000-0000-0000-0000-000000000018"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Share specific layers with team members",
-                            IsActive = true,
-                            TypeName = "Layer"
-                        },
-                        new
-                        {
-                            TargetTypeId = new Guid("00000000-0000-0000-0000-000000000019"),
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Share organization resources",
-                            IsActive = true,
-                            TypeName = "Organization"
-                        });
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Comments.Comment", b =>
@@ -464,6 +329,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("ExportType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("export_type");
+
                     b.Property<Guid>("ExportTypeId")
                         .HasColumnType("char(36)");
 
@@ -494,8 +365,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("ExportId");
 
-                    b.HasIndex("ExportTypeId");
-
                     b.HasIndex("MapId");
 
                     b.HasIndex("MembershipId");
@@ -503,51 +372,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("exports", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Exports.ExportType", b =>
-                {
-                    b.Property<Guid>("TypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("type_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
-
-                    b.HasKey("TypeId");
-
-                    b.ToTable("export_types", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000020"),
-                            Name = "PDF"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000021"),
-                            Name = "PNG"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000022"),
-                            Name = "SVG"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000023"),
-                            Name = "GeoJSON"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000024"),
-                            Name = "MBTiles"
-                        });
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Faqs.Faq", b =>
@@ -783,154 +607,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("layers", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.LayerSource", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Locations.Location", b =>
                 {
-                    b.Property<Guid>("SourceTypeId")
+                    b.Property<Guid>("LocationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)")
-                        .HasColumnName("source_type_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
-
-                    b.HasKey("SourceTypeId");
-
-                    b.ToTable("layer_sources", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            SourceTypeId = new Guid("00000000-0000-0000-0000-000000000025"),
-                            Name = "OpenStreetMap"
-                        },
-                        new
-                        {
-                            SourceTypeId = new Guid("00000000-0000-0000-0000-000000000026"),
-                            Name = "UserUploaded"
-                        },
-                        new
-                        {
-                            SourceTypeId = new Guid("00000000-0000-0000-0000-000000000027"),
-                            Name = "ExternalAPI"
-                        },
-                        new
-                        {
-                            SourceTypeId = new Guid("00000000-0000-0000-0000-000000000028"),
-                            Name = "Database"
-                        },
-                        new
-                        {
-                            SourceTypeId = new Guid("00000000-0000-0000-0000-000000000029"),
-                            Name = "WebMapService"
-                        });
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.LayerType", b =>
-                {
-                    b.Property<int>("LayerTypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("layer_type_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LayerTypeId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("IconUrl")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("icon_url");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("TypeName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("type_name");
-
-                    b.HasKey("LayerTypeId");
-
-                    b.ToTable("layer_types", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            LayerTypeId = 1,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Street and road networks from OpenStreetMap",
-                            IconUrl = "/icons/roads.svg",
-                            IsActive = true,
-                            TypeName = "GEOJSON"
-                        },
-                        new
-                        {
-                            LayerTypeId = 2,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Building footprints and structures",
-                            IconUrl = "/icons/buildings.svg",
-                            IsActive = true,
-                            TypeName = "KML"
-                        },
-                        new
-                        {
-                            LayerTypeId = 3,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Points of Interest including amenities and landmarks",
-                            IconUrl = "/icons/poi.svg",
-                            IsActive = true,
-                            TypeName = "Shapefile"
-                        },
-                        new
-                        {
-                            LayerTypeId = 4,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "User uploaded GeoJSON data layers",
-                            IconUrl = "/icons/geojson.svg",
-                            IsActive = true,
-                            TypeName = "GEOJSON"
-                        },
-                        new
-                        {
-                            LayerTypeId = 5,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "User uploaded KML data layers",
-                            IconUrl = "/icons/kml.svg",
-                            IsActive = true,
-                            TypeName = "KML"
-                        },
-                        new
-                        {
-                            LayerTypeId = 6,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "User uploaded CSV data with coordinates",
-                            IconUrl = "/icons/csv.svg",
-                            IsActive = true,
-                            TypeName = "CSV"
-                        });
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Locations.MapLocation", b =>
-                {
-                    b.Property<Guid>("MapLocationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_location_id");
+                        .HasColumnName("location_id");
 
                     b.Property<string>("AnimationOverrides")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("animation_overrides");
 
                     b.Property<Guid?>("AnimationPresetId")
@@ -942,8 +627,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("associated_layer_id");
 
                     b.Property<string>("AudioUrl")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varchar(1024)")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
                         .HasColumnName("audio_url");
 
                     b.Property<DateTime>("CreatedAt")
@@ -951,9 +636,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<int>("DisplayOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0)
                         .HasColumnName("display_order");
 
                     b.Property<string>("EffectType")
@@ -962,14 +645,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("effect_type");
 
                     b.Property<string>("ExternalUrl")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varchar(1024)")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
                         .HasColumnName("external_url");
 
                     b.Property<bool>("HighlightOnEnter")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("highlight_on_enter");
 
                     b.Property<Guid?>("LinkedLocationId")
@@ -987,23 +668,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("map_id");
 
                     b.Property<string>("MarkerGeometry")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("marker_geometry");
 
                     b.Property<string>("MediaResources")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("media_resources");
 
                     b.Property<bool>("OpenSlideOnClick")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
                         .HasColumnName("open_slide_on_click");
 
                     b.Property<bool>("PlayAudioOnClick")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
                         .HasColumnName("play_audio_on_click");
 
                     b.Property<Guid?>("SegmentId")
@@ -1015,21 +692,20 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("segment_zone_id");
 
                     b.Property<bool>("ShowTooltip")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("show_tooltip");
 
                     b.Property<string>("SlideContent")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("slide_content");
 
                     b.Property<string>("StoryContent")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("story_content");
 
                     b.Property<string>("Subtitle")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
                         .HasColumnName("subtitle");
 
                     b.Property<string>("Title")
@@ -1039,14 +715,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("title");
 
                     b.Property<string>("TooltipContent")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("tooltip_content");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("MapLocationId");
+                    b.HasKey("LocationId");
 
                     b.HasIndex("AnimationPresetId");
 
@@ -1060,7 +736,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("SegmentZoneId");
 
-                    b.ToTable("map_locations", (string)null);
+                    b.ToTable("locations", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>
@@ -1477,9 +1153,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("UsageId");
 
-                    b.HasIndex("MembershipId", "OrgId")
-                        .IsUnique();
-
                     b.ToTable("membership_usages", (string)null);
                 });
 
@@ -1756,48 +1429,69 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<Guid>("InvitationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)")
-                        .HasColumnName("invite_id");
-
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("accepted_at");
+                        .HasColumnName("invitation_id");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
-                        .HasColumnName("member_email");
+                        .HasColumnName("email");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("InvitationToken")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("invitation_token");
 
                     b.Property<DateTime>("InvitedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("invited_at");
 
                     b.Property<Guid>("InvitedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("char(50)")
+                        .HasColumnType("char(36)")
                         .HasColumnName("invited_by");
 
-                    b.Property<bool>("IsAccepted")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_accepted");
-
-                    b.Property<Guid>("MembersRoleId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("role_id");
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("message");
 
                     b.Property<Guid>("OrgId")
                         .HasColumnType("char(36)")
                         .HasColumnName("org_id");
 
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
                     b.HasKey("InvitationId");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("ExpiresAt");
 
                     b.HasIndex("InvitedBy");
 
-                    b.HasIndex("MembersRoleId");
-
                     b.HasIndex("OrgId");
 
-                    b.ToTable("organization_invitation", (string)null);
+                    b.HasIndex("Status");
+
+                    b.ToTable("organization_invitations", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationMember", b =>
@@ -1807,25 +1501,42 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("member_id");
 
+                    b.Property<Guid?>("InvitationId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("invitation_id");
+
                     b.Property<Guid?>("InvitedBy")
                         .HasColumnType("char(36)")
                         .HasColumnName("invited_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("joined_at");
 
-                    b.Property<Guid>("MembersRoleId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("role_id");
+                    b.Property<string>("LeaveReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("leave_reason");
+
+                    b.Property<DateTime?>("LeftAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("left_at");
 
                     b.Property<Guid>("OrgId")
                         .HasColumnType("char(36)")
                         .HasColumnName("org_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)")
@@ -1833,55 +1544,18 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("MemberId");
 
+                    b.HasIndex("InvitationId");
+
                     b.HasIndex("InvitedBy");
 
-                    b.HasIndex("MembersRoleId");
-
-                    b.HasIndex("OrgId");
+                    b.HasIndex("Status");
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("OrgId", "UserId")
+                        .IsUnique();
+
                     b.ToTable("organization_members", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationMemberType", b =>
-                {
-                    b.Property<Guid>("TypeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("type_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
-
-                    b.HasKey("TypeId");
-
-                    b.ToTable("organization_member_types", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000039"),
-                            Name = "Owner"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000040"),
-                            Name = "Admin"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000041"),
-                            Name = "Member"
-                        },
-                        new
-                        {
-                            TypeId = new Guid("00000000-0000-0000-0000-000000000042"),
-                            Name = "Viewer"
-                        });
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", b =>
@@ -1954,7 +1628,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("layer_animation_presets", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegment", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.Segment", b =>
                 {
                     b.Property<Guid>("SegmentId")
                         .ValueGeneratedOnAdd()
@@ -1962,9 +1636,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("segment_id");
 
                     b.Property<bool>("AutoFitBounds")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("auto_fit_bounds");
 
                     b.Property<DateTime>("CreatedAt")
@@ -1975,14 +1647,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("CreatorUserId")
+                        .HasColumnType("char(36)");
+
                     b.Property<Guid?>("DefaultLayerAnimationPresetId")
                         .HasColumnType("char(36)")
                         .HasColumnName("default_layer_animation_preset_id");
 
                     b.Property<int>("DisplayOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0)
                         .HasColumnName("display_order");
 
                     b.Property<Guid?>("EntryAnimationPresetId")
@@ -2010,11 +1683,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("playback_mode");
 
                     b.Property<string>("StoryContent")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("story_content");
 
                     b.Property<string>("Summary")
-                        .HasColumnType("longtext")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
                         .HasColumnName("summary");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -2023,7 +1697,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("SegmentId");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatorUserId");
 
                     b.HasIndex("DefaultLayerAnimationPresetId");
 
@@ -2033,10 +1707,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("MapId");
 
-                    b.ToTable("map_segments", (string)null);
+                    b.ToTable("segments", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegmentLayer", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentLayer", b =>
                 {
                     b.Property<Guid>("SegmentLayerId")
                         .ValueGeneratedOnAdd()
@@ -2044,7 +1718,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("segment_layer_id");
 
                     b.Property<string>("AnimationOverrides")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("animation_overrides");
 
                     b.Property<Guid?>("AnimationPresetId")
@@ -2052,21 +1726,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("animation_preset_id");
 
                     b.Property<bool>("AutoPlayAnimation")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("auto_play_animation");
 
                     b.Property<int>("DelayMs")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0)
                         .HasColumnName("delay_ms");
 
                     b.Property<int>("DisplayOrder")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0)
                         .HasColumnName("display_order");
 
                     b.Property<string>("Easing")
@@ -2075,34 +1743,24 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("easing");
 
-                    b.Property<double>("EndOpacity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double")
-                        .HasDefaultValue(1.0)
+                    b.Property<decimal>("EndOpacity")
+                        .HasColumnType("decimal(3,2)")
                         .HasColumnName("end_opacity");
 
                     b.Property<bool>("ExpandToZone")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("expand_to_zone");
 
                     b.Property<int>("FadeInMs")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(400)
                         .HasColumnName("fade_in_ms");
 
                     b.Property<int>("FadeOutMs")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(400)
                         .HasColumnName("fade_out_ms");
 
                     b.Property<bool>("HighlightZoneBoundary")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("highlight_zone_boundary");
 
                     b.Property<Guid>("LayerId")
@@ -2110,17 +1768,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("layer_id");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("metadata");
 
                     b.Property<string>("OverrideStyle")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("override_style");
 
                     b.Property<int>("RepeatCount")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(1)
                         .HasColumnName("repeat_count");
 
                     b.Property<Guid>("SegmentId")
@@ -2131,10 +1787,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("segment_zone_id");
 
-                    b.Property<double>("StartOpacity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("double")
-                        .HasDefaultValue(0.0)
+                    b.Property<decimal>("StartOpacity")
+                        .HasColumnType("decimal(3,2)")
                         .HasColumnName("start_opacity");
 
                     b.HasKey("SegmentLayerId");
@@ -2147,70 +1801,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("SegmentZoneId");
 
-                    b.ToTable("map_segment_layers", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegmentZone", b =>
-                {
-                    b.Property<Guid>("SegmentZoneId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("segment_zone_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext")
-                        .HasColumnName("description");
-
-                    b.Property<int>("DisplayOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasColumnName("display_order");
-
-                    b.Property<string>("FocusCameraState")
-                        .HasColumnType("json")
-                        .HasColumnName("focus_camera_state");
-
-                    b.Property<bool>("IsPrimary")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_primary");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("name");
-
-                    b.Property<Guid>("SegmentId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("segment_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("ZoneGeometry")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("zone_geometry");
-
-                    b.Property<string>("ZoneType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("zone_type");
-
-                    b.HasKey("SegmentZoneId");
-
-                    b.HasIndex("SegmentId");
-
-                    b.ToTable("map_segment_zones", (string)null);
+                    b.ToTable("segment_layers", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentTransition", b =>
@@ -2279,6 +1870,66 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("ToSegmentId");
 
                     b.ToTable("segment_transitions", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentZone", b =>
+                {
+                    b.Property<Guid>("SegmentZoneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("segment_zone_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("FocusCameraState")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("focus_camera_state");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_primary");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("SegmentId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("segment_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("ZoneGeometry")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("zone_geometry");
+
+                    b.Property<string>("ZoneType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("zone_type");
+
+                    b.HasKey("SegmentZoneId");
+
+                    b.HasIndex("SegmentId");
+
+                    b.ToTable("segment_zones", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.SupportTicket", b =>
@@ -2670,12 +2321,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("phone");
 
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("char(36)");
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("role");
 
                     b.HasKey("UserId");
-
-                    b.HasIndex("RoleId");
 
                     b.ToTable("users", (string)null);
 
@@ -2684,126 +2336,18 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(74),
+                            CreatedAt = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5678),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 13, 15, 50, 39, 498, DateTimeKind.Utc).AddTicks(367),
+                            LastTokenReset = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5960),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",
-                            RoleId = new Guid("00000000-0000-0000-0000-000000000003")
+                            Role = "Admin"
                         });
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserFavoriteTemplate", b =>
-                {
-                    b.Property<int>("UserFavoriteTemplateId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("user_favorite_template_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserFavoriteTemplateId"));
-
-                    b.Property<DateTime>("FavoriteAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("favorite_at");
-
-                    b.Property<Guid>("TemplateId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("template_id");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("UserFavoriteTemplateId");
-
-                    b.HasIndex("TemplateId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("user_favorite_templates", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserPreference", b =>
-                {
-                    b.Property<int>("UserPreferenceId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("user_preference_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserPreferenceId"));
-
-                    b.Property<string>("DefaultMapStyle")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasDefaultValue("default")
-                        .HasColumnName("default_map_style");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("en")
-                        .HasColumnName("language");
-
-                    b.Property<string>("MeasurementUnit")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("metric")
-                        .HasColumnName("measurement_unit");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("UserPreferenceId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("user_preferences", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserRole", b =>
-                {
-                    b.Property<Guid>("RoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("role_id");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("name");
-
-                    b.HasKey("RoleId");
-
-                    b.ToTable("user_roles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            RoleId = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Name = "Staff"
-                        },
-                        new
-                        {
-                            RoleId = new Guid("00000000-0000-0000-0000-000000000002"),
-                            Name = "RegisteredUser"
-                        },
-                        new
-                        {
-                            RoleId = new Guid("00000000-0000-0000-0000-000000000003"),
-                            Name = "Admin"
-                        });
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.AdministrativeZone", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.Zone", b =>
                 {
                     b.Property<Guid>("ZoneId")
                         .ValueGeneratedOnAdd()
@@ -2817,11 +2361,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("admin_level");
 
                     b.Property<string>("BoundingBox")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("bounding_box");
 
                     b.Property<string>("Centroid")
-                        .HasColumnType("json")
+                        .HasColumnType("TEXT")
                         .HasColumnName("centroid");
 
                     b.Property<string>("ExternalId")
@@ -2832,13 +2376,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<string>("Geometry")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("geometry");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
                     b.Property<DateTime>("LastSyncedAt")
@@ -2856,7 +2398,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("parent_zone_id");
 
                     b.Property<string>("SimplifiedGeometry")
-                        .HasColumnType("longtext")
+                        .HasColumnType("TEXT")
                         .HasColumnName("simplified_geometry");
 
                     b.Property<string>("ZoneCode")
@@ -2869,260 +2411,18 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("ParentZoneId");
 
-                    b.ToTable("administrative_zones", (string)null);
+                    b.ToTable("zones", (string)null);
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.MapZoneSelection", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Animations.LayerAnimation", b =>
                 {
-                    b.Property<Guid>("MapZoneSelectionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_zone_selection_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("IncludedZoneIds")
-                        .HasColumnType("json")
-                        .HasColumnName("included_zone_ids");
-
-                    b.Property<Guid>("MapId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_id");
-
-                    b.Property<bool>("PersistResults")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasColumnName("persist_results");
-
-                    b.Property<string>("SelectionGeometry")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("selection_geometry");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("longtext")
-                        .HasColumnName("summary");
-
-                    b.HasKey("MapZoneSelectionId");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("MapId");
-
-                    b.ToTable("map_zone_selections", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.ZoneInsight", b =>
-                {
-                    b.Property<Guid>("ZoneInsightId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("zone_insight_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext")
-                        .HasColumnName("description");
-
-                    b.Property<string>("ExternalUrl")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varchar(1024)")
-                        .HasColumnName("external_url");
-
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varchar(1024)")
-                        .HasColumnName("image_url");
-
-                    b.Property<string>("InsightType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("insight_type");
-
-                    b.Property<string>("Location")
-                        .HasColumnType("json")
-                        .HasColumnName("location");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("json")
-                        .HasColumnName("metadata");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("longtext")
-                        .HasColumnName("summary");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("ZoneId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("zone_id");
-
-                    b.HasKey("ZoneInsightId");
-
-                    b.HasIndex("ZoneId");
-
-                    b.ToTable("zone_insights", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.ZoneStatistic", b =>
-                {
-                    b.Property<Guid>("ZoneStatisticId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("zone_statistic_id");
-
-                    b.Property<DateTime>("CollectedAt")
-                        .HasColumnType("datetime")
-                        .HasColumnName("collected_at");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("json")
-                        .HasColumnName("metadata");
-
-                    b.Property<string>("MetricType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("metric_type");
-
-                    b.Property<double?>("NumericValue")
-                        .HasColumnType("double")
-                        .HasColumnName("numeric_value");
-
-                    b.Property<int?>("Quarter")
-                        .HasColumnType("int")
-                        .HasColumnName("quarter");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("source");
-
-                    b.Property<string>("TextValue")
-                        .HasColumnType("longtext")
-                        .HasColumnName("text_value");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("unit");
-
-                    b.Property<int?>("Year")
-                        .HasColumnType("int")
-                        .HasColumnName("year");
-
-                    b.Property<Guid>("ZoneId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("zone_id");
-
-                    b.HasKey("ZoneStatisticId");
-
-                    b.HasIndex("ZoneId");
-
-                    b.ToTable("zone_statistics", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Infrastructure.Services.FailedEmail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-                    b.Property<string>("EmailData")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FailureReason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime?>("LastRetryAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("RetryCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("ToEmail")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("ToEmail");
-
-                    b.HasIndex("Status", "RetryCount");
-
-                    b.ToTable("failed_emails", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Annotations.Annotation", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
                         .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Annotations.AnnotationType", "Type")
-                        .WithMany()
-                        .HasForeignKey("TypeId")
+                        .HasForeignKey("LayerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Map");
-
-                    b.Navigation("Type");
+                    b.Navigation("Layer");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Bookmarks.Bookmark", b =>
@@ -3162,18 +2462,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("InvitedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Collaborations.CollaborationPermission", "Permission")
-                        .WithMany()
-                        .HasForeignKey("PermissionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Collaborations.CollaborationTargetType", "TargetType")
-                        .WithMany()
-                        .HasForeignKey("TargetTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -3181,10 +2469,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Inviter");
-
-                    b.Navigation("Permission");
-
-                    b.Navigation("TargetType");
 
                     b.Navigation("User");
                 });
@@ -3216,12 +2500,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Exports.Export", b =>
                 {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Exports.ExportType", "ExportType")
-                        .WithMany()
-                        .HasForeignKey("ExportTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
                         .WithMany()
                         .HasForeignKey("MapId")
@@ -3239,8 +2517,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("ExportType");
 
                     b.Navigation("Map");
 
@@ -3268,7 +2544,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Locations.MapLocation", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Locations.Location", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "AnimationPreset")
                         .WithMany()
@@ -3280,7 +2556,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("AssociatedLayerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Locations.MapLocation", "LinkedLocation")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Locations.Location", "LinkedLocation")
                         .WithMany()
                         .HasForeignKey("LinkedLocationId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3291,12 +2567,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "Segment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
                         .WithMany()
                         .HasForeignKey("SegmentId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegmentZone", "SegmentZone")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.SegmentZone", "SegmentZone")
                         .WithMany()
                         .HasForeignKey("SegmentZoneId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3452,12 +2728,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.OrganizationMemberType", "Role")
-                        .WithMany()
-                        .HasForeignKey("MembersRoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrgId")
@@ -3467,22 +2737,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Inviter");
 
                     b.Navigation("Organization");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Organizations.OrganizationMember", b =>
                 {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.OrganizationInvitation", "Invitation")
+                        .WithMany()
+                        .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Inviter")
                         .WithMany()
                         .HasForeignKey("InvitedBy")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Organizations.OrganizationMemberType", "Role")
-                        .WithMany()
-                        .HasForeignKey("MembersRoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Organizations.Organization", "Organization")
                         .WithMany()
@@ -3496,37 +2763,32 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("Invitation");
+
                     b.Navigation("Inviter");
 
                     b.Navigation("Organization");
 
-                    b.Navigation("Role");
-
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegment", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.Segment", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Creator")
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("CreatorUserId");
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "DefaultLayerAnimationPreset")
                         .WithMany()
-                        .HasForeignKey("DefaultLayerAnimationPresetId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("DefaultLayerAnimationPresetId");
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "EntryAnimationPreset")
                         .WithMany()
-                        .HasForeignKey("EntryAnimationPresetId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("EntryAnimationPresetId");
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "ExitAnimationPreset")
                         .WithMany()
-                        .HasForeignKey("ExitAnimationPresetId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("ExitAnimationPresetId");
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
                         .WithMany()
@@ -3545,7 +2807,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Map");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegmentLayer", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentLayer", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "AnimationPreset")
                         .WithMany()
@@ -3555,16 +2817,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasOne("CusomMapOSM_Domain.Entities.Layers.Layer", "Layer")
                         .WithMany()
                         .HasForeignKey("LayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "Segment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
                         .WithMany()
                         .HasForeignKey("SegmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegmentZone", "SegmentZone")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.SegmentZone", "SegmentZone")
                         .WithMany()
                         .HasForeignKey("SegmentZoneId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3578,17 +2840,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("SegmentZone");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.MapSegmentZone", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "Segment")
-                        .WithMany()
-                        .HasForeignKey("SegmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Segment");
-                });
-
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentTransition", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.LayerAnimationPreset", "AnimationPreset")
@@ -3596,13 +2847,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasForeignKey("AnimationPresetId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "FromSegment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "FromSegment")
                         .WithMany()
                         .HasForeignKey("FromSegmentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "ToSegment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "ToSegment")
                         .WithMany()
                         .HasForeignKey("ToSegmentId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -3613,6 +2864,17 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("FromSegment");
 
                     b.Navigation("ToSegment");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Segments.SegmentZone", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
+                        .WithMany()
+                        .HasForeignKey("SegmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Segment");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Tickets.SupportTicket", b =>
@@ -3645,7 +2907,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.MapSegment", "Segment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
                         .WithMany()
                         .HasForeignKey("SegmentId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3699,94 +2961,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("PaymentGateway");
                 });
 
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.User", b =>
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.Zone", b =>
                 {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.UserRole", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserFavoriteTemplate", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Template")
-                        .WithMany()
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Template");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Users.UserPreference", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.AdministrativeZone", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.AdministrativeZone", "ParentZone")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.Zone", "ParentZone")
                         .WithMany()
                         .HasForeignKey("ParentZoneId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentZone");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.MapZoneSelection", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-
-                    b.Navigation("Map");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.ZoneInsight", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.AdministrativeZone", "Zone")
-                        .WithMany()
-                        .HasForeignKey("ZoneId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Zone");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.ZoneStatistic", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.AdministrativeZone", "Zone")
-                        .WithMany()
-                        .HasForeignKey("ZoneId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Zone");
                 });
 #pragma warning restore 612, 618
         }

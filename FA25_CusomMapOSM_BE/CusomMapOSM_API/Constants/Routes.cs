@@ -10,6 +10,7 @@ public static class Routes
         public const string Organization = "organizations";
         public const string PointOfInterest = "points-of-interest";
         public const string StoryMap = "story-map";
+        public const string Animations = "animations";
     }
 
     public static class AuthEndpoints
@@ -72,8 +73,12 @@ public static class Routes
         public const string UpdateTimelineStep = "{mapId:guid}/timeline/{stepId:guid}";
         public const string DeleteTimelineStep = "{mapId:guid}/timeline/{stepId:guid}";
         
-        // Analytics
-        public const string GetZoneAnalytics = "{mapId:guid}/analytics/zones";
+        // Segment transitions
+        public const string GetSegmentTransitions = "{mapId:guid}/transitions";
+        public const string CreateSegmentTransition = "{mapId:guid}/transitions";
+        public const string UpdateSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
+        public const string DeleteSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
+        public const string PreviewTransition = "{mapId:guid}/preview-transition";
     }
 
     public static class PoiEndpoints
@@ -89,5 +94,15 @@ public static class Routes
         // POI management
         public const string UpdatePoi = "{poiId:guid}";
         public const string DeletePoi = "{poiId:guid}";
+    }
+
+    public static class AnimationEndpoints
+    {
+        public const string GetByLayer = "layers/{layerId:guid}";
+        public const string Create = "";
+        public const string GetById = "{animationId:guid}";
+        public const string Update = "{animationId:guid}";
+        public const string Delete = "{animationId:guid}";
+        public const string GetActive = "active";
     }
 }

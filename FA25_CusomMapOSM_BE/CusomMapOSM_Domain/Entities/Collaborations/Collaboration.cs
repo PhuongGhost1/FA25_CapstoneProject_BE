@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CusomMapOSM_Domain.Entities.Collaborations.Enums;
 using CusomMapOSM_Domain.Entities.Users;
 
 namespace CusomMapOSM_Domain.Entities.Collaborations;
@@ -18,8 +19,8 @@ public class Collaboration
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public CollaborationTargetType TargetType { get; set; } = new();
+    public CollaborationTargetTypeEnum TargetType { get; set; } = new();
     public User User { get; set; } = new();
-    public CollaborationPermission Permission { get; set; } = new();
+    public CollaborationPermissionEnum Permission { get; set; } = new();
     public User? Inviter { get; set; }
 }

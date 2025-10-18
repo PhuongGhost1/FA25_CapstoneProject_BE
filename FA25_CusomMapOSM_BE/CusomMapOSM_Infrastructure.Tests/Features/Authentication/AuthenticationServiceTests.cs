@@ -47,7 +47,7 @@ public class AuthenticationServiceTests
             _mockJwtService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockHangfireEmailService.Object,
+            _mockHangfireEmailService.Object
             );
 
         _faker = new Faker();
@@ -67,7 +67,7 @@ public class AuthenticationServiceTests
             .RuleFor(u => u.Email, request.Email)
             .RuleFor(u => u.PasswordHash, "hashed_password")
             .RuleFor(u => u.FullName, f => f.Name.FullName())
-            .RuleFor(u => u.RoleId, Guid.NewGuid())
+            .RuleFor(u => u.Role, UserRoleEnum.RegisteredUser)
             .Generate();
 
         var token = "valid_jwt_token";
@@ -200,11 +200,6 @@ public class AuthenticationServiceTests
             .RuleFor(u => u.Email, f => f.Internet.Email())
             .Generate();
 
-        var inactiveStatus = new Faker<DomainUsers.AccountStatus>()
-            .RuleFor(s => s.StatusId, Guid.NewGuid())
-            .RuleFor(s => s.Name, AccountStatusEnum.Inactive.ToString())
-            .Generate();
-
         _mockAuthenticationRepository.Setup(x => x.GetUserById(userId))
             .ReturnsAsync(user);
         
@@ -255,21 +250,8 @@ public class AuthenticationServiceTests
             .RuleFor(r => r.Phone, f => f.Phone.PhoneNumber())
             .Generate();
 
-        var userRole = new Faker<DomainUsers.UserRole>()
-            .RuleFor(r => r.RoleId, Guid.NewGuid())
-            .RuleFor(r => r.Name, UserRoleEnum.RegisteredUser.ToString())
-            .Generate();
-
-        var accountStatus = new Faker<DomainUsers.AccountStatus>()
-            .RuleFor(s => s.StatusId, Guid.NewGuid())
-            .RuleFor(s => s.Name, AccountStatusEnum.PendingVerification.ToString())
-            .Generate();
-
         _mockAuthenticationRepository.Setup(x => x.IsEmailExists(request.Email))
             .ReturnsAsync(false);
-
-        _mockTypeRepository.Setup(x => x.GetUserRoleById(UserRoleEnum.RegisteredUser))
-            .ReturnsAsync(userRole);
 
         _mockJwtService.Setup(x => x.HashObject<string>(request.Password))
             .Returns("hashed_password");
@@ -296,7 +278,7 @@ public class AuthenticationServiceTests
         _mockAuthenticationRepository.Verify(x => x.Register(It.Is<DomainUsers.User>(u =>
             u.Email == request.Email &&
             u.FullName == $"{request.FirstName} {request.LastName}" &&
-            u.RoleId == userRole.RoleId)), Times.Once);
+            u.Role == UserRoleEnum.RegisteredUser)), Times.Once);
     }
 
     [Fact]
@@ -364,11 +346,6 @@ public class AuthenticationServiceTests
         var user = new Faker<DomainUsers.User>()
             .RuleFor(u => u.UserId, Guid.NewGuid())
             .RuleFor(u => u.Email, email)
-            .Generate();
-
-        var activeStatus = new Faker<DomainUsers.AccountStatus>()
-            .RuleFor(s => s.StatusId, Guid.NewGuid())
-            .RuleFor(s => s.Name, AccountStatusEnum.Active.ToString())
             .Generate();
 
         _mockRedisCacheService.Setup(x => x.Get<RegisterVerifyOtpResDto>(otp))

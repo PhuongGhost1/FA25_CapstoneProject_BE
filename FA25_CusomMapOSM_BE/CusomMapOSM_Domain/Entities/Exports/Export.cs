@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CusomMapOSM_Domain.Entities.Exports.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Domain.Entities.Users;
@@ -24,5 +25,5 @@ public class Export
     public User User { get; set; } = new();
     public Membership Membership { get; set; } = new();
     public Map Map { get; set; } = new();
-    public ExportType ExportType { get; set; } = new();
+    public ExportTypeEnum ExportType { get; set; } = new();
 }

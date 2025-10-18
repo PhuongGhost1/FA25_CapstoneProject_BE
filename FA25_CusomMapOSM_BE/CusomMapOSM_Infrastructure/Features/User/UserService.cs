@@ -93,7 +93,7 @@ public class UserService : IUserService
                 Email = existingUser.Email,
                 FullName = existingUser.FullName,
                 Phone = existingUser.Phone,
-                Role = existingUser.Role?.Name ?? "Unknown",
+                Role = existingUser.Role.ToString(),
                 AccountStatus = existingUser.AccountStatus.ToString(),
                 CreatedAt = existingUser.CreatedAt,
                 LastLogin = existingUser.LastLogin

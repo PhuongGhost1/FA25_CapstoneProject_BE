@@ -20,7 +20,7 @@ public class StoryMapEndpoint : IEndpoint
         MapSegmentZonesEndpoints(group);
         MapSegmentLayersEndpoints(group);
         MapTimelineEndpoints(group);
-        MapAnalyticsEndpoints(group);
+        MapSegmentTransitionsEndpoints(group);
     }
 
     private static void MapSegmentsEndpoints(RouteGroupBuilder group)
@@ -350,24 +350,102 @@ public class StoryMapEndpoint : IEndpoint
             .ProducesProblem(500);
     }
 
-    private static void MapAnalyticsEndpoints(RouteGroupBuilder group)
+    private static void MapSegmentTransitionsEndpoints(RouteGroupBuilder group)
     {
-        group.MapPost(Routes.StoryMapEndpoints.GetZoneAnalytics, async (
+        group.MapGet(Routes.StoryMapEndpoints.GetSegmentTransitions, async (
                 [FromRoute] Guid mapId,
-                [FromBody] ZoneAnalyticsRequest request,
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
-                var result = await service.GetZoneAnalyticsAsync(request, ct);
+                var result = await service.GetSegmentTransitionsAsync(mapId, ct);
                 return result.Match<IResult>(
-                    analytics => Results.Ok(analytics),
+                    transitions => Results.Ok(transitions),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("GetZoneAnalytics")
-            .WithDescription("Retrieve aggregated analytics for administrative zones")
+            .WithName("GetStoryMapSegmentTransitions")
+            .WithDescription("Retrieve all segment transitions for a map")
+            .WithTags(Tags.StoryMaps)
+            .Produces<IEnumerable<object>>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.CreateSegmentTransition, async (
+                [FromRoute] Guid mapId,
+                [FromBody] CreateSegmentTransitionRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var enrichedRequest = request with { MapId = mapId };
+                var result = await service.CreateSegmentTransitionAsync(enrichedRequest, ct);
+                return result.Match<IResult>(
+                    transition => Results.Created($"{Routes.Prefix.StoryMap}/{mapId}/transitions/{transition.SegmentTransitionId}", transition),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("CreateStoryMapSegmentTransition")
+            .WithDescription("Create a new segment transition")
+            .WithTags(Tags.StoryMaps)
+            .Produces<object>(201)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPut(Routes.StoryMapEndpoints.UpdateSegmentTransition, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid transitionId,
+                [FromBody] UpdateSegmentTransitionRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.UpdateSegmentTransitionAsync(transitionId, request, ct);
+                return result.Match<IResult>(
+                    transition => Results.Ok(transition),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("UpdateStoryMapSegmentTransition")
+            .WithDescription("Update a segment transition")
             .WithTags(Tags.StoryMaps)
             .Produces<object>(200)
             .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapDelete(Routes.StoryMapEndpoints.DeleteSegmentTransition, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid transitionId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.DeleteSegmentTransitionAsync(transitionId, ct);
+                return result.Match<IResult>(
+                    _ => Results.NoContent(),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("DeleteStoryMapSegmentTransition")
+            .WithDescription("Delete a segment transition")
+            .WithTags(Tags.StoryMaps)
+            .Produces(204)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.PreviewTransition, async (
+                [FromRoute] Guid mapId,
+                [FromBody] PreviewTransitionRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.PreviewTransitionAsync(request, ct);
+                return result.Match<IResult>(
+                    preview => Results.Ok(preview),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("PreviewStoryMapTransition")
+            .WithDescription("Preview a transition between two segments")
+            .WithTags(Tags.StoryMaps)
+            .Produces<object>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
             .ProducesProblem(500);
     }
 }

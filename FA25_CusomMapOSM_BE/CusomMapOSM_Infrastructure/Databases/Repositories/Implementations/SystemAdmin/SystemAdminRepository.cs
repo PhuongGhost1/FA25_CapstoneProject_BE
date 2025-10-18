@@ -28,7 +28,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<List<UserEntity>> GetAllUsersAsync(int page = 1, int pageSize = 20, string? search = null, string? status = null, CancellationToken ct = default)
     {
         var query = _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(search))
@@ -51,7 +51,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<int> GetTotalUsersCountAsync(string? search = null, string? status = null, CancellationToken ct = default)
     {
         var query = _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(search))
@@ -70,7 +70,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<UserEntity?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.RoleId == SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role == UserRoleEnum.Admin) // Exclude admin users
             .FirstOrDefaultAsync(u => u.UserId == userId, ct);
     }
 
@@ -79,7 +79,7 @@ public class SystemAdminRepository : ISystemAdminRepository
         try
         {
             var user = await _context.Users
-                .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+                .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
                 .FirstOrDefaultAsync(u => u.UserId == userId, ct);
             if (user == null) return false;
 
@@ -100,7 +100,7 @@ public class SystemAdminRepository : ISystemAdminRepository
         try
         {
             var user = await _context.Users
-                .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+                .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
                 .FirstOrDefaultAsync(u => u.UserId == userId, ct);
             if (user == null) return false;
 
@@ -117,7 +117,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<List<UserEntity>> GetUsersByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .Where(u => u.CreatedAt >= startDate && u.CreatedAt <= endDate)
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync(ct);
@@ -126,14 +126,14 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<int> GetActiveUsersCountAsync(CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .CountAsync(u => u.AccountStatus == AccountStatusEnum.Active, ct);
     }
 
     public async Task<int> GetVerifiedUsersCountAsync(CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .CountAsync(u => u.AccountStatus == AccountStatusEnum.PendingVerification, ct);
     }
 
@@ -897,7 +897,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<List<UserEntity>> GetTopUsersByActivityAsync(int count = 10, CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.RoleId != SeedDataConstants.AdminRoleId) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .OrderByDescending(u => u.LastLogin)
             .Take(count)
             .ToListAsync(ct);

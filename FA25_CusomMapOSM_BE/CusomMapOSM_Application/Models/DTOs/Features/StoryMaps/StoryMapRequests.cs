@@ -1,6 +1,6 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
-using CusomMapOSM_Domain.Entities.Zones.Enums;
+using CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 
@@ -103,5 +103,34 @@ public record CreateTimelineStepLayerRequest(
     string? StyleOverride,
     string? Metadata);
 
-public record ZoneAnalyticsRequest(
-    IReadOnlyCollection<Guid> ZoneIds);
+public record CreateSegmentTransitionRequest(
+    Guid MapId,
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    TransitionEffectType EffectType,
+    Guid? AnimationPresetId,
+    int DurationMs,
+    int DelayMs,
+    bool AutoPlay,
+    bool IsSkippable,
+    string? TransitionConfig,
+    string? Metadata);
+
+public record UpdateSegmentTransitionRequest(
+    TransitionEffectType EffectType,
+    Guid? AnimationPresetId,
+    int DurationMs,
+    int DelayMs,
+    bool AutoPlay,
+    bool IsSkippable,
+    string? TransitionConfig,
+    string? Metadata);
+
+public record PreviewTransitionRequest(
+    Guid FromSegmentId,
+    Guid ToSegmentId);
+
+public record ImportStoryRequest(
+    Guid MapId,
+    IReadOnlyCollection<SegmentDto> Segments,
+    IReadOnlyCollection<TimelineStepDto> Timeline);

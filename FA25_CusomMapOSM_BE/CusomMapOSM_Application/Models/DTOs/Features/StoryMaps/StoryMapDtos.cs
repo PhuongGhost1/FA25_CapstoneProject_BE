@@ -1,7 +1,7 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
+using CusomMapOSM_Domain.Entities.Timeline.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 
@@ -86,42 +86,28 @@ public record TimelineStepLayerDto(
     string? StyleOverride,
     string? Metadata);
 
-public record ZoneAnalyticsResponse(
-    IReadOnlyCollection<ZoneAnalyticsItem> Zones);
+public record SegmentTransitionDto(
+    Guid SegmentTransitionId,
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    TransitionEffectType EffectType,
+    Guid? AnimationPresetId,
+    int DurationMs,
+    int DelayMs,
+    bool AutoPlay,
+    bool IsSkippable,
+    string? TransitionConfig,
+    string? Metadata);
 
-public record ZoneAnalyticsItem(
-    Guid ZoneId,
-    string Name,
-    ZoneAdminLevel AdminLevel,
-    string? ZoneCode,
-    string? Geometry,
-    string? SimplifiedGeometry,
-    string? Centroid,
-    string? BoundingBox,
-    IReadOnlyCollection<ZoneStatisticItem> Statistics,
-    IReadOnlyCollection<ZoneInsightItem> Insights);
+public record TransitionPreviewDto(
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    string? FromCameraState,
+    string? ToCameraState,
+    int SuggestedDurationMs,
+    string Easing);
 
-public record ZoneStatisticItem(
-    Guid ZoneStatisticId,
-    ZoneMetricType MetricType,
-    double? NumericValue,
-    string? TextValue,
-    string? Unit,
-    int? Year,
-    int? Quarter,
-    string? Source,
-    string? Metadata,
-    DateTime CollectedAt);
-
-public record ZoneInsightItem(
-    Guid ZoneInsightId,
-    ZoneInsightType InsightType,
-    string Title,
-    string? Summary,
-    string? Description,
-    string? ImageUrl,
-    string? ExternalUrl,
-    string? Location,
-    string? Metadata,
-    DateTime CreatedAt,
-    DateTime? UpdatedAt);
+public record ExportedStoryDto(
+    Guid MapId,
+    IReadOnlyCollection<SegmentDto> Segments,
+    IReadOnlyCollection<TimelineStepDto> Timeline);

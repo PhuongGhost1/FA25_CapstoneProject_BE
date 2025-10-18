@@ -62,34 +62,6 @@ public class HangfireEmailService
         }
     }
 
-    [Queue("fallback")]
-    [AutomaticRetry(Attempts = 5)]
-    public async Task SendEmailWithExtendedRetryAsync(MailRequest mailRequest)
-    {
-        try
-        {
-            _logger.LogInformation("Starting extended retry email job for {Email}", mailRequest.ToEmail);
-
-            using var scope = _serviceProvider.CreateScope();
-            var mailService = scope.ServiceProvider.GetRequiredService<IMailService>();
-
-            await mailService.SendEmailAsync(mailRequest);
-
-            _logger.LogInformation("Email sent successfully with extended retry for {Email}", mailRequest.ToEmail);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send email with extended retry for {Email}. Job will be retried automatically.", mailRequest.ToEmail);
-            throw;
-        }
-    }
-
-    public string EnqueueEmailFallback(MailRequest mailRequest)
-    {
-        var jobId = BackgroundJob.Enqueue(() => SendEmailWithExtendedRetryAsync(mailRequest));
-        _logger.LogInformation("Fallback email job queued with ID: {JobId} for {Email}", jobId, mailRequest.ToEmail);
-        return jobId;
-    }
 
     public void DeleteJob(string jobId)
     {

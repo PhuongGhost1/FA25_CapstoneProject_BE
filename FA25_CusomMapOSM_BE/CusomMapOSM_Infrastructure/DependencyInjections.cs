@@ -8,6 +8,7 @@ using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
+using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -24,6 +25,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Animations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -33,6 +35,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
 using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
@@ -44,6 +47,7 @@ using CusomMapOSM_Infrastructure.Features.Usage;
 using CusomMapOSM_Infrastructure.Features.Payment;
 using CusomMapOSM_Infrastructure.Features.POIs;
 using CusomMapOSM_Infrastructure.Features.StoryMaps;
+using CusomMapOSM_Infrastructure.Features.Animations;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Features.User;
@@ -108,9 +112,11 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
+        services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
         services.AddScoped<IFaqRepository, FaqRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
+        services.AddScoped<ILayerAnimationRepository, LayerAnimationRepository>();
         services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 
         services
@@ -131,6 +137,7 @@ public static class DependencyInjections
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IPoiService, PoiService>();
         services.AddScoped<IStoryMapService, StoryMapService>();
+        services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
 
         // Organization Admin Services
@@ -145,7 +152,6 @@ public static class DependencyInjections
         services.AddScoped<IMailService, MailService>();
         services.AddScoped<IRedisCacheService, RedisCacheService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
-        services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
         services.AddScoped<CusomMapOSM_Infrastructure.Services.INotificationService, CusomMapOSM_Infrastructure.Services.NotificationService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
@@ -156,6 +162,7 @@ public static class DependencyInjections
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
+        services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
@@ -198,7 +205,7 @@ public static class DependencyInjections
         services.AddHangfireServer(options =>
         {
             options.WorkerCount = Environment.ProcessorCount * 2;
-            options.Queues = new[] { "default", "email", "fallback" };
+            options.Queues = new[] { "default", "email" };
         });
 
         services.AddSingleton<CollaborativeMapService>();
@@ -210,7 +217,6 @@ public static class DependencyInjections
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<FailedEmailStorageService>();
         services.AddScoped<HangfireEmailService>();
 
         // Register background job services

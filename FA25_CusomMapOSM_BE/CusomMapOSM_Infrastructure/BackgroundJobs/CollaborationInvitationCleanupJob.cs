@@ -1,4 +1,5 @@
 using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,7 @@ public class CollaborationInvitationCleanupJob
 
             // Assuming there's a CollaborationInvitation table - adjust based on actual schema
             var expiredInvitations = await dbContext.Set<OrganizationInvitation>()
-                .Where(ci => ci.InvitedAt < expirationDate && ci.IsAccepted == false)
+                .Where(ci => ci.InvitedAt < expirationDate && ci.Status == InvitationStatus.Accepted == false)
                 .ToListAsync();
 
             var cleanedCount = expiredInvitations.Count;
