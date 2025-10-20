@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Domain.Entities.Layers;
 
-namespace CusomMapOSM_Infrastructure.Services.LayerData.Sql;
+namespace CusomMapOSM_Infrastructure.Services.LayerData.Relational;
 
-public class SqlLayerDataStore : ILayerDataStore
+public class RelationalLayerDataStore : ILayerDataStore
 {
     public Task<string?> GetDataAsync(Layer layer, CancellationToken cancellationToken = default)
     {

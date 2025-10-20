@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Domain.Entities.Layers;
-using CusomMapOSM_Infrastructure.Services.LayerData.Sql;
+using CusomMapOSM_Infrastructure.Services.LayerData.Relational;
 using MongoDB.Driver;
 
 namespace CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
@@ -13,9 +13,9 @@ namespace CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
 public class MongoLayerDataStore : ILayerDataStore
 {
     private readonly IMongoCollection<LayerDataBsonDocument> _collection;
-    private readonly SqlLayerDataStore _sqlFallback;
+    private readonly RelationalLayerDataStore _sqlFallback;
 
-    public MongoLayerDataStore(IMongoDatabase database, SqlLayerDataStore sqlFallback)
+    public MongoLayerDataStore(IMongoDatabase database, RelationalLayerDataStore sqlFallback)
     {
         _collection = database.GetCollection<LayerDataBsonDocument>(MongoDatabaseConstant.LayerDataCollectionName);
         _sqlFallback = sqlFallback;

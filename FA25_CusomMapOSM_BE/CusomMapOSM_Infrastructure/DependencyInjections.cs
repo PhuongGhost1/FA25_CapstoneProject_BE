@@ -50,11 +50,9 @@ using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
-using CusomMapOSM_Infrastructure.Services.LayerData.Sql;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
 using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
 using MongoDB.Driver;
-using MongoDB.Bson;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using Microsoft.EntityFrameworkCore;
@@ -83,6 +81,7 @@ using CusomMapOSM_Infrastructure.Features.OrganizationAdmin;
 using CusomMapOSM_Infrastructure.Features.SupportTicket;
 using CusomMapOSM_Infrastructure.Features.SystemAdmin;
 using CusomMapOSM_Infrastructure.Services.FileProcessors;
+using CusomMapOSM_Infrastructure.Services.LayerData.Relational;
 using Hangfire.Redis;
 using INotificationService = CusomMapOSM_Application.Interfaces.Features.Notifications.INotificationService;
 using NotificationService = CusomMapOSM_Infrastructure.Features.Notifications.NotificationService;
@@ -140,7 +139,7 @@ public static class DependencyInjections
             return client.GetDatabase(MongoDatabaseConstant.DatabaseName);
         });
         
-        services.AddScoped<SqlLayerDataStore>();
+        services.AddScoped<RelationalLayerDataStore>();
         services.AddScoped<MongoLayerDataStore>();
         services.AddScoped<ILayerDataStore>(sp => sp.GetRequiredService<MongoLayerDataStore>());
         
