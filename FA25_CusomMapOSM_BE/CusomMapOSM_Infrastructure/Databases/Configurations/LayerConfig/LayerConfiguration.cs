@@ -45,6 +45,10 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
             .HasMaxLength(500)
             .HasColumnName("file_path");
 
+        builder.Property(l => l.DataStoreKey)
+            .HasMaxLength(256)
+            .HasColumnName("data_store_key");
+
         builder.Property(l => l.LayerData)
             .HasColumnType("longtext")
             .HasColumnName("layer_data");

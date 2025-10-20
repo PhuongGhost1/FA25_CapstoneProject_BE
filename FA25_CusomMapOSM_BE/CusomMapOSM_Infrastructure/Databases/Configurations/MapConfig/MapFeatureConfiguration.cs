@@ -47,10 +47,13 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
             .HasMaxLength(50)
             .HasColumnName("annotation_type");
 
+        builder.Property(mf => mf.MongoDocumentId)
+            .HasMaxLength(50)
+            .HasColumnName("mongo_document_id");
+
         builder.Property(mf => mf.Coordinates)
             .HasColumnType("longtext")
-            .HasColumnName("coordinates")
-            .IsRequired();
+            .HasColumnName("coordinates");
 
         builder.Property(mf => mf.Properties)
             .HasColumnType("json")

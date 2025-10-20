@@ -530,6 +530,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("decimal(15,2)")
                         .HasColumnName("data_size_kb");
 
+                    b.Property<string>("DataStoreKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("data_store_key");
+
                     b.Property<int?>("FeatureCount")
                         .HasColumnType("int")
                         .HasColumnName("feature_count");
@@ -855,7 +860,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("annotation_type");
 
                     b.Property<string>("Coordinates")
-                        .IsRequired()
                         .HasColumnType("longtext")
                         .HasColumnName("coordinates");
 
@@ -896,6 +900,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<Guid>("MapId")
                         .HasColumnType("char(36)")
                         .HasColumnName("map_id");
+
+                    b.Property<string>("MongoDocumentId")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("mongo_document_id");
 
                     b.Property<string>("Name")
                         .HasMaxLength(255)
@@ -2336,10 +2345,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         {
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AccountStatus = 1,
-                            CreatedAt = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5678),
+                            CreatedAt = new DateTime(2025, 10, 19, 17, 32, 33, 328, DateTimeKind.Utc).AddTicks(4928),
                             Email = "admin@cusommaposm.com",
                             FullName = "System Administrator",
-                            LastTokenReset = new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5960),
+                            LastTokenReset = new DateTime(2025, 10, 19, 17, 32, 33, 328, DateTimeKind.Utc).AddTicks(5198),
                             MonthlyTokenUsage = 0,
                             PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
                             Phone = "+1234567890",

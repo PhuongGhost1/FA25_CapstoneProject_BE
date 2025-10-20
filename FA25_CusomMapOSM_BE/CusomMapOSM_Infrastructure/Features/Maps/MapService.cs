@@ -1,18 +1,17 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
+using CusomMapOSM_Application.Interfaces.Services.LayerData;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -22,15 +21,20 @@ public class MapService : IMapService
     private readonly ICurrentUserService _currentUserService;
     private readonly ICacheService _cacheService;
     private readonly IMapHistoryService _mapHistoryService;
+    private readonly ILayerDataStore _layerDataStore;
 
     public MapService(
         IMapRepository mapRepository,
-        ICurrentUserService currentUserService, ICacheService cacheService, IMapHistoryService mapHistoryService)
+        ICurrentUserService currentUserService,
+        ICacheService cacheService,
+        IMapHistoryService mapHistoryService,
+        ILayerDataStore layerDataStore)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
         _mapHistoryService = mapHistoryService;
+        _layerDataStore = layerDataStore;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -137,7 +141,6 @@ public class MapService : IMapService
             LayerName = "Default Layer",
             LayerType = LayerTypeEnum.GEOJSON,
             SourceType = LayerSourceEnum.UserUploaded,
-            LayerData = JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() }),
             LayerStyle = JsonSerializer.Serialize(new { color = "#2563eb", weight = 2, fillColor = "#3b82f6", fillOpacity = 0.2 }),
             IsPublic = false,
             IsVisible = true,
@@ -148,6 +151,8 @@ public class MapService : IMapService
             CreatedAt = DateTime.UtcNow
         };
 
+        await _layerDataStore.SetDataAsync(defaultLayer,
+            JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() }));
         await _mapRepository.CreateLayer(defaultLayer);
 
         return Option.Some<CreateMapResponse, Error>(new CreateMapResponse
@@ -471,21 +476,26 @@ public class MapService : IMapService
         };
 
         // Map Layers
-        var layerDtos = templateWithDetails.Layers.Select(l => new MapLayerDTO
+        var layerDtos = new List<MapLayerDTO>();
+        foreach (var layer in templateWithDetails.Layers)
         {
-            MapLayerId = l.LayerId, // Use LayerId since MapLayerId doesn't exist anymore
-            LayerName = l.LayerName ?? "Unknown Layer",
-            LayerTypeId = (int)l.LayerType,
-            IsVisible = l.IsVisible,
-            ZIndex = l.ZIndex,
-            LayerOrder = l.LayerOrder,
-            LayerData = l.LayerData ?? "",
-            LayerStyle = l.LayerStyle ?? "",
-            CustomStyle = l.CustomStyle,
-            FeatureCount = l.FeatureCount,
-            DataSizeKB = l.DataSizeKB,
-            DataBounds = l.DataBounds
-        }).ToList();
+            var layerData = await _layerDataStore.GetDataAsync(layer);
+            layerDtos.Add(new MapLayerDTO
+            {
+                MapLayerId = layer.LayerId, // Use LayerId since MapLayerId doesn't exist anymore
+                LayerName = layer.LayerName ?? "Unknown Layer",
+                LayerTypeId = (int)layer.LayerType,
+                IsVisible = layer.IsVisible,
+                ZIndex = layer.ZIndex,
+                LayerOrder = layer.LayerOrder,
+                LayerData = layerData ?? string.Empty,
+                LayerStyle = layer.LayerStyle ?? "",
+                CustomStyle = layer.CustomStyle,
+                FeatureCount = layer.FeatureCount,
+                DataSizeKB = layer.DataSizeKB,
+                DataBounds = layer.DataBounds
+            });
+        }
 
         // Map Images
         var imageDtos = templateWithDetails.MapImages.Select(mi => new MapImageDTO
@@ -730,30 +740,35 @@ public class MapService : IMapService
     {
         // Get layers for this map
         var mapLayers = await _mapRepository.GetMapLayers(map.MapId);
-        var layerDtos = mapLayers.Select(l => new LayerDTO
+        var layerDtos = new List<LayerDTO>();
+        foreach (var layer in mapLayers)
         {
-            Id = l.LayerId,
-            Name = l.LayerName ?? "Unknown Layer",
-            LayerTypeId = (int)l.LayerType,
-            LayerTypeName = l.LayerType.ToString(),
-            LayerTypeIcon = "",
-            SourceName = l.SourceType.ToString(),
-            FilePath = l.FilePath ?? "",
-            LayerData = l.LayerData ?? "",
-            LayerStyle = l.LayerStyle ?? "",
-            IsPublic = l.IsPublic,
-            CreatedAt = l.CreatedAt,
-            UpdatedAt = l.UpdatedAt,
-            OwnerId = l.UserId,
-            OwnerName = l.User?.FullName ?? "Unknown",
-            // Layer specific properties (moved from MapLayer)
-            MapLayerId = l.LayerId, // Use LayerId since MapLayerId doesn't exist
-            IsVisible = l.IsVisible,
-            ZIndex = l.ZIndex,
-            LayerOrder = l.LayerOrder,
-            CustomStyle = l.CustomStyle ?? "",
-            FilterConfig = l.FilterConfig ?? ""
-        }).ToList();
+            var layerData = await _layerDataStore.GetDataAsync(layer);
+            layerDtos.Add(new LayerDTO
+            {
+                Id = layer.LayerId,
+                Name = layer.LayerName ?? "Unknown Layer",
+                LayerTypeId = (int)layer.LayerType,
+                LayerTypeName = layer.LayerType.ToString(),
+                LayerTypeIcon = "",
+                SourceName = layer.SourceType.ToString(),
+                FilePath = layer.FilePath ?? "",
+                LayerData = layerData ?? "",
+                LayerStyle = layer.LayerStyle ?? "",
+                IsPublic = layer.IsPublic,
+                CreatedAt = layer.CreatedAt,
+                UpdatedAt = layer.UpdatedAt,
+                OwnerId = layer.UserId,
+                OwnerName = layer.User?.FullName ?? "Unknown",
+                // Layer specific properties (moved from MapLayer)
+                MapLayerId = layer.LayerId, // Use LayerId since MapLayerId doesn't exist
+                IsVisible = layer.IsVisible,
+                ZIndex = layer.ZIndex,
+                LayerOrder = layer.LayerOrder,
+                CustomStyle = layer.CustomStyle ?? "",
+                FilterConfig = layer.FilterConfig ?? ""
+            });
+        }
 
         // Parse geographic bounds - Support both legacy and new format
         double latitude = 0, longitude = 0;
@@ -831,6 +846,7 @@ public class MapService : IMapService
         int count = 0;
         foreach (var templateLayer in templateLayers)
         {
+            var templateLayerData = await _layerDataStore.GetDataAsync(templateLayer);
             var newLayer = new Layer
             {
                 LayerId = Guid.NewGuid(),
@@ -839,7 +855,6 @@ public class MapService : IMapService
                 LayerName = templateLayer.LayerName,
                 LayerType = templateLayer.LayerType,
                 SourceType = templateLayer.SourceType,
-                LayerData = templateLayer.LayerData,
                 LayerStyle = templateLayer.LayerStyle,
                 IsPublic = false, // New map layers are private by default
 
@@ -855,6 +870,11 @@ public class MapService : IMapService
 
                 CreatedAt = DateTime.UtcNow
             };
+
+            if (!string.IsNullOrEmpty(templateLayerData))
+            {
+                await _layerDataStore.SetDataAsync(newLayer, templateLayerData);
+            }
 
             await _mapRepository.CreateLayer(newLayer);
             count++;
@@ -953,7 +973,6 @@ public class MapService : IMapService
                 LayerName = req.LayerName,
                 LayerType = LayerTypeEnum.GEOJSON,
                 SourceType = LayerSourceEnum.UserUploaded,
-                LayerData = compressedGeoJsonData,
                 LayerStyle = req.LayerStyle,
                 IsPublic = req.IsPublic,
                 IsVisible = true,
@@ -964,6 +983,8 @@ public class MapService : IMapService
                 DataBounds = req.DataBounds,
                 CreatedAt = DateTime.UtcNow
             };
+
+            await _layerDataStore.SetDataAsync(layer, compressedGeoJsonData);
 
             var layerCreated = await _mapRepository.CreateLayer(layer);
             if (!layerCreated)
@@ -1014,7 +1035,15 @@ public class MapService : IMapService
     {
         try
         {
-            var layerData = await _mapRepository.GetLayerDataById(templateId, layerId);
+            var layer = await _mapRepository.GetMapLayer(templateId, layerId);
+
+            if (layer is null)
+            {
+                return Option.None<string, Error>(
+                    Error.NotFound("Map.LayerNotFound", "Layer not found"));
+            }
+
+            var layerData = await _layerDataStore.GetDataAsync(layer);
 
             if (string.IsNullOrEmpty(layerData))
             {
@@ -1157,7 +1186,6 @@ public class MapService : IMapService
                     LayerName = req.NewLayerName,
                     LayerType = LayerTypeEnum.GEOJSON,
                     SourceType = LayerSourceEnum.UserUploaded,
-                    LayerData = JsonSerializer.Serialize(new { type = "FeatureCollection", features = new object[0] }),
                     LayerStyle = JsonSerializer.Serialize(new
                         { color = "#3388ff", weight = 2, fillColor = "#3388ff", fillOpacity = 0.2 }),
                     IsPublic = false,
@@ -1168,6 +1196,9 @@ public class MapService : IMapService
                     DataSizeKB = 0,
                     CreatedAt = DateTime.UtcNow
                 };
+
+                await _layerDataStore.SetDataAsync(targetLayer,
+                    JsonSerializer.Serialize(new { type = "FeatureCollection", features = new object[0] }));
 
                 var layerCreated = await _mapRepository.CreateLayer(targetLayer);
                 if (!layerCreated)
@@ -1180,7 +1211,14 @@ public class MapService : IMapService
             }
 
             // Parse source layer GeoJSON
-            var sourceGeoJson = JsonSerializer.Deserialize<JsonElement>(sourceLayer.LayerData);
+            var sourceLayerData = await _layerDataStore.GetDataAsync(sourceLayer);
+            if (string.IsNullOrEmpty(sourceLayerData))
+            {
+                return Option.None<CopyFeatureToLayerResponse, Error>(
+                    Error.NotFound("Map.SourceLayerEmpty", "Source layer has no data"));
+            }
+
+            var sourceGeoJson = JsonSerializer.Deserialize<JsonElement>(sourceLayerData);
             if (!sourceGeoJson.TryGetProperty("features", out var featuresArray) ||
                 featuresArray.ValueKind != JsonValueKind.Array)
             {
@@ -1203,7 +1241,9 @@ public class MapService : IMapService
             var featureToCopy = features[req.FeatureIndex];
 
             // Parse target layer GeoJSON
-            var targetGeoJson = JsonSerializer.Deserialize<JsonElement>(targetLayer.LayerData);
+            var targetLayerData = await _layerDataStore.GetDataAsync(targetLayer) ??
+                                  JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() });
+            var targetGeoJson = JsonSerializer.Deserialize<JsonElement>(targetLayerData);
             var targetFeatures = new List<JsonElement>();
 
             if (targetGeoJson.TryGetProperty("features", out var targetFeaturesArray) &&
@@ -1234,7 +1274,8 @@ public class MapService : IMapService
             }
 
             // Update target layer
-            targetLayer.LayerData = JsonSerializer.Serialize(updatedTargetGeoJson);
+            var updatedTargetLayerData = JsonSerializer.Serialize(updatedTargetGeoJson);
+            await _layerDataStore.SetDataAsync(targetLayer, updatedTargetLayerData);
             targetLayer.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _mapRepository.UpdateLayer(targetLayer);
@@ -1303,7 +1344,14 @@ public class MapService : IMapService
             }
 
             // Parse layer GeoJSON
-            var geoJson = JsonSerializer.Deserialize<JsonElement>(layer.LayerData);
+            var layerData = await _layerDataStore.GetDataAsync(layer);
+            if (string.IsNullOrEmpty(layerData))
+            {
+                return Option.None<bool, Error>(
+                    Error.NotFound("Map.LayerDataNotFound", "Layer data not found"));
+            }
+
+            var geoJson = JsonSerializer.Deserialize<JsonElement>(layerData);
             if (!geoJson.TryGetProperty("features", out var featuresArray) ||
                 featuresArray.ValueKind != JsonValueKind.Array)
             {
@@ -1344,7 +1392,8 @@ public class MapService : IMapService
             }
 
             // Update layer
-            layer.LayerData = JsonSerializer.Serialize(updatedGeoJson);
+            var updatedLayerData = JsonSerializer.Serialize(updatedGeoJson);
+            await _layerDataStore.SetDataAsync(layer, updatedLayerData);
             layer.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _mapRepository.UpdateLayer(layer);
@@ -1427,7 +1476,7 @@ public class MapService : IMapService
                 var featureCount = featuresArray.GetArrayLength();
 
                 // Update layer data
-                layer.LayerData = req.LayerData;
+                await _layerDataStore.SetDataAsync(layer, req.LayerData);
                 layer.UpdatedAt = DateTime.UtcNow;
 
                 var updateResult = await _mapRepository.UpdateLayer(layer);

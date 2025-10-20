@@ -177,32 +177,6 @@ public class MapRepository : IMapRepository
         }
     }
 
-    public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
-    {
-        // Find Layer by MapId and LayerId
-        var layer = await _context.Layers
-            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
-        
-        if (layer == null)
-        {
-            // Debug: Check what Layers exist for this map
-            var allLayers = await _context.Layers
-                .Where(l => l.MapId == mapId)
-                .Select(l => new { l.LayerId, l.IsVisible, l.LayerName })
-                .ToListAsync();
-                
-            // no-op
-            return null;
-        }
-        
-        if (string.IsNullOrEmpty(layer.LayerData))
-        {
-            return null;
-        }
-        
-        return layer.LayerData;
-    }
-
     // Template Management operations
     public async Task<bool> CreateMapTemplate(Map template)
     {

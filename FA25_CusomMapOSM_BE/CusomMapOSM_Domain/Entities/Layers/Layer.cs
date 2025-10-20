@@ -14,6 +14,7 @@ public class Layer
     public LayerTypeEnum LayerType { get; set; }
     public LayerSourceEnum SourceType { get; set; }
     public string? FilePath { get; set; }
+    public string? DataStoreKey { get; set; }
     public string? LayerData { get; set; }
     public string? LayerStyle { get; set; }
     public bool IsPublic { get; set; }
