@@ -21,8 +21,6 @@ public class Layer
     public bool IsVisible { get; set; } = true;
     public int ZIndex { get; set; } = 0;
     public int LayerOrder { get; set; } = 0;
-    public string? CustomStyle { get; set; }
-    public string? FilterConfig { get; set; }
     public int? FeatureCount { get; set; }
     public double? DataSizeKB { get; set; }
     public string? DataBounds { get; set; }

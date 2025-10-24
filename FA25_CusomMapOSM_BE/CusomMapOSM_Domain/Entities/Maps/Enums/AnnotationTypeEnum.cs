@@ -9,7 +9,9 @@ public enum AnnotationTypeEnum
     Text = 2,
     Note = 3,
     Link = 4,
-    Video = 5
+    Video = 5,
+    Image = 6,
+    Embed = 7
 }
 
 

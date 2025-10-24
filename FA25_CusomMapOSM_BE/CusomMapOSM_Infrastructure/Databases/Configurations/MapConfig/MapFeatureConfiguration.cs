@@ -51,18 +51,6 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
             .HasMaxLength(50)
             .HasColumnName("mongo_document_id");
 
-        builder.Property(mf => mf.Coordinates)
-            .HasColumnType("longtext")
-            .HasColumnName("coordinates");
-
-        builder.Property(mf => mf.Properties)
-            .HasColumnType("json")
-            .HasColumnName("properties");
-
-        builder.Property(mf => mf.Style)
-            .HasColumnType("json")
-            .HasColumnName("style");
-
         builder.Property(mf => mf.CreatedBy)
             .HasColumnName("created_by")
             .IsRequired();

@@ -80,12 +80,6 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
         builder.Property(l => l.LayerOrder)
             .HasColumnName("layer_order")
             .HasDefaultValue(0);
-
-        builder.Property(l => l.CustomStyle)
-            .HasColumnName("custom_style");
-
-        builder.Property(l => l.FilterConfig)
-            .HasColumnName("filter_config");
         
         builder.Property(l => l.FeatureCount)
             .HasColumnName("feature_count");

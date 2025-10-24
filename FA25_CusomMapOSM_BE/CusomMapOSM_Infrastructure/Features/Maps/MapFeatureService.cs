@@ -82,9 +82,6 @@ public class MapFeatureService : IMapFeatureService
             AnnotationType = req.AnnotationType,
             GeometryType = req.GeometryType,
             MongoDocumentId = mongoDocId,
-            Coordinates = null,
-            Properties = null,
-            Style = null,
             CreatedBy = userId.Value,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = null,
@@ -220,13 +217,13 @@ public class MapFeatureService : IMapFeatureService
 
     private static MapFeatureResponse ToResponse(MapFeature f, MapFeatureDocument? mongoData = null)
     {
-        var coordinates = mongoData?.Geometry?.ToString() ?? f.Coordinates;
+        var coordinates = mongoData?.Geometry?.ToString() ?? string.Empty;
         var properties = mongoData?.Properties != null 
             ? JsonSerializer.Serialize(mongoData.Properties) 
-            : f.Properties;
+            : null;
         var style = mongoData?.Style != null 
             ? JsonSerializer.Serialize(mongoData.Style) 
-            : f.Style;
+            : null;
             
         return new MapFeatureResponse
         {

@@ -52,6 +52,10 @@ using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
 using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
+using CusomMapOSM_Application.Interfaces.Services.Maps;
+using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
+using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
+using CusomMapOSM_Infrastructure.Services.StoryMaps.Mongo;
 using MongoDB.Driver;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -144,6 +148,8 @@ public static class DependencyInjections
         services.AddScoped<ILayerDataStore>(sp => sp.GetRequiredService<MongoLayerDataStore>());
         
         services.AddScoped<IMapFeatureStore, MongoMapFeatureStore>();
+        services.AddScoped<IMapHistoryStore, MongoMapHistoryStore>();
+        services.AddScoped<ISegmentLocationStore, MongoSegmentLocationStore>();
 
         services.AddScoped<ICacheService,RedisCacheService>();
 

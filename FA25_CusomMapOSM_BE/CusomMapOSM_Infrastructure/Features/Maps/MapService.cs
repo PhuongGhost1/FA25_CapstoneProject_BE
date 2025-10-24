@@ -490,7 +490,6 @@ public class MapService : IMapService
                 LayerOrder = layer.LayerOrder,
                 LayerData = layerData ?? string.Empty,
                 LayerStyle = layer.LayerStyle ?? "",
-                CustomStyle = layer.CustomStyle,
                 FeatureCount = layer.FeatureCount,
                 DataSizeKB = layer.DataSizeKB,
                 DataBounds = layer.DataBounds
@@ -558,13 +557,10 @@ public class MapService : IMapService
                 Error.NotFound("Layer.NotFound", "Layer not found"));
         }
 
-        // Update layer properties for this map
         layer.MapId = mapId;
         layer.IsVisible = req.IsVisible;
         layer.ZIndex = req.ZIndex;
-        layer.LayerOrder = 0; // TODO: Calculate proper order
-        layer.CustomStyle = req.CustomStyle;
-        layer.FilterConfig = req.FilterConfig;
+        layer.LayerOrder = 0;
         layer.UpdatedAt = DateTime.UtcNow;
 
         var result = await _mapRepository.UpdateLayer(layer);
@@ -656,10 +652,6 @@ public class MapService : IMapService
             mapLayer.IsVisible = req.IsVisible.Value;
         if (req.ZIndex.HasValue)
             mapLayer.ZIndex = req.ZIndex.Value;
-        if (!string.IsNullOrEmpty(req.CustomStyle))
-            mapLayer.CustomStyle = req.CustomStyle;
-        if (!string.IsNullOrEmpty(req.FilterConfig))
-            mapLayer.FilterConfig = req.FilterConfig;
 
         mapLayer.UpdatedAt = DateTime.UtcNow;
 
@@ -760,13 +752,10 @@ public class MapService : IMapService
                 UpdatedAt = layer.UpdatedAt,
                 OwnerId = layer.UserId,
                 OwnerName = layer.User?.FullName ?? "Unknown",
-                // Layer specific properties (moved from MapLayer)
-                MapLayerId = layer.LayerId, // Use LayerId since MapLayerId doesn't exist
+                MapLayerId = layer.LayerId,
                 IsVisible = layer.IsVisible,
                 ZIndex = layer.ZIndex,
                 LayerOrder = layer.LayerOrder,
-                CustomStyle = layer.CustomStyle ?? "",
-                FilterConfig = layer.FilterConfig ?? ""
             });
         }
 
@@ -856,14 +845,13 @@ public class MapService : IMapService
                 LayerType = templateLayer.LayerType,
                 SourceType = templateLayer.SourceType,
                 LayerStyle = templateLayer.LayerStyle,
-                IsPublic = false, // New map layers are private by default
+                IsPublic = false,
 
-                // Copy layer display properties
+
                 IsVisible = templateLayer.IsVisible,
                 ZIndex = templateLayer.ZIndex,
                 LayerOrder = templateLayer.LayerOrder,
-                CustomStyle = templateLayer.CustomStyle,
-                FilterConfig = templateLayer.FilterConfig,
+
                 FeatureCount = templateLayer.FeatureCount,
                 DataSizeKB = templateLayer.DataSizeKB,
                 DataBounds = templateLayer.DataBounds,

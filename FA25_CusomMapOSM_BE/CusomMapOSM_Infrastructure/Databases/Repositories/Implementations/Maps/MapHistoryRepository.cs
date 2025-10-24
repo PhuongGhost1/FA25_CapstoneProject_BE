@@ -48,6 +48,20 @@ public class MapHistoryRepository : IMapHistoryRepository
         _db.Set<MapHistory>().RemoveRange(toRemove);
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default)
+    {
+        var oldRecords = await _db.Set<MapHistory>()
+            .Where(h => h.CreatedAt < cutoffUtc)
+            .ToListAsync(ct);
+
+        if (oldRecords.Count == 0)
+        {
+            return 0;
+        }
+
+        _db.Set<MapHistory>().RemoveRange(oldRecords);
+        await _db.SaveChangesAsync(ct);
+        return oldRecords.Count;
+    }
 }
-
-

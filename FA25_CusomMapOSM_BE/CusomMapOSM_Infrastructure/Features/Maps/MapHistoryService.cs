@@ -1,8 +1,8 @@
-using System.Text.Json;
+using System.Linq;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Domain.Entities.Maps;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
@@ -10,11 +10,11 @@ namespace CusomMapOSM_Infrastructure.Features.Maps;
 public class MapHistoryService : IMapHistoryService
 {
     private const int MaxHistory = 10;
-    private readonly IMapHistoryRepository _repo;
+    private readonly IMapHistoryStore _store;
 
-    public MapHistoryService(IMapHistoryRepository repo)
+    public MapHistoryService(IMapHistoryStore store)
     {
-        _repo = repo;
+        _store = store;
     }
 
     public async Task<Option<bool, Error>> RecordSnapshot(Guid mapId, Guid userId, string snapshotJson, CancellationToken ct = default)
@@ -30,8 +30,8 @@ public class MapHistoryService : IMapHistoryService
             SnapshotData = snapshotJson,
             CreatedAt = DateTime.UtcNow
         };
-        await _repo.AddAsync(history, ct);
-        await _repo.TrimToAsync(mapId, MaxHistory, ct);
+        await _store.AddAsync(history, ct);
+        await _store.TrimToAsync(mapId, MaxHistory, ct);
         return Option.Some<bool, Error>(true);
     }
 
@@ -42,13 +42,14 @@ public class MapHistoryService : IMapHistoryService
             return Option.None<string, Error>(Error.ValidationError("History.InvalidSteps", $"Steps must be between 1 and {MaxHistory}"));
         }
 
-        var last = await _repo.GetLastAsync(mapId, steps, ct);
+        var last = await _store.GetLastAsync(mapId, steps, ct);
         if (last.Count < steps)
         {
             return Option.None<string, Error>(Error.NotFound("History.NotEnough", "Not enough history to undo"));
         }
 
-        var target = last.Last();
+        var ordered = last.OrderByDescending(h => h.CreatedAt).ToList();
+        var target = ordered[steps - 1];
         // Return the snapshot; the caller should apply it and persist map state accordingly
         return Option.Some<string, Error>(target.SnapshotData);
     }
