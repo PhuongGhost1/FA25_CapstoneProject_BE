@@ -11,6 +11,14 @@ public static class Routes
         public const string PointOfInterest = "points-of-interest";
         public const string StoryMap = "story-map";
         public const string Animations = "animations";
+        public const string Maps = "maps";
+        public const string Usage = "usage";
+        public const string Payment = "payment";
+        public const string Notifications = "notifications";
+        public const string Faqs = "faqs";
+        public const string SupportTickets = "support-tickets";
+        public const string SystemAdmin = "admin";
+        public const string OrganizationAdmin = "organization-admin";
     }
 
     public static class AuthEndpoints

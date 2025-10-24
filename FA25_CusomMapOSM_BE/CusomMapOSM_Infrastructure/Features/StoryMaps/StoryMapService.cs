@@ -1,6 +1,7 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Segments;
@@ -14,11 +15,13 @@ public class StoryMapService : IStoryMapService
 {
     private readonly IStoryMapRepository _repository;
     private readonly ICurrentUserService  _currentUserService;
+    private readonly ISegmentLocationStore _locationStore;
 
-    public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService)
+    public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService, ISegmentLocationStore locationStore)
     {
         _repository = repository;
         _currentUserService = currentUserService;
+        _locationStore = locationStore;
     }
 
     public async Task<Option<IReadOnlyCollection<SegmentDto>, Error>> GetSegmentsAsync(Guid mapId, CancellationToken ct = default)
@@ -40,7 +43,7 @@ public class StoryMapService : IStoryMapService
         {
             var zonesRaw = await _repository.GetSegmentZonesBySegmentAsync(segment.SegmentId, ct);
             var layersRaw = await _repository.GetSegmentLayersBySegmentAsync(segment.SegmentId, ct);
-            var locationsRaw = await _repository.GetLocationsBySegmentAsync(segment.SegmentId, ct);
+            var locationsRaw = await _locationStore.GetBySegmentAsync(segment.SegmentId, ct);
 
             var zones = zonesRaw.Select(z => new SegmentZoneDto(
                 z.SegmentZoneId,
@@ -213,7 +216,7 @@ public class StoryMapService : IStoryMapService
 
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         var layers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
-        var locations = await _repository.GetLocationsBySegmentAsync(segmentId, ct);
+        var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
 
         var zoneDtos = zones.Select(z => new SegmentZoneDto(
             z.SegmentZoneId,
@@ -1104,3 +1107,4 @@ public class StoryMapService : IStoryMapService
         return Option.Some<bool, Error>(true);
     }
 }
+

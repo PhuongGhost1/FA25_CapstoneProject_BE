@@ -30,7 +30,6 @@ public interface IMapRepository
     Task<List<Layer>> GetTemplateLayers(Guid mapId);
     Task<List<MapImage>> GetTemplateImages(Guid mapId);
     Task<bool> CreateLayer(Layer layer);
-    Task<string?> GetLayerDataById(Guid mapId, Guid layerId);
 
     // Map Layer operations
     Task<Layer?> GetLayerById(Guid layerId);

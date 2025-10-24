@@ -11,6 +11,8 @@ internal static class Tags
     internal const string Authentication = "Authentication";
     internal const string Transaction = "Transaction";
     internal const string Notification = "Notification";
+    internal const string Animations = "Animations";
+    internal const string SupportTicket = "SupportTicket";
     internal const string Usage = "Usage";
     internal const string Payment = "Payment";
     internal const string FAQ = "FAQ";

@@ -1,5 +1,6 @@
 using CusomMapOSM_Commons.Configuration;
 using CusomMapOSM_Infrastructure.Services;
+using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using Microsoft.Extensions.Logging;
 
@@ -19,13 +20,13 @@ public interface IExportQuotaService
 public class ExportQuotaService : IExportQuotaService
 {
     private readonly ILogger<ExportQuotaService> _logger;
-    private readonly INotificationService _notificationService;
+    private readonly IEmailNotificationService _notificationService;
     private readonly IUserRepository _userRepository;
     private readonly ExportQuotaSettings _quotaSettings;
 
     public ExportQuotaService(
         ILogger<ExportQuotaService> logger,
-        INotificationService notificationService,
+        IEmailNotificationService notificationService,
         IUserRepository userRepository)
     {
         _logger = logger;

@@ -111,6 +111,12 @@ public class StoryMapRepository : IStoryMapRepository
             .OrderBy(t => t.DisplayOrder)
             .ToListAsync(ct);
 
+    public Task<List<TimelineStep>> GetTimelineStepsBySegmentAsync(Guid segmentId, CancellationToken ct) =>
+        _context.TimelineSteps
+            .Where(t => t.SegmentId == segmentId)
+            .OrderBy(t => t.DisplayOrder)
+            .ToListAsync(ct);
+
     public Task AddTimelineStepAsync(TimelineStep step, CancellationToken ct) =>
         _context.TimelineSteps.AddAsync(step, ct).AsTask();
 

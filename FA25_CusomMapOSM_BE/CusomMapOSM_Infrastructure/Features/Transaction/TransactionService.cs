@@ -13,6 +13,7 @@ using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Infrastructure.Services;
+using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using Microsoft.Extensions.Logging;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
@@ -37,7 +38,7 @@ public class TransactionService : ITransactionService
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly HangfireEmailService _hangfireEmailService;
-    private readonly INotificationService _notificationService;
+    private readonly IEmailNotificationService _notificationService;
     private readonly IUserRepository _userRepository;
     private readonly IMembershipRepository _membershipRepository;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
@@ -50,7 +51,7 @@ public class TransactionService : ITransactionService
         IServiceProvider serviceProvider,
         IPaymentGatewayRepository paymentGatewayRepository,
         HangfireEmailService hangfireEmailService,
-        INotificationService notificationService,
+        IEmailNotificationService notificationService,
         IUserRepository userRepository,
         IMembershipRepository membershipRepository,
         IMembershipPlanRepository membershipPlanRepository, ILogger<TransactionService> logger)

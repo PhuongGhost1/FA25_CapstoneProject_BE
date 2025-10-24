@@ -16,6 +16,9 @@ public class MapFeatureResponse
     public string Coordinates { get; set; } = string.Empty;
     public string? Properties { get; set; }
     public string? Style { get; set; }
+    // Individual feature styling properties
+    public string? FeatureStyle { get; set; }
+    public bool UseIndividualStyle { get; set; }
     public bool IsVisible { get; set; }
     public int ZIndex { get; set; }
     public Guid CreatedBy { get; set; }

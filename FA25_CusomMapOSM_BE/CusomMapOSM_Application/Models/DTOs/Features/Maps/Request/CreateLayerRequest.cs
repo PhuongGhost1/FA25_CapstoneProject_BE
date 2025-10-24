@@ -24,6 +24,10 @@ public class CreateLayerRequest
 
     public string? LayerStyle { get; set; }
 
+    /// <summary>
+    /// Whether features in this layer can have individual styles
+    /// </summary>
+    public bool AllowIndividualFeatureStyles { get; set; } = true;
 
     public bool IsVisible { get; set; } = true;
 }
