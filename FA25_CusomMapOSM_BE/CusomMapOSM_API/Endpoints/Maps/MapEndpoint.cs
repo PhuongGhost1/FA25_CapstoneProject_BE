@@ -277,6 +277,88 @@ public class MapEndpoints : IEndpoint
             .Produces(400)
             .DisableAntiforgery();
 
+        // Upload GeoJSON file to existing map
+        group.MapPost("/{mapId:guid}/upload-geojson", async (
+                [FromRoute] Guid mapId,
+                IFormFile file,
+                [FromForm] string? layerName,
+                [FromServices] IFileProcessorService fileProcessorService,
+                [FromServices] IMapService mapService,
+                [FromServices] ICurrentUserService currentUserService,
+                CancellationToken ct) =>
+            {
+                // Check edit permission
+                if (!await mapService.HasEditPermission(mapId))
+                    return Results.Forbid();
+
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "No file uploaded",
+                        message = "Please provide a valid GeoJSON file"
+                    });
+                }
+
+                if (!fileProcessorService.IsSupported(file.FileName))
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "Unsupported file type",
+                        message = "Supported formats: GeoJSON, KML, GPX, CSV, Excel, GeoTIFF"
+                    });
+                }
+
+                var fileSizeMb = file.Length / (1024.0 * 1024.0);
+                if (file.Length > 100 * 1024 * 1024)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "File too large",
+                        message = "File size must be less than 100MB",
+                        currentSize = $"{fileSizeMb:F2} MB"
+                    });
+                }
+
+                var processedData = await fileProcessorService.ProcessUploadedFile(file, layerName ?? "Uploaded Layer");
+                
+                if (!processedData.Success)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "File processing failed",
+                        message = processedData.ErrorMessage
+                    });
+                }
+
+                // Add layer to map with the uploaded data
+                var addLayerResult = await mapService.AddLayerToMap(mapId, new AddLayerToMapRequest
+                {
+                    LayerName = layerName ?? "Uploaded Layer",
+                    LayerData = processedData.LayerData,
+                    LayerTypeId = processedData.LayerType.ToString(),
+                    IsVisible = true,
+                    ZIndex = 1
+                });
+
+                return addLayerResult.Match(
+                    success => Results.Ok(new
+                    {
+                        layerId = success.MapLayerId,
+                        message = "File uploaded and added to map successfully",
+                        featuresAdded = processedData.FeatureCount,
+                        dataSize = processedData.DataSizeKB
+                    }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("UploadGeoJsonToMap")
+            .WithDescription("Upload a GeoJSON file to an existing map")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200);
+
         // Map Features endpoints
         group.MapPost("/{mapId:guid}/features", async (
                 [FromRoute] Guid mapId,
