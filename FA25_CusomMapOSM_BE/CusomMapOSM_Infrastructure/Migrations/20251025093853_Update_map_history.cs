@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Update_mongo_storage : Migration
+    public partial class Update_map_history : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -18,24 +18,24 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "advertisements",
+                name: "Advertisements",
                 columns: table => new
                 {
-                    advertisement_id = table.Column<int>(type: "int", nullable: false)
+                    AdvertisementId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    advertisement_title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                    AdvertisementTitle = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    advertisement_content = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                    AdvertisementContent = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    image_url = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                    ImageUrl = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    start_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    end_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    is_active = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_advertisements", x => x.advertisement_id);
+                    table.PrimaryKey("PK_Advertisements", x => x.AdvertisementId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -594,10 +594,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
                     layer_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    custom_style = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    filter_config = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     feature_count = table.Column<int>(type: "int", nullable: true),
                     data_size_kb = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     data_bounds = table.Column<string>(type: "text", nullable: true)
@@ -627,8 +623,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "map_histories",
                 columns: table => new
                 {
-                    version_id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    history_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    history_version = table.Column<int>(type: "int", nullable: false),
                     map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     snapshot_data = table.Column<string>(type: "longtext", nullable: false)
@@ -637,7 +633,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_map_histories", x => x.version_id);
+                    table.PrimaryKey("PK_map_histories", x => x.history_id);
                     table.ForeignKey(
                         name: "FK_map_histories_maps_map_id",
                         column: x => x.map_id,
@@ -925,12 +921,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     geometry_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     mongo_document_id = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    coordinates = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    properties = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    style = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false),
@@ -1346,7 +1336,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
             migrationBuilder.InsertData(
                 table: "users",
                 columns: new[] { "user_id", "account_status", "created_at", "email", "full_name", "last_login", "last_token_reset", "password_hash", "phone", "role" },
-                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 10, 19, 17, 32, 33, 328, DateTimeKind.Utc).AddTicks(4928), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 10, 19, 17, 32, 33, 328, DateTimeKind.Utc).AddTicks(5198), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", "Admin" });
+                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@cusommaposm.com", "System Administrator", null, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121", "+1234567890", "Admin" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_bookmarks_map_id",
@@ -1694,7 +1684,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "advertisements");
+                name: "Advertisements");
 
             migrationBuilder.DropTable(
                 name: "bookmarks");

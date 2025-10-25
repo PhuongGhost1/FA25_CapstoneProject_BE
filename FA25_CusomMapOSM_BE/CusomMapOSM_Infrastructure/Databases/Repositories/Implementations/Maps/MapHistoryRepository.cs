@@ -15,9 +15,18 @@ public class MapHistoryRepository : IMapHistoryRepository
 
     public async Task<int> AddAsync(MapHistory history, CancellationToken ct = default)
     {
+        history.HistoryId = Guid.NewGuid();
+        
+        // Get next version for this map
+        var maxVersion = await _db.Set<MapHistory>()
+            .Where(h => h.MapId == history.MapId)
+            .MaxAsync(h => (int?)h.HistoryVersion, ct) ?? 0;
+        
+        history.HistoryVersion = maxVersion + 1;
+        
         await _db.Set<MapHistory>().AddAsync(history, ct);
         await _db.SaveChangesAsync(ct);
-        return history.VersionId;
+        return history.HistoryVersion;
     }
 
     public async Task<List<MapHistory>> GetLastAsync(Guid mapId, int maxCount, CancellationToken ct = default)
@@ -36,13 +45,13 @@ public class MapHistoryRepository : IMapHistoryRepository
             .Where(h => h.MapId == mapId)
             .OrderByDescending(h => h.CreatedAt)
             .Skip(keepCount)
-            .Select(h => h.VersionId)
+            .Select(h => h.HistoryId)
             .ToListAsync(ct);
 
         if (idsToDelete.Count == 0) return;
 
         var toRemove = await _db.Set<MapHistory>()
-            .Where(h => idsToDelete.Contains(h.VersionId))
+            .Where(h => idsToDelete.Contains(h.HistoryId))
             .ToListAsync(ct);
 
         _db.Set<MapHistory>().RemoveRange(toRemove);

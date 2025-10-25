@@ -47,14 +47,24 @@ internal class MapHistoryBsonDocument
 
     public MapHistory ToDomain()
     {
+        var historyId = CreateGuidFromVersion(Version);
+        
         return new MapHistory
         {
-            VersionId = Version,
+            HistoryId = historyId,
+            HistoryVersion = Version,
             MapId = MapId,
             UserId = UserId,
             SnapshotData = Snapshot != null ? ConvertSnapshotToString(Snapshot) : string.Empty,
             CreatedAt = CreatedAt
         };
+    }
+
+    private static Guid CreateGuidFromVersion(int version)
+    {
+        var bytes = new byte[16];
+        BitConverter.GetBytes(version).CopyTo(bytes, 0);
+        return new Guid(bytes);
     }
 
     private static BsonValue ConvertSnapshot(string snapshot)

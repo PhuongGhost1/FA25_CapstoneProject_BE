@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251024180837_Update_mongo_storagr")]
-    partial class Update_mongo_storagr
+    [Migration("20251025093853_Update_map_history")]
+    partial class Update_map_history
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,44 +29,34 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     b.Property<int>("AdvertisementId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("advertisement_id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("AdvertisementId"));
 
                     b.Property<string>("AdvertisementContent")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)")
-                        .HasColumnName("advertisement_content");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("AdvertisementTitle")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)")
-                        .HasColumnName("advertisement_title");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("end_date");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("image_url");
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime")
-                        .HasColumnName("start_date");
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("AdvertisementId");
 
-                    b.ToTable("advertisements", (string)null);
+                    b.ToTable("Advertisements");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Animations.LayerAnimation", b =>
@@ -521,10 +511,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("CustomStyle")
-                        .HasColumnType("longtext")
-                        .HasColumnName("custom_style");
-
                     b.Property<string>("DataBounds")
                         .HasColumnType("text")
                         .HasColumnName("data_bounds");
@@ -546,10 +532,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)")
                         .HasColumnName("file_path");
-
-                    b.Property<string>("FilterConfig")
-                        .HasColumnType("longtext")
-                        .HasColumnName("filter_config");
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("tinyint(1)")
@@ -862,10 +844,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(50)")
                         .HasColumnName("annotation_type");
 
-                    b.Property<string>("Coordinates")
-                        .HasColumnType("longtext")
-                        .HasColumnName("coordinates");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
@@ -914,14 +892,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("name");
 
-                    b.Property<string>("Properties")
-                        .HasColumnType("json")
-                        .HasColumnName("properties");
-
-                    b.Property<string>("Style")
-                        .HasColumnType("json")
-                        .HasColumnName("style");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("updated_at");
@@ -945,16 +915,18 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.MapHistory", b =>
                 {
-                    b.Property<int>("VersionId")
+                    b.Property<Guid>("HistoryId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("version_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("VersionId"));
+                        .HasColumnType("char(36)")
+                        .HasColumnName("history_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime")
                         .HasColumnName("created_at");
+
+                    b.Property<int>("HistoryVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("history_version");
 
                     b.Property<Guid>("MapId")
                         .HasColumnType("char(36)")
@@ -969,7 +941,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
 
-                    b.HasKey("VersionId");
+                    b.HasKey("HistoryId");
 
                     b.HasIndex("MapId");
 

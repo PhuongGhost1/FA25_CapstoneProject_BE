@@ -50,7 +50,9 @@ public class MongoMapHistoryStore : IMapHistoryStore
             .FirstOrDefaultAsync(ct);
 
         var nextVersion = (latestDoc?.Version ?? 0) + 1;
-        history.VersionId = nextVersion;
+        // Generate GUID for HistoryId and assign version
+        history.HistoryId = Guid.NewGuid();
+        history.HistoryVersion = nextVersion;
 
         var document = MapHistoryBsonDocument.FromDomain(history, nextVersion);
         await _collection.InsertOneAsync(document, cancellationToken: ct);
@@ -60,7 +62,8 @@ public class MongoMapHistoryStore : IMapHistoryStore
             // Clone entity so SQL still receives snapshot data for now.
             var sqlHistory = new MapHistory
             {
-                VersionId = history.VersionId,
+                HistoryId = history.HistoryId,
+                HistoryVersion = history.HistoryVersion,
                 MapId = history.MapId,
                 UserId = history.UserId,
                 SnapshotData = history.SnapshotData,
@@ -92,7 +95,7 @@ public class MongoMapHistoryStore : IMapHistoryStore
             var legacy = await _sqlRepository.GetLastAsync(mapId, remaining, ct);
             foreach (var item in legacy)
             {
-                if (results.All(r => r.VersionId != item.VersionId))
+                if (results.All(r => r.HistoryId != item.HistoryId))
                 {
                     results.Add(item);
                 }

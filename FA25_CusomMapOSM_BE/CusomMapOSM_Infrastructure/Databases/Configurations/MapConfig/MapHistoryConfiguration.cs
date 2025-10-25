@@ -15,11 +15,15 @@ internal class MapHistoryConfiguration : IEntityTypeConfiguration<MapHistory>
        {
               builder.ToTable("map_histories");
 
-              builder.HasKey(mh => mh.VersionId);
+                             builder.HasKey(mh => mh.HistoryId);
 
-              builder.Property(mh => mh.VersionId)
-                     .HasColumnName("version_id")
-                     .ValueGeneratedOnAdd();
+               builder.Property(mh => mh.HistoryId)
+                      .HasColumnName("history_id")
+                      .IsRequired();
+                      
+                builder.Property(mh => mh.HistoryVersion)
+                       .HasColumnName("history_version")
+                       .IsRequired();
 
               builder.Property(mh => mh.MapId)
                      .HasColumnName("map_id")
