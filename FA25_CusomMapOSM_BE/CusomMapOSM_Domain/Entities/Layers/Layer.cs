@@ -24,7 +24,6 @@ public class Layer
     public int? FeatureCount { get; set; }
     public double? DataSizeKB { get; set; }
     public string? DataBounds { get; set; }
-    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public Map? Map { get; set; }

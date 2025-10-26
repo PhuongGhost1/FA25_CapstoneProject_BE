@@ -3,6 +3,7 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.StoryMaps;
@@ -21,6 +22,7 @@ public class StoryMapEndpoint : IEndpoint
         MapSegmentLayersEndpoints(group);
         MapTimelineEndpoints(group);
         MapSegmentTransitionsEndpoints(group);
+        MapStoryMapOperations(group);
     }
 
     private static void MapSegmentsEndpoints(RouteGroupBuilder group)
@@ -38,7 +40,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegments")
             .WithDescription("Retrieve all story segments for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -58,7 +59,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegment")
             .WithDescription("Create a new story segment for the map")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -78,7 +78,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegment")
             .WithDescription("Update an existing story segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -119,7 +118,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegmentZones")
             .WithDescription("Retrieve zones for a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -140,7 +138,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegmentZone")
             .WithDescription("Create a new zone within a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -161,7 +158,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegmentZone")
             .WithDescription("Update a segment zone")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -203,7 +199,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegmentLayers")
             .WithDescription("Retrieve layers attached to a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -223,7 +218,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegmentLayer")
             .WithDescription("Attach a layer to a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -244,7 +238,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegmentLayer")
             .WithDescription("Update a segment layer configuration")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -285,7 +278,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapTimeline")
             .WithDescription("Retrieve timeline steps for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -305,7 +297,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapTimelineStep")
             .WithDescription("Create a timeline step for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -325,7 +316,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapTimelineStep")
             .WithDescription("Update a timeline step")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -365,7 +355,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegmentTransitions")
             .WithDescription("Retrieve all segment transitions for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -385,7 +374,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegmentTransition")
             .WithDescription("Create a new segment transition")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -405,7 +393,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegmentTransition")
             .WithDescription("Update a segment transition")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -443,7 +430,48 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("PreviewStoryMapTransition")
             .WithDescription("Preview a transition between two segments")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+    }
+
+    private static void MapStoryMapOperations(RouteGroupBuilder group)
+    {
+        // Export story
+        group.MapGet("/{mapId:guid}/export", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.ExportAsync(mapId, ct);
+                return result.Match<IResult>(
+                    data => Results.Ok(data),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("ExportStoryMap")
+            .WithDescription("Export story definition for a map")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        // Import story
+        group.MapPost("/{mapId:guid}/import", async (
+                [FromRoute] Guid mapId,
+                [FromBody] ImportStoryRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var withMap = request with { MapId = mapId };
+                var result = await service.ImportAsync(withMap, ct);
+                return result.Match<IResult>(
+                    ok => Results.Ok(new ImportStoryResponse { Imported = ok }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("ImportStoryMap")
+            .WithDescription("Import story definition for a map (overwrite/upsert)")
+            .WithTags(Tags.StoryMaps)
+            .Produces<ImportStoryResponse>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);

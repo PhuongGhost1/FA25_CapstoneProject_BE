@@ -18,9 +18,8 @@ public class Collaboration
     public Guid? InvitedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-
     public CollaborationTargetTypeEnum TargetType { get; set; } = new();
-    public User User { get; set; } = new();
     public CollaborationPermissionEnum Permission { get; set; } = new();
+    public User User { get; set; } = new();
     public User? Inviter { get; set; }
 }

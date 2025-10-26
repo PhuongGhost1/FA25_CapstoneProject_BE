@@ -19,6 +19,7 @@ public static class Routes
         public const string SupportTickets = "support-tickets";
         public const string SystemAdmin = "admin";
         public const string OrganizationAdmin = "organization-admin";
+        public const string Osm = "osm";
     }
 
     public static class AuthEndpoints
@@ -112,5 +113,13 @@ public static class Routes
         public const string Update = "{animationId:guid}";
         public const string Delete = "{animationId:guid}";
         public const string GetActive = "active";
+    }
+
+    public static class OsmEndpoints
+    {
+        public const string Search = "search";
+        public const string ReverseGeocode = "reverse";
+        public const string Geocode = "geocode";
+        public const string ElementDetail = "elements/{osmType}/{osmId:long}";
     }
 }

@@ -34,7 +34,6 @@ public class CustomMapOSMDbContext : DbContext
     #region DbSet Properties
     public DbSet<Advertisement> Advertisements { get; set; }
     public DbSet<Bookmark> Bookmarks { get; set; }
-    public DbSet<DataSourceBookmark> DataSourceBookmarks { get; set; }
     public DbSet<Collaboration> Collaborations { get; set; }
     public DbSet<Comment> Comments { get; set; }
     public DbSet<Export> Exports { get; set; }
