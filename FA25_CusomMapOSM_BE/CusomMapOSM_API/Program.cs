@@ -13,7 +13,6 @@ using CusomMapOSM_API.Constants;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
 using CusomMapOSM_API.Hubs;
-using CusomMapOSM_Infrastructure.Features.Collaboration;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -130,7 +129,7 @@ public class Program
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
 
-        app.MapHub<MapHub>("/hubs/map").RequireCors("FrontendCors");
+        app.MapHub<StoryHub>("/hubs/story").RequireCors("FrontendCors");
 
         app.Run();
     }

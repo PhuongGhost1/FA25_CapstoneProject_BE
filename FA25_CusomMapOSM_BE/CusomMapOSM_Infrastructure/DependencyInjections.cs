@@ -57,6 +57,7 @@ using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps.Mongo;
+using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using MongoDB.Driver;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -204,6 +205,7 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
+        services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
 
         services.AddScoped<IFileProcessorService, FileProcessorService>();
         services.AddScoped<IVectorProcessor, VectorProcessor>();
@@ -245,8 +247,6 @@ public static class DependencyInjections
             options.WorkerCount = Environment.ProcessorCount * 2;
             options.Queues = new[] { "default", "email" };
         });
-
-        services.AddSingleton<CollaborativeMapService>();
 
         return services;
     }
