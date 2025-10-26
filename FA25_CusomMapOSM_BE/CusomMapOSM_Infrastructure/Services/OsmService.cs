@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,9 +32,16 @@ namespace CusomMapOSM_Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<OsmElementDTO>> SearchByNameAsync(string query, double lat, double lon, double radius)
+        public async Task<IEnumerable<OsmElementDTO>> SearchByNameAsync(string query, double? lat = null, double? lon = null, double? radiusMeters = null, int limit = 10)
         {
-            var cacheKey = $"osm:search:{query}:{lat}:{lon}:{radius}";
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Array.Empty<OsmElementDTO>();
+            }
+
+            var trimmedQuery = query.Trim();
+            limit = Math.Clamp(limit, 1, 25);
+            var cacheKey = $"osm:search:{trimmedQuery}:{FormatCoordinate(lat)}:{FormatCoordinate(lon)}:{FormatRadius(radiusMeters)}:{limit}";
             var cachedResult = await _cache.GetStringAsync(cacheKey);
             
             if (!string.IsNullOrEmpty(cachedResult))
@@ -43,10 +51,21 @@ namespace CusomMapOSM_Infrastructure.Services
 
             try
             {
-                var nominatimUrl = $"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(query)}&format=json&addressdetails=1" +
-                                  $"&limit=10&lat={lat}&lon={lon}&radius={radius}";
+                var nominatimUrl = new StringBuilder($"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(trimmedQuery)}&format=json&addressdetails=1&limit={limit}");
                 
-                var response = await _httpClient.GetAsync(nominatimUrl);
+                if (lat.HasValue && lon.HasValue)
+                {
+                    nominatimUrl.Append($"&lat={lat.Value.ToString(CultureInfo.InvariantCulture)}");
+                    nominatimUrl.Append($"&lon={lon.Value.ToString(CultureInfo.InvariantCulture)}");
+
+                    if (radiusMeters.HasValue && radiusMeters.Value > 0)
+                    {
+                        var boundedRadius = Math.Clamp(radiusMeters.Value, 100, 100000);
+                        nominatimUrl.Append($"&radius={boundedRadius.ToString("F0", CultureInfo.InvariantCulture)}");
+                    }
+                }
+                
+                var response = await _httpClient.GetAsync(nominatimUrl.ToString());
                 response.EnsureSuccessStatusCode();
                 
                 var content = await response.Content.ReadAsStringAsync();
@@ -380,17 +399,45 @@ namespace CusomMapOSM_Infrastructure.Services
             
             foreach (var result in results)
             {
+                var tags = new Dictionary<string, string>();
+                if (!string.IsNullOrWhiteSpace(result.DisplayName))
+                {
+                    tags["name"] = result.DisplayName;
+                    tags["display_name"] = result.DisplayName;
+                }
+                if (!string.IsNullOrWhiteSpace(result.Class))
+                {
+                    tags["class"] = result.Class;
+                }
+                if (!string.IsNullOrWhiteSpace(result.Type))
+                {
+                    tags["type"] = result.Type;
+                }
+                if (result.Address != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(result.Address.Road))
+                        tags["road"] = result.Address.Road;
+                    if (!string.IsNullOrWhiteSpace(result.Address.City))
+                        tags["city"] = result.Address.City;
+                    if (!string.IsNullOrWhiteSpace(result.Address.State))
+                        tags["state"] = result.Address.State;
+                    if (!string.IsNullOrWhiteSpace(result.Address.Postcode))
+                        tags["postcode"] = result.Address.Postcode;
+                    if (!string.IsNullOrWhiteSpace(result.Address.Country))
+                        tags["country"] = result.Address.Country;
+                    if (!string.IsNullOrWhiteSpace(result.Address.CountryCode))
+                        tags["country_code"] = result.Address.CountryCode;
+                }
+                tags["lat"] = result.Lat.ToString(CultureInfo.InvariantCulture);
+                tags["lon"] = result.Lon.ToString(CultureInfo.InvariantCulture);
+
                 elements.Add(new OsmElementDTO
                 {
                     Id = result.OsmId.ToString(),
                     Type = result.OsmType,
-                    Tags = new Dictionary<string, string>
-                    {
-                        { "name", result.DisplayName },
-                        { "lat", result.Lat.ToString() },
-                        { "lon", result.Lon.ToString() },
-                        // Add other properties...
-                    }
+                    Lat = result.Lat,
+                    Lon = result.Lon,
+                    Tags = tags
                 });
             }
             
@@ -419,5 +466,11 @@ namespace CusomMapOSM_Infrastructure.Services
             
             return elements;
         }
+
+        private static string FormatCoordinate(double? value) =>
+            value?.ToString("F4", CultureInfo.InvariantCulture) ?? "na";
+
+        private static string FormatRadius(double? value) =>
+            value?.ToString("F0", CultureInfo.InvariantCulture) ?? "na";
     }
 }

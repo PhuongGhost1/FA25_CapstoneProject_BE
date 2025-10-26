@@ -14,6 +14,7 @@ using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
+using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Faqs;
@@ -188,6 +189,10 @@ public static class DependencyInjections
         // Register email notification service (from Services namespace)
         services.AddScoped<IEmailNotificationService, EmailNotificationService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
+        services.AddHttpClient<IOsmService, OsmService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         // User Repository
         services.AddScoped<IUserRepository, UserRepository>();

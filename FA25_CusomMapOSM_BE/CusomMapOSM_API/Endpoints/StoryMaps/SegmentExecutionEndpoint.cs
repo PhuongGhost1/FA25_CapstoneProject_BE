@@ -125,6 +125,34 @@ public class SegmentExecutionEndpoint : IEndpoint
             .ProducesProblem(404)
             .ProducesProblem(500);
 
+        // GET /story-maps/{mapId}/execution/checkpoint
+        group.MapGet("/{mapId:guid}/execution/checkpoint", (
+                [FromRoute] Guid mapId,
+                [FromServices] ISegmentExecutionStateStore stateStore) =>
+            {
+                var cp = stateStore.Get(mapId);
+                return cp != null ? Results.Ok(cp) : Results.NotFound();
+            })
+            .WithName("GetExecutionCheckpoint")
+            .WithDescription("Get current execution checkpoint for a map")
+            .WithTags(Tags.StoryMaps)
+            .Produces<SegmentExecutionCheckpoint>(200)
+            .ProducesProblem(404);
+
+        // POST /story-maps/{mapId}/execution/checkpoint/reset
+        group.MapPost("/{mapId:guid}/execution/checkpoint/reset", (
+                [FromRoute] Guid mapId,
+                [FromServices] ISegmentExecutionStateStore stateStore) =>
+            {
+                stateStore.Reset(mapId);
+                return Results.Ok(new { success = true });
+            })
+            .WithName("ResetExecutionCheckpoint")
+            .WithDescription("Reset execution checkpoint for a map")
+            .WithTags(Tags.StoryMaps)
+            .Produces(200);
+
+        // Execution control endpoints
         group.MapGet("/execution/status", async (
                 [FromServices] ISegmentExecutor segmentExecutor,
                 [FromServices] ISegmentExecutionStateStore stateStore) =>
@@ -196,32 +224,5 @@ public class SegmentExecutionEndpoint : IEndpoint
             .WithDescription("Resume paused segment execution")
             .WithTags(Tags.StoryMaps)
             .Produces<ExecutionControlResponse>(200);
-
-        // GET /story-maps/{mapId}/execution/checkpoint
-        group.MapGet("/{mapId:guid}/execution/checkpoint", (
-                [FromRoute] Guid mapId,
-                [FromServices] ISegmentExecutionStateStore stateStore) =>
-            {
-                var cp = stateStore.Get(mapId);
-                return cp != null ? Results.Ok(cp) : Results.NotFound();
-            })
-            .WithName("GetExecutionCheckpoint")
-            .WithDescription("Get current execution checkpoint for a map")
-            .WithTags(Tags.StoryMaps)
-            .Produces<SegmentExecutionCheckpoint>(200)
-            .ProducesProblem(404);
-
-        // POST /story-maps/{mapId}/execution/checkpoint/reset
-        group.MapPost("/{mapId:guid}/execution/checkpoint/reset", (
-                [FromRoute] Guid mapId,
-                [FromServices] ISegmentExecutionStateStore stateStore) =>
-            {
-                stateStore.Reset(mapId);
-                return Results.Ok(new { success = true });
-            })
-            .WithName("ResetExecutionCheckpoint")
-            .WithDescription("Reset execution checkpoint for a map")
-            .WithTags(Tags.StoryMaps)
-            .Produces(200);
     }
 }
