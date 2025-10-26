@@ -1,6 +1,5 @@
 ﻿using CusomMapOSM_Domain.Entities.Advertisements;
 using CusomMapOSM_Domain.Entities.Bookmarks;
-using CusomMapOSM_Domain.Entities.Collaborations;
 using CusomMapOSM_Domain.Entities.Comments;
 using CusomMapOSM_Domain.Entities.Exports;
 using CusomMapOSM_Domain.Entities.Faqs;
@@ -34,7 +33,6 @@ public class CustomMapOSMDbContext : DbContext
     #region DbSet Properties
     public DbSet<Advertisement> Advertisements { get; set; }
     public DbSet<Bookmark> Bookmarks { get; set; }
-    public DbSet<Collaboration> Collaborations { get; set; }
     public DbSet<Comment> Comments { get; set; }
     public DbSet<Export> Exports { get; set; }
     public DbSet<Faq> Faqs { get; set; }

@@ -264,7 +264,6 @@ public static class DependencyInjections
         services.AddScoped<ExportFileCleanupJob>();
         services.AddScoped<MapHistoryCleanupJob>();
         services.AddScoped<UserAccountDeactivationJob>();
-        services.AddScoped<CollaborationInvitationCleanupJob>();
         // services.AddScoped<SystemLogCleanupJob>();
         services.AddScoped<BackgroundJobScheduler>();
 
