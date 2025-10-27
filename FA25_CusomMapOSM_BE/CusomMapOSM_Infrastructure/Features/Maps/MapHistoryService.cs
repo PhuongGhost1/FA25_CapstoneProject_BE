@@ -31,7 +31,6 @@ public class MapHistoryService : IMapHistoryService
             CreatedAt = DateTime.UtcNow
         };
         await _store.AddAsync(history, ct);
-        await _store.TrimToAsync(mapId, MaxHistory, ct);
         return Option.Some<bool, Error>(true);
     }
 

@@ -14,6 +14,7 @@ public interface IMapRepository
     Task<Map?> GetMapById(Guid mapId);
     Task<List<Map>> GetUserMaps(Guid userId);
     Task<List<Map>> GetOrganizationMaps(Guid orgId);
+    Task<List<Map>> GetByWorkspaceIdAsync(Guid workspaceId);
     Task<List<Map>> GetPublicMaps();
     Task<bool> UpdateMap(Map map);
     Task<bool> DeleteMap(Guid mapId);

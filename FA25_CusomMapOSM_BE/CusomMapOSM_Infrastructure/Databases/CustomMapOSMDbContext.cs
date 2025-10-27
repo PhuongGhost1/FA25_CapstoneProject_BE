@@ -9,6 +9,7 @@ using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Domain.Entities.Notifications;
 using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Tickets;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Domain.Entities.Users;
@@ -59,6 +60,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
 
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
+    public DbSet<Workspace> Workspaces { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
     public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
     public DbSet<Transactions> Transactions { get; set; }

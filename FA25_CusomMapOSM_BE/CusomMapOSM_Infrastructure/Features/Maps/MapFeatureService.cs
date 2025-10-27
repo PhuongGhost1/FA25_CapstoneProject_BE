@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
@@ -47,6 +48,12 @@ public class MapFeatureService : IMapFeatureService
 
         var featureId = Guid.NewGuid();
         
+        // Validate and normalize geometry coordinates
+        var normalizedCoordinates = GeometryValidator.ValidateAndNormalizeGeometry(
+            req.Coordinates, 
+            req.GeometryType.ToString()
+        );
+        
         var mongoDoc = new MapFeatureDocument
         {
             Id = featureId.ToString(),
@@ -56,7 +63,7 @@ public class MapFeatureService : IMapFeatureService
             FeatureCategory = req.FeatureCategory.ToString(),
             AnnotationType = req.AnnotationType?.ToString(),
             GeometryType = req.GeometryType.ToString(),
-            Geometry = req.Coordinates,
+            Geometry = normalizedCoordinates,
             Properties = string.IsNullOrEmpty(req.Properties) 
                 ? null 
                 : JsonSerializer.Deserialize<Dictionary<string, object>>(req.Properties),
@@ -140,7 +147,14 @@ public class MapFeatureService : IMapFeatureService
             if (mongoDoc != null)
             {
                 if (req.Coordinates != null)
-                    mongoDoc.Geometry = req.Coordinates;
+                {
+                    // Validate and normalize geometry coordinates
+                    var normalizedCoordinates = GeometryValidator.ValidateAndNormalizeGeometry(
+                        req.Coordinates, 
+                        existed.GeometryType.ToString()
+                    );
+                    mongoDoc.Geometry = normalizedCoordinates;
+                }
                 if (req.Properties != null)
                     mongoDoc.Properties = JsonSerializer.Deserialize<Dictionary<string, object>>(req.Properties);
                 if (req.Style != null)
@@ -295,7 +309,7 @@ public class MapFeatureService : IMapFeatureService
         if (annotationType == null) return false;
         return annotationType switch
         {
-            AnnotationTypeEnum.Marker => geometryType == GeometryTypeEnum.Point,
+            AnnotationTypeEnum.Marker => geometryType == GeometryTypeEnum.Point || geometryType == GeometryTypeEnum.Circle,
             AnnotationTypeEnum.Highlighter => geometryType == GeometryTypeEnum.LineString || geometryType == GeometryTypeEnum.Polygon,
             AnnotationTypeEnum.Text => geometryType == GeometryTypeEnum.Point,
             AnnotationTypeEnum.Note => geometryType == GeometryTypeEnum.Point,

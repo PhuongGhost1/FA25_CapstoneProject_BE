@@ -56,6 +56,17 @@ public class MapRepository : IMapRepository
             .ToListAsync();
     }
 
+    public async Task<List<Map>> GetByWorkspaceIdAsync(Guid workspaceId)
+    {
+        return await _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
+            .Where(m => m.WorkspaceId == workspaceId && m.IsActive)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<List<Map>> GetPublicMaps()
     {
         return await _context.Maps

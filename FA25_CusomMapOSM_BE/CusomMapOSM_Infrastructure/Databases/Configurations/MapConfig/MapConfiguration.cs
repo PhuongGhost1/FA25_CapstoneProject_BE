@@ -28,6 +28,9 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.Property(m => m.OrgId)
                      .HasColumnName("org_id");
 
+              builder.Property(m => m.WorkspaceId)
+                     .HasColumnName("workspace_id");
+
               builder.Property(m => m.MapName)
                      .HasColumnName("map_name")
                      .HasMaxLength(255);
@@ -94,6 +97,11 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.HasOne(m => m.Organization)
                      .WithMany()
                      .HasForeignKey(m => m.OrgId)
+                     .OnDelete(DeleteBehavior.SetNull);
+
+              builder.HasOne(m => m.Workspace)
+                     .WithMany()
+                     .HasForeignKey(m => m.WorkspaceId)
                      .OnDelete(DeleteBehavior.SetNull);
               
               builder.HasOne(m => m.ParentMap)
