@@ -85,23 +85,6 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveLocation(Location location) =>
         _context.MapLocations.Remove(location);
 
-    public Task<SegmentLayer?> GetSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct) =>
-        _context.MapSegmentLayers.FirstOrDefaultAsync(l => l.SegmentLayerId == segmentLayerId, ct);
-
-    public Task<List<SegmentLayer>> GetSegmentLayersBySegmentAsync(Guid segmentId, CancellationToken ct) =>
-        _context.MapSegmentLayers
-            .Where(l => l.SegmentId == segmentId)
-            .OrderBy(l => l.DisplayOrder)
-            .ToListAsync(ct);
-
-    public Task AddSegmentLayerAsync(SegmentLayer layer, CancellationToken ct) =>
-        _context.MapSegmentLayers.AddAsync(layer, ct).AsTask();
-
-    public void UpdateSegmentLayer(SegmentLayer layer) =>
-        _context.MapSegmentLayers.Update(layer);
-
-    public void RemoveSegmentLayer(SegmentLayer layer) =>
-        _context.MapSegmentLayers.Remove(layer);
 
     public Task<TimelineStep?> GetTimelineStepAsync(Guid timelineStepId, CancellationToken ct) =>
         _context.TimelineSteps.FirstOrDefaultAsync(t => t.TimelineStepId == timelineStepId, ct);
@@ -126,46 +109,7 @@ public class StoryMapRepository : IStoryMapRepository
 
     public void RemoveTimelineStep(TimelineStep step) =>
         _context.TimelineSteps.Remove(step);
-
-    public Task<List<TimelineStepLayer>> GetTimelineStepLayersAsync(Guid timelineStepId, CancellationToken ct) =>
-        _context.TimelineStepLayers
-            .Where(l => l.TimelineStepId == timelineStepId)
-            .OrderBy(l => l.DelayMs)
-            .ToListAsync(ct);
-
-    public Task AddTimelineStepLayerAsync(TimelineStepLayer layer, CancellationToken ct) =>
-        _context.TimelineStepLayers.AddAsync(layer, ct).AsTask();
-
-    public void AddTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
-        _context.TimelineStepLayers.AddRange(layers);
-
-    public void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
-        _context.TimelineStepLayers.RemoveRange(layers);
-
-    public Task<SegmentTransition?> GetSegmentTransitionAsync(Guid transitionId, CancellationToken ct) =>
-        _context.SegmentTransitions
-            .Include(t => t.FromSegment)
-            .Include(t => t.ToSegment)
-            .Include(t => t.AnimationPreset)
-            .FirstOrDefaultAsync(t => t.SegmentTransitionId == transitionId, ct);
-
-    public Task<List<SegmentTransition>> GetSegmentTransitionsByMapAsync(Guid mapId, CancellationToken ct) =>
-        _context.SegmentTransitions
-            .Include(t => t.FromSegment)
-            .Include(t => t.ToSegment)
-            .Include(t => t.AnimationPreset)
-            .Where(t => t.FromSegment!.MapId == mapId || t.ToSegment!.MapId == mapId)
-            .ToListAsync(ct);
-
-    public Task AddSegmentTransitionAsync(SegmentTransition transition, CancellationToken ct) =>
-        _context.SegmentTransitions.AddAsync(transition, ct).AsTask();
-
-    public void UpdateSegmentTransition(SegmentTransition transition) =>
-        _context.SegmentTransitions.Update(transition);
-
-    public void RemoveSegmentTransition(SegmentTransition transition) =>
-        _context.SegmentTransitions.Remove(transition);
-
+    
     public Task<StoryElementLayer?> GetStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct) =>
         _context.StoryElementLayers
             .Include(sel => sel.Layer)

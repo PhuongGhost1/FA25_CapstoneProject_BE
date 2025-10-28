@@ -11,5 +11,8 @@ public enum StoryElementType
     Timeline = 6,
     Interactive = 7,
     Embed = 8,
+    SegmentTransition = 9,
+    TimelineStep = 10,
+    Segment = 11,
     Custom = 99
 }

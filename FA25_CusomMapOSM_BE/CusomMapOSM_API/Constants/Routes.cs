@@ -90,6 +90,12 @@ public static class Routes
         public const string UpdateSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
         public const string DeleteSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
         public const string PreviewTransition = "{mapId:guid}/preview-transition";
+        
+        // Story Element Layers
+        public const string GetStoryElementLayers = "story-elements/{elementId:guid}/layers";
+        public const string CreateStoryElementLayer = "story-elements/layers";
+        public const string UpdateStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
+        public const string DeleteStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
     }
 
     public static class PoiEndpoints

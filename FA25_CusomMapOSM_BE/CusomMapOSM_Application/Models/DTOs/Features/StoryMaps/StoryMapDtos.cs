@@ -50,14 +50,14 @@ public record SegmentLayerDto(
     int DelayMs,
     int FadeInMs,
     int FadeOutMs,
-    double StartOpacity,
-    double EndOpacity,
+    decimal StartOpacity,
+    decimal EndOpacity,
     AnimationEasingType Easing,
     Guid? AnimationPresetId,
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
+    string? StyleOverride,
     string? Metadata);
 
 public record TimelineStepDto(
@@ -129,7 +129,6 @@ public record StoryElementLayerDto(
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
     string? Metadata,
     bool IsVisible,
     decimal Opacity,

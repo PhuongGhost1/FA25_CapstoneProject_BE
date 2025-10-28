@@ -45,12 +45,9 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MapImage> MapImages { get; set; }
     public DbSet<Segment> MapSegments { get; set; }
     public DbSet<Location> MapLocations { get; set; }
-    public DbSet<SegmentLayer> MapSegmentLayers { get; set; }
-    public DbSet<SegmentTransition> SegmentTransitions { get; set; }
     public DbSet<LayerAnimationPreset> LayerAnimationPresets { get; set; }
     public DbSet<LayerAnimation> LayerAnimations { get; set; }
     public DbSet<TimelineStep> TimelineSteps { get; set; }
-    public DbSet<TimelineStepLayer> TimelineStepLayers { get; set; }
     public DbSet<Zone> Zones { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }

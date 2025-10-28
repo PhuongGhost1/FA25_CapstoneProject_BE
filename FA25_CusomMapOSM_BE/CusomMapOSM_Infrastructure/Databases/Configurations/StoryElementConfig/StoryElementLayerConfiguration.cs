@@ -88,10 +88,6 @@ internal class StoryElementLayerConfiguration : IEntityTypeConfiguration<StoryEl
             .HasColumnName("animation_overrides")
             .HasColumnType("TEXT");
 
-        builder.Property(sel => sel.OverrideStyle)
-            .HasColumnName("override_style")
-            .HasColumnType("TEXT");
-
         builder.Property(sel => sel.Metadata)
             .HasColumnName("metadata")
             .HasColumnType("TEXT");

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Fix_entity : Migration
+    public partial class Fix_storyelement : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -933,49 +933,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "segment_transitions",
-                columns: table => new
-                {
-                    segment_transition_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    from_segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    to_segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    effect_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    duration_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 600),
-                    delay_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    auto_play = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    is_skippable = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    transition_config = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    metadata = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_segment_transitions", x => x.segment_transition_id);
-                    table.ForeignKey(
-                        name: "FK_segment_transitions_layer_animation_presets_animation_preset~",
-                        column: x => x.animation_preset_id,
-                        principalTable: "layer_animation_presets",
-                        principalColumn: "animation_preset_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_segment_transitions_segments_from_segment_id",
-                        column: x => x.from_segment_id,
-                        principalTable: "segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_segment_transitions_segments_to_segment_id",
-                        column: x => x.to_segment_id,
-                        principalTable: "segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "timeline_steps",
                 columns: table => new
                 {
@@ -1072,43 +1029,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "timeline_step_layers",
-                columns: table => new
-                {
-                    timeline_step_layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    timeline_step_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    opacity = table.Column<double>(type: "double", nullable: false, defaultValue: 1.0),
-                    fade_in_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 300),
-                    fade_out_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 300),
-                    delay_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    display_mode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    style_override = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    metadata = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_timeline_step_layers", x => x.timeline_step_layer_id);
-                    table.ForeignKey(
-                        name: "FK_timeline_step_layers_layers_layer_id",
-                        column: x => x.layer_id,
-                        principalTable: "layers",
-                        principalColumn: "layer_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_timeline_step_layers_timeline_steps_timeline_step_id",
-                        column: x => x.timeline_step_id,
-                        principalTable: "timeline_steps",
-                        principalColumn: "timeline_step_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "locations",
                 columns: table => new
                 {
@@ -1194,64 +1114,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "segment_layers",
-                columns: table => new
-                {
-                    segment_layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    expand_to_zone = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    highlight_zone_boundary = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    display_order = table.Column<int>(type: "int", nullable: false),
-                    delay_ms = table.Column<int>(type: "int", nullable: false),
-                    fade_in_ms = table.Column<int>(type: "int", nullable: false),
-                    fade_out_ms = table.Column<int>(type: "int", nullable: false),
-                    start_opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false),
-                    end_opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false),
-                    easing = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    animation_preset_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    auto_play_animation = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    repeat_count = table.Column<int>(type: "int", nullable: false),
-                    animation_overrides = table.Column<string>(type: "TEXT", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    override_style = table.Column<string>(type: "TEXT", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    metadata = table.Column<string>(type: "TEXT", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_segment_layers", x => x.segment_layer_id);
-                    table.ForeignKey(
-                        name: "FK_segment_layers_layer_animation_presets_animation_preset_id",
-                        column: x => x.animation_preset_id,
-                        principalTable: "layer_animation_presets",
-                        principalColumn: "animation_preset_id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_segment_layers_layers_layer_id",
-                        column: x => x.layer_id,
-                        principalTable: "layers",
-                        principalColumn: "layer_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_segment_layers_segments_segment_id",
-                        column: x => x.segment_id,
-                        principalTable: "segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_segment_layers_zones_zone_id",
-                        column: x => x.zone_id,
-                        principalTable: "zones",
-                        principalColumn: "zone_id",
-                        onDelete: ReferentialAction.SetNull);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "story_element_layers",
                 columns: table => new
                 {
@@ -1274,8 +1136,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     auto_play_animation = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     repeat_count = table.Column<int>(type: "int", nullable: false),
                     animation_overrides = table.Column<string>(type: "TEXT", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    override_style = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     metadata = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -1565,41 +1425,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "owner_user_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_segment_layers_animation_preset_id",
-                table: "segment_layers",
-                column: "animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_layers_layer_id",
-                table: "segment_layers",
-                column: "layer_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_layers_segment_id",
-                table: "segment_layers",
-                column: "segment_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_layers_zone_id",
-                table: "segment_layers",
-                column: "zone_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_transitions_animation_preset_id",
-                table: "segment_transitions",
-                column: "animation_preset_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_transitions_from_segment_id",
-                table: "segment_transitions",
-                column: "from_segment_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_segment_transitions_to_segment_id",
-                table: "segment_transitions",
-                column: "to_segment_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_segments_CreatorUserId",
                 table: "segments",
                 column: "CreatorUserId");
@@ -1653,16 +1478,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_support_tickets_user_id",
                 table: "support_tickets",
                 column: "user_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_timeline_step_layers_layer_id",
-                table: "timeline_step_layers",
-                column: "layer_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_timeline_step_layers_timeline_step_id",
-                table: "timeline_step_layers",
-                column: "timeline_step_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_timeline_steps_map_id",
@@ -1750,19 +1565,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "organization_members");
 
             migrationBuilder.DropTable(
-                name: "segment_layers");
-
-            migrationBuilder.DropTable(
-                name: "segment_transitions");
-
-            migrationBuilder.DropTable(
                 name: "story_element_layers");
 
             migrationBuilder.DropTable(
                 name: "support_ticket_messages");
 
             migrationBuilder.DropTable(
-                name: "timeline_step_layers");
+                name: "timeline_steps");
 
             migrationBuilder.DropTable(
                 name: "transactions");
@@ -1771,16 +1580,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "organization_invitations");
 
             migrationBuilder.DropTable(
+                name: "layers");
+
+            migrationBuilder.DropTable(
                 name: "zones");
 
             migrationBuilder.DropTable(
                 name: "support_tickets");
-
-            migrationBuilder.DropTable(
-                name: "layers");
-
-            migrationBuilder.DropTable(
-                name: "timeline_steps");
 
             migrationBuilder.DropTable(
                 name: "exports");

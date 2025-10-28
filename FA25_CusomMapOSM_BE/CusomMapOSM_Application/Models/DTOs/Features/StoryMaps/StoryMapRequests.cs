@@ -65,7 +65,7 @@ public record UpsertSegmentLayerRequest(
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
+    string? StyleOverride,
     string? Metadata);
 
 public record CreateTimelineStepRequest(
@@ -98,7 +98,7 @@ public record UpdateTimelineStepRequest(
 public record CreateTimelineStepLayerRequest(
     Guid LayerId,
     bool IsVisible,
-    double Opacity,
+    decimal Opacity,
     int FadeInMs,
     int FadeOutMs,
     int DelayMs,
@@ -151,7 +151,6 @@ public record CreateStoryElementLayerRequest(
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
     string? Metadata,
     bool IsVisible,
     decimal Opacity,
@@ -175,7 +174,6 @@ public record UpdateStoryElementLayerRequest(
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
     string? Metadata,
     bool IsVisible,
     decimal Opacity,

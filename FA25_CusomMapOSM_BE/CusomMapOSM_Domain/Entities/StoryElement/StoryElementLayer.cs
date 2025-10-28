@@ -27,12 +27,11 @@ public class StoryElementLayer
     public bool AutoPlayAnimation { get; set; } = true;
     public int RepeatCount { get; set; } = 1; // 0 = infinite
     public string? AnimationOverrides { get; set; } // JSON overrides for preset
-    public string? OverrideStyle { get; set; } // JSON style override
     public string? Metadata { get; set; } // Optional extra info
     public bool IsVisible { get; set; } = true;
     public decimal Opacity { get; set; } = 1.0m;
     public StoryElementDisplayMode DisplayMode { get; set; } = StoryElementDisplayMode.Normal;
-    public string? StyleOverride { get; set; } // JSON style override (duplicate field from schema)
+    public string? StyleOverride { get; set; } // JSON style override
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
