@@ -22,9 +22,9 @@ internal class SegmentLocationBsonDocument
     public Guid? SegmentId { get; set; }
 
     [BsonGuidRepresentation(GuidRepresentation.Standard)]
-    [BsonElement("segmentZoneId")]
+    [BsonElement("zoneId")]
     [BsonIgnoreIfNull]
-    public Guid? SegmentZoneId { get; set; }
+    public Guid? ZoneId { get; set; }
 
     [BsonElement("title")]
     public string Title { get; set; } = string.Empty;
@@ -35,7 +35,7 @@ internal class SegmentLocationBsonDocument
 
     [BsonElement("locationType")]
     [BsonRepresentation(BsonType.String)]
-    public SegmentLocationType LocationType { get; set; }
+    public LocationType LocationType { get; set; }
 
     [BsonElement("markerGeometry")]
     [BsonIgnoreIfNull]
@@ -119,7 +119,7 @@ internal class SegmentLocationBsonDocument
             Id = location.LocationId == Guid.Empty ? Guid.NewGuid().ToString() : location.LocationId.ToString(),
             MapId = location.MapId,
             SegmentId = location.SegmentId,
-            SegmentZoneId = location.SegmentZoneId,
+            ZoneId = location.ZoneId,
             Title = location.Title,
             Subtitle = location.Subtitle,
             LocationType = location.LocationType,
@@ -152,7 +152,7 @@ internal class SegmentLocationBsonDocument
             LocationId = Guid.TryParse(Id, out var guid) ? guid : Guid.NewGuid(),
             MapId = MapId,
             SegmentId = SegmentId,
-            SegmentZoneId = SegmentZoneId,
+            ZoneId = ZoneId,
             Title = Title,
             Subtitle = Subtitle,
             LocationType = LocationType,

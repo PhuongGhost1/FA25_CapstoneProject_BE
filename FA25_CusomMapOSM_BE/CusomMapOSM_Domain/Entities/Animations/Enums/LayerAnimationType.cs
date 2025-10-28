@@ -1,4 +1,4 @@
-﻿namespace CusomMapOSM_Domain.Entities.Segments.Enums;
+﻿namespace CusomMapOSM_Domain.Entities.Animations.Enums;
 
 public enum LayerAnimationType
 {

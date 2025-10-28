@@ -25,8 +25,8 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.SegmentId)
             .HasColumnName("segment_id");
 
-        builder.Property(l => l.SegmentZoneId)
-            .HasColumnName("segment_zone_id");
+        builder.Property(l => l.ZoneId)
+            .HasColumnName("zone_id");
 
         builder.Property(l => l.Title)
             .HasColumnName("title")
@@ -128,9 +128,9 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasForeignKey(l => l.SegmentId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasOne(l => l.SegmentZone)
+        builder.HasOne(l => l.Zone)
             .WithMany()
-            .HasForeignKey(l => l.SegmentZoneId)
+            .HasForeignKey(l => l.ZoneId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(l => l.AssociatedLayer)

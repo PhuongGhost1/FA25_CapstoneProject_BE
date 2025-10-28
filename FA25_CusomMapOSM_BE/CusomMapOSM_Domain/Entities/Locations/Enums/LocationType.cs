@@ -1,6 +1,6 @@
 ﻿namespace CusomMapOSM_Domain.Entities.Locations.Enums;
 
-public enum SegmentLocationType
+public enum LocationType
 {
     PointOfInterest = 0,
     Line = 1,

@@ -32,6 +32,11 @@ public interface IStoryMapService
     Task<Option<bool, Error>> DeleteSegmentTransitionAsync(Guid transitionId, CancellationToken ct = default);
     Task<Option<TransitionPreviewDto, Error>> PreviewTransitionAsync(PreviewTransitionRequest request, CancellationToken ct = default);
 
+    Task<Option<IReadOnlyCollection<StoryElementLayerDto>, Error>> GetStoryElementLayersAsync(Guid elementId, CancellationToken ct = default);
+    Task<Option<StoryElementLayerDto, Error>> CreateStoryElementLayerAsync(CreateStoryElementLayerRequest request, CancellationToken ct = default);
+    Task<Option<StoryElementLayerDto, Error>> UpdateStoryElementLayerAsync(Guid storyElementLayerId, UpdateStoryElementLayerRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct = default);
+
     Task<Option<ExportedStoryDto, Error>> ExportAsync(Guid mapId, CancellationToken ct = default);
     Task<Option<bool, Error>> ImportAsync(ImportStoryRequest request, CancellationToken ct = default);
 }

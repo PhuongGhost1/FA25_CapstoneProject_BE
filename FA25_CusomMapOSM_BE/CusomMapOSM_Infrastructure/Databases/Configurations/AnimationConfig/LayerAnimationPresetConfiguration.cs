@@ -1,8 +1,8 @@
-using CusomMapOSM_Domain.Entities.Segments;
+﻿using CusomMapOSM_Domain.Entities.Animations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace CusomMapOSM_Infrastructure.Databases.Configurations.SegmentConfig;
+namespace CusomMapOSM_Infrastructure.Databases.Configurations.AnimationConfig;
 
 internal class LayerAnimationPresetConfiguration : IEntityTypeConfiguration<LayerAnimationPreset>
 {

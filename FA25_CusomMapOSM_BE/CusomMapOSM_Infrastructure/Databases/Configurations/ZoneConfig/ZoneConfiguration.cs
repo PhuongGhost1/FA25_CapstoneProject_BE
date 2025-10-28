@@ -68,12 +68,47 @@ internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
             .HasColumnName("is_active")
             .IsRequired();
 
+        // Fields from merged SegmentZone
+        builder.Property(z => z.SegmentId)
+            .HasColumnName("segment_id");
+
+        builder.Property(z => z.Description)
+            .HasColumnName("description")
+            .HasMaxLength(1000);
+
+        builder.Property(z => z.ZoneType)
+            .HasColumnName("zone_type")
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(z => z.FocusCameraState)
+            .HasColumnName("focus_camera_state")
+            .HasColumnType("TEXT");
+
+        builder.Property(z => z.DisplayOrder)
+            .HasColumnName("display_order");
+
+        builder.Property(z => z.IsPrimary)
+            .HasColumnName("is_primary");
+
+        builder.Property(z => z.CreatedAt)
+            .HasColumnName("created_at")
+            .HasColumnType("datetime")
+            .IsRequired();
+
+        builder.Property(z => z.UpdatedAt)
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
+
         // Relationships
         builder.HasOne(z => z.ParentZone)
             .WithMany()
             .HasForeignKey(z => z.ParentZoneId)
             .OnDelete(DeleteBehavior.Restrict);
 
-
+        builder.HasOne(z => z.Segment)
+            .WithMany()
+            .HasForeignKey(z => z.SegmentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

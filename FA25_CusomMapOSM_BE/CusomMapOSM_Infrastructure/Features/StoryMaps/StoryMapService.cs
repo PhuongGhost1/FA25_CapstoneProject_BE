@@ -4,7 +4,9 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.StoryElement;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using Optional;
@@ -29,7 +31,7 @@ public class StoryMapService : IStoryMapService
         var map = await _repository.GetMapAsync(mapId, ct);
         if (map is null)
         {
-            return Option.None<IReadOnlyCollection<SegmentDto>, Error>(Error.NotFound("StoryMap.Map.NotFound", "Map not found"));
+            return Option.None<IReadOnlyCollection<SegmentDto>, Error>(Error.NotFound("StoryMap.Map.NotFound", MapErrors.MapNotFound));
         }
 
         var segments = await _repository.GetSegmentsByMapAsync(mapId, ct);
@@ -46,12 +48,12 @@ public class StoryMapService : IStoryMapService
             var locationsRaw = await _locationStore.GetBySegmentAsync(segment.SegmentId, ct);
 
             var zones = zonesRaw.Select(z => new SegmentZoneDto(
-                z.SegmentZoneId,
-                z.SegmentId,
+                z.ZoneId,
+                z.SegmentId ?? Guid.Empty,
                 z.Name,
                 z.Description,
                 z.ZoneType,
-                z.ZoneGeometry,
+                z.Geometry,
                 z.FocusCameraState,
                 z.DisplayOrder,
                 z.IsPrimary,
@@ -62,7 +64,7 @@ public class StoryMapService : IStoryMapService
                 l.SegmentLayerId,
                 l.SegmentId,
                 l.LayerId,
-                l.SegmentZoneId,
+                l.ZoneId,
                 l.ExpandToZone,
                 l.HighlightZoneBoundary,
                 l.DisplayOrder,
@@ -83,7 +85,7 @@ public class StoryMapService : IStoryMapService
                 loc.LocationId,
                 loc.MapId,
                 loc.SegmentId,
-                loc.SegmentZoneId,
+                loc.ZoneId,
                 loc.Title,
                 loc.Subtitle,
                 loc.LocationType,
@@ -135,7 +137,7 @@ public class StoryMapService : IStoryMapService
         var map = await _repository.GetMapAsync(request.MapId, ct);
         if (map is null)
         {
-            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Map.NotFound", "Map not found"));
+            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Map.NotFound", MapErrors.MapNotFound));
         }
 
         var userId = _currentUserService.GetUserId();
@@ -219,12 +221,12 @@ public class StoryMapService : IStoryMapService
         var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
 
         var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.SegmentZoneId,
+            z.ZoneId,
             z.SegmentId,
             z.Name,
             z.Description,
             z.ZoneType,
-            z.ZoneGeometry,
+            z.Geometry,
             z.FocusCameraState,
             z.DisplayOrder,
             z.IsPrimary,
@@ -235,7 +237,7 @@ public class StoryMapService : IStoryMapService
             l.SegmentLayerId,
             l.SegmentId,
             l.LayerId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.ExpandToZone,
             l.HighlightZoneBoundary,
             l.DisplayOrder,
@@ -256,7 +258,7 @@ public class StoryMapService : IStoryMapService
             loc.LocationId,
             loc.MapId,
             loc.SegmentId,
-            loc.SegmentZoneId,
+            loc.ZoneId,
             loc.Title,
             loc.Subtitle,
             loc.LocationType,
@@ -523,7 +525,7 @@ public class StoryMapService : IStoryMapService
             // layers
             foreach (var l in seg.Layers)
             {
-                var c = new UpsertSegmentLayerRequest(l.LayerId, l.SegmentZoneId, l.ExpandToZone, l.HighlightZoneBoundary, l.DisplayOrder, l.DelayMs, l.FadeInMs, l.FadeOutMs, l.StartOpacity, l.EndOpacity, l.Easing, l.AnimationPresetId, l.AutoPlayAnimation, l.RepeatCount, l.AnimationOverrides, l.OverrideStyle, l.Metadata);
+                var c = new UpsertSegmentLayerRequest(l.LayerId, l.ZoneId, l.ExpandToZone, l.HighlightZoneBoundary, l.DisplayOrder, l.DelayMs, l.FadeInMs, l.FadeOutMs, l.StartOpacity, l.EndOpacity, l.Easing, l.AnimationPresetId, l.AutoPlayAnimation, l.RepeatCount, l.AnimationOverrides, l.OverrideStyle, l.Metadata);
                 var lr = await CreateSegmentLayerAsync(newSegmentId, c, ct);
                 if (!lr.HasValue)
                 {
@@ -583,12 +585,12 @@ public class StoryMapService : IStoryMapService
 
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.SegmentZoneId,
-            z.SegmentId,
+            z.ZoneId,
+            z.SegmentId ?? Guid.Empty,
             z.Name,
             z.Description,
             z.ZoneType,
-            z.ZoneGeometry,
+            z.Geometry,
             z.FocusCameraState,
             z.DisplayOrder,
             z.IsPrimary,
@@ -605,32 +607,38 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var zone = new SegmentZone
+        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
         {
-            SegmentZoneId = Guid.NewGuid(),
+            ZoneId = Guid.NewGuid(),
             SegmentId = request.SegmentId,
             Name = request.Name,
             Description = request.Description,
             ZoneType = request.ZoneType,
-            ZoneGeometry = request.ZoneGeometry,
+            Geometry = request.ZoneGeometry,
             FocusCameraState = request.FocusCameraState,
             DisplayOrder = request.DisplayOrder,
             IsPrimary = request.IsPrimary,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            // Set required fields for Zone entity
+            ExternalId = string.Empty,
+            ZoneCode = string.Empty,
+            AdminLevel = CusomMapOSM_Domain.Entities.Zones.Enums.ZoneAdminLevel.Custom,
+            IsActive = true,
+            LastSyncedAt = DateTime.UtcNow
         };
 
         await _repository.AddSegmentZoneAsync(zone, ct);
         await _repository.SaveChangesAsync(ct);
 
         var zoneDto = new SegmentZoneDto(
-            zone.SegmentZoneId,
-            zone.SegmentId,
+            zone.ZoneId,
+            zone.SegmentId ?? Guid.Empty,
             zone.Name,
             zone.Description,
             zone.ZoneType,
-            zone.ZoneGeometry,
+            zone.Geometry,
             zone.FocusCameraState,
-            zone.DisplayOrder,
+            zone.DisplayOrder ,
             zone.IsPrimary,
             zone.CreatedAt,
             zone.UpdatedAt);
@@ -638,9 +646,9 @@ public class StoryMapService : IStoryMapService
         return Option.Some<SegmentZoneDto, Error>(zoneDto);
     }
 
-    public async Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid segmentZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default)
+    public async Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid ZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default)
     {
-        var zone = await _repository.GetSegmentZoneAsync(segmentZoneId, ct);
+        var zone = await _repository.GetSegmentZoneAsync(ZoneId, ct);
         if (zone is null)
         {
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -649,7 +657,7 @@ public class StoryMapService : IStoryMapService
         zone.Name = request.Name;
         zone.Description = request.Description;
         zone.ZoneType = request.ZoneType;
-        zone.ZoneGeometry = request.ZoneGeometry;
+        zone.Geometry = request.ZoneGeometry;
         zone.FocusCameraState = request.FocusCameraState;
         zone.DisplayOrder = request.DisplayOrder;
         zone.IsPrimary = request.IsPrimary;
@@ -659,24 +667,24 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         var zoneDto = new SegmentZoneDto(
-            zone.SegmentZoneId,
-            zone.SegmentId,
+            zone.ZoneId,
+            zone.SegmentId ?? Guid.Empty,
             zone.Name,
             zone.Description,
-            zone.ZoneType,
-            zone.ZoneGeometry,
+            zone.ZoneType ,
+            zone.Geometry,
             zone.FocusCameraState,
-            zone.DisplayOrder,
-            zone.IsPrimary,
+            zone.DisplayOrder ,
+            zone.IsPrimary ,
             zone.CreatedAt,
             zone.UpdatedAt);
 
         return Option.Some<SegmentZoneDto, Error>(zoneDto);
     }
 
-    public async Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid ZoneId, CancellationToken ct = default)
     {
-        var zone = await _repository.GetSegmentZoneAsync(segmentZoneId, ct);
+        var zone = await _repository.GetSegmentZoneAsync(ZoneId, ct);
         if (zone is null)
         {
             return Option.None<bool, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -700,7 +708,7 @@ public class StoryMapService : IStoryMapService
             l.SegmentLayerId,
             l.SegmentId,
             l.LayerId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.ExpandToZone,
             l.HighlightZoneBoundary,
             l.DisplayOrder,
@@ -727,9 +735,9 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        if (request.SegmentZoneId.HasValue)
+        if (request.ZoneId.HasValue)
         {
-            var zone = await _repository.GetSegmentZoneAsync(request.SegmentZoneId.Value, ct);
+            var zone = await _repository.GetSegmentZoneAsync(request.ZoneId.Value, ct);
             if (zone is null)
             {
                 return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -741,7 +749,7 @@ public class StoryMapService : IStoryMapService
             SegmentLayerId = Guid.NewGuid(),
             SegmentId = segmentId,
             LayerId = request.LayerId,
-            SegmentZoneId = request.SegmentZoneId,
+            ZoneId = request.ZoneId,
             ExpandToZone = request.ExpandToZone,
             HighlightZoneBoundary = request.HighlightZoneBoundary,
             DisplayOrder = request.DisplayOrder,
@@ -766,7 +774,7 @@ public class StoryMapService : IStoryMapService
             layer.SegmentLayerId,
             layer.SegmentId,
             layer.LayerId,
-            layer.SegmentZoneId,
+            layer.ZoneId,
             layer.ExpandToZone,
             layer.HighlightZoneBoundary,
             layer.DisplayOrder,
@@ -794,9 +802,9 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Layer.NotFound", "Segment layer not found"));
         }
 
-        if (request.SegmentZoneId.HasValue)
+        if (request.ZoneId.HasValue)
         {
-            var zone = await _repository.GetSegmentZoneAsync(request.SegmentZoneId.Value, ct);
+            var zone = await _repository.GetSegmentZoneAsync(request.ZoneId.Value, ct);
             if (zone is null)
             {
                 return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -804,7 +812,7 @@ public class StoryMapService : IStoryMapService
         }
 
         layer.LayerId = request.LayerId;
-        layer.SegmentZoneId = request.SegmentZoneId;
+        layer.ZoneId = request.ZoneId;
         layer.ExpandToZone = request.ExpandToZone;
         layer.HighlightZoneBoundary = request.HighlightZoneBoundary;
         layer.DisplayOrder = request.DisplayOrder;
@@ -828,7 +836,7 @@ public class StoryMapService : IStoryMapService
             layer.SegmentLayerId,
             layer.SegmentId,
             layer.LayerId,
-            layer.SegmentZoneId,
+            layer.ZoneId,
             layer.ExpandToZone,
             layer.HighlightZoneBoundary,
             layer.DisplayOrder,
@@ -1104,6 +1112,184 @@ public class StoryMapService : IStoryMapService
 
         _repository.RemoveTimelineStep(step);
         await _repository.SaveChangesAsync(ct);
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<IReadOnlyCollection<StoryElementLayerDto>, Error>> GetStoryElementLayersAsync(Guid elementId, CancellationToken ct = default)
+    {
+        var layers = await _repository.GetStoryElementLayersByElementAsync(elementId, ct);
+        var layerDtos = layers.Select(sel => new StoryElementLayerDto(
+            sel.StoryElementLayerId,
+            sel.ElementId,
+            sel.ElementType,
+            sel.LayerId,
+            sel.ZoneId,
+            sel.ExpandToZone,
+            sel.HighlightZoneBoundary,
+            sel.DisplayOrder,
+            sel.DelayMs,
+            sel.FadeInMs,
+            sel.FadeOutMs,
+            sel.StartOpacity,
+            sel.EndOpacity,
+            sel.Easing,
+            sel.AnimationPresetId,
+            sel.AutoPlayAnimation,
+            sel.RepeatCount,
+            sel.AnimationOverrides,
+            sel.OverrideStyle,
+            sel.Metadata,
+            sel.IsVisible,
+            sel.Opacity,
+            sel.DisplayMode,
+            sel.StyleOverride,
+            sel.CreatedAt,
+            sel.UpdatedAt)).ToList();
+        return Option.Some<IReadOnlyCollection<StoryElementLayerDto>, Error>(layerDtos);
+    }
+
+    public async Task<Option<StoryElementLayerDto, Error>> CreateStoryElementLayerAsync(CreateStoryElementLayerRequest request, CancellationToken ct = default)
+    {
+        var layer = new StoryElementLayer
+        {
+            StoryElementLayerId = Guid.NewGuid(),
+            ElementId = request.ElementId,
+            ElementType = request.ElementType,
+            LayerId = request.LayerId,
+            ZoneId = request.ZoneId,
+            ExpandToZone = request.ExpandToZone,
+            HighlightZoneBoundary = request.HighlightZoneBoundary,
+            DisplayOrder = request.DisplayOrder,
+            DelayMs = request.DelayMs,
+            FadeInMs = request.FadeInMs,
+            FadeOutMs = request.FadeOutMs,
+            StartOpacity = request.StartOpacity,
+            EndOpacity = request.EndOpacity,
+            Easing = request.Easing,
+            AnimationPresetId = request.AnimationPresetId,
+            AutoPlayAnimation = request.AutoPlayAnimation,
+            RepeatCount = request.RepeatCount,
+            AnimationOverrides = request.AnimationOverrides,
+            OverrideStyle = request.OverrideStyle,
+            Metadata = request.Metadata,
+            IsVisible = request.IsVisible,
+            Opacity = request.Opacity,
+            DisplayMode = request.DisplayMode,
+            StyleOverride = request.StyleOverride,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repository.AddStoryElementLayerAsync(layer, ct);
+        await _repository.SaveChangesAsync(ct);
+
+        var layerDto = new StoryElementLayerDto(
+            layer.StoryElementLayerId,
+            layer.ElementId,
+            layer.ElementType,
+            layer.LayerId,
+            layer.ZoneId,
+            layer.ExpandToZone,
+            layer.HighlightZoneBoundary,
+            layer.DisplayOrder,
+            layer.DelayMs,
+            layer.FadeInMs,
+            layer.FadeOutMs,
+            layer.StartOpacity,
+            layer.EndOpacity,
+            layer.Easing,
+            layer.AnimationPresetId,
+            layer.AutoPlayAnimation,
+            layer.RepeatCount,
+            layer.AnimationOverrides,
+            layer.OverrideStyle,
+            layer.Metadata,
+            layer.IsVisible,
+            layer.Opacity,
+            layer.DisplayMode,
+            layer.StyleOverride,
+            layer.CreatedAt,
+            layer.UpdatedAt);
+
+        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+    }
+
+    public async Task<Option<StoryElementLayerDto, Error>> UpdateStoryElementLayerAsync(Guid storyElementLayerId, UpdateStoryElementLayerRequest request, CancellationToken ct = default)
+    {
+        var layer = await _repository.GetStoryElementLayerAsync(storyElementLayerId, ct);
+        if (layer is null)
+        {
+            return Option.None<StoryElementLayerDto, Error>(Error.NotFound("StoryElement.Layer.NotFound", "Story element layer not found"));
+        }
+
+        layer.ElementType = request.ElementType;
+        layer.LayerId = request.LayerId;
+        layer.ZoneId = request.ZoneId;
+        layer.ExpandToZone = request.ExpandToZone;
+        layer.HighlightZoneBoundary = request.HighlightZoneBoundary;
+        layer.DisplayOrder = request.DisplayOrder;
+        layer.DelayMs = request.DelayMs;
+        layer.FadeInMs = request.FadeInMs;
+        layer.FadeOutMs = request.FadeOutMs;
+        layer.StartOpacity = request.StartOpacity;
+        layer.EndOpacity = request.EndOpacity;
+        layer.Easing = request.Easing;
+        layer.AnimationPresetId = request.AnimationPresetId;
+        layer.AutoPlayAnimation = request.AutoPlayAnimation;
+        layer.RepeatCount = request.RepeatCount;
+        layer.AnimationOverrides = request.AnimationOverrides;
+        layer.OverrideStyle = request.OverrideStyle;
+        layer.Metadata = request.Metadata;
+        layer.IsVisible = request.IsVisible;
+        layer.Opacity = request.Opacity;
+        layer.DisplayMode = request.DisplayMode;
+        layer.StyleOverride = request.StyleOverride;
+        layer.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateStoryElementLayer(layer);
+        await _repository.SaveChangesAsync(ct);
+
+        var layerDto = new StoryElementLayerDto(
+            layer.StoryElementLayerId,
+            layer.ElementId,
+            layer.ElementType,
+            layer.LayerId,
+            layer.ZoneId,
+            layer.ExpandToZone,
+            layer.HighlightZoneBoundary,
+            layer.DisplayOrder,
+            layer.DelayMs,
+            layer.FadeInMs,
+            layer.FadeOutMs,
+            layer.StartOpacity,
+            layer.EndOpacity,
+            layer.Easing,
+            layer.AnimationPresetId,
+            layer.AutoPlayAnimation,
+            layer.RepeatCount,
+            layer.AnimationOverrides,
+            layer.OverrideStyle,
+            layer.Metadata,
+            layer.IsVisible,
+            layer.Opacity,
+            layer.DisplayMode,
+            layer.StyleOverride,
+            layer.CreatedAt,
+            layer.UpdatedAt);
+
+        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+    }
+
+    public async Task<Option<bool, Error>> DeleteStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct = default)
+    {
+        var layer = await _repository.GetStoryElementLayerAsync(storyElementLayerId, ct);
+        if (layer is null)
+        {
+            return Option.None<bool, Error>(Error.NotFound("StoryElement.Layer.NotFound", "Story element layer not found"));
+        }
+
+        _repository.RemoveStoryElementLayer(layer);
+        await _repository.SaveChangesAsync(ct);
+
         return Option.Some<bool, Error>(true);
     }
 }

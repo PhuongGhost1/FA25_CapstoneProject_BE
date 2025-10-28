@@ -26,8 +26,8 @@ internal class SegmentLayerConfiguration : IEntityTypeConfiguration<SegmentLayer
             .HasColumnName("layer_id")
             .IsRequired();
 
-        builder.Property(sl => sl.SegmentZoneId)
-            .HasColumnName("segment_zone_id");
+        builder.Property(sl => sl.ZoneId)
+            .HasColumnName("zone_id");
 
         builder.Property(sl => sl.ExpandToZone)
             .HasColumnName("expand_to_zone")
@@ -98,9 +98,9 @@ internal class SegmentLayerConfiguration : IEntityTypeConfiguration<SegmentLayer
             .HasForeignKey(sl => sl.SegmentId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(sl => sl.SegmentZone)
+        builder.HasOne(sl => sl.Zone)
             .WithMany()
-            .HasForeignKey(sl => sl.SegmentZoneId)
+            .HasForeignKey(sl => sl.ZoneId)
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(sl => sl.Layer)

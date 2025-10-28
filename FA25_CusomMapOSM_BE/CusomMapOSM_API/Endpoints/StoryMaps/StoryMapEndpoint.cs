@@ -132,7 +132,7 @@ public class StoryMapEndpoint : IEndpoint
                 var enriched = request with { SegmentId = segmentId };
                 var result = await service.CreateSegmentZoneAsync(enriched, ct);
                 return result.Match<IResult>(
-                    zone => Results.Created($"{Routes.Prefix.StoryMap}/segments/{segmentId}/zones/{zone.SegmentZoneId}", zone),
+                    zone => Results.Created($"{Routes.Prefix.StoryMap}/segments/{segmentId}/zones/{zone.ZoneId}", zone),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("CreateStoryMapSegmentZone")

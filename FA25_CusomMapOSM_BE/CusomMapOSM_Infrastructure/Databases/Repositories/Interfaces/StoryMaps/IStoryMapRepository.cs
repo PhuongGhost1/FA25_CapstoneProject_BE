@@ -1,6 +1,7 @@
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.StoryElement;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Zones;
 
@@ -16,11 +17,11 @@ public interface IStoryMapRepository
     void UpdateSegment(Segment segment);
     void RemoveSegment(Segment segment);
 
-    Task<SegmentZone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct);
-    Task<List<SegmentZone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct);
-    Task AddSegmentZoneAsync(SegmentZone zone, CancellationToken ct);
-    void UpdateSegmentZone(SegmentZone zone);
-    void RemoveSegmentZone(SegmentZone zone);
+    Task<Zone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct);
+    Task<List<Zone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task AddSegmentZoneAsync(Zone zone, CancellationToken ct);
+    void UpdateSegmentZone(Zone zone);
+    void RemoveSegmentZone(Zone zone);
 
     Task<Location?> GetLocationAsync(Guid locationId, CancellationToken ct);
     Task<List<Location>> GetLocationsByMapAsync(Guid mapId, CancellationToken ct);
@@ -51,6 +52,13 @@ public interface IStoryMapRepository
     Task AddSegmentTransitionAsync(SegmentTransition transition, CancellationToken ct);
     void UpdateSegmentTransition(SegmentTransition transition);
     void RemoveSegmentTransition(SegmentTransition transition);
+
+    Task<StoryElementLayer?> GetStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct);
+    Task<List<StoryElementLayer>> GetStoryElementLayersByElementAsync(Guid elementId, CancellationToken ct);
+    Task<List<StoryElementLayer>> GetStoryElementLayersByLayerAsync(Guid layerId, CancellationToken ct);
+    Task AddStoryElementLayerAsync(StoryElementLayer storyElementLayer, CancellationToken ct);
+    void UpdateStoryElementLayer(StoryElementLayer storyElementLayer);
+    void RemoveStoryElementLayer(StoryElementLayer storyElementLayer);
 
     Task<int> SaveChangesAsync(CancellationToken ct);
 }

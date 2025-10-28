@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using CusomMapOSM_Domain.Entities.Segments.Enums;
+﻿using CusomMapOSM_Domain.Entities.Animations.Enums;
 
-namespace CusomMapOSM_Domain.Entities.Segments;
+namespace CusomMapOSM_Domain.Entities.Animations;
 
 public class LayerAnimationPreset
 {

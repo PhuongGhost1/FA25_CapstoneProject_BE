@@ -1,6 +1,9 @@
 using System;
+using CusomMapOSM_Domain.Entities.Animations;
+using CusomMapOSM_Domain.Entities.Animations.Enums;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
+using CusomMapOSM_Domain.Entities.Zones;
 
 namespace CusomMapOSM_Domain.Entities.Segments;
 
@@ -9,7 +12,7 @@ public class SegmentLayer
     public Guid SegmentLayerId { get; set; }
     public Guid SegmentId { get; set; }
     public Guid LayerId { get; set; }
-    public Guid? SegmentZoneId { get; set; }
+    public Guid? ZoneId { get; set; }
     public bool ExpandToZone { get; set; } = true;
     public bool HighlightZoneBoundary { get; set; } = true;
     public int DisplayOrder { get; set; }
@@ -27,7 +30,7 @@ public class SegmentLayer
     public string? Metadata { get; set; }                      // optional: extra info
 
     public Segment? Segment { get; set; }
-    public SegmentZone? SegmentZone { get; set; }
+    public Zone? Zone { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
     public Layer? Layer { get; set; }
 }

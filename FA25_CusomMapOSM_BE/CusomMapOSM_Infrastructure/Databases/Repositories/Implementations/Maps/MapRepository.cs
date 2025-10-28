@@ -32,7 +32,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .FirstOrDefaultAsync(m => m.MapId == mapId && m.IsActive);
     }
 
@@ -40,7 +40,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.UserId == userId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
@@ -50,8 +50,9 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
-            .Where(m => m.OrgId == orgId && m.IsActive)
+            .Include(m => m.Workspace)
+            .ThenInclude(w => w!.Organization)
+            .Where(m => m.Workspace != null && m.Workspace.Organization != null && m.Workspace.Organization.OrgId == orgId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
     }
@@ -60,7 +61,6 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
             .Include(m => m.Workspace)
             .Where(m => m.WorkspaceId == workspaceId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
@@ -71,7 +71,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.IsPublic && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();

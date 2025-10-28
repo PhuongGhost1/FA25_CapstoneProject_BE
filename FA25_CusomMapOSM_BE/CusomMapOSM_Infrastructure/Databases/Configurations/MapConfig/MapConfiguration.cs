@@ -25,9 +25,6 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasColumnName("user_id")
                      .IsRequired();
 
-              builder.Property(m => m.OrgId)
-                     .HasColumnName("org_id");
-
               builder.Property(m => m.WorkspaceId)
                      .HasColumnName("workspace_id");
 
@@ -93,11 +90,6 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.HasOne(m => m.User)
                      .WithMany()
                      .HasForeignKey(m => m.UserId);
-
-              builder.HasOne(m => m.Organization)
-                     .WithMany()
-                     .HasForeignKey(m => m.OrgId)
-                     .OnDelete(DeleteBehavior.SetNull);
 
               builder.HasOne(m => m.Workspace)
                      .WithMany()

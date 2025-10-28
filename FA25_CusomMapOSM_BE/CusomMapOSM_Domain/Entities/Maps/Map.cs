@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Workspaces;
 
@@ -15,7 +14,6 @@ public class Map
 {
     public Guid MapId { get; set; }
     public Guid UserId { get; set; }
-    public Guid? OrgId { get; set; }
     public Guid? WorkspaceId { get; set; }
     public string MapName { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -33,7 +31,6 @@ public class Map
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public User? User { get; set; }
-    public Organization? Organization { get; set; }
     public Workspace? Workspace { get; set; }
     public Map? ParentMap { get; set; }
 }

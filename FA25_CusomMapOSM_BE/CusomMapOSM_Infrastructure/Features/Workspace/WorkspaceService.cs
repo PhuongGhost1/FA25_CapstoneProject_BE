@@ -52,7 +52,9 @@ public class WorkspaceService : IWorkspaceService
             Icon = req.Icon,
             Access = req.Access,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Organization = null!,
+            Creator = null!
         };
 
         await _workspaceRepository.CreateAsync(workspace);

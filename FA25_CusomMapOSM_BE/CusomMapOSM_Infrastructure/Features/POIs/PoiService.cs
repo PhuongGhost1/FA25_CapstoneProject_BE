@@ -32,7 +32,7 @@ public class PoiService : IPoiService
             l.LocationId,
             l.MapId,
             l.SegmentId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.Title,
             l.Subtitle,
             l.LocationType,
@@ -71,7 +71,7 @@ public class PoiService : IPoiService
             l.LocationId,
             l.MapId,
             l.SegmentId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.Title,
             l.Subtitle,
             l.LocationType,
@@ -106,7 +106,7 @@ public class PoiService : IPoiService
         }
 
         Guid? segmentId = NormalizeGuid(request.SegmentId);
-        Guid? segmentZoneId = NormalizeGuid(request.SegmentZoneId);
+        Guid? zoneId = NormalizeGuid(request.ZoneId);
         Guid? linkedPoiId = NormalizeGuid(request.LinkedPoiId);
 
         if (segmentId.HasValue)
@@ -118,26 +118,29 @@ public class PoiService : IPoiService
             }
         }
 
-        if (segmentZoneId.HasValue)
+        if (zoneId.HasValue)
         {
-            var zone = await _storyMapRepository.GetSegmentZoneAsync(segmentZoneId.Value, ct);
+            var zone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
 
-            var zoneSegment = await _storyMapRepository.GetSegmentAsync(zone.SegmentId, ct);
-            if (zoneSegment is null || zoneSegment.MapId != request.MapId)
+            if (zone.SegmentId.HasValue)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
-            }
+                var zoneSegment = await _storyMapRepository.GetSegmentAsync(zone.SegmentId.Value, ct);
+                if (zoneSegment is null || zoneSegment.MapId != request.MapId)
+                {
+                    return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
+                }
 
-            if (segmentId.HasValue && segmentId.Value != zone.SegmentId)
-            {
-                return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
-            }
+                if (segmentId.HasValue && segmentId.Value != zone.SegmentId.Value)
+                {
+                    return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
+                }
 
-            segmentId ??= zone.SegmentId;
+                segmentId ??= zone.SegmentId;
+            }
         }
 
         if (linkedPoiId.HasValue)
@@ -154,7 +157,7 @@ public class PoiService : IPoiService
             LocationId = Guid.NewGuid(),
             MapId = request.MapId,
             SegmentId = segmentId,
-            SegmentZoneId = segmentZoneId,
+            ZoneId = zoneId,
             Title = request.Title,
             Subtitle = request.Subtitle,
             LocationType = request.LocationType,
@@ -185,7 +188,7 @@ public class PoiService : IPoiService
             location.LocationId,
             location.MapId,
             location.SegmentId,
-            location.SegmentZoneId,
+            location.ZoneId,
             location.Title,
             location.Subtitle,
             location.LocationType,
@@ -232,16 +235,16 @@ public class PoiService : IPoiService
             }
         }
 
-        Guid? segmentZoneId = request.SegmentZoneId.HasValue ? NormalizeGuid(request.SegmentZoneId) : location.SegmentZoneId;
-        if (segmentZoneId.HasValue)
+        Guid? zoneId = request.ZoneId.HasValue ? NormalizeGuid(request.ZoneId) : location.ZoneId;
+        if (zoneId.HasValue)
         {
-            var zone = await _storyMapRepository.GetSegmentZoneAsync(segmentZoneId.Value, ct);
+            var zone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
 
-            if (segmentId.HasValue && zone.SegmentId != segmentId.Value)
+            if (segmentId.HasValue && zone.SegmentId.HasValue && zone.SegmentId.Value != segmentId.Value)
             {
                 return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
             }
@@ -265,7 +268,7 @@ public class PoiService : IPoiService
         }
 
         location.SegmentId = segmentId;
-        location.SegmentZoneId = segmentZoneId;
+        location.ZoneId = zoneId;
         location.Title = request.Title;
         location.Subtitle = request.Subtitle;
         location.LocationType = request.LocationType;
@@ -298,7 +301,7 @@ public class PoiService : IPoiService
             location.LocationId,
             location.MapId,
             location.SegmentId,
-            location.SegmentZoneId,
+            location.ZoneId,
             location.Title,
             location.Subtitle,
             location.LocationType,
