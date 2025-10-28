@@ -111,7 +111,10 @@ public class MembershipUsageTrackingJob
         var startOfMonth = GetStartOfCurrentBillingCycle(orgId, dbContext);
 
         var mapsCreated = await dbContext.Maps
-            .Where(m => m.OrgId == orgId && m.CreatedAt >= startOfMonth)
+            .Where(m => m.Workspace != null
+                        && m.Workspace.Organization != null
+                        && m.Workspace.Organization.OrgId == orgId
+                        && m.CreatedAt >= startOfMonth)
             .CountAsync();
 
         var exportsUsed = await dbContext.Exports

@@ -1,6 +1,7 @@
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.StoryElement;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Zones;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
@@ -42,23 +43,23 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveSegment(Segment segment) =>
         _context.MapSegments.Remove(segment);
 
-    public Task<SegmentZone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct) =>
-        _context.MapSegmentZones.FirstOrDefaultAsync(z => z.SegmentZoneId == segmentZoneId, ct);
+    public Task<Zone?> GetSegmentZoneAsync(Guid zoneId, CancellationToken ct) =>
+        _context.Zones.FirstOrDefaultAsync(z => z.ZoneId == zoneId, ct);
 
-    public Task<List<SegmentZone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct) =>
-        _context.MapSegmentZones
+    public Task<List<Zone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct) =>
+        _context.Zones
             .Where(z => z.SegmentId == segmentId)
             .OrderBy(z => z.DisplayOrder)
             .ToListAsync(ct);
 
-    public Task AddSegmentZoneAsync(SegmentZone zone, CancellationToken ct) =>
-        _context.MapSegmentZones.AddAsync(zone, ct).AsTask();
+    public Task AddSegmentZoneAsync(Zone zone, CancellationToken ct) =>
+        _context.Zones.AddAsync(zone, ct).AsTask();
 
-    public void UpdateSegmentZone(SegmentZone zone) =>
-        _context.MapSegmentZones.Update(zone);
+    public void UpdateSegmentZone(Zone zone) =>
+        _context.Zones.Update(zone);
 
-    public void RemoveSegmentZone(SegmentZone zone) =>
-        _context.MapSegmentZones.Remove(zone);
+    public void RemoveSegmentZone(Zone zone) =>
+        _context.Zones.Remove(zone);
 
     public Task<Location?> GetLocationAsync(Guid locationId, CancellationToken ct) =>
         _context.MapLocations.FirstOrDefaultAsync(l => l.LocationId == locationId, ct);
@@ -84,23 +85,6 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveLocation(Location location) =>
         _context.MapLocations.Remove(location);
 
-    public Task<SegmentLayer?> GetSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct) =>
-        _context.MapSegmentLayers.FirstOrDefaultAsync(l => l.SegmentLayerId == segmentLayerId, ct);
-
-    public Task<List<SegmentLayer>> GetSegmentLayersBySegmentAsync(Guid segmentId, CancellationToken ct) =>
-        _context.MapSegmentLayers
-            .Where(l => l.SegmentId == segmentId)
-            .OrderBy(l => l.DisplayOrder)
-            .ToListAsync(ct);
-
-    public Task AddSegmentLayerAsync(SegmentLayer layer, CancellationToken ct) =>
-        _context.MapSegmentLayers.AddAsync(layer, ct).AsTask();
-
-    public void UpdateSegmentLayer(SegmentLayer layer) =>
-        _context.MapSegmentLayers.Update(layer);
-
-    public void RemoveSegmentLayer(SegmentLayer layer) =>
-        _context.MapSegmentLayers.Remove(layer);
 
     public Task<TimelineStep?> GetTimelineStepAsync(Guid timelineStepId, CancellationToken ct) =>
         _context.TimelineSteps.FirstOrDefaultAsync(t => t.TimelineStepId == timelineStepId, ct);
@@ -125,45 +109,40 @@ public class StoryMapRepository : IStoryMapRepository
 
     public void RemoveTimelineStep(TimelineStep step) =>
         _context.TimelineSteps.Remove(step);
+    
+    public Task<StoryElementLayer?> GetStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct) =>
+        _context.StoryElementLayers
+            .Include(sel => sel.Layer)
+            .Include(sel => sel.Zone)
+            .Include(sel => sel.AnimationPreset)
+            .FirstOrDefaultAsync(sel => sel.StoryElementLayerId == storyElementLayerId, ct);
 
-    public Task<List<TimelineStepLayer>> GetTimelineStepLayersAsync(Guid timelineStepId, CancellationToken ct) =>
-        _context.TimelineStepLayers
-            .Where(l => l.TimelineStepId == timelineStepId)
-            .OrderBy(l => l.DelayMs)
+    public Task<List<StoryElementLayer>> GetStoryElementLayersByElementAsync(Guid elementId, CancellationToken ct) =>
+        _context.StoryElementLayers
+            .Include(sel => sel.Layer)
+            .Include(sel => sel.Zone)
+            .Include(sel => sel.AnimationPreset)
+            .Where(sel => sel.ElementId == elementId)
+            .OrderBy(sel => sel.DisplayOrder)
             .ToListAsync(ct);
 
-    public Task AddTimelineStepLayerAsync(TimelineStepLayer layer, CancellationToken ct) =>
-        _context.TimelineStepLayers.AddAsync(layer, ct).AsTask();
-
-    public void AddTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
-        _context.TimelineStepLayers.AddRange(layers);
-
-    public void RemoveTimelineStepLayers(IEnumerable<TimelineStepLayer> layers) =>
-        _context.TimelineStepLayers.RemoveRange(layers);
-
-    public Task<SegmentTransition?> GetSegmentTransitionAsync(Guid transitionId, CancellationToken ct) =>
-        _context.SegmentTransitions
-            .Include(t => t.FromSegment)
-            .Include(t => t.ToSegment)
-            .Include(t => t.AnimationPreset)
-            .FirstOrDefaultAsync(t => t.SegmentTransitionId == transitionId, ct);
-
-    public Task<List<SegmentTransition>> GetSegmentTransitionsByMapAsync(Guid mapId, CancellationToken ct) =>
-        _context.SegmentTransitions
-            .Include(t => t.FromSegment)
-            .Include(t => t.ToSegment)
-            .Include(t => t.AnimationPreset)
-            .Where(t => t.FromSegment!.MapId == mapId || t.ToSegment!.MapId == mapId)
+    public Task<List<StoryElementLayer>> GetStoryElementLayersByLayerAsync(Guid layerId, CancellationToken ct) =>
+        _context.StoryElementLayers
+            .Include(sel => sel.Layer)
+            .Include(sel => sel.Zone)
+            .Include(sel => sel.AnimationPreset)
+            .Where(sel => sel.LayerId == layerId)
+            .OrderBy(sel => sel.DisplayOrder)
             .ToListAsync(ct);
 
-    public Task AddSegmentTransitionAsync(SegmentTransition transition, CancellationToken ct) =>
-        _context.SegmentTransitions.AddAsync(transition, ct).AsTask();
+    public Task AddStoryElementLayerAsync(StoryElementLayer storyElementLayer, CancellationToken ct) =>
+        _context.StoryElementLayers.AddAsync(storyElementLayer, ct).AsTask();
 
-    public void UpdateSegmentTransition(SegmentTransition transition) =>
-        _context.SegmentTransitions.Update(transition);
+    public void UpdateStoryElementLayer(StoryElementLayer storyElementLayer) =>
+        _context.StoryElementLayers.Update(storyElementLayer);
 
-    public void RemoveSegmentTransition(SegmentTransition transition) =>
-        _context.SegmentTransitions.Remove(transition);
+    public void RemoveStoryElementLayer(StoryElementLayer storyElementLayer) =>
+        _context.StoryElementLayers.Remove(storyElementLayer);
 
     public Task<int> SaveChangesAsync(CancellationToken ct) =>
         _context.SaveChangesAsync(ct);

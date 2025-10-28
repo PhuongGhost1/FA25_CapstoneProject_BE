@@ -4,7 +4,10 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.StoryElement;
+using CusomMapOSM_Domain.Entities.StoryElement.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using Optional;
@@ -29,7 +32,7 @@ public class StoryMapService : IStoryMapService
         var map = await _repository.GetMapAsync(mapId, ct);
         if (map is null)
         {
-            return Option.None<IReadOnlyCollection<SegmentDto>, Error>(Error.NotFound("StoryMap.Map.NotFound", "Map not found"));
+            return Option.None<IReadOnlyCollection<SegmentDto>, Error>(Error.NotFound("StoryMap.Map.NotFound", MapErrors.MapNotFound));
         }
 
         var segments = await _repository.GetSegmentsByMapAsync(mapId, ct);
@@ -42,16 +45,17 @@ public class StoryMapService : IStoryMapService
         foreach (var segment in segments)
         {
             var zonesRaw = await _repository.GetSegmentZonesBySegmentAsync(segment.SegmentId, ct);
-            var layersRaw = await _repository.GetSegmentLayersBySegmentAsync(segment.SegmentId, ct);
+            var storyElementLayersRaw = await _repository.GetStoryElementLayersByElementAsync(segment.SegmentId, ct);
+            var layersRaw = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
             var locationsRaw = await _locationStore.GetBySegmentAsync(segment.SegmentId, ct);
 
             var zones = zonesRaw.Select(z => new SegmentZoneDto(
-                z.SegmentZoneId,
-                z.SegmentId,
+                z.ZoneId,
+                z.SegmentId ?? Guid.Empty,
                 z.Name,
                 z.Description,
                 z.ZoneType,
-                z.ZoneGeometry,
+                z.Geometry,
                 z.FocusCameraState,
                 z.DisplayOrder,
                 z.IsPrimary,
@@ -59,10 +63,10 @@ public class StoryMapService : IStoryMapService
                 z.UpdatedAt)).ToList();
 
             var layers = layersRaw.Select(l => new SegmentLayerDto(
-                l.SegmentLayerId,
-                l.SegmentId,
+                l.StoryElementLayerId,
+                l.ElementId,
                 l.LayerId,
-                l.SegmentZoneId,
+                l.ZoneId,
                 l.ExpandToZone,
                 l.HighlightZoneBoundary,
                 l.DisplayOrder,
@@ -76,14 +80,14 @@ public class StoryMapService : IStoryMapService
                 l.AutoPlayAnimation,
                 l.RepeatCount,
                 l.AnimationOverrides,
-                l.OverrideStyle,
+                l.StyleOverride,
                 l.Metadata)).ToList();
 
             var locations = locationsRaw.Select(loc => new PoiDto(
                 loc.LocationId,
                 loc.MapId,
                 loc.SegmentId,
-                loc.SegmentZoneId,
+                loc.ZoneId,
                 loc.Title,
                 loc.Subtitle,
                 loc.LocationType,
@@ -135,7 +139,7 @@ public class StoryMapService : IStoryMapService
         var map = await _repository.GetMapAsync(request.MapId, ct);
         if (map is null)
         {
-            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Map.NotFound", "Map not found"));
+            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Map.NotFound", MapErrors.MapNotFound));
         }
 
         var userId = _currentUserService.GetUserId();
@@ -215,16 +219,17 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
-        var layers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
+        var storyElementLayersRaw = await _repository.GetStoryElementLayersByElementAsync(segmentId, ct);
+        var layers = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
         var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
 
         var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.SegmentZoneId,
+            z.ZoneId,
             z.SegmentId,
             z.Name,
             z.Description,
             z.ZoneType,
-            z.ZoneGeometry,
+            z.Geometry,
             z.FocusCameraState,
             z.DisplayOrder,
             z.IsPrimary,
@@ -232,10 +237,10 @@ public class StoryMapService : IStoryMapService
             z.UpdatedAt)).ToList();
 
         var layerDtos = layers.Select(l => new SegmentLayerDto(
-            l.SegmentLayerId,
-            l.SegmentId,
+            l.StoryElementLayerId,
+            l.ElementId,
             l.LayerId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.ExpandToZone,
             l.HighlightZoneBoundary,
             l.DisplayOrder,
@@ -249,14 +254,14 @@ public class StoryMapService : IStoryMapService
             l.AutoPlayAnimation,
             l.RepeatCount,
             l.AnimationOverrides,
-            l.OverrideStyle,
+            l.StyleOverride,
             l.Metadata)).ToList();
 
         var poiDtos = locations.Select(loc => new PoiDto(
             loc.LocationId,
             loc.MapId,
             loc.SegmentId,
-            loc.SegmentZoneId,
+            loc.ZoneId,
             loc.Title,
             loc.Subtitle,
             loc.LocationType,
@@ -340,124 +345,9 @@ public class StoryMapService : IStoryMapService
         return Option.Some<TransitionPreviewDto, Error>(dto);
     }
 
-    public async Task<Option<IReadOnlyCollection<SegmentTransitionDto>, Error>> GetSegmentTransitionsAsync(Guid mapId, CancellationToken ct = default)
-    {
-        // Do not fail if map is missing; return empty list for robustness
-        var transitions = await _repository.GetSegmentTransitionsByMapAsync(mapId, ct);
-        var transitionDtos = transitions.Select(t => new SegmentTransitionDto(
-            t.SegmentTransitionId,
-            t.FromSegmentId,
-            t.ToSegmentId,
-            t.EffectType,
-            t.AnimationPresetId,
-            t.DurationMs,
-            t.DelayMs,
-            t.AutoPlay,
-            t.IsSkippable,
-            t.TransitionConfig,
-            t.Metadata)).ToList();
 
-        return Option.Some<IReadOnlyCollection<SegmentTransitionDto>, Error>(transitionDtos);
-    }
 
-    public async Task<Option<SegmentTransitionDto, Error>> CreateSegmentTransitionAsync(CreateSegmentTransitionRequest request, CancellationToken ct = default)
-    {
-        var map = await _repository.GetMapAsync(request.MapId, ct);
-        if (map is null)
-        {
-            return Option.None<SegmentTransitionDto, Error>(Error.NotFound("StoryMap.Map.NotFound", "Map not found"));
-        }
 
-        var fromSegment = await _repository.GetSegmentAsync(request.FromSegmentId, ct);
-        var toSegment = await _repository.GetSegmentAsync(request.ToSegmentId, ct);
-        if (fromSegment is null || toSegment is null)
-        {
-            return Option.None<SegmentTransitionDto, Error>(Error.NotFound("StoryMap.Transition.Segment.NotFound", "One or both segments not found"));
-        }
-
-        var transition = new SegmentTransition
-        {
-            SegmentTransitionId = Guid.NewGuid(),
-            FromSegmentId = request.FromSegmentId,
-            ToSegmentId = request.ToSegmentId,
-            EffectType = request.EffectType,
-            AnimationPresetId = request.AnimationPresetId,
-            DurationMs = request.DurationMs,
-            DelayMs = request.DelayMs,
-            AutoPlay = request.AutoPlay,
-            IsSkippable = request.IsSkippable,
-            TransitionConfig = request.TransitionConfig,
-            Metadata = request.Metadata
-        };
-
-        await _repository.AddSegmentTransitionAsync(transition, ct);
-        await _repository.SaveChangesAsync(ct);
-
-        var dto = new SegmentTransitionDto(
-            transition.SegmentTransitionId,
-            transition.FromSegmentId,
-            transition.ToSegmentId,
-            transition.EffectType,
-            transition.AnimationPresetId,
-            transition.DurationMs,
-            transition.DelayMs,
-            transition.AutoPlay,
-            transition.IsSkippable,
-            transition.TransitionConfig,
-            transition.Metadata);
-
-        return Option.Some<SegmentTransitionDto, Error>(dto);
-    }
-
-    public async Task<Option<SegmentTransitionDto, Error>> UpdateSegmentTransitionAsync(Guid transitionId, UpdateSegmentTransitionRequest request, CancellationToken ct = default)
-    {
-        var transition = await _repository.GetSegmentTransitionAsync(transitionId, ct);
-        if (transition is null)
-        {
-            return Option.None<SegmentTransitionDto, Error>(Error.NotFound("StoryMap.Transition.NotFound", "Transition not found"));
-        }
-
-        transition.EffectType = request.EffectType;
-        transition.AnimationPresetId = request.AnimationPresetId;
-        transition.DurationMs = request.DurationMs;
-        transition.DelayMs = request.DelayMs;
-        transition.AutoPlay = request.AutoPlay;
-        transition.IsSkippable = request.IsSkippable;
-        transition.TransitionConfig = request.TransitionConfig;
-        transition.Metadata = request.Metadata;
-
-        _repository.UpdateSegmentTransition(transition);
-        await _repository.SaveChangesAsync(ct);
-
-        var dto = new SegmentTransitionDto(
-            transition.SegmentTransitionId,
-            transition.FromSegmentId,
-            transition.ToSegmentId,
-            transition.EffectType,
-            transition.AnimationPresetId,
-            transition.DurationMs,
-            transition.DelayMs,
-            transition.AutoPlay,
-            transition.IsSkippable,
-            transition.TransitionConfig,
-            transition.Metadata);
-
-        return Option.Some<SegmentTransitionDto, Error>(dto);
-    }
-
-    public async Task<Option<bool, Error>> DeleteSegmentTransitionAsync(Guid transitionId, CancellationToken ct = default)
-    {
-        var transition = await _repository.GetSegmentTransitionAsync(transitionId, ct);
-        if (transition is null)
-        {
-            return Option.None<bool, Error>(Error.NotFound("StoryMap.Transition.NotFound", "Transition not found"));
-        }
-
-        _repository.RemoveSegmentTransition(transition);
-        await _repository.SaveChangesAsync(ct);
-
-        return Option.Some<bool, Error>(true);
-    }
 
     public async Task<Option<ExportedStoryDto, Error>> ExportAsync(Guid mapId, CancellationToken ct = default)
     {
@@ -523,7 +413,7 @@ public class StoryMapService : IStoryMapService
             // layers
             foreach (var l in seg.Layers)
             {
-                var c = new UpsertSegmentLayerRequest(l.LayerId, l.SegmentZoneId, l.ExpandToZone, l.HighlightZoneBoundary, l.DisplayOrder, l.DelayMs, l.FadeInMs, l.FadeOutMs, l.StartOpacity, l.EndOpacity, l.Easing, l.AnimationPresetId, l.AutoPlayAnimation, l.RepeatCount, l.AnimationOverrides, l.OverrideStyle, l.Metadata);
+                var c = new UpsertSegmentLayerRequest(l.LayerId, l.ZoneId, l.ExpandToZone, l.HighlightZoneBoundary, l.DisplayOrder, l.DelayMs, l.FadeInMs, l.FadeOutMs, (double)l.StartOpacity, (double)l.EndOpacity, l.Easing, l.AnimationPresetId, l.AutoPlayAnimation, l.RepeatCount, l.AnimationOverrides, l.StyleOverride, l.Metadata);
                 var lr = await CreateSegmentLayerAsync(newSegmentId, c, ct);
                 if (!lr.HasValue)
                 {
@@ -583,12 +473,12 @@ public class StoryMapService : IStoryMapService
 
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.SegmentZoneId,
-            z.SegmentId,
+            z.ZoneId,
+            z.SegmentId ?? Guid.Empty,
             z.Name,
             z.Description,
             z.ZoneType,
-            z.ZoneGeometry,
+            z.Geometry,
             z.FocusCameraState,
             z.DisplayOrder,
             z.IsPrimary,
@@ -605,32 +495,38 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var zone = new SegmentZone
+        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
         {
-            SegmentZoneId = Guid.NewGuid(),
+            ZoneId = Guid.NewGuid(),
             SegmentId = request.SegmentId,
             Name = request.Name,
             Description = request.Description,
             ZoneType = request.ZoneType,
-            ZoneGeometry = request.ZoneGeometry,
+            Geometry = request.ZoneGeometry,
             FocusCameraState = request.FocusCameraState,
             DisplayOrder = request.DisplayOrder,
             IsPrimary = request.IsPrimary,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            // Set required fields for Zone entity
+            ExternalId = string.Empty,
+            ZoneCode = string.Empty,
+            AdminLevel = CusomMapOSM_Domain.Entities.Zones.Enums.ZoneAdminLevel.Custom,
+            IsActive = true,
+            LastSyncedAt = DateTime.UtcNow
         };
 
         await _repository.AddSegmentZoneAsync(zone, ct);
         await _repository.SaveChangesAsync(ct);
 
         var zoneDto = new SegmentZoneDto(
-            zone.SegmentZoneId,
-            zone.SegmentId,
+            zone.ZoneId,
+            zone.SegmentId ?? Guid.Empty,
             zone.Name,
             zone.Description,
             zone.ZoneType,
-            zone.ZoneGeometry,
+            zone.Geometry,
             zone.FocusCameraState,
-            zone.DisplayOrder,
+            zone.DisplayOrder ,
             zone.IsPrimary,
             zone.CreatedAt,
             zone.UpdatedAt);
@@ -638,9 +534,9 @@ public class StoryMapService : IStoryMapService
         return Option.Some<SegmentZoneDto, Error>(zoneDto);
     }
 
-    public async Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid segmentZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default)
+    public async Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid ZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default)
     {
-        var zone = await _repository.GetSegmentZoneAsync(segmentZoneId, ct);
+        var zone = await _repository.GetSegmentZoneAsync(ZoneId, ct);
         if (zone is null)
         {
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -649,7 +545,7 @@ public class StoryMapService : IStoryMapService
         zone.Name = request.Name;
         zone.Description = request.Description;
         zone.ZoneType = request.ZoneType;
-        zone.ZoneGeometry = request.ZoneGeometry;
+        zone.Geometry = request.ZoneGeometry;
         zone.FocusCameraState = request.FocusCameraState;
         zone.DisplayOrder = request.DisplayOrder;
         zone.IsPrimary = request.IsPrimary;
@@ -659,24 +555,24 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         var zoneDto = new SegmentZoneDto(
-            zone.SegmentZoneId,
-            zone.SegmentId,
+            zone.ZoneId,
+            zone.SegmentId ?? Guid.Empty,
             zone.Name,
             zone.Description,
-            zone.ZoneType,
-            zone.ZoneGeometry,
+            zone.ZoneType ,
+            zone.Geometry,
             zone.FocusCameraState,
-            zone.DisplayOrder,
-            zone.IsPrimary,
+            zone.DisplayOrder ,
+            zone.IsPrimary ,
             zone.CreatedAt,
             zone.UpdatedAt);
 
         return Option.Some<SegmentZoneDto, Error>(zoneDto);
     }
 
-    public async Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid ZoneId, CancellationToken ct = default)
     {
-        var zone = await _repository.GetSegmentZoneAsync(segmentZoneId, ct);
+        var zone = await _repository.GetSegmentZoneAsync(ZoneId, ct);
         if (zone is null)
         {
             return Option.None<bool, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -695,26 +591,27 @@ public class StoryMapService : IStoryMapService
             return Option.None<IReadOnlyCollection<SegmentLayerDto>, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var layers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
+        var storyElementLayersRaw = await _repository.GetStoryElementLayersByElementAsync(segmentId, ct);
+        var layers = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
         var layerDtos = layers.Select(l => new SegmentLayerDto(
-            l.SegmentLayerId,
-            l.SegmentId,
+            l.StoryElementLayerId,
+            l.ElementId,
             l.LayerId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.ExpandToZone,
             l.HighlightZoneBoundary,
             l.DisplayOrder,
             l.DelayMs,
             l.FadeInMs,
             l.FadeOutMs,
-            l.StartOpacity,
-            l.EndOpacity,
+            l.StartOpacity ,
+            l.EndOpacity ,
             l.Easing,
             l.AnimationPresetId,
             l.AutoPlayAnimation,
             l.RepeatCount,
             l.AnimationOverrides,
-            l.OverrideStyle,
+            l.StyleOverride,
             l.Metadata)).ToList();
         return Option.Some<IReadOnlyCollection<SegmentLayerDto>, Error>(layerDtos);
     }
@@ -727,46 +624,51 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        if (request.SegmentZoneId.HasValue)
+        if (request.ZoneId.HasValue)
         {
-            var zone = await _repository.GetSegmentZoneAsync(request.SegmentZoneId.Value, ct);
+            var zone = await _repository.GetSegmentZoneAsync(request.ZoneId.Value, ct);
             if (zone is null)
             {
                 return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
             }
         }
 
-        var layer = new SegmentLayer
+        var layer = new StoryElementLayer
         {
-            SegmentLayerId = Guid.NewGuid(),
-            SegmentId = segmentId,
+            StoryElementLayerId = Guid.NewGuid(),
+            ElementId = segmentId,
+            ElementType = StoryElementType.Segment,
             LayerId = request.LayerId,
-            SegmentZoneId = request.SegmentZoneId,
+            ZoneId = request.ZoneId,
             ExpandToZone = request.ExpandToZone,
             HighlightZoneBoundary = request.HighlightZoneBoundary,
             DisplayOrder = request.DisplayOrder,
             DelayMs = request.DelayMs,
             FadeInMs = request.FadeInMs,
             FadeOutMs = request.FadeOutMs,
-            StartOpacity = request.StartOpacity,
-            EndOpacity = request.EndOpacity,
+            StartOpacity = (decimal)request.StartOpacity,
+            EndOpacity = (decimal)request.EndOpacity,
             Easing = request.Easing,
             AnimationPresetId = request.AnimationPresetId,
             AutoPlayAnimation = request.AutoPlayAnimation,
             RepeatCount = request.RepeatCount,
             AnimationOverrides = request.AnimationOverrides,
-            OverrideStyle = request.OverrideStyle,
-            Metadata = request.Metadata
+            Metadata = request.Metadata,
+            IsVisible = true,
+            Opacity = 1.0m,
+            DisplayMode = StoryElementDisplayMode.Normal,
+            StyleOverride = request.StyleOverride,
+            CreatedAt = DateTime.UtcNow
         };
 
-        await _repository.AddSegmentLayerAsync(layer, ct);
+        await _repository.AddStoryElementLayerAsync(layer, ct);
         await _repository.SaveChangesAsync(ct);
 
         var layerDto = new SegmentLayerDto(
-            layer.SegmentLayerId,
-            layer.SegmentId,
+            layer.StoryElementLayerId,
+            layer.ElementId,
             layer.LayerId,
-            layer.SegmentZoneId,
+            layer.ZoneId,
             layer.ExpandToZone,
             layer.HighlightZoneBoundary,
             layer.DisplayOrder,
@@ -780,7 +682,7 @@ public class StoryMapService : IStoryMapService
             layer.AutoPlayAnimation,
             layer.RepeatCount,
             layer.AnimationOverrides,
-            layer.OverrideStyle,
+            layer.StyleOverride,
             layer.Metadata);
 
         return Option.Some<SegmentLayerDto, Error>(layerDto);
@@ -788,15 +690,15 @@ public class StoryMapService : IStoryMapService
 
     public async Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId, UpsertSegmentLayerRequest request, CancellationToken ct = default)
     {
-        var layer = await _repository.GetSegmentLayerAsync(segmentLayerId, ct);
+        var layer = await _repository.GetStoryElementLayerAsync(segmentLayerId, ct);
         if (layer is null)
         {
             return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Layer.NotFound", "Segment layer not found"));
         }
 
-        if (request.SegmentZoneId.HasValue)
+        if (request.ZoneId.HasValue)
         {
-            var zone = await _repository.GetSegmentZoneAsync(request.SegmentZoneId.Value, ct);
+            var zone = await _repository.GetSegmentZoneAsync(request.ZoneId.Value, ct);
             if (zone is null)
             {
                 return Option.None<SegmentLayerDto, Error>(Error.NotFound("StoryMap.Zone.NotFound", "Segment zone not found"));
@@ -804,31 +706,32 @@ public class StoryMapService : IStoryMapService
         }
 
         layer.LayerId = request.LayerId;
-        layer.SegmentZoneId = request.SegmentZoneId;
+        layer.ZoneId = request.ZoneId;
         layer.ExpandToZone = request.ExpandToZone;
         layer.HighlightZoneBoundary = request.HighlightZoneBoundary;
         layer.DisplayOrder = request.DisplayOrder;
         layer.DelayMs = request.DelayMs;
         layer.FadeInMs = request.FadeInMs;
         layer.FadeOutMs = request.FadeOutMs;
-        layer.StartOpacity = request.StartOpacity;
-        layer.EndOpacity = request.EndOpacity;
+        layer.StartOpacity = (decimal)request.StartOpacity;
+        layer.EndOpacity = (decimal)request.EndOpacity;
         layer.Easing = request.Easing;
         layer.AnimationPresetId = request.AnimationPresetId;
         layer.AutoPlayAnimation = request.AutoPlayAnimation;
         layer.RepeatCount = request.RepeatCount;
         layer.AnimationOverrides = request.AnimationOverrides;
-        layer.OverrideStyle = request.OverrideStyle;
+        layer.StyleOverride = request.StyleOverride;
         layer.Metadata = request.Metadata;
+        layer.UpdatedAt = DateTime.UtcNow;
 
-        _repository.UpdateSegmentLayer(layer);
+        _repository.UpdateStoryElementLayer(layer);
         await _repository.SaveChangesAsync(ct);
 
         var layerDto = new SegmentLayerDto(
-            layer.SegmentLayerId,
-            layer.SegmentId,
+            layer.StoryElementLayerId,
+            layer.ElementId,
             layer.LayerId,
-            layer.SegmentZoneId,
+            layer.ZoneId,
             layer.ExpandToZone,
             layer.HighlightZoneBoundary,
             layer.DisplayOrder,
@@ -842,7 +745,7 @@ public class StoryMapService : IStoryMapService
             layer.AutoPlayAnimation,
             layer.RepeatCount,
             layer.AnimationOverrides,
-            layer.OverrideStyle,
+            layer.StyleOverride,
             layer.Metadata);
 
         return Option.Some<SegmentLayerDto, Error>(layerDto);
@@ -850,13 +753,13 @@ public class StoryMapService : IStoryMapService
 
     public async Task<Option<bool, Error>> DeleteSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct = default)
     {
-        var layer = await _repository.GetSegmentLayerAsync(segmentLayerId, ct);
+        var layer = await _repository.GetStoryElementLayerAsync(segmentLayerId, ct);
         if (layer is null)
         {
             return Option.None<bool, Error>(Error.NotFound("StoryMap.Layer.NotFound", "Segment layer not found"));
         }
 
-        _repository.RemoveSegmentLayer(layer);
+        _repository.RemoveStoryElementLayer(layer);
         await _repository.SaveChangesAsync(ct);
 
         return Option.Some<bool, Error>(true);
@@ -879,19 +782,21 @@ public class StoryMapService : IStoryMapService
         var timelineDtos = new List<TimelineStepDto>(steps.Count);
         foreach (var step in steps)
         {
-            var layersRaw = await _repository.GetTimelineStepLayersAsync(step.TimelineStepId, ct);
-            var layerDtos = layersRaw.Select(l => new TimelineStepLayerDto(
-                l.TimelineStepLayerId,
-                l.TimelineStepId,
-                l.LayerId,
-                l.IsVisible,
-                l.Opacity,
-                l.FadeInMs,
-                l.FadeOutMs,
-                l.DelayMs,
-                l.DisplayMode,
-                l.StyleOverride,
-                l.Metadata)).ToList();
+            var storyElementLayers = await _repository.GetStoryElementLayersByElementAsync(step.TimelineStepId, ct);
+            var timelineLayersOnly = storyElementLayers.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.TimelineStep).ToList();
+            
+            var layerDtos = timelineLayersOnly.Select(sel => new TimelineStepLayerDto(
+                sel.StoryElementLayerId,
+                step.TimelineStepId,
+                sel.LayerId,
+                sel.IsVisible,
+                (double)sel.Opacity,
+                sel.FadeInMs,
+                sel.FadeOutMs,
+                sel.DelayMs,
+                (CusomMapOSM_Domain.Entities.Timeline.Enums.TimelineLayerDisplayMode)(int)sel.DisplayMode,
+                sel.StyleOverride,
+                sel.Metadata)).ToList();
 
             var dto = new TimelineStepDto(
                 step.TimelineStepId,
@@ -950,40 +855,45 @@ public class StoryMapService : IStoryMapService
 
         await _repository.AddTimelineStepAsync(step, ct);
 
-        var layerEntities = request.Layers?.Select(l => new TimelineStepLayer
+        var storyElementLayers = request.Layers?.Select(l => new CusomMapOSM_Domain.Entities.StoryElement.StoryElementLayer
         {
-            TimelineStepLayerId = Guid.NewGuid(),
-            TimelineStepId = step.TimelineStepId,
+            StoryElementLayerId = Guid.NewGuid(),
+            ElementId = step.TimelineStepId,
+            ElementType = CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.TimelineStep,
             LayerId = l.LayerId,
             IsVisible = l.IsVisible,
             Opacity = l.Opacity,
             FadeInMs = l.FadeInMs,
             FadeOutMs = l.FadeOutMs,
             DelayMs = l.DelayMs,
-            DisplayMode = l.DisplayMode,
+            DisplayMode = (CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementDisplayMode)l.DisplayMode,
             StyleOverride = l.StyleOverride,
-            Metadata = l.Metadata
-        }).ToList() ?? new List<TimelineStepLayer>();
+            Metadata = l.Metadata,
+            CreatedAt = DateTime.UtcNow
+        }).ToList() ?? new List<CusomMapOSM_Domain.Entities.StoryElement.StoryElementLayer>();
 
-        if (layerEntities.Count > 0)
+        if (storyElementLayers.Count > 0)
         {
-            _repository.AddTimelineStepLayers(layerEntities);
+            foreach (var layer in storyElementLayers)
+            {
+                await _repository.AddStoryElementLayerAsync(layer, ct);
+            }
         }
 
         await _repository.SaveChangesAsync(ct);
 
-        var layerDtos = layerEntities.Select(l => new TimelineStepLayerDto(
-            l.TimelineStepLayerId,
-            l.TimelineStepId,
-            l.LayerId,
-            l.IsVisible,
-            l.Opacity,
-            l.FadeInMs,
-            l.FadeOutMs,
-            l.DelayMs,
-            l.DisplayMode,
-            l.StyleOverride,
-            l.Metadata)).ToList();
+        var layerDtos = storyElementLayers.Select(sel => new TimelineStepLayerDto(
+            sel.StoryElementLayerId,
+            step.TimelineStepId,
+            sel.LayerId,
+            sel.IsVisible,
+            (double)sel.Opacity,
+            sel.FadeInMs,
+            sel.FadeOutMs,
+            sel.DelayMs,
+            (CusomMapOSM_Domain.Entities.Timeline.Enums.TimelineLayerDisplayMode)(int)sel.DisplayMode,
+            sel.StyleOverride,
+            sel.Metadata)).ToList();
 
         var timelineDto = new TimelineStepDto(
             step.TimelineStepId,
@@ -1034,46 +944,53 @@ public class StoryMapService : IStoryMapService
 
         _repository.UpdateTimelineStep(step);
 
-        var existingLayers = await _repository.GetTimelineStepLayersAsync(timelineStepId, ct);
-        if (existingLayers.Count > 0)
+        var existingLayers = await _repository.GetStoryElementLayersByElementAsync(timelineStepId, ct);
+        var timelineStepLayers = existingLayers.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.TimelineStep).ToList();
+        
+        foreach (var layer in timelineStepLayers)
         {
-            _repository.RemoveTimelineStepLayers(existingLayers);
+            _repository.RemoveStoryElementLayer(layer);
         }
 
-        var newLayerEntities = request.Layers?.Select(l => new TimelineStepLayer
+        var newStoryElementLayers = request.Layers?.Select(l => new CusomMapOSM_Domain.Entities.StoryElement.StoryElementLayer
         {
-            TimelineStepLayerId = Guid.NewGuid(),
-            TimelineStepId = timelineStepId,
+            StoryElementLayerId = Guid.NewGuid(),
+            ElementId = timelineStepId,
+            ElementType = CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.TimelineStep,
             LayerId = l.LayerId,
             IsVisible = l.IsVisible,
             Opacity = l.Opacity,
             FadeInMs = l.FadeInMs,
             FadeOutMs = l.FadeOutMs,
             DelayMs = l.DelayMs,
-            DisplayMode = l.DisplayMode,
+            DisplayMode = (CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementDisplayMode)l.DisplayMode,
             StyleOverride = l.StyleOverride,
-            Metadata = l.Metadata
-        }).ToList() ?? new List<TimelineStepLayer>();
+            Metadata = l.Metadata,
+            CreatedAt = DateTime.UtcNow
+        }).ToList() ?? new List<CusomMapOSM_Domain.Entities.StoryElement.StoryElementLayer>();
 
-        if (newLayerEntities.Count > 0)
+        if (newStoryElementLayers.Count > 0)
         {
-            _repository.AddTimelineStepLayers(newLayerEntities);
+            foreach (var layer in newStoryElementLayers)
+            {
+                await _repository.AddStoryElementLayerAsync(layer, ct);
+            }
         }
 
         await _repository.SaveChangesAsync(ct);
 
-        var layerDtos = newLayerEntities.Select(l => new TimelineStepLayerDto(
-            l.TimelineStepLayerId,
-            l.TimelineStepId,
-            l.LayerId,
-            l.IsVisible,
-            l.Opacity,
-            l.FadeInMs,
-            l.FadeOutMs,
-            l.DelayMs,
-            l.DisplayMode,
-            l.StyleOverride,
-            l.Metadata)).ToList();
+        var layerDtos = newStoryElementLayers.Select(sel => new TimelineStepLayerDto(
+            sel.StoryElementLayerId,
+            timelineStepId,
+            sel.LayerId,
+            sel.IsVisible,
+            (double)sel.Opacity,
+            sel.FadeInMs,
+            sel.FadeOutMs,
+            sel.DelayMs,
+            (CusomMapOSM_Domain.Entities.Timeline.Enums.TimelineLayerDisplayMode)(int)sel.DisplayMode,
+            sel.StyleOverride,
+            sel.Metadata)).ToList();
 
         var timelineDto = new TimelineStepDto(
             step.TimelineStepId,
@@ -1104,6 +1021,179 @@ public class StoryMapService : IStoryMapService
 
         _repository.RemoveTimelineStep(step);
         await _repository.SaveChangesAsync(ct);
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<IReadOnlyCollection<StoryElementLayerDto>, Error>> GetStoryElementLayersAsync(Guid elementId, CancellationToken ct = default)
+    {
+        var layers = await _repository.GetStoryElementLayersByElementAsync(elementId, ct);
+        var layerDtos = layers.Select(sel => new StoryElementLayerDto(
+            sel.StoryElementLayerId,
+            sel.ElementId,
+            sel.ElementType,
+            sel.LayerId,
+            sel.ZoneId,
+            sel.ExpandToZone,
+            sel.HighlightZoneBoundary,
+            sel.DisplayOrder,
+            sel.DelayMs,
+            sel.FadeInMs,
+            sel.FadeOutMs,
+            sel.StartOpacity,
+            sel.EndOpacity,
+            sel.Easing,
+            sel.AnimationPresetId,
+            sel.AutoPlayAnimation,
+            sel.RepeatCount,
+            sel.AnimationOverrides,
+            sel.Metadata,
+            sel.IsVisible,
+            sel.Opacity,
+            sel.DisplayMode,
+            sel.StyleOverride,
+            sel.CreatedAt,
+            sel.UpdatedAt)).ToList();
+        return Option.Some<IReadOnlyCollection<StoryElementLayerDto>, Error>(layerDtos);
+    }
+
+    public async Task<Option<StoryElementLayerDto, Error>> CreateStoryElementLayerAsync(CreateStoryElementLayerRequest request, CancellationToken ct = default)
+    {
+        var layer = new StoryElementLayer
+        {
+            StoryElementLayerId = Guid.NewGuid(),
+            ElementId = request.ElementId,
+            ElementType = request.ElementType,
+            LayerId = request.LayerId,
+            ZoneId = request.ZoneId,
+            ExpandToZone = request.ExpandToZone,
+            HighlightZoneBoundary = request.HighlightZoneBoundary,
+            DisplayOrder = request.DisplayOrder,
+            DelayMs = request.DelayMs,
+            FadeInMs = request.FadeInMs,
+            FadeOutMs = request.FadeOutMs,
+            StartOpacity = (decimal)request.StartOpacity,
+            EndOpacity = (decimal)request.EndOpacity,
+            Easing = request.Easing,
+            AnimationPresetId = request.AnimationPresetId,
+            AutoPlayAnimation = request.AutoPlayAnimation,
+            RepeatCount = request.RepeatCount,
+            AnimationOverrides = request.AnimationOverrides,
+            Metadata = request.Metadata,
+            IsVisible = request.IsVisible,
+            Opacity = request.Opacity,
+            DisplayMode = request.DisplayMode,
+            StyleOverride = request.StyleOverride,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repository.AddStoryElementLayerAsync(layer, ct);
+        await _repository.SaveChangesAsync(ct);
+
+        var layerDto = new StoryElementLayerDto(
+            layer.StoryElementLayerId,
+            layer.ElementId,
+            layer.ElementType,
+            layer.LayerId,
+            layer.ZoneId,
+            layer.ExpandToZone,
+            layer.HighlightZoneBoundary,
+            layer.DisplayOrder,
+            layer.DelayMs,
+            layer.FadeInMs,
+            layer.FadeOutMs,
+            layer.StartOpacity,
+            layer.EndOpacity,
+            layer.Easing,
+            layer.AnimationPresetId,
+            layer.AutoPlayAnimation,
+            layer.RepeatCount,
+            layer.AnimationOverrides,
+            layer.Metadata,
+            layer.IsVisible,
+            layer.Opacity,
+            layer.DisplayMode,
+            layer.StyleOverride,
+            layer.CreatedAt,
+            layer.UpdatedAt);
+
+        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+    }
+
+    public async Task<Option<StoryElementLayerDto, Error>> UpdateStoryElementLayerAsync(Guid storyElementLayerId, UpdateStoryElementLayerRequest request, CancellationToken ct = default)
+    {
+        var layer = await _repository.GetStoryElementLayerAsync(storyElementLayerId, ct);
+        if (layer is null)
+        {
+            return Option.None<StoryElementLayerDto, Error>(Error.NotFound("StoryElement.Layer.NotFound", "Story element layer not found"));
+        }
+
+        layer.ElementType = request.ElementType;
+        layer.LayerId = request.LayerId;
+        layer.ZoneId = request.ZoneId;
+        layer.ExpandToZone = request.ExpandToZone;
+        layer.HighlightZoneBoundary = request.HighlightZoneBoundary;
+        layer.DisplayOrder = request.DisplayOrder;
+        layer.DelayMs = request.DelayMs;
+        layer.FadeInMs = request.FadeInMs;
+        layer.FadeOutMs = request.FadeOutMs;
+        layer.StartOpacity = (decimal)request.StartOpacity;
+        layer.EndOpacity = (decimal)request.EndOpacity;
+        layer.Easing = request.Easing;
+        layer.AnimationPresetId = request.AnimationPresetId;
+        layer.AutoPlayAnimation = request.AutoPlayAnimation;
+        layer.RepeatCount = request.RepeatCount;
+        layer.AnimationOverrides = request.AnimationOverrides;
+        layer.Metadata = request.Metadata;
+        layer.IsVisible = request.IsVisible;
+        layer.Opacity = request.Opacity;
+        layer.DisplayMode = request.DisplayMode;
+        layer.StyleOverride = request.StyleOverride;
+        layer.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateStoryElementLayer(layer);
+        await _repository.SaveChangesAsync(ct);
+
+        var layerDto = new StoryElementLayerDto(
+            layer.StoryElementLayerId,
+            layer.ElementId,
+            layer.ElementType,
+            layer.LayerId,
+            layer.ZoneId,
+            layer.ExpandToZone,
+            layer.HighlightZoneBoundary,
+            layer.DisplayOrder,
+            layer.DelayMs,
+            layer.FadeInMs,
+            layer.FadeOutMs,
+            layer.StartOpacity,
+            layer.EndOpacity,
+            layer.Easing,
+            layer.AnimationPresetId,
+            layer.AutoPlayAnimation,
+            layer.RepeatCount,
+            layer.AnimationOverrides,
+            layer.Metadata,
+            layer.IsVisible,
+            layer.Opacity,
+            layer.DisplayMode,
+            layer.StyleOverride,
+            layer.CreatedAt,
+            layer.UpdatedAt);
+
+        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+    }
+
+    public async Task<Option<bool, Error>> DeleteStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct = default)
+    {
+        var layer = await _repository.GetStoryElementLayerAsync(storyElementLayerId, ct);
+        if (layer is null)
+        {
+            return Option.None<bool, Error>(Error.NotFound("StoryElement.Layer.NotFound", "Story element layer not found"));
+        }
+
+        _repository.RemoveStoryElementLayer(layer);
+        await _repository.SaveChangesAsync(ct);
+
         return Option.Some<bool, Error>(true);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Users;

@@ -147,15 +147,7 @@ public class BackgroundJobScheduler
                 .DeactivateInactiveAccountsAsync(),
             "0 6 * * 0", // Weekly on Sunday at 6 AM UTC
             TimeZoneInfo.Utc);
-
-        // BR-24, FR-32: Collaboration invitation cleanup (14 days)
-        RecurringJob.AddOrUpdate(
-            "collaboration-invitation-cleanup",
-            () => _serviceProvider.GetRequiredService<CollaborationInvitationCleanupJob>()
-                .CleanupExpiredCollaborationInvitationsAsync(),
-            "0 7 * * *", // Daily at 7 AM UTC
-            TimeZoneInfo.Utc);
-
+        
         _logger.LogInformation("Cleanup jobs registered");
     }
 

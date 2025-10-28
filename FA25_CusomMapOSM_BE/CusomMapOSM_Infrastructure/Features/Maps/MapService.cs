@@ -61,7 +61,7 @@ public class MapService : IMapService
             Description = req.CustomDescription ?? template.Description,
             IsPublic = req.IsPublic,
             UserId = currentUserId.Value,
-            OrgId = null, // TODO: Get from user's organization context when implemented
+            // OrgId removed; organization inferred via workspace when applicable
             DefaultBounds = template.DefaultBounds,
             ViewState = template.ViewState,
             BaseLayer = template.BaseLayer,
@@ -117,7 +117,7 @@ public class MapService : IMapService
             Description = req.Description,
             IsPublic = req.IsPublic,
             UserId = currentUserId.Value,
-            OrgId = null,
+            // OrgId removed
             DefaultBounds = req.DefaultBounds,
             ViewState = req.ViewState,
             BaseLayer = req.BaseMapProvider ?? "osm",
@@ -935,7 +935,7 @@ public class MapService : IMapService
                 IsFeatured = false,
                 UsageCount = 0,
                 UserId = currentUserId.Value,
-                OrgId = null,
+                // OrgId removed
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -1,0 +1,171 @@
+erDiagram
+	direction TB
+	USER {
+
+	}
+
+	MAP {
+
+	}
+
+	LAYER {
+
+	}
+
+	COMMENT {
+
+	}
+
+	BOOKMARK {
+
+	}
+
+	FAQ {
+
+	}
+
+	ADVERTISEMENT {
+
+	}
+
+	SUPPORT_TICKET {
+
+	}
+
+	NOTIFICATION {
+
+	}
+
+	ORGANIZATION {
+
+	}
+
+	WORKSPACE {
+
+	}
+
+	ORGANIZATION_MEMBER {
+
+	}
+
+	ORGANIZATION_INVITATION {
+
+	}
+
+	MEMBERSHIP {
+
+	}
+
+	MAP_FEATURE {
+
+	}
+
+	MAP_IMAGE {
+
+	}
+
+	SEGMENT {
+
+	}
+
+	TIMELINE_STEP {
+
+	}
+
+	MAP_HISTORY {
+
+	}
+
+	STORY_ELEMENT_LAYER {
+
+	}
+
+	LAYER_ANIMATION {
+
+	}
+
+	ZONE {
+
+	}
+
+	LOCATION {
+
+	}
+
+	EXPORT {
+
+	}
+
+	TRANSACTIONS {
+
+	}
+
+	PAYMENT_GATEWAY {
+
+	}
+
+	PLAN {
+
+	}
+
+	SUPPORT_TICKET_MESSAGE {
+
+	}
+
+	LAYER_ANIMATION_PRESET {
+
+	}
+
+	MEMBERSHIP_USAGE {
+
+	}
+
+	USER||--o{MAP:"creates"
+	USER||--o{LAYER:"owns"
+	USER||--o{COMMENT:"writes"
+	USER||--o{BOOKMARK:"saves"
+	USER||--o{SUPPORT_TICKET:"creates"
+	USER||--o{NOTIFICATION:"receives"
+	ORGANIZATION||--o{WORKSPACE:"has"
+	ORGANIZATION||--o{ORGANIZATION_MEMBER:"has"
+	ORGANIZATION||--o{ORGANIZATION_INVITATION:"sends"
+	ORGANIZATION||--o{MEMBERSHIP:"has"
+	ORGANIZATION}o--||USER:"owned by"
+	WORKSPACE||--o{MAP:"contains"
+	WORKSPACE}o--||USER:"created by"
+	MAP||--o{LAYER:"has"
+	MAP||--o{MAP_FEATURE:"has"
+	MAP||--o{MAP_IMAGE:"has"
+	MAP||--o{COMMENT:"has"
+	MAP||--o{BOOKMARK:"has"
+	MAP||--o{SEGMENT:"has"
+	MAP||--o{TIMELINE_STEP:"has"
+	MAP||--o{MAP_HISTORY:"snapshots"
+	MAP_FEATURE}o--||LAYER:"optional link"
+	MAP_FEATURE}o--||USER:"created by"
+	COMMENT}o--||LAYER:"optional"
+	ORGANIZATION_MEMBER}o--||USER:"is"
+	ORGANIZATION_MEMBER}o--||ORGANIZATION_INVITATION:"has invitation"
+	ORGANIZATION_INVITATION}o--||USER:"invited by"
+	SUPPORT_TICKET||--o{SUPPORT_TICKET_MESSAGE:"has"
+	SUPPORT_TICKET}o--||USER:"owned by"
+	MEMBERSHIP||--o{MEMBERSHIP_USAGE:"tracks"
+	MEMBERSHIP||--o{EXPORT:"uses"
+	MEMBERSHIP||--o{TRANSACTIONS:"billed by"
+	PLAN||--o{MEMBERSHIP:"subscribed by"
+	PAYMENT_GATEWAY||--o{TRANSACTIONS:"processes"
+	LAYER||--o{STORY_ELEMENT_LAYER:"used in"
+	LAYER||--o{LAYER_ANIMATION:"animated by"
+	SEGMENT||--o{STORY_ELEMENT_LAYER:"includes layers"
+	SEGMENT||--o{ZONE:"uses zones"
+	SEGMENT||--o{LOCATION:"has locations"
+	SEGMENT}o--||MAP:"belongs to"
+	SEGMENT}o--||USER:"created by"
+	ZONE||--o{STORY_ELEMENT_LAYER:"defines area for"
+	ZONE||--o{LOCATION:"contains"
+	ZONE||--o{ZONE:"parent-child"
+	TIMELINE_STEP||--o{STORY_ELEMENT_LAYER:"controls layers"
+	TIMELINE_STEP}o--||SEGMENT:"optional link"
+	LAYER_ANIMATION_PRESET||--o{LAYER_ANIMATION:"used by"
+	LAYER_ANIMATION_PRESET}o--||SEGMENT:"defaults for"
+

@@ -20,6 +20,8 @@ public static class Routes
         public const string SystemAdmin = "admin";
         public const string OrganizationAdmin = "organization-admin";
         public const string Osm = "osm";
+        public const string Workspace = "workspaces";
+        public const string User = "user";
     }
 
     public static class AuthEndpoints
@@ -88,6 +90,12 @@ public static class Routes
         public const string UpdateSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
         public const string DeleteSegmentTransition = "{mapId:guid}/transitions/{transitionId:guid}";
         public const string PreviewTransition = "{mapId:guid}/preview-transition";
+        
+        // Story Element Layers
+        public const string GetStoryElementLayers = "story-elements/{elementId:guid}/layers";
+        public const string CreateStoryElementLayer = "story-elements/layers";
+        public const string UpdateStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
+        public const string DeleteStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
     }
 
     public static class PoiEndpoints
@@ -121,5 +129,26 @@ public static class Routes
         public const string ReverseGeocode = "reverse";
         public const string Geocode = "geocode";
         public const string ElementDetail = "elements/{osmType}/{osmId:long}";
+    }
+
+    public static class WorkspaceEndpoints
+    {
+        public const string GetAll = "";
+        public const string GetById = "{id:guid}";
+        public const string Create = "";
+        public const string Update = "{id:guid}";
+        public const string Delete = "{id:guid}";
+        public const string GetByOrganization = "organization/{orgId:guid}";
+        public const string GetMyWorkspaces = "my-workspaces";
+        public const string GetWorkspaceMaps = "{workspaceId:guid}/maps";
+        public const string AddMapToWorkspace = "{workspaceId:guid}/maps";
+        public const string RemoveMapFromWorkspace = "{workspaceId:guid}/maps/{mapId:guid}";
+    }
+
+    public static class UserEndpoints
+    {
+        public const string GetMe = "me";
+        public const string GetMyMembership = "me/membership/{orgId:guid}";
+        public const string UpdatePersonalInfo = "me/personal-info";
     }
 }

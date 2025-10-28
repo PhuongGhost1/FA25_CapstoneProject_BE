@@ -8,6 +8,7 @@ using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Features.Workspace;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -26,6 +27,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Animations;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Workspace;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -36,6 +38,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
 using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
@@ -47,6 +50,7 @@ using CusomMapOSM_Infrastructure.Features.Payment;
 using CusomMapOSM_Infrastructure.Features.POIs;
 using CusomMapOSM_Infrastructure.Features.StoryMaps;
 using CusomMapOSM_Infrastructure.Features.Animations;
+using CusomMapOSM_Infrastructure.Features.Workspace;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
@@ -57,6 +61,7 @@ using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps.Mongo;
+using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using MongoDB.Driver;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -128,6 +133,7 @@ public static class DependencyInjections
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
 
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
@@ -202,8 +208,10 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IWorkspaceService, WorkspaceService>();
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
+        services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
 
         services.AddScoped<IFileProcessorService, FileProcessorService>();
         services.AddScoped<IVectorProcessor, VectorProcessor>();
@@ -246,8 +254,6 @@ public static class DependencyInjections
             options.Queues = new[] { "default", "email" };
         });
 
-        services.AddSingleton<CollaborativeMapService>();
-
         return services;
     }
 
@@ -264,7 +270,6 @@ public static class DependencyInjections
         services.AddScoped<ExportFileCleanupJob>();
         services.AddScoped<MapHistoryCleanupJob>();
         services.AddScoped<UserAccountDeactivationJob>();
-        services.AddScoped<CollaborationInvitationCleanupJob>();
         // services.AddScoped<SystemLogCleanupJob>();
         services.AddScoped<BackgroundJobScheduler>();
 

@@ -235,7 +235,7 @@ public class MongoSegmentLocationStore : ISegmentLocationStore
             LocationId = location.LocationId,
             MapId = location.MapId,
             SegmentId = location.SegmentId,
-            SegmentZoneId = location.SegmentZoneId,
+            ZoneId = location.ZoneId,
             Title = location.Title,
             Subtitle = location.Subtitle,
             LocationType = location.LocationType,
@@ -265,7 +265,7 @@ public class MongoSegmentLocationStore : ISegmentLocationStore
     {
         target.MapId = source.MapId;
         target.SegmentId = source.SegmentId;
-        target.SegmentZoneId = source.SegmentZoneId;
+        target.ZoneId = source.ZoneId;
         target.Title = source.Title;
         target.Subtitle = source.Subtitle;
         target.LocationType = source.LocationType;
