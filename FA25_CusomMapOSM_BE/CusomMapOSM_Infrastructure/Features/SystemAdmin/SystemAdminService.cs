@@ -12,23 +12,27 @@ using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases;
 using System.Text.Json;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 
 namespace CusomMapOSM_Infrastructure.Features.SystemAdmin;
 
 public class SystemAdminService : ISystemAdminService
 {
     private readonly ISystemAdminRepository _systemAdminRepository;
+    private readonly IAuthenticationRepository _authenticationRepository;
     private readonly IOrganizationAdminRepository _organizationAdminRepository;
     private readonly INotificationService _notificationService;
 
     public SystemAdminService(
         ISystemAdminRepository systemAdminRepository,
         IOrganizationAdminRepository organizationAdminRepository,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IAuthenticationRepository authenticationRepository)
     {
         _systemAdminRepository = systemAdminRepository;
         _organizationAdminRepository = organizationAdminRepository;
         _notificationService = notificationService;
+        _authenticationRepository = authenticationRepository;
     }
 
     // System User Management
@@ -83,7 +87,7 @@ public class SystemAdminService : ISystemAdminService
     {
         try
         {
-            var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
+            var user = await _authenticationRepository.GetUserById(userId);
             if (user == null)
             {
                 return Option.None<SystemUserDto, Error>(Error.NotFound("User.NotFound", "User not found"));
