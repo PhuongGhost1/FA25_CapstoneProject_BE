@@ -6,10 +6,10 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.POIs;
 public record CreatePoiRequest(
     Guid MapId,
     Guid? SegmentId,
-    Guid? SegmentZoneId,
+    Guid? ZoneId,
     string Title,
     string? Subtitle,
-    SegmentLocationType LocationType,
+    LocationType LocationType,
     string? MarkerGeometry,
     string? StoryContent,
     string? MediaResources,
@@ -30,10 +30,10 @@ public record CreatePoiRequest(
 
 public record UpdatePoiRequest(
     Guid? SegmentId,
-    Guid? SegmentZoneId,
+    Guid? ZoneId,
     string Title,
     string? Subtitle,
-    SegmentLocationType LocationType,
+    LocationType LocationType,
     string? MarkerGeometry,
     string? StoryContent,
     string? MediaResources,

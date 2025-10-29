@@ -15,9 +15,18 @@ public class MapHistoryRepository : IMapHistoryRepository
 
     public async Task<int> AddAsync(MapHistory history, CancellationToken ct = default)
     {
+        history.HistoryId = Guid.NewGuid();
+        
+        // Get next version for this map
+        var maxVersion = await _db.Set<MapHistory>()
+            .Where(h => h.MapId == history.MapId)
+            .MaxAsync(h => (int?)h.HistoryVersion, ct) ?? 0;
+        
+        history.HistoryVersion = maxVersion + 1;
+        
         await _db.Set<MapHistory>().AddAsync(history, ct);
         await _db.SaveChangesAsync(ct);
-        return history.VersionId;
+        return history.HistoryVersion;
     }
 
     public async Task<List<MapHistory>> GetLastAsync(Guid mapId, int maxCount, CancellationToken ct = default)
@@ -32,22 +41,56 @@ public class MapHistoryRepository : IMapHistoryRepository
 
     public async Task TrimToAsync(Guid mapId, int keepCount, CancellationToken ct = default)
     {
-        var idsToDelete = await _db.Set<MapHistory>()
-            .Where(h => h.MapId == mapId)
-            .OrderByDescending(h => h.CreatedAt)
-            .Skip(keepCount)
-            .Select(h => h.VersionId)
+        const int maxRetries = 2; // Chỉ retry 2 lần thôi
+        int retryCount = 0;
+        
+        while (retryCount < maxRetries)
+        {
+            try
+            {
+                var idsToDelete = await _db.Set<MapHistory>()
+                    .Where(h => h.MapId == mapId)
+                    .OrderByDescending(h => h.CreatedAt)
+                    .Skip(keepCount)
+                    .Select(h => h.HistoryId)
+                    .ToListAsync(ct);
+
+                if (idsToDelete.Count == 0) return;
+
+                var toRemove = await _db.Set<MapHistory>()
+                    .Where(h => idsToDelete.Contains(h.HistoryId))
+                    .ToListAsync(ct);
+
+                _db.Set<MapHistory>().RemoveRange(toRemove);
+                await _db.SaveChangesAsync(ct);
+                return; // Success
+            }
+            catch (DbUpdateConcurrencyException) when (retryCount < maxRetries - 1)
+            {
+                retryCount++;
+                await Task.Delay(50, ct); // Delay ngắn
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Final retry failed, ignore - history trimming is not critical
+                return;
+            }
+        }
+    }
+
+    public async Task<int> DeleteOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default)
+    {
+        var oldRecords = await _db.Set<MapHistory>()
+            .Where(h => h.CreatedAt < cutoffUtc)
             .ToListAsync(ct);
 
-        if (idsToDelete.Count == 0) return;
+        if (oldRecords.Count == 0)
+        {
+            return 0;
+        }
 
-        var toRemove = await _db.Set<MapHistory>()
-            .Where(h => idsToDelete.Contains(h.VersionId))
-            .ToListAsync(ct);
-
-        _db.Set<MapHistory>().RemoveRange(toRemove);
+        _db.Set<MapHistory>().RemoveRange(oldRecords);
         await _db.SaveChangesAsync(ct);
+        return oldRecords.Count;
     }
 }
-
-

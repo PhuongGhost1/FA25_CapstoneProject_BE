@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Temporarily commented out to create migration only for map_histories
+/*
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,3 +53,4 @@ internal class AdvertisementConfiguration : IEntityTypeConfiguration<Advertiseme
                      .HasColumnName("is_active");
        }
 }
+*/

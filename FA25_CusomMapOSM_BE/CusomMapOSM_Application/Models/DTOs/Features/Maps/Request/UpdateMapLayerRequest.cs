@@ -11,6 +11,11 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
 
         public string? CustomStyle { get; set; }
 
+        /// <summary>
+        /// Whether features in this layer can have individual styles
+        /// </summary>
+        public bool? AllowIndividualFeatureStyles { get; set; }
+
         public string? FilterConfig { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.StoryMaps;
@@ -21,6 +22,8 @@ public class StoryMapEndpoint : IEndpoint
         MapSegmentLayersEndpoints(group);
         MapTimelineEndpoints(group);
         MapSegmentTransitionsEndpoints(group);
+        MapStoryElementLayersEndpoints(group);
+        MapStoryMapOperations(group);
     }
 
     private static void MapSegmentsEndpoints(RouteGroupBuilder group)
@@ -38,7 +41,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegments")
             .WithDescription("Retrieve all story segments for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -58,7 +60,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegment")
             .WithDescription("Create a new story segment for the map")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -78,7 +79,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegment")
             .WithDescription("Update an existing story segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -119,7 +119,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegmentZones")
             .WithDescription("Retrieve zones for a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -134,13 +133,12 @@ public class StoryMapEndpoint : IEndpoint
                 var enriched = request with { SegmentId = segmentId };
                 var result = await service.CreateSegmentZoneAsync(enriched, ct);
                 return result.Match<IResult>(
-                    zone => Results.Created($"{Routes.Prefix.StoryMap}/segments/{segmentId}/zones/{zone.SegmentZoneId}", zone),
+                    zone => Results.Created($"{Routes.Prefix.StoryMap}/segments/{segmentId}/zones/{zone.ZoneId}", zone),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("CreateStoryMapSegmentZone")
             .WithDescription("Create a new zone within a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -161,7 +159,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegmentZone")
             .WithDescription("Update a segment zone")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -203,7 +200,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapSegmentLayers")
             .WithDescription("Retrieve layers attached to a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -223,7 +219,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapSegmentLayer")
             .WithDescription("Attach a layer to a segment")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -244,7 +239,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapSegmentLayer")
             .WithDescription("Update a segment layer configuration")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -285,7 +279,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("GetStoryMapTimeline")
             .WithDescription("Retrieve timeline steps for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -305,7 +298,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("CreateStoryMapTimelineStep")
             .WithDescription("Create a timeline step for a map")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -325,7 +317,6 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("UpdateStoryMapTimelineStep")
             .WithDescription("Update a timeline step")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -352,82 +343,6 @@ public class StoryMapEndpoint : IEndpoint
 
     private static void MapSegmentTransitionsEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet(Routes.StoryMapEndpoints.GetSegmentTransitions, async (
-                [FromRoute] Guid mapId,
-                [FromServices] IStoryMapService service,
-                CancellationToken ct) =>
-            {
-                var result = await service.GetSegmentTransitionsAsync(mapId, ct);
-                return result.Match<IResult>(
-                    transitions => Results.Ok(transitions),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("GetStoryMapSegmentTransitions")
-            .WithDescription("Retrieve all segment transitions for a map")
-            .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<object>>(200)
-            .ProducesProblem(400)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-
-        group.MapPost(Routes.StoryMapEndpoints.CreateSegmentTransition, async (
-                [FromRoute] Guid mapId,
-                [FromBody] CreateSegmentTransitionRequest request,
-                [FromServices] IStoryMapService service,
-                CancellationToken ct) =>
-            {
-                var enrichedRequest = request with { MapId = mapId };
-                var result = await service.CreateSegmentTransitionAsync(enrichedRequest, ct);
-                return result.Match<IResult>(
-                    transition => Results.Created($"{Routes.Prefix.StoryMap}/{mapId}/transitions/{transition.SegmentTransitionId}", transition),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("CreateStoryMapSegmentTransition")
-            .WithDescription("Create a new segment transition")
-            .WithTags(Tags.StoryMaps)
-            .Produces<object>(201)
-            .ProducesProblem(400)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-
-        group.MapPut(Routes.StoryMapEndpoints.UpdateSegmentTransition, async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid transitionId,
-                [FromBody] UpdateSegmentTransitionRequest request,
-                [FromServices] IStoryMapService service,
-                CancellationToken ct) =>
-            {
-                var result = await service.UpdateSegmentTransitionAsync(transitionId, request, ct);
-                return result.Match<IResult>(
-                    transition => Results.Ok(transition),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("UpdateStoryMapSegmentTransition")
-            .WithDescription("Update a segment transition")
-            .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
-            .ProducesProblem(400)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-
-        group.MapDelete(Routes.StoryMapEndpoints.DeleteSegmentTransition, async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid transitionId,
-                [FromServices] IStoryMapService service,
-                CancellationToken ct) =>
-            {
-                var result = await service.DeleteSegmentTransitionAsync(transitionId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("DeleteStoryMapSegmentTransition")
-            .WithDescription("Delete a segment transition")
-            .WithTags(Tags.StoryMaps)
-            .Produces(204)
-            .ProducesProblem(400)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
 
         group.MapPost(Routes.StoryMapEndpoints.PreviewTransition, async (
                 [FromRoute] Guid mapId,
@@ -443,7 +358,121 @@ public class StoryMapEndpoint : IEndpoint
             .WithName("PreviewStoryMapTransition")
             .WithDescription("Preview a transition between two segments")
             .WithTags(Tags.StoryMaps)
-            .Produces<object>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+    }
+
+    private static void MapStoryMapOperations(RouteGroupBuilder group)
+    {
+        // Export story
+        group.MapGet("/{mapId:guid}/export", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.ExportAsync(mapId, ct);
+                return result.Match<IResult>(
+                    data => Results.Ok(data),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("ExportStoryMap")
+            .WithDescription("Export story definition for a map")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        // Import story
+        group.MapPost("/{mapId:guid}/import", async (
+                [FromRoute] Guid mapId,
+                [FromBody] ImportStoryRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var withMap = request with { MapId = mapId };
+                var result = await service.ImportAsync(withMap, ct);
+                return result.Match<IResult>(
+                    ok => Results.Ok(new ImportStoryResponse { Imported = ok }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("ImportStoryMap")
+            .WithDescription("Import story definition for a map (overwrite/upsert)")
+            .WithTags(Tags.StoryMaps)
+            .Produces<ImportStoryResponse>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+    }
+
+    private static void MapStoryElementLayersEndpoints(RouteGroupBuilder group)
+    {
+        group.MapGet(Routes.StoryMapEndpoints.GetStoryElementLayers, async (
+                [FromRoute] Guid elementId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.GetStoryElementLayersAsync(elementId, ct);
+                return result.Match<IResult>(
+                    layers => Results.Ok(layers),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("GetStoryElementLayers")
+            .WithDescription("Retrieve layers for a story element")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.CreateStoryElementLayer, async (
+                [FromBody] CreateStoryElementLayerRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.CreateStoryElementLayerAsync(request, ct);
+                return result.Match<IResult>(
+                    layer => Results.Created($"{Routes.Prefix.StoryMap}/story-elements/layers/{layer.StoryElementLayerId}", layer),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("CreateStoryElementLayer")
+            .WithDescription("Create a new story element layer")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPut(Routes.StoryMapEndpoints.UpdateStoryElementLayer, async (
+                [FromRoute] Guid storyElementLayerId,
+                [FromBody] UpdateStoryElementLayerRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.UpdateStoryElementLayerAsync(storyElementLayerId, request, ct);
+                return result.Match<IResult>(
+                    layer => Results.Ok(layer),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("UpdateStoryElementLayer")
+            .WithDescription("Update a story element layer")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapDelete(Routes.StoryMapEndpoints.DeleteStoryElementLayer, async (
+                [FromRoute] Guid storyElementLayerId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.DeleteStoryElementLayerAsync(storyElementLayerId, ct);
+                return result.Match<IResult>(
+                    _ => Results.NoContent(),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("DeleteStoryElementLayer")
+            .WithDescription("Delete a story element layer")
+            .WithTags(Tags.StoryMaps)
+            .Produces(204)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);

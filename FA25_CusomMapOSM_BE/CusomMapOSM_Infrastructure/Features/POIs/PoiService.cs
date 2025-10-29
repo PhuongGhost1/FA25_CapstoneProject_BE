@@ -1,5 +1,6 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
+using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
@@ -10,10 +11,12 @@ namespace CusomMapOSM_Infrastructure.Features.POIs;
 public class PoiService : IPoiService
 {
     private readonly IStoryMapRepository _storyMapRepository;
+    private readonly ISegmentLocationStore _locationStore;
 
-    public PoiService(IStoryMapRepository storyMapRepository)
+    public PoiService(IStoryMapRepository storyMapRepository, ISegmentLocationStore locationStore)
     {
         _storyMapRepository = storyMapRepository;
+        _locationStore = locationStore;
     }
 
     public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetMapPoisAsync(Guid mapId, CancellationToken ct = default)
@@ -24,12 +27,12 @@ public class PoiService : IPoiService
             return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
         }
 
-        var locations = await _storyMapRepository.GetLocationsByMapAsync(mapId, ct);
+        var locations = await _locationStore.GetByMapAsync(mapId, ct);
         var poiDtos = locations.Select(l => new PoiDto(
             l.LocationId,
             l.MapId,
             l.SegmentId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.Title,
             l.Subtitle,
             l.LocationType,
@@ -63,12 +66,12 @@ public class PoiService : IPoiService
             return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found"));
         }
 
-        var locations = await _storyMapRepository.GetLocationsBySegmentAsync(segmentId, ct);
+        var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
         var poiDtos = locations.Select(l => new PoiDto(
             l.LocationId,
             l.MapId,
             l.SegmentId,
-            l.SegmentZoneId,
+            l.ZoneId,
             l.Title,
             l.Subtitle,
             l.LocationType,
@@ -103,7 +106,7 @@ public class PoiService : IPoiService
         }
 
         Guid? segmentId = NormalizeGuid(request.SegmentId);
-        Guid? segmentZoneId = NormalizeGuid(request.SegmentZoneId);
+        Guid? zoneId = NormalizeGuid(request.ZoneId);
         Guid? linkedPoiId = NormalizeGuid(request.LinkedPoiId);
 
         if (segmentId.HasValue)
@@ -115,31 +118,34 @@ public class PoiService : IPoiService
             }
         }
 
-        if (segmentZoneId.HasValue)
+        if (zoneId.HasValue)
         {
-            var zone = await _storyMapRepository.GetSegmentZoneAsync(segmentZoneId.Value, ct);
+            var zone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
 
-            var zoneSegment = await _storyMapRepository.GetSegmentAsync(zone.SegmentId, ct);
-            if (zoneSegment is null || zoneSegment.MapId != request.MapId)
+            if (zone.SegmentId.HasValue)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
-            }
+                var zoneSegment = await _storyMapRepository.GetSegmentAsync(zone.SegmentId.Value, ct);
+                if (zoneSegment is null || zoneSegment.MapId != request.MapId)
+                {
+                    return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
+                }
 
-            if (segmentId.HasValue && segmentId.Value != zone.SegmentId)
-            {
-                return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
-            }
+                if (segmentId.HasValue && segmentId.Value != zone.SegmentId.Value)
+                {
+                    return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
+                }
 
-            segmentId ??= zone.SegmentId;
+                segmentId ??= zone.SegmentId;
+            }
         }
 
         if (linkedPoiId.HasValue)
         {
-            var linked = await _storyMapRepository.GetLocationAsync(linkedPoiId.Value, ct);
+            var linked = await _locationStore.GetAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != request.MapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound", "Linked POI not found in this map"));
@@ -151,7 +157,7 @@ public class PoiService : IPoiService
             LocationId = Guid.NewGuid(),
             MapId = request.MapId,
             SegmentId = segmentId,
-            SegmentZoneId = segmentZoneId,
+            ZoneId = zoneId,
             Title = request.Title,
             Subtitle = request.Subtitle,
             LocationType = request.LocationType,
@@ -172,17 +178,17 @@ public class PoiService : IPoiService
             AssociatedLayerId = request.AssociatedLayerId,
             AnimationPresetId = request.AnimationPresetId,
             AnimationOverrides = request.AnimationOverrides,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
-        await _storyMapRepository.AddLocationAsync(location, ct);
-        await _storyMapRepository.SaveChangesAsync(ct);
+        location = await _locationStore.CreateAsync(location, ct);
 
         var poiDto = new PoiDto(
             location.LocationId,
             location.MapId,
             location.SegmentId,
-            location.SegmentZoneId,
+            location.ZoneId,
             location.Title,
             location.Subtitle,
             location.LocationType,
@@ -211,7 +217,7 @@ public class PoiService : IPoiService
 
     public async Task<Option<PoiDto, Error>> UpdatePoiAsync(Guid poiId, UpdatePoiRequest request, CancellationToken ct = default)
     {
-        var location = await _storyMapRepository.GetLocationAsync(poiId, ct);
+        var location = await _locationStore.GetAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
@@ -229,16 +235,16 @@ public class PoiService : IPoiService
             }
         }
 
-        Guid? segmentZoneId = request.SegmentZoneId.HasValue ? NormalizeGuid(request.SegmentZoneId) : location.SegmentZoneId;
-        if (segmentZoneId.HasValue)
+        Guid? zoneId = request.ZoneId.HasValue ? NormalizeGuid(request.ZoneId) : location.ZoneId;
+        if (zoneId.HasValue)
         {
-            var zone = await _storyMapRepository.GetSegmentZoneAsync(segmentZoneId.Value, ct);
+            var zone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
 
-            if (segmentId.HasValue && zone.SegmentId != segmentId.Value)
+            if (segmentId.HasValue && zone.SegmentId.HasValue && zone.SegmentId.Value != segmentId.Value)
             {
                 return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid", "Zone does not belong to the provided segment"));
             }
@@ -254,7 +260,7 @@ public class PoiService : IPoiService
                 return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Linked.Self", "A POI cannot link to itself"));
             }
 
-            var linked = await _storyMapRepository.GetLocationAsync(linkedPoiId.Value, ct);
+            var linked = await _locationStore.GetAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != mapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound", "Linked POI not found in this map"));
@@ -262,7 +268,7 @@ public class PoiService : IPoiService
         }
 
         location.SegmentId = segmentId;
-        location.SegmentZoneId = segmentZoneId;
+        location.ZoneId = zoneId;
         location.Title = request.Title;
         location.Subtitle = request.Subtitle;
         location.LocationType = request.LocationType;
@@ -285,14 +291,17 @@ public class PoiService : IPoiService
         location.AnimationOverrides = request.AnimationOverrides;
         location.UpdatedAt = DateTime.UtcNow;
 
-        _storyMapRepository.UpdateLocation(location);
-        await _storyMapRepository.SaveChangesAsync(ct);
+        var updated = await _locationStore.UpdateAsync(location, ct);
+        if (updated is not null)
+        {
+            location = updated;
+        }
 
         var poiDto = new PoiDto(
             location.LocationId,
             location.MapId,
             location.SegmentId,
-            location.SegmentZoneId,
+            location.ZoneId,
             location.Title,
             location.Subtitle,
             location.LocationType,
@@ -321,14 +330,13 @@ public class PoiService : IPoiService
 
     public async Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default)
     {
-        var location = await _storyMapRepository.GetLocationAsync(poiId, ct);
+        var location = await _locationStore.GetAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<bool, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
-        _storyMapRepository.RemoveLocation(location);
-        await _storyMapRepository.SaveChangesAsync(ct);
+        await _locationStore.DeleteAsync(poiId, ct);
 
         return Option.Some<bool, Error>(true);
     }

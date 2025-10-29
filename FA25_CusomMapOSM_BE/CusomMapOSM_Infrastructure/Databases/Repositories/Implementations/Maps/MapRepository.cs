@@ -32,7 +32,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .FirstOrDefaultAsync(m => m.MapId == mapId && m.IsActive);
     }
 
@@ -40,7 +40,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.UserId == userId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
@@ -50,8 +50,19 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
-            .Where(m => m.OrgId == orgId && m.IsActive)
+            .Include(m => m.Workspace)
+            .ThenInclude(w => w!.Organization)
+            .Where(m => m.Workspace != null && m.Workspace.Organization != null && m.Workspace.Organization.OrgId == orgId && m.IsActive)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<Map>> GetByWorkspaceIdAsync(Guid workspaceId)
+    {
+        return await _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.WorkspaceId == workspaceId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
     }
@@ -60,7 +71,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.IsPublic && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
@@ -175,32 +186,6 @@ public class MapRepository : IMapRepository
             _context.Database.SetCommandTimeout(30);
             throw;
         }
-    }
-
-    public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
-    {
-        // Find Layer by MapId and LayerId
-        var layer = await _context.Layers
-            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
-        
-        if (layer == null)
-        {
-            // Debug: Check what Layers exist for this map
-            var allLayers = await _context.Layers
-                .Where(l => l.MapId == mapId)
-                .Select(l => new { l.LayerId, l.IsVisible, l.LayerName })
-                .ToListAsync();
-                
-            // no-op
-            return null;
-        }
-        
-        if (string.IsNullOrEmpty(layer.LayerData))
-        {
-            return null;
-        }
-        
-        return layer.LayerData;
     }
 
     // Template Management operations

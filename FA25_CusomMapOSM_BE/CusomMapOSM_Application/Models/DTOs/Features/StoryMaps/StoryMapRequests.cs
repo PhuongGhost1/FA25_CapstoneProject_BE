@@ -1,6 +1,9 @@
+using CusomMapOSM_Domain.Entities.Animations.Enums;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
+using CusomMapOSM_Domain.Entities.StoryElement.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 
@@ -31,7 +34,7 @@ public record CreateSegmentZoneRequest(
     Guid SegmentId,
     string Name,
     string? Description,
-    SegmentZoneType ZoneType,
+    ZoneType ZoneType,
     string ZoneGeometry,
     string? FocusCameraState,
     int DisplayOrder,
@@ -40,7 +43,7 @@ public record CreateSegmentZoneRequest(
 public record UpdateSegmentZoneRequest(
     string Name,
     string? Description,
-    SegmentZoneType ZoneType,
+    ZoneType ZoneType,
     string ZoneGeometry,
     string? FocusCameraState,
     int DisplayOrder,
@@ -48,7 +51,7 @@ public record UpdateSegmentZoneRequest(
 
 public record UpsertSegmentLayerRequest(
     Guid LayerId,
-    Guid? SegmentZoneId,
+    Guid? ZoneId,
     bool ExpandToZone,
     bool HighlightZoneBoundary,
     int DisplayOrder,
@@ -62,7 +65,7 @@ public record UpsertSegmentLayerRequest(
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
+    string? StyleOverride,
     string? Metadata);
 
 public record CreateTimelineStepRequest(
@@ -95,7 +98,7 @@ public record UpdateTimelineStepRequest(
 public record CreateTimelineStepLayerRequest(
     Guid LayerId,
     bool IsVisible,
-    double Opacity,
+    decimal Opacity,
     int FadeInMs,
     int FadeOutMs,
     int DelayMs,
@@ -129,6 +132,53 @@ public record UpdateSegmentTransitionRequest(
 public record PreviewTransitionRequest(
     Guid FromSegmentId,
     Guid ToSegmentId);
+
+public record CreateStoryElementLayerRequest(
+    Guid ElementId,
+    StoryElementType ElementType,
+    Guid LayerId,
+    Guid? ZoneId,
+    bool ExpandToZone,
+    bool HighlightZoneBoundary,
+    int DisplayOrder,
+    int DelayMs,
+    int FadeInMs,
+    int FadeOutMs,
+    decimal StartOpacity,
+    decimal EndOpacity,
+    AnimationEasingType Easing,
+    Guid? AnimationPresetId,
+    bool AutoPlayAnimation,
+    int RepeatCount,
+    string? AnimationOverrides,
+    string? Metadata,
+    bool IsVisible,
+    decimal Opacity,
+    StoryElementDisplayMode DisplayMode,
+    string? StyleOverride);
+
+public record UpdateStoryElementLayerRequest(
+    StoryElementType ElementType,
+    Guid LayerId,
+    Guid? ZoneId,
+    bool ExpandToZone,
+    bool HighlightZoneBoundary,
+    int DisplayOrder,
+    int DelayMs,
+    int FadeInMs,
+    int FadeOutMs,
+    decimal StartOpacity,
+    decimal EndOpacity,
+    AnimationEasingType Easing,
+    Guid? AnimationPresetId,
+    bool AutoPlayAnimation,
+    int RepeatCount,
+    string? AnimationOverrides,
+    string? Metadata,
+    bool IsVisible,
+    decimal Opacity,
+    StoryElementDisplayMode DisplayMode,
+    string? StyleOverride);
 
 public record ImportStoryRequest(
     Guid MapId,

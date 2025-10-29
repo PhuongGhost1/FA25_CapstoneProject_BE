@@ -1,8 +1,10 @@
 using System;
+using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Zones;
 
 namespace CusomMapOSM_Domain.Entities.Locations;
 
@@ -11,10 +13,10 @@ public class Location
     public Guid LocationId { get; set; }
     public Guid MapId { get; set; }
     public Guid? SegmentId { get; set; }
-    public Guid? SegmentZoneId { get; set; }
+    public Guid? ZoneId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Subtitle { get; set; }
-    public SegmentLocationType LocationType { get; set; } = SegmentLocationType.PointOfInterest;
+    public LocationType LocationType { get; set; } = LocationType.PointOfInterest;
     public string? MarkerGeometry { get; set; }
     public string? StoryContent { get; set; }
     public string? MediaResources { get; set; }
@@ -37,7 +39,7 @@ public class Location
 
     public Map? Map { get; set; }
     public Segment? Segment { get; set; }
-    public SegmentZone? SegmentZone { get; set; }
+    public Zone? Zone { get; set; }
     public Layer? AssociatedLayer { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
     public Location? LinkedLocation { get; set; }

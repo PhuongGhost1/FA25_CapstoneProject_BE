@@ -8,10 +8,6 @@ using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using Microsoft.AspNetCore.Mvc;
-using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
-using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
-using CusomMapOSM_Application.Interfaces.Features.POIs;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 
 namespace CusomMapOSM_API.Endpoints.Maps;
 
@@ -19,8 +15,8 @@ public class MapEndpoints : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/maps")
-            .WithTags("Maps")
+        var group = app.MapGroup(Routes.Prefix.Maps)
+            .WithTags(Tags.Map)
             .WithDescription("Map management endpoints");
 
         group.MapPost("/", async (
@@ -127,13 +123,13 @@ public class MapEndpoints : IEndpoint
             {
                 var result = await mapService.GetLayerData(templateId, layerId);
                 return result.Match(
-                    success => Results.Ok(new { layerData = success }),
+                    success => Results.Ok(new LayerDataResponse { LayerData = success }),
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("GetMapTemplateLayerData")
             .WithDescription("Get layer GeoJSON data for map template")
             .AllowAnonymous()
-            .Produces<object>(200)
+            .Produces<LayerDataResponse>(200)
             .Produces(404);
 
         group.MapGet("/{mapId:guid}", async (
@@ -277,6 +273,88 @@ public class MapEndpoints : IEndpoint
             .Produces(400)
             .DisableAntiforgery();
 
+        // Upload GeoJSON file to existing map
+        group.MapPost("/{mapId:guid}/upload-geojson", async (
+                [FromRoute] Guid mapId,
+                IFormFile file,
+                [FromForm] string? layerName,
+                [FromServices] IFileProcessorService fileProcessorService,
+                [FromServices] IMapService mapService,
+                [FromServices] ICurrentUserService currentUserService,
+                CancellationToken ct) =>
+            {
+                // Check edit permission
+                if (!await mapService.HasEditPermission(mapId))
+                    return Results.Forbid();
+
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "No file uploaded",
+                        message = "Please provide a valid GeoJSON file"
+                    });
+                }
+
+                if (!fileProcessorService.IsSupported(file.FileName))
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "Unsupported file type",
+                        message = "Supported formats: GeoJSON, KML, GPX, CSV, Excel, GeoTIFF"
+                    });
+                }
+
+                var fileSizeMb = file.Length / (1024.0 * 1024.0);
+                if (file.Length > 100 * 1024 * 1024)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "File too large",
+                        message = "File size must be less than 100MB",
+                        currentSize = $"{fileSizeMb:F2} MB"
+                    });
+                }
+
+                var processedData = await fileProcessorService.ProcessUploadedFile(file, layerName ?? "Uploaded Layer");
+                
+                if (!processedData.Success)
+                {
+                    return Results.BadRequest(new
+                    {
+                        error = "File processing failed",
+                        message = processedData.ErrorMessage
+                    });
+                }
+
+                // Add layer to map with the uploaded data
+                var addLayerResult = await mapService.AddLayerToMap(mapId, new AddLayerToMapRequest
+                {
+                    LayerName = layerName ?? "Uploaded Layer",
+                    LayerData = processedData.LayerData,
+                    LayerTypeId = processedData.LayerType.ToString(),
+                    IsVisible = true,
+                    ZIndex = 1
+                });
+
+                return addLayerResult.Match(
+                    success => Results.Ok(new
+                    {
+                        layerId = success.MapLayerId,
+                        message = "File uploaded and added to map successfully",
+                        featuresAdded = processedData.FeatureCount,
+                        dataSize = processedData.DataSizeKB
+                    }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("UploadGeoJsonToMap")
+            .WithDescription("Upload a GeoJSON file to an existing map")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200);
+
         // Map Features endpoints
         group.MapPost("/{mapId:guid}/features", async (
                 [FromRoute] Guid mapId,
@@ -321,14 +399,14 @@ public class MapEndpoints : IEndpoint
                 if (!canEdit) return Results.Forbid();
                 var result = await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
                 return result.Match(
-                    success => Results.Ok(new { Snapshot = success }),
+                    success => Results.Ok(new MapSnapshotResponse { Snapshot = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("UndoMapHistory")
             .WithDescription("Get a prior snapshot of the map by stepping back N (<=10)")
             .RequireAuthorization()
-            .Produces(200)
+            .Produces<MapSnapshotResponse>(200)
             .Produces(400);
 
         group.MapPost("/{mapId:guid}/history/apply", async (
@@ -341,14 +419,14 @@ public class MapEndpoints : IEndpoint
                 if (!canEdit) return Results.Forbid();
                 var result = await featureService.ApplySnapshot(mapId, snapshot);
                 return result.Match(
-                    success => Results.Ok(new { applied = success }),
+                    success => Results.Ok(new ApplySnapshotResponse { Applied = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("ApplyMapHistorySnapshot")
             .WithDescription("Apply a provided snapshot JSON to restore map features")
             .RequireAuthorization()
-            .Produces(200)
+            .Produces<ApplySnapshotResponse>(200)
             .Produces(400);
 
         group.MapGet("/{mapId:guid}/features/by-category/{category}", async (
@@ -407,14 +485,14 @@ public class MapEndpoints : IEndpoint
             {
                 var result = await featureService.Delete(featureId);
                 return result.Match(
-                    success => Results.Ok(new { deleted = success }),
+                    success => Results.Ok(new DeleteFeatureResponse { Deleted = success }),
                     error => error.ToProblemDetailsResult()
                 );
             })
             .WithName("DeleteMapFeature")
             .WithDescription("Delete a feature from a map")
             .RequireAuthorization()
-            .Produces(200);
+            .Produces<DeleteFeatureResponse>(200);
         // Zone/Feature Operations
         group.MapPost("/{mapId:guid}/layers/{sourceLayerId:guid}/copy-feature", async (
                 Guid mapId,
@@ -464,418 +542,11 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<UpdateLayerDataResponse>(200);
 
-        // ===== Story Map alias endpoints (delegate to IStoryMapService) =====
-        // Segments
-        group.MapGet("/{mapId:guid}/story/segments", async (
-                [FromRoute] Guid mapId,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.GetSegmentsAsync(mapId, ct);
-                return result.Match<IResult>(
-                    segments => Results.Ok(segments),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetStoryMapSegments")
-            .WithDescription("Get story segments for a map (alias)")
-            .RequireAuthorization();
-
-        group.MapPost("/{mapId:guid}/story/segments", async (
-                [FromRoute] Guid mapId,
-                [FromBody] CreateSegmentRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var enriched = request with { MapId = mapId };
-                var result = await storyService.CreateSegmentAsync(enriched, ct);
-                return result.Match<IResult>(
-                    segment => Results.Created($"/api/maps/{mapId}/story/segments/{segment.SegmentId}", segment),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_CreateStoryMapSegment")
-            .WithDescription("Create a story segment for a map (alias)")
-            .RequireAuthorization();
-
-        group.MapPut("/{mapId:guid}/story/segments/{segmentId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromBody] UpdateSegmentRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.UpdateSegmentAsync(segmentId, request, ct);
-                return result.Match<IResult>(
-                    segment => Results.Ok(segment),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_UpdateStoryMapSegment")
-            .WithDescription("Update a story segment (alias)")
-            .RequireAuthorization();
-
-        group.MapDelete("/{mapId:guid}/story/segments/{segmentId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.DeleteSegmentAsync(segmentId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_DeleteStoryMapSegment")
-            .WithDescription("Delete a story segment (alias)")
-            .RequireAuthorization();
-
-        // Segment Zones
-        group.MapGet("/{mapId:guid}/story/segments/{segmentId:guid}/zones", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.GetSegmentZonesAsync(segmentId, ct);
-                return result.Match<IResult>(
-                    zones => Results.Ok(zones),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetStoryMapSegmentZones")
-            .WithDescription("Get zones for a story segment (alias)")
-            .RequireAuthorization();
-
-        group.MapPost("/{mapId:guid}/story/segments/{segmentId:guid}/zones", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromBody] CreateSegmentZoneRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var enriched = request with { SegmentId = segmentId };
-                var result = await storyService.CreateSegmentZoneAsync(enriched, ct);
-                return result.Match<IResult>(
-                    zone => Results.Created($"/api/maps/{mapId}/story/segments/{segmentId}/zones/{zone.SegmentZoneId}", zone),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_CreateStoryMapSegmentZone")
-            .WithDescription("Create a zone within a story segment (alias)")
-            .RequireAuthorization();
-
-        group.MapPut("/{mapId:guid}/story/segments/{segmentId:guid}/zones/{zoneId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromRoute] Guid zoneId,
-                [FromBody] UpdateSegmentZoneRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.UpdateSegmentZoneAsync(zoneId, request, ct);
-                return result.Match<IResult>(
-                    zone => Results.Ok(zone),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_UpdateStoryMapSegmentZone")
-            .WithDescription("Update a segment zone (alias)")
-            .RequireAuthorization();
-
-        group.MapDelete("/{mapId:guid}/story/segments/{segmentId:guid}/zones/{zoneId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromRoute] Guid zoneId,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.DeleteSegmentZoneAsync(zoneId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_DeleteStoryMapSegmentZone")
-            .WithDescription("Delete a segment zone (alias)")
-            .RequireAuthorization();
-
-        // Segment Layers
-        group.MapGet("/{mapId:guid}/story/segments/{segmentId:guid}/layers", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.GetSegmentLayersAsync(segmentId, ct);
-                return result.Match<IResult>(
-                    layers => Results.Ok(layers),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetStoryMapSegmentLayers")
-            .WithDescription("Get segment layers (alias)")
-            .RequireAuthorization();
-
-        group.MapPost("/{mapId:guid}/story/segments/{segmentId:guid}/layers", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromBody] UpsertSegmentLayerRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.CreateSegmentLayerAsync(segmentId, request, ct);
-                return result.Match<IResult>(
-                    layer => Results.Created($"/api/maps/{mapId}/story/segments/{segmentId}/layers/{layer.SegmentLayerId}", layer),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_CreateStoryMapSegmentLayer")
-            .WithDescription("Create a segment layer (alias)")
-            .RequireAuthorization();
-
-        group.MapPut("/{mapId:guid}/story/segments/{segmentId:guid}/layers/{layerId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromRoute] Guid layerId,
-                [FromBody] UpsertSegmentLayerRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.UpdateSegmentLayerAsync(layerId, request, ct);
-                return result.Match<IResult>(
-                    layer => Results.Ok(layer),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_UpdateStoryMapSegmentLayer")
-            .WithDescription("Update a segment layer (alias)")
-            .RequireAuthorization();
-
-        group.MapDelete("/{mapId:guid}/story/segments/{segmentId:guid}/layers/{layerId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromRoute] Guid layerId,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.DeleteSegmentLayerAsync(layerId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_DeleteStoryMapSegmentLayer")
-            .WithDescription("Delete a segment layer (alias)")
-            .RequireAuthorization();
-
-        // Timeline
-        group.MapGet("/{mapId:guid}/story/timeline", async (
-                [FromRoute] Guid mapId,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.GetTimelineAsync(mapId, ct);
-                return result.Match<IResult>(
-                    timeline => Results.Ok(timeline),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetStoryMapTimeline")
-            .WithDescription("Get story timeline (alias)")
-            .RequireAuthorization();
-
-        group.MapPost("/{mapId:guid}/story/timeline", async (
-                [FromRoute] Guid mapId,
-                [FromBody] CreateTimelineStepRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var enriched = request with { MapId = mapId };
-                var result = await storyService.CreateTimelineStepAsync(enriched, ct);
-                return result.Match<IResult>(
-                    step => Results.Created($"/api/maps/{mapId}/story/timeline/{step.TimelineStepId}", step),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_CreateStoryMapTimelineStep")
-            .WithDescription("Create story timeline step (alias)")
-            .RequireAuthorization();
-
-        group.MapPut("/{mapId:guid}/story/timeline/{stepId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid stepId,
-                [FromBody] UpdateTimelineStepRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.UpdateTimelineStepAsync(stepId, request, ct);
-                return result.Match<IResult>(
-                    step => Results.Ok(step),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_UpdateStoryMapTimelineStep")
-            .WithDescription("Update story timeline step (alias)")
-            .RequireAuthorization();
-
-        group.MapDelete("/{mapId:guid}/story/timeline/{stepId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid stepId,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await storyService.DeleteTimelineStepAsync(stepId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_DeleteStoryMapTimelineStep")
-            .WithDescription("Delete story timeline step (alias)")
-            .RequireAuthorization();
-
-        // Transition preview
-        group.MapPost("/{mapId:guid}/story/preview-transition", async (
-                [FromRoute] Guid mapId,
-                [FromBody] PreviewTransitionRequest request,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.PreviewTransitionAsync(request, ct);
-                return result.Match<IResult>(
-                    preview => Results.Ok(preview),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_PreviewTransition")
-            .WithDescription("Preview camera and timing between two segments")
-            .RequireAuthorization();
-
-        // Export story
-        group.MapGet("/{mapId:guid}/story/export", async (
-                [FromRoute] Guid mapId,
-                [FromServices] IStoryMapService storyService,
-                CancellationToken ct) =>
-            {
-                var result = await storyService.ExportAsync(mapId, ct);
-                return result.Match<IResult>(
-                    data => Results.Ok(data),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_ExportStory")
-            .WithDescription("Export story definition for a map")
-            .RequireAuthorization();
-
-        // Import story
-        group.MapPost("/{mapId:guid}/story/import", async (
-                [FromRoute] Guid mapId,
-                [FromBody] ImportStoryRequest request,
-                [FromServices] IStoryMapService storyService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var withMap = request with { MapId = mapId };
-                var result = await storyService.ImportAsync(withMap, ct);
-                return result.Match<IResult>(
-                    ok => Results.Ok(new { imported = ok }),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_ImportStory")
-            .WithDescription("Import story definition for a map (overwrite/upsert)")
-            .RequireAuthorization();
-
-        // ===== POIs alias endpoints (delegate to IPoiService) =====
-        group.MapGet("/{mapId:guid}/pois", async (
-                [FromRoute] Guid mapId,
-                [FromServices] IPoiService poiService,
-                CancellationToken ct) =>
-            {
-                var result = await poiService.GetMapPoisAsync(mapId, ct);
-                return result.Match<IResult>(
-                    pois => Results.Ok(pois),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetPois")
-            .WithDescription("Get POIs for a map (alias)")
-            .RequireAuthorization();
-
-        group.MapGet("/{mapId:guid}/segments/{segmentId:guid}/pois", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromServices] IPoiService poiService,
-                CancellationToken ct) =>
-            {
-                var result = await poiService.GetSegmentPoisAsync(mapId, segmentId, ct);
-                return result.Match<IResult>(
-                    pois => Results.Ok(pois),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_GetSegmentPois")
-            .WithDescription("Get POIs for a segment (alias)")
-            .RequireAuthorization();
-
-        group.MapPost("/{mapId:guid}/pois", async (
-                [FromRoute] Guid mapId,
-                [FromBody] CreatePoiRequest request,
-                [FromServices] IPoiService poiService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var enriched = request with { MapId = mapId };
-                var result = await poiService.CreatePoiAsync(enriched, ct);
-                return result.Match<IResult>(
-                    poi => Results.Created($"/api/maps/{mapId}/pois/{poi.PoiId}", poi),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_CreatePoi")
-            .WithDescription("Create a POI (alias)")
-            .RequireAuthorization();
-
-        group.MapPut("/{mapId:guid}/pois/{poiId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid poiId,
-                [FromBody] UpdatePoiRequest request,
-                [FromServices] IPoiService poiService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await poiService.UpdatePoiAsync(poiId, request, ct);
-                return result.Match<IResult>(
-                    poi => Results.Ok(poi),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_UpdatePoi")
-            .WithDescription("Update a POI (alias)")
-            .RequireAuthorization();
-
-        group.MapDelete("/{mapId:guid}/pois/{poiId:guid}", async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid poiId,
-                [FromServices] IPoiService poiService,
-                [FromServices] IMapService mapService,
-                CancellationToken ct) =>
-            {
-                if (!await mapService.HasEditPermission(mapId)) return Results.Forbid();
-                var result = await poiService.DeletePoiAsync(poiId, ct);
-                return result.Match<IResult>(
-                    _ => Results.NoContent(),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("Map_DeletePoi")
-            .WithDescription("Delete a POI (alias)")
-            .RequireAuthorization();
+        // Note: Story Map endpoints have been moved to StoryMapEndpoint under /story-map prefix
+        // All story-related operations should use /story-map/{mapId}/...
+        
+        // Note: POI endpoints have been moved to PoiEndpoint under /points-of-interest prefix
+        // All POI operations should use /points-of-interest/{mapId}/...
 
         // Simple permission check endpoint
         group.MapGet("/{mapId:guid}/can-edit", async (
@@ -883,7 +554,7 @@ public class MapEndpoints : IEndpoint
                 [FromServices] IMapService mapService) =>
             {
                 var can = await mapService.HasEditPermission(mapId);
-                return Results.Ok(new { canEdit = can });
+                return Results.Ok(new CanEditResponse { CanEdit = can });
             })
             .WithName("Map_CanEdit")
             .WithDescription("Check if current user can edit this map")

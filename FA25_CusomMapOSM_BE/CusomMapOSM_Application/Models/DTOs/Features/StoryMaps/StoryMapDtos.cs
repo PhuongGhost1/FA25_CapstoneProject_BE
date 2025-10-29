@@ -1,7 +1,10 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
+using CusomMapOSM_Domain.Entities.StoryElement.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
+using CusomMapOSM_Domain.Entities.Animations.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 
@@ -24,11 +27,11 @@ public record SegmentDto(
     IReadOnlyCollection<PoiDto> Locations);
 
 public record SegmentZoneDto(
-    Guid SegmentZoneId,
-    Guid SegmentId,
+    Guid ZoneId,
+    Guid? SegmentId,
     string Name,
     string? Description,
-    SegmentZoneType ZoneType,
+    ZoneType ZoneType,
     string ZoneGeometry,
     string? FocusCameraState,
     int DisplayOrder,
@@ -40,21 +43,21 @@ public record SegmentLayerDto(
     Guid SegmentLayerId,
     Guid SegmentId,
     Guid LayerId,
-    Guid? SegmentZoneId,
+    Guid? ZoneId,
     bool ExpandToZone,
     bool HighlightZoneBoundary,
     int DisplayOrder,
     int DelayMs,
     int FadeInMs,
     int FadeOutMs,
-    double StartOpacity,
-    double EndOpacity,
+    decimal StartOpacity,
+    decimal EndOpacity,
     AnimationEasingType Easing,
     Guid? AnimationPresetId,
     bool AutoPlayAnimation,
     int RepeatCount,
     string? AnimationOverrides,
-    string? OverrideStyle,
+    string? StyleOverride,
     string? Metadata);
 
 public record TimelineStepDto(
@@ -106,6 +109,33 @@ public record TransitionPreviewDto(
     string? ToCameraState,
     int SuggestedDurationMs,
     string Easing);
+
+public record StoryElementLayerDto(
+    Guid StoryElementLayerId,
+    Guid ElementId,
+    StoryElementType ElementType,
+    Guid LayerId,
+    Guid? ZoneId,
+    bool ExpandToZone,
+    bool HighlightZoneBoundary,
+    int DisplayOrder,
+    int DelayMs,
+    int FadeInMs,
+    int FadeOutMs,
+    decimal StartOpacity,
+    decimal EndOpacity,
+    AnimationEasingType Easing,
+    Guid? AnimationPresetId,
+    bool AutoPlayAnimation,
+    int RepeatCount,
+    string? AnimationOverrides,
+    string? Metadata,
+    bool IsVisible,
+    decimal Opacity,
+    StoryElementDisplayMode DisplayMode,
+    string? StyleOverride,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
 
 public record ExportedStoryDto(
     Guid MapId,

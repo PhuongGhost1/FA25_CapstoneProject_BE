@@ -9,7 +9,8 @@ namespace CusomMapOSM_Domain.Entities.Maps;
 
 public class MapHistory
 {
-    public int VersionId { get; set; }
+    public Guid HistoryId { get; set; }
+    public int HistoryVersion { get; set; }
     public required Guid MapId { get; set; }
     public required Guid UserId { get; set; }
     public required string SnapshotData { get; set; }

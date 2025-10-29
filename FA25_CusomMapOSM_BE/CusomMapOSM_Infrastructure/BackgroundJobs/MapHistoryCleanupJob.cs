@@ -1,17 +1,10 @@
-using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Application.Interfaces.Services.Maps;
 using Hangfire;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using CusomMapOSM_Domain.Entities.Maps;
 
 namespace CusomMapOSM_Infrastructure.BackgroundJobs;
 
-/// <summary>
-/// Background job to clean up old map history records
-/// Implements BR-11: Map history is retained for 1 year for audit purposes (FR-15)
-/// Runs weekly to remove history older than 1 year
-/// </summary>
 public class MapHistoryCleanupJob
 {
     private readonly IServiceProvider _serviceProvider;
@@ -34,22 +27,11 @@ public class MapHistoryCleanupJob
             _logger.LogInformation("Starting old map history cleanup");
 
             using var scope = _serviceProvider.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<CustomMapOSMDbContext>();
+            var store = scope.ServiceProvider.GetRequiredService<IMapHistoryStore>();
 
             var expirationDate = DateTime.UtcNow.AddYears(-1); // 1 year ago
 
-            // Assuming there's a MapHistory table - adjust based on actual schema
-            var oldHistoryRecords = await dbContext.Set<MapHistory>()
-                .Where(h => h.CreatedAt < expirationDate)
-                .ToListAsync();
-
-            var cleanedCount = oldHistoryRecords.Count;
-
-            if (cleanedCount > 0)
-            {
-                dbContext.Set<MapHistory>().RemoveRange(oldHistoryRecords);
-                await dbContext.SaveChangesAsync();
-            }
+            var cleanedCount = await store.DeleteOlderThanAsync(expirationDate);
 
             _logger.LogInformation(
                 "Old map history cleanup completed. Cleaned {Count} records",

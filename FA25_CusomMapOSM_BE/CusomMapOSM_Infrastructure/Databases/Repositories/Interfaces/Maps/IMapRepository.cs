@@ -14,6 +14,7 @@ public interface IMapRepository
     Task<Map?> GetMapById(Guid mapId);
     Task<List<Map>> GetUserMaps(Guid userId);
     Task<List<Map>> GetOrganizationMaps(Guid orgId);
+    Task<List<Map>> GetByWorkspaceIdAsync(Guid workspaceId);
     Task<List<Map>> GetPublicMaps();
     Task<bool> UpdateMap(Map map);
     Task<bool> DeleteMap(Guid mapId);
@@ -30,7 +31,6 @@ public interface IMapRepository
     Task<List<Layer>> GetTemplateLayers(Guid mapId);
     Task<List<MapImage>> GetTemplateImages(Guid mapId);
     Task<bool> CreateLayer(Layer layer);
-    Task<string?> GetLayerDataById(Guid mapId, Guid layerId);
 
     // Map Layer operations
     Task<Layer?> GetLayerById(Guid layerId);

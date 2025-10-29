@@ -1,5 +1,6 @@
 using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
@@ -13,12 +14,12 @@ namespace CusomMapOSM_Infrastructure.Features.Usage;
 public class UsageService : IUsageService
 {
     private readonly IMembershipService _membershipService;
-    private readonly INotificationService _notificationService;
+    private readonly IEmailNotificationService _notificationService;
     private readonly IOrganizationRepository _organizationRepository;
 
     public UsageService(
         IMembershipService membershipService,
-        INotificationService notificationService,
+        IEmailNotificationService notificationService,
         IOrganizationRepository organizationRepository)
     {
         _membershipService = membershipService;

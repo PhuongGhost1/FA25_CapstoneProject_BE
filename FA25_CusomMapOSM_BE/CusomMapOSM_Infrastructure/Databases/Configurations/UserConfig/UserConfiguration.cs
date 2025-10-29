@@ -97,9 +97,9 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                          Phone = "+1234567890",
                          Role = UserRoleEnum.Admin,
                          AccountStatus = AccountStatusEnum.Active,
-                         CreatedAt = DateTime.UtcNow,
+                         CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                          MonthlyTokenUsage = 0,
-                         LastTokenReset = DateTime.UtcNow
+                         LastTokenReset = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
                   }
               //     new User
               //     {
