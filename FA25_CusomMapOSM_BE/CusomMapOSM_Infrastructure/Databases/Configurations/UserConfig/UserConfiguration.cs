@@ -9,16 +9,19 @@ using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Newtonsoft.Json;
 
 namespace CusomMapOSM_Infrastructure.Databases.Configurations.UserConfig;
 
 internal class UserConfiguration : IEntityTypeConfiguration<User>
 {
-       private static string HashPassword(string password)
+       private static string HashObject<T>(T obj)
        {
+              string json = JsonConvert.SerializeObject(obj);
+
               using (SHA256 sha256 = SHA256.Create())
               {
-                     byte[] bytes = Encoding.UTF8.GetBytes(password);
+                     byte[] bytes = Encoding.UTF8.GetBytes(json);
                      byte[] hashBytes = sha256.ComputeHash(bytes);
 
                      StringBuilder hashString = new StringBuilder();
@@ -92,7 +95,7 @@ internal class UserConfiguration : IEntityTypeConfiguration<User>
                   {
                          UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                          Email = "admin@cusommaposm.com",
-                         PasswordHash = HashPassword("Admin123!"), // Default password
+                         PasswordHash = HashObject<string>("Admin123!"), // Default password
                          FullName = "System Administrator",
                          Phone = "+1234567890",
                          Role = UserRoleEnum.Admin,

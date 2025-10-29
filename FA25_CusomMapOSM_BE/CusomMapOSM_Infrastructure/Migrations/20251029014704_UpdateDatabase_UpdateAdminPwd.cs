@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateDabase_RemoveUnnecessaryEntities : Migration
+    public partial class UpdateDatabase_UpdateAdminPwd : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,8 +15,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 table: "users",
                 keyColumn: "user_id",
                 keyValue: new Guid("11111111-1111-1111-1111-111111111111"),
-                columns: new[] { "created_at", "last_token_reset" },
-                values: new object[] { new DateTime(2025, 10, 18, 3, 49, 10, 467, DateTimeKind.Utc).AddTicks(4845), new DateTime(2025, 10, 18, 3, 49, 10, 467, DateTimeKind.Utc).AddTicks(5126) });
+                column: "password_hash",
+                value: "7aaea8cd5f395868fe32e08a7cb9bb060149f6b3fc8c6695c78ca9bf403f47d8");
         }
 
         /// <inheritdoc />
@@ -26,8 +26,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 table: "users",
                 keyColumn: "user_id",
                 keyValue: new Guid("11111111-1111-1111-1111-111111111111"),
-                columns: new[] { "created_at", "last_token_reset" },
-                values: new object[] { new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5678), new DateTime(2025, 10, 16, 18, 49, 39, 794, DateTimeKind.Utc).AddTicks(5960) });
+                column: "password_hash",
+                value: "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121");
         }
     }
 }

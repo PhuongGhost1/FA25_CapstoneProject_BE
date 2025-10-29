@@ -2058,7 +2058,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             FullName = "System Administrator",
                             LastTokenReset = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             MonthlyTokenUsage = 0,
-                            PasswordHash = "3eb3fe66b31e3b4d10fa70b5cad49c7112294af6ae4e476a1c405155d45aa121",
+                            PasswordHash = "7aaea8cd5f395868fe32e08a7cb9bb060149f6b3fc8c6695c78ca9bf403f47d8",
                             Phone = "+1234567890",
                             Role = "Admin"
                         });
