@@ -17,8 +17,7 @@ internal class WorkspaceConfig : IEntityTypeConfiguration<Workspace>
             .IsRequired();
 
         builder.Property(w => w.OrgId)
-            .HasColumnName("org_id")
-            .IsRequired();
+            .HasColumnName("org_id");
 
         builder.Property(w => w.CreatedBy)
             .HasColumnName("created_by")
@@ -55,7 +54,8 @@ internal class WorkspaceConfig : IEntityTypeConfiguration<Workspace>
         builder.HasOne(w => w.Organization)
             .WithMany()
             .HasForeignKey(w => w.OrgId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false);
 
         builder.HasOne(w => w.Creator)
             .WithMany()

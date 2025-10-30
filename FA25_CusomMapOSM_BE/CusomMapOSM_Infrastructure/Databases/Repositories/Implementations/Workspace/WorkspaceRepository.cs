@@ -47,6 +47,16 @@ public class WorkspaceRepository : IWorkspaceRepository
             .ToListAsync();
     }
 
+    public async Task<CusomMapOSM_Domain.Entities.Workspaces.Workspace?> GetPersonalWorkspaceAsync(Guid userId)
+    {
+        return await _context.Workspaces
+            .Include(w => w.Organization)
+            .Include(w => w.Creator)
+            .Where(w => w.CreatedBy == userId && w.OrgId == null)
+            .OrderBy(w => w.CreatedAt)
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<CusomMapOSM_Domain.Entities.Workspaces.Workspace> CreateAsync(CusomMapOSM_Domain.Entities.Workspaces.Workspace workspace)
     {
         _context.Workspaces.Add(workspace);

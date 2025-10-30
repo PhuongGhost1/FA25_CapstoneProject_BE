@@ -8,6 +8,7 @@ public interface IWorkspaceRepository
     Task<IEnumerable<CusomMapOSM_Domain.Entities.Workspaces.Workspace>> GetAllAsync();
     Task<IEnumerable<CusomMapOSM_Domain.Entities.Workspaces.Workspace>> GetByOrganizationIdAsync(Guid orgId);
     Task<IEnumerable<CusomMapOSM_Domain.Entities.Workspaces.Workspace>> GetByUserIdAsync(Guid userId);
+    Task<CusomMapOSM_Domain.Entities.Workspaces.Workspace?> GetPersonalWorkspaceAsync(Guid userId);
     Task<CusomMapOSM_Domain.Entities.Workspaces.Workspace> CreateAsync(CusomMapOSM_Domain.Entities.Workspaces.Workspace workspace);
     Task<CusomMapOSM_Domain.Entities.Workspaces.Workspace> UpdateAsync(CusomMapOSM_Domain.Entities.Workspaces.Workspace workspace);
     Task<bool> DeleteAsync(Guid id);

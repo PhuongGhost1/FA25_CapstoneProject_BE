@@ -11,6 +11,7 @@ using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -232,6 +233,40 @@ public class MapFeatureService : IMapFeatureService
     private static MapFeatureResponse ToResponse(MapFeature f, MapFeatureDocument? mongoData = null)
     {
         var coordinates = mongoData?.Geometry?.ToString() ?? string.Empty;
+        
+        // Special handling for Rectangle: extract bounds from Polygon geometry
+        if (f.GeometryType == GeometryTypeEnum.Rectangle && mongoData?.Geometry != null)
+        {
+            try
+            {
+                var geometryJson = JsonSerializer.Deserialize<JsonNode>(mongoData.Geometry.ToString() ?? "{}");
+                if (geometryJson != null && geometryJson["bounds"] != null)
+                {
+                    // Return original bounds [minLng, minLat, maxLng, maxLat]
+                    coordinates = geometryJson["bounds"]?.ToString() ?? coordinates;
+                }
+                else if (geometryJson != null && geometryJson["type"]?.GetValue<string>() == "Polygon")
+                {
+                    // Fallback: extract bounds from Polygon coordinates
+                    var polygonCoords = geometryJson["coordinates"]?[0]?.AsArray();
+                    if (polygonCoords != null && polygonCoords.Count >= 4)
+                    {
+                        var minLng = polygonCoords[0]?[0]?.GetValue<double>() ?? 0;
+                        var minLat = polygonCoords[0]?[1]?.GetValue<double>() ?? 0;
+                        var maxLng = polygonCoords[2]?[0]?.GetValue<double>() ?? 0;
+                        var maxLat = polygonCoords[2]?[1]?.GetValue<double>() ?? 0;
+                        
+                        coordinates = $"[{minLng},{minLat},{maxLng},{maxLat}]";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // If bounds extraction fails, return as-is
+                Console.WriteLine($"Failed to extract Rectangle bounds: {ex.Message}");
+            }
+        }
+        
         var properties = mongoData?.Properties != null 
             ? JsonSerializer.Serialize(mongoData.Properties) 
             : null;
@@ -303,14 +338,15 @@ public class MapFeatureService : IMapFeatureService
             return geometryType == GeometryTypeEnum.Point
                    || geometryType == GeometryTypeEnum.LineString
                    || geometryType == GeometryTypeEnum.Polygon
-                   || geometryType == GeometryTypeEnum.Circle;
+                   || geometryType == GeometryTypeEnum.Circle
+                   || geometryType == GeometryTypeEnum.Rectangle;
         }
 
         if (annotationType == null) return false;
         return annotationType switch
         {
             AnnotationTypeEnum.Marker => geometryType == GeometryTypeEnum.Point || geometryType == GeometryTypeEnum.Circle,
-            AnnotationTypeEnum.Highlighter => geometryType == GeometryTypeEnum.LineString || geometryType == GeometryTypeEnum.Polygon,
+            AnnotationTypeEnum.Highlighter => geometryType == GeometryTypeEnum.LineString || geometryType == GeometryTypeEnum.Polygon || geometryType == GeometryTypeEnum.Rectangle,
             AnnotationTypeEnum.Text => geometryType == GeometryTypeEnum.Point,
             AnnotationTypeEnum.Note => geometryType == GeometryTypeEnum.Point,
             AnnotationTypeEnum.Link => geometryType == GeometryTypeEnum.Point,

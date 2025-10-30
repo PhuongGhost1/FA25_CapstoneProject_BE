@@ -10,7 +10,7 @@ public record WorkspaceResDto
 public record WorkspaceDetailDto
 {
     public required Guid WorkspaceId { get; set; }
-    public required Guid OrgId { get; set; }
+    public Guid? OrgId { get; set; }
     public required string OrgName { get; set; }
     public required Guid CreatedBy { get; set; }
     public required string CreatorName { get; set; }

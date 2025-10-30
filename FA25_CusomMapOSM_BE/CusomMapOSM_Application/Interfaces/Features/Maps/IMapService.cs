@@ -44,4 +44,10 @@ public interface IMapService
 
     // Permissions
     Task<bool> HasEditPermission(Guid mapId);
+    
+    // Map Publishing Operations
+    Task<Option<bool, Error>> PublishMap(Guid mapId);
+    Task<Option<bool, Error>> UnpublishMap(Guid mapId);
+    Task<Option<bool, Error>> ArchiveMap(Guid mapId);
+    Task<Option<bool, Error>> RestoreMap(Guid mapId);
 }
