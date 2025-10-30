@@ -8,10 +8,13 @@ using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
 using Optional;
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
+using CusomMapOSM_Domain.Entities.Workspaces;
+using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -22,19 +25,22 @@ public class MapService : IMapService
     private readonly ICacheService _cacheService;
     private readonly IMapHistoryService _mapHistoryService;
     private readonly ILayerDataStore _layerDataStore;
+    private readonly IWorkspaceRepository _workspaceRepository;
 
     public MapService(
         IMapRepository mapRepository,
         ICurrentUserService currentUserService,
         ICacheService cacheService,
         IMapHistoryService mapHistoryService,
-        ILayerDataStore layerDataStore)
+        ILayerDataStore layerDataStore,
+        IWorkspaceRepository workspaceRepository)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
         _cacheService = cacheService;
         _mapHistoryService = mapHistoryService;
         _layerDataStore = layerDataStore;
+        _workspaceRepository = workspaceRepository;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -54,52 +60,59 @@ public class MapService : IMapService
                 Error.NotFound("Map.TemplateNotFound", "Map template not found"));
         }
 
-        // Create map from template
-        var newMap = new Map
-        {
-            MapName = req.CustomName ?? template.MapName,
-            Description = req.CustomDescription ?? template.Description,
-            IsPublic = req.IsPublic,
-            UserId = currentUserId.Value,
-            // OrgId removed; organization inferred via workspace when applicable
-            DefaultBounds = template.DefaultBounds,
-            ViewState = template.ViewState,
-            BaseLayer = template.BaseLayer,
-            ParentMapId = template.MapId,
-            CreatedAt = DateTime.UtcNow,
-            IsActive = true
-        };
+        var workspaceResult = await ResolveWorkspaceIdAsync(currentUserId.Value, req.WorkspaceId);
 
-        if (req.CustomInitialLatitude.HasValue && req.CustomInitialLongitude.HasValue)
-        {
-            newMap.DefaultBounds = $"{req.CustomInitialLatitude},{req.CustomInitialLongitude}";
-            newMap.ViewState = req.CustomInitialZoom.HasValue
-                ? $"{{\"center\":[{req.CustomInitialLatitude},{req.CustomInitialLongitude}],\"zoom\":{req.CustomInitialZoom}}}"
-                : $"{{\"center\":[{req.CustomInitialLatitude},{req.CustomInitialLongitude}],\"zoom\":10}}";
-        }
+        return await workspaceResult.Match<Task<Option<CreateMapFromTemplateResponse, Error>>>(
+            async workspaceId =>
+            {
+                var newMap = new Map
+                {
+                    MapName = req.CustomName ?? template.MapName,
+                    Description = req.CustomDescription ?? template.Description,
+                    IsPublic = req.IsPublic,
+                    UserId = currentUserId.Value,
+                    WorkspaceId = workspaceId,
+                    DefaultBounds = template.DefaultBounds,
+                    ViewState = template.ViewState,
+                    BaseLayer = template.BaseLayer,
+                    ParentMapId = template.MapId,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
 
-        var createResult = await _mapRepository.CreateMap(newMap);
-        if (!createResult)
-        {
-            return Option.None<CreateMapFromTemplateResponse, Error>(
-                Error.Failure("Map.CreateFailed", "Failed to create map from template"));
-        }
+                if (req.CustomInitialLatitude.HasValue && req.CustomInitialLongitude.HasValue)
+                {
+                    newMap.DefaultBounds = $"{req.CustomInitialLatitude},{req.CustomInitialLongitude}";
+                    newMap.ViewState = req.CustomInitialZoom.HasValue
+                        ? $"{{\"center\":[{req.CustomInitialLatitude},{req.CustomInitialLongitude}],\"zoom\":{req.CustomInitialZoom}}}"
+                        : $"{{\"center\":[{req.CustomInitialLatitude},{req.CustomInitialLongitude}],\"zoom\":10}}";
+                }
 
-        var layersCreated = await CopyTemplateLayersToMap(template.MapId, newMap.MapId, currentUserId.Value);
-        var imagesCreated = await CopyTemplateImagesToMap(template.MapId, newMap.MapId, currentUserId.Value);
+                var createResult = await _mapRepository.CreateMap(newMap);
+                if (!createResult)
+                {
+                    return Option.None<CreateMapFromTemplateResponse, Error>(
+                        Error.Failure("Map.CreateFailed", "Failed to create map from template"));
+                }
 
-        template.UsageCount++;
-        await _mapRepository.UpdateMapTemplate(template);
+                var layersCreated = await CopyTemplateLayersToMap(template.MapId, newMap.MapId, currentUserId.Value);
+                var imagesCreated = await CopyTemplateImagesToMap(template.MapId, newMap.MapId, currentUserId.Value);
 
-        return Option.Some<CreateMapFromTemplateResponse, Error>(new CreateMapFromTemplateResponse
-        {
-            MapId = newMap.MapId,
-            MapName = newMap.MapName,
-            TemplateName = template.MapName,
-            LayersCreated = layersCreated,
-            ImagesCreated = imagesCreated,
-            CreatedAt = newMap.CreatedAt
-        });
+                template.UsageCount++;
+                await _mapRepository.UpdateMapTemplate(template);
+
+                return Option.Some<CreateMapFromTemplateResponse, Error>(new CreateMapFromTemplateResponse
+                {
+                    MapId = newMap.MapId,
+                    MapName = newMap.MapName,
+                    TemplateName = template.MapName,
+                    LayersCreated = layersCreated,
+                    ImagesCreated = imagesCreated,
+                    CreatedAt = newMap.CreatedAt
+                });
+            },
+            error => Task.FromResult(Option.None<CreateMapFromTemplateResponse, Error>(error))
+        );
     }
 
     public async Task<Option<CreateMapResponse, Error>> Create(CreateMapRequest req)
@@ -111,65 +124,68 @@ public class MapService : IMapService
                 Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
         }
 
-        var newMap = new Map
-        {
-            MapName = req.Name,
-            Description = req.Description,
-            IsPublic = req.IsPublic,
-            UserId = currentUserId.Value,
-            // OrgId removed
-            DefaultBounds = req.DefaultBounds,
-            ViewState = req.ViewState,
-            BaseLayer = req.BaseMapProvider ?? "osm",
-            CreatedAt = DateTime.UtcNow,
-            IsActive = true
-        };
+        var workspaceResult = await ResolveWorkspaceIdAsync(currentUserId.Value, req.WorkspaceId);
 
-        var createResult = await _mapRepository.CreateMap(newMap);
-        if (!createResult)
-        {
-            return Option.None<CreateMapResponse, Error>(
-                Error.Failure("Map.CreateFailed", "Failed to create map"));
-        }
+        return await workspaceResult.Match<Task<Option<CreateMapResponse, Error>>>(
+            async workspaceId =>
+            {
+                var newMap = new Map
+                {
+                    MapName = req.Name,
+                    Description = req.Description,
+                    IsPublic = req.IsPublic,
+                    UserId = currentUserId.Value,
+                    WorkspaceId = workspaceId,
+                    DefaultBounds = req.DefaultBounds,
+                    ViewState = req.ViewState,
+                    BaseLayer = req.BaseMapProvider ?? "osm",
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
 
-        // Auto-create a default layer for the new map
-        var defaultLayer = new Layer
-        {
-            LayerId = Guid.NewGuid(),
-            MapId = newMap.MapId,
-            UserId = newMap.UserId,
-            LayerName = "Default Layer",
-            LayerType = LayerTypeEnum.GEOJSON,
-            SourceType = LayerSourceEnum.UserUploaded,
-            LayerStyle = JsonSerializer.Serialize(new { color = "#2563eb", weight = 2, fillColor = "#3b82f6", fillOpacity = 0.2 }),
-            IsPublic = false,
-            IsVisible = true,
-            ZIndex = 1,
-            LayerOrder = 1,
-            FeatureCount = 0,
-            DataSizeKB = 0,
-            CreatedAt = DateTime.UtcNow
-        };
+                var createResult = await _mapRepository.CreateMap(newMap);
+                if (!createResult)
+                {
+                    return Option.None<CreateMapResponse, Error>(
+                        Error.Failure("Map.CreateFailed", "Failed to create map"));
+                }
 
-        await _layerDataStore.SetDataAsync(defaultLayer,
-            JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() }));
-        await _mapRepository.CreateLayer(defaultLayer);
+                // Auto-create a default layer for the new map
+                var defaultLayer = new Layer
+                {
+                    LayerId = Guid.NewGuid(),
+                    MapId = newMap.MapId,
+                    UserId = newMap.UserId,
+                    LayerName = "Default Layer",
+                    LayerType = LayerTypeEnum.GEOJSON,
+                    SourceType = LayerSourceEnum.UserUploaded,
+                    LayerStyle = JsonSerializer.Serialize(new { color = "#2563eb", weight = 2, fillColor = "#3b82f6", fillOpacity = 0.2 }),
+                    IsPublic = false,
+                    IsVisible = true,
+                    ZIndex = 1,
+                    LayerOrder = 1,
+                    FeatureCount = 0,
+                    DataSizeKB = 0,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-        return Option.Some<CreateMapResponse, Error>(new CreateMapResponse
-        {
-            MapId = newMap.MapId,
-            CreatedAt = newMap.CreatedAt
-        });
+                await _layerDataStore.SetDataAsync(defaultLayer,
+                    JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() }));
+                await _mapRepository.CreateLayer(defaultLayer);
+
+                return Option.Some<CreateMapResponse, Error>(new CreateMapResponse
+                {
+                    MapId = newMap.MapId,
+                    CreatedAt = newMap.CreatedAt
+                });
+            },
+            error => Task.FromResult(Option.None<CreateMapResponse, Error>(error))
+        );
     }
 
     public async Task<Option<GetMapByIdResponse, Error>> GetById(Guid mapId)
     {
         var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId is null)
-        {
-            return Option.None<GetMapByIdResponse, Error>(
-                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
-        }
 
         var map = await _mapRepository.GetMapById(mapId);
         if (map is null || !map.IsActive)
@@ -178,14 +194,28 @@ public class MapService : IMapService
                 Error.NotFound("Map.NotFound", "Map not found"));
         }
 
-        // Check if user has access to this map
-        if (!map.IsPublic && map.UserId != currentUserId.Value)
+        // Access rules:
+        // - If user is authenticated and is the owner: allow
+        // - Else if map is public or published: allow anonymous/public view
+        // - Else: forbid
+        if (currentUserId.HasValue)
         {
-            return Option.None<GetMapByIdResponse, Error>(
-                Error.Forbidden("Map.AccessDenied", "You don't have access to this map"));
+            if (map.UserId != currentUserId.Value && !map.IsPublic && map.Status != MapStatusEnum.Published)
+            {
+                return Option.None<GetMapByIdResponse, Error>(
+                    Error.Forbidden("Map.AccessDenied", "You don't have access to this map"));
+            }
+        }
+        else
+        {
+            if (!map.IsPublic && map.Status != MapStatusEnum.Published)
+            {
+                return Option.None<GetMapByIdResponse, Error>(
+                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+            }
         }
 
-        var mapDto = await MapToMapDetailDTO(map, currentUserId.Value);
+        var mapDto = await MapToMapDetailDTO(map, currentUserId ?? Guid.Empty);
 
         return Option.Some<GetMapByIdResponse, Error>(new GetMapByIdResponse
         {
@@ -549,25 +579,92 @@ public class MapService : IMapService
                 Error.Forbidden("Map.NotOwner", "Only the map owner can add layers"));
         }
 
-        // Get the layer and update its map association
-        var layer = await _mapRepository.GetLayerById(req.LayerId);
-        if (layer == null)
+        Layer layer;
+        
+        // Check if LayerId is provided (existing layer) or need to create new layer
+        if (req.LayerId != Guid.Empty)
         {
-            return Option.None<AddLayerToMapResponse, Error>(
-                Error.NotFound("Layer.NotFound", "Layer not found"));
+            // Get the existing layer and update its map association
+            layer = await _mapRepository.GetLayerById(req.LayerId);
+            if (layer == null)
+            {
+                return Option.None<AddLayerToMapResponse, Error>(
+                    Error.NotFound("Layer.NotFound", "Layer not found"));
+            }
+
+            layer.MapId = mapId;
+            layer.IsVisible = req.IsVisible;
+            layer.ZIndex = req.ZIndex;
+            layer.LayerOrder = 0;
+            layer.UpdatedAt = DateTime.UtcNow;
+
+            var updateResult = await _mapRepository.UpdateLayer(layer);
+            if (!updateResult)
+            {
+                return Option.None<AddLayerToMapResponse, Error>(
+                    Error.Failure("Map.AddLayerFailed", "Failed to add layer to map"));
+            }
         }
-
-        layer.MapId = mapId;
-        layer.IsVisible = req.IsVisible;
-        layer.ZIndex = req.ZIndex;
-        layer.LayerOrder = 0;
-        layer.UpdatedAt = DateTime.UtcNow;
-
-        var result = await _mapRepository.UpdateLayer(layer);
-        if (!result)
+        else
         {
-            return Option.None<AddLayerToMapResponse, Error>(
-                Error.Failure("Map.AddLayerFailed", "Failed to add layer to map"));
+            // Create a new layer with provided data
+            if (string.IsNullOrWhiteSpace(req.LayerName) || string.IsNullOrWhiteSpace(req.LayerData))
+            {
+                return Option.None<AddLayerToMapResponse, Error>(
+                    Error.ValidationError("Layer.InvalidData", "LayerName and LayerData are required when creating a new layer"));
+            }
+
+            // Parse LayerTypeId to LayerTypeEnum
+            LayerTypeEnum layerType = LayerTypeEnum.GEOJSON; // Default
+            if (!string.IsNullOrWhiteSpace(req.LayerTypeId))
+            {
+                if (int.TryParse(req.LayerTypeId, out var typeId))
+                {
+                    layerType = (LayerTypeEnum)typeId;
+                }
+                else if (Enum.TryParse<LayerTypeEnum>(req.LayerTypeId, true, out var parsedType))
+                {
+                    layerType = parsedType;
+                }
+            }
+
+            // Calculate data size for compression decision
+            var dataSizeKB = req.LayerData.Length / 1024.0;
+            
+            // Compress large data (> 5MB) to avoid max_allowed_packet issues
+            var compressedData = dataSizeKB > 5000
+                ? await CompressGeoJsonDataAsync(req.LayerData)
+                : req.LayerData;
+
+            layer = new Layer
+            {
+                LayerId = Guid.NewGuid(),
+                MapId = mapId,
+                LayerName = req.LayerName,
+                LayerType = layerType,
+                LayerStyle = req.LayerStyle ?? string.Empty,
+                SourceType = LayerSourceEnum.UserUploaded,
+                FilePath = string.Empty,
+                IsPublic = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                UserId = currentUserId.Value,
+                IsVisible = req.IsVisible,
+                ZIndex = req.ZIndex,
+                LayerOrder = 0,
+                DataSizeKB = dataSizeKB
+            };
+
+            // Store layer data using LayerDataStore (Redis/File storage) instead of direct DB insert
+            // This prevents "max_allowed_packet" errors when uploading large files
+            await _layerDataStore.SetDataAsync(layer, compressedData);
+
+            var createResult = await _mapRepository.CreateLayer(layer);
+            if (!createResult)
+            {
+                return Option.None<AddLayerToMapResponse, Error>(
+                    Error.Failure("Map.CreateLayerFailed", "Failed to create new layer"));
+            }
         }
 
         // Record snapshot after adding layer
@@ -728,6 +825,56 @@ public class MapService : IMapService
         return Option.Some<UnshareMapResponse, Error>(new UnshareMapResponse());
     }
 
+    private async Task<Option<Guid, Error>> ResolveWorkspaceIdAsync(Guid userId, Guid? requestedWorkspaceId)
+    {
+        var sanitizedWorkspaceId = requestedWorkspaceId.HasValue && requestedWorkspaceId != Guid.Empty
+            ? requestedWorkspaceId
+            : null;
+
+        if (sanitizedWorkspaceId.HasValue)
+        {
+            var workspace = await _workspaceRepository.GetByIdAsync(sanitizedWorkspaceId.Value);
+            if (workspace is null || !workspace.IsActive)
+            {
+                return Option.None<Guid, Error>(
+                    Error.NotFound("Workspace.NotFound", "Workspace not found"));
+            }
+
+            return Option.Some<Guid, Error>(workspace.WorkspaceId);
+        }
+
+        var personalWorkspace = await _workspaceRepository.GetPersonalWorkspaceAsync(userId);
+        if (personalWorkspace is not null)
+        {
+            if (!personalWorkspace.IsActive)
+            {
+                personalWorkspace.IsActive = true;
+                personalWorkspace.UpdatedAt = DateTime.UtcNow;
+                await _workspaceRepository.UpdateAsync(personalWorkspace);
+            }
+
+            return Option.Some<Guid, Error>(personalWorkspace.WorkspaceId);
+        }
+
+        var newWorkspace = new CusomMapOSM_Domain.Entities.Workspaces.Workspace
+        {
+            WorkspaceId = Guid.NewGuid(),
+            OrgId = null,
+            CreatedBy = userId,
+            WorkspaceName = $"Personal Workspace {userId:N}",
+            Description = "Automatically created personal workspace.",
+            Icon = null,
+            Access = WorkspaceAccessEnum.Private,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            Organization = null,
+            Creator = null!
+        };
+
+        var createdWorkspace = await _workspaceRepository.CreateAsync(newWorkspace);
+        return Option.Some<Guid, Error>(createdWorkspace.WorkspaceId);
+    }
+
     private async Task<MapDetailDTO> MapToMapDetailDTO(Map map, Guid currentUserId)
     {
         // Get layers for this map
@@ -822,8 +969,8 @@ public class MapService : IMapService
             BaseLayer = map.BaseLayer,
             OwnerId = map.UserId,
             OwnerName = map.User?.FullName ?? "Unknown",
-            IsOwner = map.UserId == currentUserId,
-            UserRole = map.UserId == currentUserId ? "Owner" : "Viewer",
+            IsOwner = currentUserId != Guid.Empty && map.UserId == currentUserId,
+            UserRole = currentUserId != Guid.Empty && map.UserId == currentUserId ? "Owner" : "Viewer",
             Layers = layerDtos
         };
     }
@@ -1499,5 +1646,185 @@ public class MapService : IMapService
         }
     }
 
+    #endregion
+    
+    #region Map Publishing Operations
+    
+    public async Task<Option<bool, Error>> PublishMap(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<bool, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null || !map.IsActive)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("Map.NotOwner", "Only the map owner can publish it"));
+        }
+
+        // Chỉ cho phép publish khi map đang ở trạng thái Draft hoặc Unpublished
+        if (map.Status != MapStatusEnum.Draft && map.Status != MapStatusEnum.Unpublished)
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Map.InvalidStatus", 
+                    $"Map cannot be published from status {map.Status}. Only Draft or Unpublished maps can be published."));
+        }
+
+        // TODO: Validation - Map phải có ít nhất 1 segment để publish (cần check với StoryMap repository)
+        // var hasSegments = await _storyMapRepository.HasSegments(mapId);
+        // if (!hasSegments)
+        // {
+        //     return Option.None<bool, Error>(
+        //         Error.ValidationError("Map.NoSegments", "Story Map must have at least one segment before publishing"));
+        // }
+
+        map.Status = MapStatusEnum.Published;
+        map.IsPublic = true;
+        map.PublishedAt = DateTime.UtcNow;
+        map.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _mapRepository.UpdateMap(map);
+        if (!updateResult)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Map.PublishFailed", "Failed to publish map"));
+        }
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> UnpublishMap(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<bool, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null || !map.IsActive)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("Map.NotOwner", "Only the map owner can unpublish it"));
+        }
+
+        // Chỉ cho phép unpublish khi map đang ở trạng thái Published
+        if (map.Status != MapStatusEnum.Published)
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Map.InvalidStatus", 
+                    $"Only published maps can be unpublished. Current status: {map.Status}"));
+        }
+
+        map.Status = MapStatusEnum.Unpublished;
+        map.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _mapRepository.UpdateMap(map);
+        if (!updateResult)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Map.UnpublishFailed", "Failed to unpublish map"));
+        }
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> ArchiveMap(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<bool, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null || !map.IsActive)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("Map.NotOwner", "Only the map owner can archive it"));
+        }
+
+        map.Status = MapStatusEnum.Archived;
+        map.IsActive = false;
+        map.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _mapRepository.UpdateMap(map);
+        if (!updateResult)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Map.ArchiveFailed", "Failed to archive map"));
+        }
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> RestoreMap(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<bool, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("Map.NotOwner", "Only the map owner can restore it"));
+        }
+
+        // Chỉ cho phép restore khi map đang ở trạng thái Archived
+        if (map.Status != MapStatusEnum.Archived)
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Map.InvalidStatus", 
+                    $"Only archived maps can be restored. Current status: {map.Status}"));
+        }
+
+        map.Status = MapStatusEnum.Draft;
+        map.IsActive = true;
+        map.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _mapRepository.UpdateMap(map);
+        if (!updateResult)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Map.RestoreFailed", "Failed to restore map"));
+        }
+
+        return Option.Some<bool, Error>(true);
+    }
+    
     #endregion
 }

@@ -59,7 +59,7 @@ public static class GeometryValidator
             case "circle":
                 return ConvertCircleToPolygon(geometry);
             case "rectangle":
-                return ConvertRectangleToPolygon(geometry);
+                return NormalizeRectangle(geometry);
             default:
                 return geometry;
         }
@@ -186,13 +186,11 @@ public static class GeometryValidator
         var latitude = coordsArray[1]?.GetValue<double>() ?? 0;
         var radiusMeters = coordsArray[2]?.GetValue<double>() ?? 100;
 
-        // Convert radius from meters to degrees (approximate)
-        // 1 degree latitude ≈ 111,320 meters
-        // 1 degree longitude ≈ 111,320 * cos(latitude) meters
+
         var latRadius = radiusMeters / 111320.0;
         var lngRadius = radiusMeters / (111320.0 * Math.Cos(latitude * Math.PI / 180.0));
 
-        // Create a polygon approximation of the circle (32 points)
+
         var points = new JsonArray();
         for (int i = 0; i < 32; i++)
         {
@@ -206,7 +204,6 @@ public static class GeometryValidator
             points.Add(point);
         }
         
-        // Close the polygon by adding the first point again
         var firstPoint = new JsonArray();
         firstPoint.Add(longitude + lngRadius);
         firstPoint.Add(latitude);
@@ -236,13 +233,11 @@ public static class GeometryValidator
         var coordsArray = coordinates.AsArray();
         if (coordsArray.Count < 2)
             return geometry;
-
-        // Ensure we have at least longitude and latitude
+        
         var normalizedCoords = new JsonArray();
         normalizedCoords.Add(coordsArray[0]?.GetValue<double>() ?? 0);
         normalizedCoords.Add(coordsArray[1]?.GetValue<double>() ?? 0);
         
-        // Add altitude if present
         if (coordsArray.Count > 2)
         {
             normalizedCoords.Add(coordsArray[2]?.GetValue<double>() ?? 0);
@@ -277,7 +272,6 @@ public static class GeometryValidator
                 normalizedPoint.Add(point[0]?.GetValue<double>() ?? 0);
                 normalizedPoint.Add(point[1]?.GetValue<double>() ?? 0);
                 
-                // Add altitude if present
                 if (point.Count > 2)
                 {
                     normalizedPoint.Add(point[2]?.GetValue<double>() ?? 0);
@@ -314,7 +308,6 @@ public static class GeometryValidator
                 normalizedPoint.Add(point[0]?.GetValue<double>() ?? 0);
                 normalizedPoint.Add(point[1]?.GetValue<double>() ?? 0);
                 
-                // Add altitude if present
                 if (point.Count > 2)
                 {
                     normalizedPoint.Add(point[2]?.GetValue<double>() ?? 0);
@@ -356,7 +349,6 @@ public static class GeometryValidator
                         normalizedPoint.Add(point[0]?.GetValue<double>() ?? 0);
                         normalizedPoint.Add(point[1]?.GetValue<double>() ?? 0);
                         
-                        // Add altitude if present
                         if (point.Count > 2)
                         {
                             normalizedPoint.Add(point[2]?.GetValue<double>() ?? 0);
@@ -388,14 +380,12 @@ public static class GeometryValidator
         var coordsArray = coordinates.AsArray();
         if (coordsArray.Count != 4)
             return geometry;
-
-        // Rectangle coordinates: [minLng, minLat, maxLng, maxLat]
+        
         var minLng = coordsArray[0]?.GetValue<double>() ?? 0;
         var minLat = coordsArray[1]?.GetValue<double>() ?? 0;
         var maxLng = coordsArray[2]?.GetValue<double>() ?? 0;
         var maxLat = coordsArray[3]?.GetValue<double>() ?? 0;
-
-        // Create rectangle polygon coordinates
+        
         var rectangleCoords = new JsonArray();
         
         // Bottom-left
@@ -435,6 +425,105 @@ public static class GeometryValidator
         {
             ["type"] = "Polygon",
             ["coordinates"] = ring
+        };
+
+        return polygon;
+    }
+
+    private static JsonNode NormalizeRectangle(JsonNode geometry)
+    {
+        // IMPORTANT: MongoDB requires GeoJSON standard types (Point, LineString, Polygon, etc.)
+        // Rectangle is NOT a standard GeoJSON type, so we MUST convert it to Polygon for storage
+        // However, we keep GeometryType field as "Rectangle" for semantic meaning
+        // This way:
+        // - MongoDB can index and query the geometry (as Polygon)
+        // - Frontend reads GeometryType field to know it's a Rectangle
+        // - We store original bounds in a custom "bounds" field for easy retrieval
+        
+        JsonArray coordsArray;
+        
+        if (geometry["type"]?.GetValue<string>() == "Rectangle" && geometry["coordinates"] != null)
+        {
+            coordsArray = geometry["coordinates"] as JsonArray;
+        }
+        else if (geometry is JsonArray directArray && directArray.Count == 4)
+        {
+            coordsArray = directArray;
+        }
+        else
+        {
+            return geometry;
+        }
+        
+        if (coordsArray == null || coordsArray.Count != 4)
+        {
+            return geometry;
+        }
+        
+        for (int i = 0; i < 4; i++)
+        {
+            if (coordsArray[i]?.GetValueKind() != JsonValueKind.Number)
+            {
+                return geometry;
+            }
+        }
+        
+        // Extract bounds: [minLng, minLat, maxLng, maxLat]
+        var minLng = coordsArray[0]?.GetValue<double>() ?? 0;
+        var minLat = coordsArray[1]?.GetValue<double>() ?? 0;
+        var maxLng = coordsArray[2]?.GetValue<double>() ?? 0;
+        var maxLat = coordsArray[3]?.GetValue<double>() ?? 0;
+
+        // Convert Rectangle bounds to Polygon coordinates for MongoDB compatibility
+        var rectangleCoords = new JsonArray();
+        
+        // Bottom-left
+        var point1 = new JsonArray();
+        point1.Add(minLng);
+        point1.Add(minLat);
+        rectangleCoords.Add(point1);
+        
+        // Bottom-right
+        var point2 = new JsonArray();
+        point2.Add(maxLng);
+        point2.Add(minLat);
+        rectangleCoords.Add(point2);
+        
+        // Top-right
+        var point3 = new JsonArray();
+        point3.Add(maxLng);
+        point3.Add(maxLat);
+        rectangleCoords.Add(point3);
+        
+        // Top-left
+        var point4 = new JsonArray();
+        point4.Add(minLng);
+        point4.Add(maxLat);
+        rectangleCoords.Add(point4);
+        
+        // Close the ring (back to bottom-left)
+        var point5 = new JsonArray();
+        point5.Add(minLng);
+        point5.Add(minLat);
+        rectangleCoords.Add(point5);
+
+        // Create Polygon ring
+        var ring = new JsonArray();
+        ring.Add(rectangleCoords);
+
+        // Create a NEW bounds array (cannot reuse coordsArray due to parent node constraint)
+        var boundsArray = new JsonArray();
+        boundsArray.Add(minLng);
+        boundsArray.Add(minLat);
+        boundsArray.Add(maxLng);
+        boundsArray.Add(maxLat);
+
+        // Return as standard GeoJSON Polygon WITH custom bounds field
+        var polygon = new JsonObject
+        {
+            ["type"] = "Polygon",
+            ["coordinates"] = ring,
+            ["bounds"] = boundsArray
         };
 
         return polygon;

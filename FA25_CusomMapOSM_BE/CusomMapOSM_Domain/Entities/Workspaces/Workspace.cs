@@ -12,7 +12,7 @@ namespace CusomMapOSM_Domain.Entities.Workspaces;
 public class Workspace
 {
     public Guid WorkspaceId { get; set; }
-    public Guid OrgId { get; set; }
+    public Guid? OrgId { get; set; }
     public Guid CreatedBy { get; set; }
     public string WorkspaceName { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -21,6 +21,6 @@ public class Workspace
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    public required Organization Organization { get; set; }
+    public Organization? Organization { get; set; }
     public required User Creator { get; set; }
 }

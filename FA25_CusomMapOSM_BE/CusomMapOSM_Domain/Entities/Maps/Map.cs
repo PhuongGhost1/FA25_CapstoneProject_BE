@@ -28,6 +28,8 @@ public class Map
     public string? ViewState { get; set; }
     public bool IsPublic { get; set; } = false;
     public bool IsActive { get; set; } = true;
+    public MapStatusEnum Status { get; set; } = MapStatusEnum.Draft;
+    public DateTime? PublishedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public User? User { get; set; }

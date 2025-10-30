@@ -143,7 +143,7 @@ public class MapEndpoints : IEndpoint
                 );
             }).WithName("GetMapById")
             .WithDescription("Get a specific map by ID")
-            .RequireAuthorization()
+            .AllowAnonymous()
             .Produces<GetMapByIdResponse>(200);
 
         group.MapPut("/{mapId:guid}", async (
@@ -174,6 +174,78 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Delete a map")
             .RequireAuthorization()
             .Produces<DeleteMapResponse>(200);
+
+        // ===== Map Publishing =====
+        group.MapPost("/{mapId:guid}/publish", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.PublishMap(mapId);
+                return result.Match(
+                    success => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("PublishMap")
+            .WithDescription("Publish a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        group.MapPost("/{mapId:guid}/unpublish", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.UnpublishMap(mapId);
+                return result.Match(
+                    success => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("UnpublishMap")
+            .WithDescription("Unpublish a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        group.MapPost("/{mapId:guid}/archive", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.ArchiveMap(mapId);
+                return result.Match(
+                    success => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("ArchiveMap")
+            .WithDescription("Archive a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        group.MapPost("/{mapId:guid}/restore", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.RestoreMap(mapId);
+                return result.Match(
+                    success => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("RestoreMap")
+            .WithDescription("Restore an archived map to Draft")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
 
         group.MapPost("/{mapId:guid}/layers", async (
                 [FromRoute] Guid mapId,
@@ -541,14 +613,7 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Update layer's GeoJSON data")
             .RequireAuthorization()
             .Produces<UpdateLayerDataResponse>(200);
-
-        // Note: Story Map endpoints have been moved to StoryMapEndpoint under /story-map prefix
-        // All story-related operations should use /story-map/{mapId}/...
         
-        // Note: POI endpoints have been moved to PoiEndpoint under /points-of-interest prefix
-        // All POI operations should use /points-of-interest/{mapId}/...
-
-        // Simple permission check endpoint
         group.MapGet("/{mapId:guid}/can-edit", async (
                 [FromRoute] Guid mapId,
                 [FromServices] IMapService mapService) =>
