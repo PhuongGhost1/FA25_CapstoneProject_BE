@@ -11,4 +11,6 @@ public interface IPoiService
     Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default);
     Task<Option<PoiDto, Error>> UpdatePoiAsync(Guid poiId, UpdatePoiRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default);
+    Task<Option<PoiDto, Error>> UpdatePoiDisplayConfigAsync(Guid poiId, UpdatePoiDisplayConfigRequest request, CancellationToken ct = default);
+    Task<Option<PoiDto, Error>> UpdatePoiInteractionConfigAsync(Guid poiId, UpdatePoiInteractionConfigRequest request, CancellationToken ct = default);
 }

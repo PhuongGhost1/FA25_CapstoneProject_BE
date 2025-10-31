@@ -14,6 +14,7 @@ using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
+using CusomMapOSM_Application.Interfaces.Services.MinIO;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Infrastructure.Databases;
@@ -62,7 +63,9 @@ using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
+using CusomMapOSM_Infrastructure.Services.MinIO;
 using MongoDB.Driver;
+using Minio;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using Microsoft.EntityFrameworkCore;
@@ -142,6 +145,8 @@ public static class DependencyInjections
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
         services.AddScoped<ILayerAnimationRepository, LayerAnimationRepository>();
         services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
+        
+        // Interactive Points repositories - merged into Location entity
 
         services.AddSingleton<IMongoClient>(_ => new MongoClient(MongoDatabaseConstant.ConnectionString));
         services.AddScoped(sp =>
@@ -157,8 +162,27 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureStore, MongoMapFeatureStore>();
         services.AddScoped<IMapHistoryStore, MongoMapHistoryStore>();
         services.AddScoped<ISegmentLocationStore, MongoSegmentLocationStore>();
+        
+        // Interactive Points MongoDB store - merged into Location entity
 
         services.AddScoped<ICacheService,RedisCacheService>();
+        
+        // MinIO service for file storage
+        services.AddSingleton<IMinioClient>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var endpoint = config["MinIO:Endpoint"] ?? "localhost:9000";
+            var accessKey = config["MinIO:AccessKey"] ?? "minioadmin";
+            var secretKey = config["MinIO:SecretKey"] ?? "minioadmin";
+            var useSSL = bool.Parse(config["MinIO:UseSSL"] ?? "false");
+
+            return new MinioClient()
+                .WithEndpoint(endpoint)
+                .WithCredentials(accessKey, secretKey)
+                .WithSSL(useSSL)
+                .Build();
+        });
+        services.AddScoped<IMinIOService, MinIOService>();
 
         return services;
     }
@@ -178,6 +202,8 @@ public static class DependencyInjections
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
+        
+        // Interactive Points services - merged into Location entity
 
         // Organization Admin Services
         services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();

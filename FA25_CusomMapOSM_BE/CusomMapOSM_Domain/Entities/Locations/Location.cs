@@ -4,6 +4,7 @@ using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Zones;
 
 namespace CusomMapOSM_Domain.Entities.Locations;
@@ -34,6 +35,11 @@ public class Location
     public Guid? AssociatedLayerId { get; set; }
     public Guid? AnimationPresetId { get; set; }
     public string? AnimationOverrides { get; set; }
+
+    public bool IsVisible { get; set; } = true;
+    public int ZIndex { get; set; } = 0;
+    public Guid CreatedBy { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
@@ -43,4 +49,5 @@ public class Location
     public Layer? AssociatedLayer { get; set; }
     public LayerAnimationPreset? AnimationPreset { get; set; }
     public Location? LinkedLocation { get; set; }
+    public User? Creator { get; set; }
 }
