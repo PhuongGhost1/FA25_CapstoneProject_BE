@@ -1,7 +1,9 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using Optional;
@@ -12,11 +14,15 @@ public class PoiService : IPoiService
 {
     private readonly IStoryMapRepository _storyMapRepository;
     private readonly ISegmentLocationStore _locationStore;
+    private readonly ICurrentUserService _currentUserService;
 
-    public PoiService(IStoryMapRepository storyMapRepository, ISegmentLocationStore locationStore)
+    // Mapping moved to Application/Common/Mappers/LocationMappings.cs
+
+    public PoiService(IStoryMapRepository storyMapRepository, ISegmentLocationStore locationStore, ICurrentUserService currentUserService)
     {
         _storyMapRepository = storyMapRepository;
         _locationStore = locationStore;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetMapPoisAsync(Guid mapId, CancellationToken ct = default)
@@ -28,33 +34,7 @@ public class PoiService : IPoiService
         }
 
         var locations = await _locationStore.GetByMapAsync(mapId, ct);
-        var poiDtos = locations.Select(l => new PoiDto(
-            l.LocationId,
-            l.MapId,
-            l.SegmentId,
-            l.ZoneId,
-            l.Title,
-            l.Subtitle,
-            l.LocationType,
-            l.MarkerGeometry,
-            l.StoryContent,
-            l.MediaResources,
-            l.DisplayOrder,
-            l.HighlightOnEnter,
-            l.ShowTooltip,
-            l.TooltipContent,
-            l.EffectType,
-            l.OpenSlideOnClick,
-            l.SlideContent,
-            l.LinkedLocationId,
-            l.PlayAudioOnClick,
-            l.AudioUrl,
-            l.ExternalUrl,
-            l.AssociatedLayerId,
-            l.AnimationPresetId,
-            l.AnimationOverrides,
-            l.CreatedAt,
-            l.UpdatedAt)).ToList();
+        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
         return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
     }
 
@@ -67,38 +47,18 @@ public class PoiService : IPoiService
         }
 
         var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
-        var poiDtos = locations.Select(l => new PoiDto(
-            l.LocationId,
-            l.MapId,
-            l.SegmentId,
-            l.ZoneId,
-            l.Title,
-            l.Subtitle,
-            l.LocationType,
-            l.MarkerGeometry,
-            l.StoryContent,
-            l.MediaResources,
-            l.DisplayOrder,
-            l.HighlightOnEnter,
-            l.ShowTooltip,
-            l.TooltipContent,
-            l.EffectType,
-            l.OpenSlideOnClick,
-            l.SlideContent,
-            l.LinkedLocationId,
-            l.PlayAudioOnClick,
-            l.AudioUrl,
-            l.ExternalUrl,
-            l.AssociatedLayerId,
-            l.AnimationPresetId,
-            l.AnimationOverrides,
-            l.CreatedAt,
-            l.UpdatedAt)).ToList();
+        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
         return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
     }
 
     public async Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default)
     {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<PoiDto, Error>(Error.Unauthorized("Poi.User.NotFound", "User not authenticated"));
+        }
+
         var map = await _storyMapRepository.GetMapAsync(request.MapId, ct);
         if (map is null)
         {
@@ -178,39 +138,16 @@ public class PoiService : IPoiService
             AssociatedLayerId = request.AssociatedLayerId,
             AnimationPresetId = request.AnimationPresetId,
             AnimationOverrides = request.AnimationOverrides,
+            IsVisible = request.IsVisible,
+            ZIndex = request.ZIndex,
+            CreatedBy = currentUserId.Value,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         location = await _locationStore.CreateAsync(location, ct);
 
-        var poiDto = new PoiDto(
-            location.LocationId,
-            location.MapId,
-            location.SegmentId,
-            location.ZoneId,
-            location.Title,
-            location.Subtitle,
-            location.LocationType,
-            location.MarkerGeometry,
-            location.StoryContent,
-            location.MediaResources,
-            location.DisplayOrder,
-            location.HighlightOnEnter,
-            location.ShowTooltip,
-            location.TooltipContent,
-            location.EffectType,
-            location.OpenSlideOnClick,
-            location.SlideContent,
-            location.LinkedLocationId,
-            location.PlayAudioOnClick,
-            location.AudioUrl,
-            location.ExternalUrl,
-            location.AssociatedLayerId,
-            location.AnimationPresetId,
-            location.AnimationOverrides,
-            location.CreatedAt,
-            location.UpdatedAt);
+        var poiDto = location.ToPoiDto();
 
         return Option.Some<PoiDto, Error>(poiDto);
     }
@@ -289,6 +226,17 @@ public class PoiService : IPoiService
         location.AssociatedLayerId = request.AssociatedLayerId;
         location.AnimationPresetId = request.AnimationPresetId;
         location.AnimationOverrides = request.AnimationOverrides;
+
+        if (request.IsVisible.HasValue)
+        {
+            location.IsVisible = request.IsVisible.Value;
+        }
+
+        if (request.ZIndex.HasValue)
+        {
+            location.ZIndex = request.ZIndex.Value;
+        }
+
         location.UpdatedAt = DateTime.UtcNow;
 
         var updated = await _locationStore.UpdateAsync(location, ct);
@@ -297,35 +245,7 @@ public class PoiService : IPoiService
             location = updated;
         }
 
-        var poiDto = new PoiDto(
-            location.LocationId,
-            location.MapId,
-            location.SegmentId,
-            location.ZoneId,
-            location.Title,
-            location.Subtitle,
-            location.LocationType,
-            location.MarkerGeometry,
-            location.StoryContent,
-            location.MediaResources,
-            location.DisplayOrder,
-            location.HighlightOnEnter,
-            location.ShowTooltip,
-            location.TooltipContent,
-            location.EffectType,
-            location.OpenSlideOnClick,
-            location.SlideContent,
-            location.LinkedLocationId,
-            location.PlayAudioOnClick,
-            location.AudioUrl,
-            location.ExternalUrl,
-            location.AssociatedLayerId,
-            location.AnimationPresetId,
-            location.AnimationOverrides,
-            location.CreatedAt,
-            location.UpdatedAt);
-
-        return Option.Some<PoiDto, Error>(poiDto);
+        return Option.Some<PoiDto, Error>(location.ToPoiDto());
     }
 
     public async Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default)
@@ -339,6 +259,78 @@ public class PoiService : IPoiService
         await _locationStore.DeleteAsync(poiId, ct);
 
         return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<PoiDto, Error>> UpdatePoiDisplayConfigAsync(Guid poiId, UpdatePoiDisplayConfigRequest request, CancellationToken ct = default)
+    {
+        var location = await _locationStore.GetAsync(poiId, ct);
+        if (location is null)
+        {
+            return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
+        }
+
+        if (request.IsVisible.HasValue)
+        {
+            location.IsVisible = request.IsVisible.Value;
+        }
+
+        if (request.ZIndex.HasValue)
+        {
+            location.ZIndex = request.ZIndex.Value;
+        }
+
+        if (request.ShowTooltip.HasValue)
+        {
+            location.ShowTooltip = request.ShowTooltip.Value;
+        }
+
+        if (request.TooltipContent is not null)
+        {
+            location.TooltipContent = request.TooltipContent;
+        }
+
+        location.UpdatedAt = DateTime.UtcNow;
+        var updated = await _locationStore.UpdateAsync(location, ct) ?? location;
+
+        var dto = updated.ToPoiDto();
+
+        return Option.Some<PoiDto, Error>(dto);
+    }
+
+    public async Task<Option<PoiDto, Error>> UpdatePoiInteractionConfigAsync(Guid poiId, UpdatePoiInteractionConfigRequest request, CancellationToken ct = default)
+    {
+        var location = await _locationStore.GetAsync(poiId, ct);
+        if (location is null)
+        {
+            return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
+        }
+
+        if (request.OpenSlideOnClick.HasValue)
+        {
+            location.OpenSlideOnClick = request.OpenSlideOnClick.Value;
+        }
+
+        if (request.PlayAudioOnClick.HasValue)
+        {
+            location.PlayAudioOnClick = request.PlayAudioOnClick.Value;
+        }
+
+        if (request.AudioUrl is not null)
+        {
+            location.AudioUrl = request.AudioUrl;
+        }
+
+        if (request.ExternalUrl is not null)
+        {
+            location.ExternalUrl = request.ExternalUrl;
+        }
+
+        location.UpdatedAt = DateTime.UtcNow;
+        var updated = await _locationStore.UpdateAsync(location, ct) ?? location;
+
+        var dto = updated.ToPoiDto();
+
+        return Option.Some<PoiDto, Error>(dto);
     }
 
     private static Guid? NormalizeGuid(Guid? value) =>

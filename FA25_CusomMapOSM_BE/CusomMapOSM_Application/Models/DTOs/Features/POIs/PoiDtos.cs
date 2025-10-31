@@ -28,5 +28,8 @@ public record PoiDto(
     Guid? AssociatedLayerId,
     Guid? AnimationPresetId,
     string? AnimationOverrides,
+    bool IsVisible,
+    int ZIndex,
+    Guid CreatedBy,
     DateTime CreatedAt,
     DateTime? UpdatedAt);

@@ -1,3 +1,4 @@
+using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -49,85 +50,13 @@ public class StoryMapService : IStoryMapService
             var layersRaw = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
             var locationsRaw = await _locationStore.GetBySegmentAsync(segment.SegmentId, ct);
 
-            var zones = zonesRaw.Select(z => new SegmentZoneDto(
-                z.ZoneId,
-                z.SegmentId ?? Guid.Empty,
-                z.Name,
-                z.Description,
-                z.ZoneType,
-                z.Geometry,
-                z.FocusCameraState,
-                z.DisplayOrder,
-                z.IsPrimary,
-                z.CreatedAt,
-                z.UpdatedAt)).ToList();
+            var zones = zonesRaw.Select(z => z.ToSegmentZoneDto()).ToList();
 
-            var layers = layersRaw.Select(l => new SegmentLayerDto(
-                l.StoryElementLayerId,
-                l.ElementId,
-                l.LayerId,
-                l.ZoneId,
-                l.ExpandToZone,
-                l.HighlightZoneBoundary,
-                l.DisplayOrder,
-                l.DelayMs,
-                l.FadeInMs,
-                l.FadeOutMs,
-                l.StartOpacity,
-                l.EndOpacity,
-                l.Easing,
-                l.AnimationPresetId,
-                l.AutoPlayAnimation,
-                l.RepeatCount,
-                l.AnimationOverrides,
-                l.StyleOverride,
-                l.Metadata)).ToList();
+            var layers = layersRaw.Select(l => l.ToSegmentLayerDto()).ToList();
 
-            var locations = locationsRaw.Select(loc => new PoiDto(
-                loc.LocationId,
-                loc.MapId,
-                loc.SegmentId,
-                loc.ZoneId,
-                loc.Title,
-                loc.Subtitle,
-                loc.LocationType,
-                loc.MarkerGeometry,
-                loc.StoryContent,
-                loc.MediaResources,
-                loc.DisplayOrder,
-                loc.HighlightOnEnter,
-                loc.ShowTooltip,
-                loc.TooltipContent,
-                loc.EffectType,
-                loc.OpenSlideOnClick,
-                loc.SlideContent,
-                loc.LinkedLocationId,
-                loc.PlayAudioOnClick,
-                loc.AudioUrl,
-                loc.ExternalUrl,
-                loc.AssociatedLayerId,
-                loc.AnimationPresetId,
-                loc.AnimationOverrides,
-                loc.CreatedAt,
-                loc.UpdatedAt)).ToList();
+            var locations = locationsRaw.Select(loc => loc.ToPoiDto()).ToList();
 
-            var dto = new SegmentDto(
-                segment.SegmentId,
-                segment.MapId,
-                segment.Name,
-                segment.Summary,
-                segment.StoryContent,
-                segment.DisplayOrder,
-                segment.AutoFitBounds,
-                segment.EntryAnimationPresetId,
-                segment.ExitAnimationPresetId,
-                segment.DefaultLayerAnimationPresetId,
-                segment.PlaybackMode,
-                segment.CreatedAt,
-                segment.UpdatedAt,
-                zones,
-                layers,
-                locations);
+            var dto = segment.ToSegmentDto(zones, layers, locations);
             segmentDtos.Add(dto);
         }
 
@@ -173,25 +102,7 @@ public class StoryMapService : IStoryMapService
         await _repository.AddSegmentAsync(segment, ct);
         await _repository.SaveChangesAsync(ct);
 
-        var segmentDto = new SegmentDto(
-            segment.SegmentId,
-            segment.MapId,
-            segment.Name,
-            segment.Summary,
-            segment.StoryContent,
-            segment.DisplayOrder,
-            segment.AutoFitBounds,
-            segment.EntryAnimationPresetId,
-            segment.ExitAnimationPresetId,
-            segment.DefaultLayerAnimationPresetId,
-            segment.PlaybackMode,
-            segment.CreatedAt,
-            segment.UpdatedAt,
-            Array.Empty<SegmentZoneDto>(),
-            Array.Empty<SegmentLayerDto>(),
-            Array.Empty<PoiDto>());
-
-        return Option.Some<SegmentDto, Error>(segmentDto);
+        return Option.Some<SegmentDto, Error>(segment.ToSegmentDto());
     }
 
     public async Task<Option<SegmentDto, Error>> UpdateSegmentAsync(Guid segmentId, UpdateSegmentRequest request, CancellationToken ct = default)
@@ -223,87 +134,13 @@ public class StoryMapService : IStoryMapService
         var layers = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
         var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
 
-        var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.ZoneId,
-            z.SegmentId,
-            z.Name,
-            z.Description,
-            z.ZoneType,
-            z.Geometry,
-            z.FocusCameraState,
-            z.DisplayOrder,
-            z.IsPrimary,
-            z.CreatedAt,
-            z.UpdatedAt)).ToList();
+        var zoneDtos = zones.Select(z => z.ToSegmentZoneDto()).ToList();
 
-        var layerDtos = layers.Select(l => new SegmentLayerDto(
-            l.StoryElementLayerId,
-            l.ElementId,
-            l.LayerId,
-            l.ZoneId,
-            l.ExpandToZone,
-            l.HighlightZoneBoundary,
-            l.DisplayOrder,
-            l.DelayMs,
-            l.FadeInMs,
-            l.FadeOutMs,
-            l.StartOpacity,
-            l.EndOpacity,
-            l.Easing,
-            l.AnimationPresetId,
-            l.AutoPlayAnimation,
-            l.RepeatCount,
-            l.AnimationOverrides,
-            l.StyleOverride,
-            l.Metadata)).ToList();
+        var layerDtos = layers.Select(l => l.ToSegmentLayerDto()).ToList();
 
-        var poiDtos = locations.Select(loc => new PoiDto(
-            loc.LocationId,
-            loc.MapId,
-            loc.SegmentId,
-            loc.ZoneId,
-            loc.Title,
-            loc.Subtitle,
-            loc.LocationType,
-            loc.MarkerGeometry,
-            loc.StoryContent,
-            loc.MediaResources,
-            loc.DisplayOrder,
-            loc.HighlightOnEnter,
-            loc.ShowTooltip,
-            loc.TooltipContent,
-            loc.EffectType,
-            loc.OpenSlideOnClick,
-            loc.SlideContent,
-            loc.LinkedLocationId,
-            loc.PlayAudioOnClick,
-            loc.AudioUrl,
-            loc.ExternalUrl,
-            loc.AssociatedLayerId,
-            loc.AnimationPresetId,
-            loc.AnimationOverrides,
-            loc.CreatedAt,
-            loc.UpdatedAt)).ToList();
+        var poiDtos = locations.Select(loc => loc.ToPoiDto()).ToList();
 
-        var segmentDto = new SegmentDto(
-            segment.SegmentId,
-            segment.MapId,
-            segment.Name,
-            segment.Summary,
-            segment.StoryContent,
-            segment.DisplayOrder,
-            segment.AutoFitBounds,
-            segment.EntryAnimationPresetId,
-            segment.ExitAnimationPresetId,
-            segment.DefaultLayerAnimationPresetId,
-            segment.PlaybackMode,
-            segment.CreatedAt,
-            segment.UpdatedAt,
-            zoneDtos,
-            layerDtos,
-            poiDtos);
-
-        return Option.Some<SegmentDto, Error>(segmentDto);
+        return Option.Some<SegmentDto, Error>(segment.ToSegmentDto(zoneDtos, layerDtos, poiDtos));
     }
 
     public async Task<Option<TransitionPreviewDto, Error>> PreviewTransitionAsync(PreviewTransitionRequest request, CancellationToken ct = default)
@@ -472,18 +309,7 @@ public class StoryMapService : IStoryMapService
         }
 
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
-        var zoneDtos = zones.Select(z => new SegmentZoneDto(
-            z.ZoneId,
-            z.SegmentId ?? Guid.Empty,
-            z.Name,
-            z.Description,
-            z.ZoneType,
-            z.Geometry,
-            z.FocusCameraState,
-            z.DisplayOrder,
-            z.IsPrimary,
-            z.CreatedAt,
-            z.UpdatedAt)).ToList();
+        var zoneDtos = zones.Select(z => z.ToSegmentZoneDto()).ToList();
         return Option.Some<IReadOnlyCollection<SegmentZoneDto>, Error>(zoneDtos);
     }
 
@@ -518,20 +344,7 @@ public class StoryMapService : IStoryMapService
         await _repository.AddSegmentZoneAsync(zone, ct);
         await _repository.SaveChangesAsync(ct);
 
-        var zoneDto = new SegmentZoneDto(
-            zone.ZoneId,
-            zone.SegmentId ?? Guid.Empty,
-            zone.Name,
-            zone.Description,
-            zone.ZoneType,
-            zone.Geometry,
-            zone.FocusCameraState,
-            zone.DisplayOrder ,
-            zone.IsPrimary,
-            zone.CreatedAt,
-            zone.UpdatedAt);
-
-        return Option.Some<SegmentZoneDto, Error>(zoneDto);
+        return Option.Some<SegmentZoneDto, Error>(zone.ToSegmentZoneDto());
     }
 
     public async Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid ZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default)
@@ -554,20 +367,7 @@ public class StoryMapService : IStoryMapService
         _repository.UpdateSegmentZone(zone);
         await _repository.SaveChangesAsync(ct);
 
-        var zoneDto = new SegmentZoneDto(
-            zone.ZoneId,
-            zone.SegmentId ?? Guid.Empty,
-            zone.Name,
-            zone.Description,
-            zone.ZoneType ,
-            zone.Geometry,
-            zone.FocusCameraState,
-            zone.DisplayOrder ,
-            zone.IsPrimary ,
-            zone.CreatedAt,
-            zone.UpdatedAt);
-
-        return Option.Some<SegmentZoneDto, Error>(zoneDto);
+        return Option.Some<SegmentZoneDto, Error>(zone.ToSegmentZoneDto());
     }
 
     public async Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid ZoneId, CancellationToken ct = default)
@@ -664,28 +464,7 @@ public class StoryMapService : IStoryMapService
         await _repository.AddStoryElementLayerAsync(layer, ct);
         await _repository.SaveChangesAsync(ct);
 
-        var layerDto = new SegmentLayerDto(
-            layer.StoryElementLayerId,
-            layer.ElementId,
-            layer.LayerId,
-            layer.ZoneId,
-            layer.ExpandToZone,
-            layer.HighlightZoneBoundary,
-            layer.DisplayOrder,
-            layer.DelayMs,
-            layer.FadeInMs,
-            layer.FadeOutMs,
-            layer.StartOpacity,
-            layer.EndOpacity,
-            layer.Easing,
-            layer.AnimationPresetId,
-            layer.AutoPlayAnimation,
-            layer.RepeatCount,
-            layer.AnimationOverrides,
-            layer.StyleOverride,
-            layer.Metadata);
-
-        return Option.Some<SegmentLayerDto, Error>(layerDto);
+        return Option.Some<SegmentLayerDto, Error>(layer.ToSegmentLayerDto());
     }
 
     public async Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId, UpsertSegmentLayerRequest request, CancellationToken ct = default)
@@ -727,28 +506,7 @@ public class StoryMapService : IStoryMapService
         _repository.UpdateStoryElementLayer(layer);
         await _repository.SaveChangesAsync(ct);
 
-        var layerDto = new SegmentLayerDto(
-            layer.StoryElementLayerId,
-            layer.ElementId,
-            layer.LayerId,
-            layer.ZoneId,
-            layer.ExpandToZone,
-            layer.HighlightZoneBoundary,
-            layer.DisplayOrder,
-            layer.DelayMs,
-            layer.FadeInMs,
-            layer.FadeOutMs,
-            layer.StartOpacity,
-            layer.EndOpacity,
-            layer.Easing,
-            layer.AnimationPresetId,
-            layer.AutoPlayAnimation,
-            layer.RepeatCount,
-            layer.AnimationOverrides,
-            layer.StyleOverride,
-            layer.Metadata);
-
-        return Option.Some<SegmentLayerDto, Error>(layerDto);
+        return Option.Some<SegmentLayerDto, Error>(layer.ToSegmentLayerDto());
     }
 
     public async Task<Option<bool, Error>> DeleteSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct = default)
@@ -1027,32 +785,7 @@ public class StoryMapService : IStoryMapService
     public async Task<Option<IReadOnlyCollection<StoryElementLayerDto>, Error>> GetStoryElementLayersAsync(Guid elementId, CancellationToken ct = default)
     {
         var layers = await _repository.GetStoryElementLayersByElementAsync(elementId, ct);
-        var layerDtos = layers.Select(sel => new StoryElementLayerDto(
-            sel.StoryElementLayerId,
-            sel.ElementId,
-            sel.ElementType,
-            sel.LayerId,
-            sel.ZoneId,
-            sel.ExpandToZone,
-            sel.HighlightZoneBoundary,
-            sel.DisplayOrder,
-            sel.DelayMs,
-            sel.FadeInMs,
-            sel.FadeOutMs,
-            sel.StartOpacity,
-            sel.EndOpacity,
-            sel.Easing,
-            sel.AnimationPresetId,
-            sel.AutoPlayAnimation,
-            sel.RepeatCount,
-            sel.AnimationOverrides,
-            sel.Metadata,
-            sel.IsVisible,
-            sel.Opacity,
-            sel.DisplayMode,
-            sel.StyleOverride,
-            sel.CreatedAt,
-            sel.UpdatedAt)).ToList();
+        var layerDtos = layers.Select(sel => sel.ToStoryElementLayerDto()).ToList();
         return Option.Some<IReadOnlyCollection<StoryElementLayerDto>, Error>(layerDtos);
     }
 
@@ -1089,34 +822,7 @@ public class StoryMapService : IStoryMapService
         await _repository.AddStoryElementLayerAsync(layer, ct);
         await _repository.SaveChangesAsync(ct);
 
-        var layerDto = new StoryElementLayerDto(
-            layer.StoryElementLayerId,
-            layer.ElementId,
-            layer.ElementType,
-            layer.LayerId,
-            layer.ZoneId,
-            layer.ExpandToZone,
-            layer.HighlightZoneBoundary,
-            layer.DisplayOrder,
-            layer.DelayMs,
-            layer.FadeInMs,
-            layer.FadeOutMs,
-            layer.StartOpacity,
-            layer.EndOpacity,
-            layer.Easing,
-            layer.AnimationPresetId,
-            layer.AutoPlayAnimation,
-            layer.RepeatCount,
-            layer.AnimationOverrides,
-            layer.Metadata,
-            layer.IsVisible,
-            layer.Opacity,
-            layer.DisplayMode,
-            layer.StyleOverride,
-            layer.CreatedAt,
-            layer.UpdatedAt);
-
-        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+        return Option.Some<StoryElementLayerDto, Error>(layer.ToStoryElementLayerDto());
     }
 
     public async Task<Option<StoryElementLayerDto, Error>> UpdateStoryElementLayerAsync(Guid storyElementLayerId, UpdateStoryElementLayerRequest request, CancellationToken ct = default)
@@ -1153,34 +859,7 @@ public class StoryMapService : IStoryMapService
         _repository.UpdateStoryElementLayer(layer);
         await _repository.SaveChangesAsync(ct);
 
-        var layerDto = new StoryElementLayerDto(
-            layer.StoryElementLayerId,
-            layer.ElementId,
-            layer.ElementType,
-            layer.LayerId,
-            layer.ZoneId,
-            layer.ExpandToZone,
-            layer.HighlightZoneBoundary,
-            layer.DisplayOrder,
-            layer.DelayMs,
-            layer.FadeInMs,
-            layer.FadeOutMs,
-            layer.StartOpacity,
-            layer.EndOpacity,
-            layer.Easing,
-            layer.AnimationPresetId,
-            layer.AutoPlayAnimation,
-            layer.RepeatCount,
-            layer.AnimationOverrides,
-            layer.Metadata,
-            layer.IsVisible,
-            layer.Opacity,
-            layer.DisplayMode,
-            layer.StyleOverride,
-            layer.CreatedAt,
-            layer.UpdatedAt);
-
-        return Option.Some<StoryElementLayerDto, Error>(layerDto);
+        return Option.Some<StoryElementLayerDto, Error>(layer.ToStoryElementLayerDto());
     }
 
     public async Task<Option<bool, Error>> DeleteStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct = default)

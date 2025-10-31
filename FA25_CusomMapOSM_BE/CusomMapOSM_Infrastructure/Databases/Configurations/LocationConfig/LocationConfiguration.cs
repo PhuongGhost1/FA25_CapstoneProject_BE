@@ -108,6 +108,19 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnName("animation_overrides")
             .HasColumnType("TEXT");
 
+        // Enhanced interaction fields
+        builder.Property(l => l.IsVisible)
+            .HasColumnName("is_visible")
+            .IsRequired();
+
+        builder.Property(l => l.ZIndex)
+            .HasColumnName("z_index")
+            .IsRequired();
+
+        builder.Property(l => l.CreatedBy)
+            .HasColumnName("created_by")
+            .IsRequired();
+
         builder.Property(l => l.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
@@ -147,6 +160,11 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .WithMany()
             .HasForeignKey(l => l.LinkedLocationId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(l => l.Creator)
+            .WithMany()
+            .HasForeignKey(l => l.CreatedBy)
+            .OnDelete(DeleteBehavior.Restrict);
 
     }
 }

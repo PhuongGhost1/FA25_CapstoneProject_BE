@@ -26,7 +26,9 @@ public record CreatePoiRequest(
     string? ExternalUrl = null,
     Guid? AssociatedLayerId = null,
     Guid? AnimationPresetId = null,
-    string? AnimationOverrides = null);
+    string? AnimationOverrides = null,
+    bool IsVisible = true,
+    int ZIndex = 0);
 
 public record UpdatePoiRequest(
     Guid? SegmentId,
@@ -50,4 +52,18 @@ public record UpdatePoiRequest(
     string? ExternalUrl = null,
     Guid? AssociatedLayerId = null,
     Guid? AnimationPresetId = null,
-    string? AnimationOverrides = null);
+    string? AnimationOverrides = null,
+    bool? IsVisible = null,
+    int? ZIndex = null);
+
+public record UpdatePoiDisplayConfigRequest(
+    bool? IsVisible,
+    int? ZIndex,
+    bool? ShowTooltip,
+    string? TooltipContent);
+
+public record UpdatePoiInteractionConfigRequest(
+    bool? OpenSlideOnClick,
+    bool? PlayAudioOnClick,
+    string? AudioUrl,
+    string? ExternalUrl);

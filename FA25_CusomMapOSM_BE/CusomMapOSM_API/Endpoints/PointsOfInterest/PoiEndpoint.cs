@@ -109,5 +109,33 @@ public class PoiEndpoint : IEndpoint
             })
             .WithName("DeletePoi")
             .WithDescription("Delete a point of interest");
+
+        group.MapPut("/pois/{poiId}/display-config", async (
+                [FromRoute] Guid poiId,
+                [FromBody] UpdatePoiDisplayConfigRequest request,
+                [FromServices] IPoiService poiService,
+                CancellationToken ct) =>
+            {
+                var result = await poiService.UpdatePoiDisplayConfigAsync(poiId, request, ct);
+                return result.Match<IResult>(
+                    poi => Results.Ok(poi),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("UpdatePoiDisplayConfig")
+            .WithDescription("Update display configuration of a POI");
+
+        group.MapPut("/pois/{poiId}/interaction-config", async (
+                [FromRoute] Guid poiId,
+                [FromBody] UpdatePoiInteractionConfigRequest request,
+                [FromServices] IPoiService poiService,
+                CancellationToken ct) =>
+            {
+                var result = await poiService.UpdatePoiInteractionConfigAsync(poiId, request, ct);
+                return result.Match<IResult>(
+                    poi => Results.Ok(poi),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("UpdatePoiInteractionConfig")
+            .WithDescription("Update interaction configuration of a POI");
     }
 }
