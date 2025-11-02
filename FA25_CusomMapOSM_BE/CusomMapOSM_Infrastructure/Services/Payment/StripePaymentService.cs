@@ -37,7 +37,9 @@ public class StripePaymentService : IPaymentService
         };
 
         // Determine line items based on purpose
-        if (request.Purpose?.ToLower() == "membership")
+        var purpose = request.Purpose?.ToLower() ?? "membership";
+
+        if (purpose == "membership")
         {
             // Membership purchase (default)
             options.LineItems.Add(new SessionLineItemOptions
@@ -49,6 +51,40 @@ public class StripePaymentService : IPaymentService
                     ProductData = new SessionLineItemPriceDataProductDataOptions
                     {
                         Name = "CustomMapOSM Membership"
+                    }
+                },
+                Quantity = 1
+            });
+        }
+        else if (purpose == "upgrade")
+        {
+            // Plan upgrade - pro-rated amount
+            options.LineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "usd",
+                    UnitAmount = (long)(request.Total * 100),
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = "CustomMapOSM Plan Upgrade"
+                    }
+                },
+                Quantity = 1
+            });
+        }
+        else
+        {
+            // Default case for any other purpose
+            options.LineItems.Add(new SessionLineItemOptions
+            {
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = "usd",
+                    UnitAmount = (long)(request.Total * 100),
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = "CustomMapOSM Service"
                     }
                 },
                 Quantity = 1

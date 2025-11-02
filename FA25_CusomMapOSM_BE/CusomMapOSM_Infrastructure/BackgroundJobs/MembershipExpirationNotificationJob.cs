@@ -1,5 +1,7 @@
 using CusomMapOSM_Application.Interfaces.Services.Mail;
+using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Services;
 using Hangfire;
@@ -49,6 +51,9 @@ public class MembershipExpirationNotificationJob
                 today.AddDays(1)  // 1 day before expiration
             };
 
+            const int PREMIUM_PLAN_ID = 2; // Premium plan ID
+            const int FREE_PLAN_ID = 1; // Free plan ID
+
             foreach (var expirationDate in expirationDates)
             {
                 var expiringMemberships = await dbContext.Memberships
@@ -65,7 +70,16 @@ public class MembershipExpirationNotificationJob
                 foreach (var membership in expiringMemberships)
                 {
                     var daysUntilExpiration = (membership.EndDate!.Value.Date - today).Days;
+
+                    // Send expiration notification
                     await SendExpirationNotificationAsync(membership, daysUntilExpiration, hangfireEmailService, notificationService);
+
+                    // Auto-downgrade Premium memberships (Plan 2) expiring in 7 days
+                    // If user hasn't extended by now, downgrade to Free (Plan 1)
+                    if (daysUntilExpiration == 7 && membership.PlanId == PREMIUM_PLAN_ID)
+                    {
+                        await AutoDowngradeToFreeAsync(membership, scope);
+                    }
                 }
             }
 
@@ -102,6 +116,53 @@ public class MembershipExpirationNotificationJob
             _logger.LogError(ex,
                 "Failed to queue expiration notification for user {UserId}",
                 membership.UserId);
+        }
+    }
+
+    private async Task AutoDowngradeToFreeAsync(
+        CusomMapOSM_Domain.Entities.Memberships.Membership membership,
+        IServiceScope scope)
+    {
+        try
+        {
+            const int FREE_PLAN_ID = 1;
+
+            _logger.LogInformation(
+                "Auto-downgrading Premium membership {MembershipId} for user {UserId} in organization {OrgId} to Free plan",
+                membership.MembershipId, membership.UserId, membership.OrgId);
+
+            var membershipService = scope.ServiceProvider.GetRequiredService<IMembershipService>();
+
+            // Downgrade to Free plan (Plan 1)
+            // Note: Since we're within 7 days, this should be allowed by the downgrade logic
+            var downgradeResult = await membershipService.CreateOrRenewMembershipAsync(
+                membership.UserId,
+                membership.OrgId,
+                FREE_PLAN_ID,
+                false, // Auto-renew disabled for free plan
+                CancellationToken.None);
+
+            if (downgradeResult.HasValue)
+            {
+                _logger.LogInformation(
+                    "Successfully auto-downgraded membership {MembershipId} to Free plan",
+                    membership.MembershipId);
+            }
+            else
+            {
+                var error = downgradeResult.Match(
+                    some: _ => (Error?)null,
+                    none: err => err);
+                _logger.LogWarning(
+                    "Failed to auto-downgrade membership {MembershipId}: {Error}",
+                    membership.MembershipId, error?.Description ?? "Unknown error");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error occurred while auto-downgrading membership {MembershipId}",
+                membership.MembershipId);
         }
     }
 

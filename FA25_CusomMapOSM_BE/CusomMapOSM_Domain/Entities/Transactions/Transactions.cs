@@ -20,6 +20,7 @@ public class Transactions
     public Guid? MembershipId { get; set; }
     public int? ExportId { get; set; }
     public required string Purpose { get; set; }
+    public string? Content { get; set; } // Stores transaction content/details when transaction completes
 
     public PaymentGateway PaymentGateway { get; set; } = new();
     public Membership? Membership { get; set; }
