@@ -379,13 +379,55 @@ public class SubscriptionService : ISubscriptionService
 
     private decimal CalculateProRatedAmount(DomainMembership.Membership currentMembership, DomainMembership.Plan newPlan)
     {
-        // Simplified pro-rated calculation
-        // In reality, this would be more complex based on billing cycle, remaining time, etc.
-        var currentPlanPrice = currentMembership.Plan?.PriceMonthly ?? 0;
+        var currentPlan = currentMembership.Plan;
+        if (currentPlan == null)
+        {
+            // If no current plan, charge full price for new plan
+            return newPlan.PriceMonthly ?? 0;
+        }
+
+        var currentPlanPrice = currentPlan.PriceMonthly ?? 0;
         var newPlanPrice = newPlan.PriceMonthly ?? 0;
 
-        // For now, just return the difference
-        return Math.Max(0, newPlanPrice - currentPlanPrice);
+        // If same price or downgrade, no additional charge (or return 0)
+        if (newPlanPrice <= currentPlanPrice)
+        {
+            return 0; // No charge for downgrade or same price
+        }
+
+        // For upgrade: calculate price difference based on remaining time
+        var now = DateTime.UtcNow;
+        var currentEndDate = currentMembership.EndDate ?? now;
+
+        // If subscription expired or no end date, charge full difference
+        if (currentEndDate <= now || !currentMembership.EndDate.HasValue)
+        {
+            return Math.Max(0, newPlanPrice - currentPlanPrice);
+        }
+
+        // Calculate remaining time in the current subscription
+        var remainingDays = Math.Max(0, (currentEndDate - now).Days);
+        var currentPlanDurationDays = currentPlan.DurationMonths * 30; // Approximate: 30 days per month
+
+        if (currentPlanDurationDays <= 0)
+        {
+            // If duration is 0 or invalid, charge full difference
+            return Math.Max(0, newPlanPrice - currentPlanPrice);
+        }
+
+        // Calculate the ratio of remaining time to total time
+        var remainingTimeRatio = (decimal)remainingDays / (decimal)currentPlanDurationDays;
+
+        // Calculate the value of remaining time in current plan
+        var remainingValueInCurrentPlan = currentPlanPrice * remainingTimeRatio;
+
+        // Calculate the value of remaining time in new plan (proportionally)
+        var remainingValueInNewPlan = newPlanPrice * remainingTimeRatio;
+
+        // Price difference = (value of remaining time in new plan) - (value of remaining time in current plan)
+        var priceDifference = remainingValueInNewPlan - remainingValueInCurrentPlan;
+
+        return Math.Max(0, priceDifference);
     }
 
 }

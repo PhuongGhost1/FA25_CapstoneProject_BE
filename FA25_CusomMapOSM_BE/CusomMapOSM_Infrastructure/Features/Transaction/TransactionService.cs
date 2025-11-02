@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using Optional;
+using Optional.Unsafe;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.User;
@@ -100,7 +101,7 @@ public class TransactionService : ITransactionService
         if (!pendingTransactionResult.HasValue)
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Transaction.Create.Failed", "Failed to create transaction", ErrorCustom.ErrorType.Failure));
 
-        var pendingTransaction = pendingTransactionResult.ValueOr(default(Transactions));
+        var pendingTransaction = pendingTransactionResult.ValueOrDefault()!;
 
         // 3. Store business context in transaction metadata for later retrieval
         await StoreTransactionContextAsync(pendingTransaction.TransactionId, request, ct);
@@ -111,8 +112,8 @@ public class TransactionService : ITransactionService
         _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
-        var returnUrl = $"https://localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}";
-        var cancelUrl = $"https://localhost:3000/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var returnUrl = $"https://localhost:3000/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"https://localhost:3000/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
 
         _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
 
@@ -129,7 +130,7 @@ public class TransactionService : ITransactionService
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Checkout.Failed", "Failed to create checkout", ErrorCustom.ErrorType.Failure));
         }
 
-        var approval = checkoutResult.ValueOr(default(ApprovalUrlResponse));
+        var approval = checkoutResult.ValueOrDefault()!;
         _logger.LogInformation("Checkout created successfully - SessionId: {SessionId}, ApprovalUrl: {ApprovalUrl}",
             approval.SessionId, approval.ApprovalUrl);
 
@@ -207,7 +208,7 @@ public class TransactionService : ITransactionService
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Transaction.Create.Failed", "Failed to create transaction", ErrorCustom.ErrorType.Failure));
 
-            transaction = initialTransactionResult.ValueOr(default(Transactions));
+            transaction = initialTransactionResult.ValueOrDefault()!;
         }
 
         // 2. Get correct payment service
@@ -263,8 +264,23 @@ public class TransactionService : ITransactionService
             return await membership.Match(
                 some: async m =>
                 {
-                    // Update transaction with the created membership ID
+                    // Update transaction with the created membership ID and content
                     transaction.MembershipId = m.MembershipId;
+
+                    // Save transaction content when transaction completes
+                    var plan = await _membershipPlanRepository.GetPlanByIdAsync(context.PlanId.Value, ct);
+                    transaction.Content = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Purpose = purpose,
+                        PlanId = context.PlanId.Value,
+                        PlanName = plan?.PlanName ?? "Unknown Plan",
+                        MembershipId = m.MembershipId,
+                        Amount = transaction.Amount,
+                        StartDate = m.StartDate,
+                        EndDate = m.EndDate,
+                        ProcessedAt = DateTime.UtcNow
+                    });
+
                     await _transactionRepository.UpdateAsync(transaction, ct);
 
 
@@ -286,6 +302,59 @@ public class TransactionService : ITransactionService
             );
         }
 
+        if (string.Equals(purpose, "upgrade", StringComparison.OrdinalIgnoreCase))
+        {
+            if (context?.UserId is null || context?.OrgId is null || context?.PlanId is null)
+                return Option.None<object, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Payment.Context.Invalid", "Missing upgrade context", ErrorCustom.ErrorType.Validation));
+
+            var membership = await _membershipService.ChangeSubscriptionPlanAsync(
+                context.UserId.Value,
+                context.OrgId.Value,
+                context.PlanId.Value,
+                context.AutoRenew,
+                ct
+            );
+
+            return await membership.Match(
+                some: async m =>
+                {
+                    // Update transaction with the updated membership ID and content
+                    transaction.MembershipId = m.MembershipId;
+
+                    // Save transaction content when transaction completes
+                    var plan = await _membershipPlanRepository.GetPlanByIdAsync(context.PlanId.Value, ct);
+                    transaction.Content = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Purpose = purpose,
+                        PlanId = context.PlanId.Value,
+                        PlanName = plan?.PlanName ?? "Unknown Plan",
+                        MembershipId = m.MembershipId,
+                        Amount = transaction.Amount,
+                        StartDate = m.StartDate,
+                        EndDate = m.EndDate,
+                        ProcessedAt = DateTime.UtcNow
+                    });
+
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+
+                    // Send upgrade confirmation notification
+                    var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                        user?.Email ?? "unknown@example.com",
+                        user?.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
+
+                    return Option.Some<object, ErrorCustom.Error>(new
+                    {
+                        MembershipId = m.MembershipId,
+                        TransactionId = transaction.TransactionId
+                    });
+                },
+                none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
+            );
+        }
 
         return Option.Some<object, ErrorCustom.Error>(new
         {
@@ -472,7 +541,7 @@ public class TransactionService : ITransactionService
             {
                 Console.WriteLine($"No separator found or empty purpose, returning: ({transaction.Purpose}, null)");
                 Console.WriteLine($"=== End Parsing Transaction Context ===");
-                return (transaction.Purpose, null);
+                return (transaction.Purpose ?? string.Empty, null);
             }
 
             var parts = transaction.Purpose.Split('|', 2);
@@ -482,7 +551,7 @@ public class TransactionService : ITransactionService
             {
                 Console.WriteLine($"Invalid parts count, returning: ({transaction.Purpose}, null)");
                 Console.WriteLine($"=== End Parsing Transaction Context ===");
-                return (transaction.Purpose, null);
+                return (transaction.Purpose ?? string.Empty, null);
             }
 
             var purpose = parts[0];

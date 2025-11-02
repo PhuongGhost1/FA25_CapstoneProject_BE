@@ -61,6 +61,10 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transactions>
                      .HasColumnType("text")
                      .IsRequired();
 
+              builder.Property(t => t.Content)
+                     .HasColumnName("content")
+                     .HasColumnType("text");
+
               // Relationships
               builder.HasOne(t => t.PaymentGateway)
                      .WithMany()
