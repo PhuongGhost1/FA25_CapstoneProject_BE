@@ -14,8 +14,7 @@ internal class LayerAnimationConfiguration : IEntityTypeConfiguration<LayerAnima
 
         builder.Property(la => la.LayerAnimationId)
             .HasColumnName("layer_animation_id")
-            .IsRequired()
-            .ValueGeneratedOnAdd();
+            .IsRequired();
 
         builder.Property(la => la.LayerId)
             .HasColumnName("layer_id")

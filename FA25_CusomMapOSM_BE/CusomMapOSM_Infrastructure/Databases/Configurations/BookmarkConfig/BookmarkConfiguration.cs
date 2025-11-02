@@ -20,8 +20,7 @@ internal class BookmarkConfiguration : IEntityTypeConfiguration<Bookmark>
 
               builder.Property(b => b.BookmarkId)
                      .HasColumnName("bookmark_id")
-                     .IsRequired()
-                     .ValueGeneratedOnAdd();
+                     .IsRequired();
 
               builder.Property(b => b.MapId)
                      .HasColumnName("map_id")

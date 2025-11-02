@@ -2,7 +2,6 @@ using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
@@ -11,6 +10,7 @@ using CusomMapOSM_Domain.Entities.StoryElement;
 using CusomMapOSM_Domain.Entities.StoryElement.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.StoryMaps;
@@ -19,13 +19,13 @@ public class StoryMapService : IStoryMapService
 {
     private readonly IStoryMapRepository _repository;
     private readonly ICurrentUserService  _currentUserService;
-    private readonly ISegmentLocationStore _locationStore;
+    private readonly ILocationRepository _locationRepository;
 
-    public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService, ISegmentLocationStore locationStore)
+    public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService, ILocationRepository locationRepository)
     {
         _repository = repository;
         _currentUserService = currentUserService;
-        _locationStore = locationStore;
+        _locationRepository = locationRepository;
     }
 
     public async Task<Option<IReadOnlyCollection<SegmentDto>, Error>> GetSegmentsAsync(Guid mapId, CancellationToken ct = default)
@@ -48,7 +48,7 @@ public class StoryMapService : IStoryMapService
             var zonesRaw = await _repository.GetSegmentZonesBySegmentAsync(segment.SegmentId, ct);
             var storyElementLayersRaw = await _repository.GetStoryElementLayersByElementAsync(segment.SegmentId, ct);
             var layersRaw = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
-            var locationsRaw = await _locationStore.GetBySegmentAsync(segment.SegmentId, ct);
+            var locationsRaw = await _locationRepository.GetBySegmentIdAsync(segment.SegmentId, ct);
 
             var zones = zonesRaw.Select(z => z.ToSegmentZoneDto()).ToList();
 
@@ -132,7 +132,7 @@ public class StoryMapService : IStoryMapService
         var zones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         var storyElementLayersRaw = await _repository.GetStoryElementLayersByElementAsync(segmentId, ct);
         var layers = storyElementLayersRaw.Where(sel => sel.ElementType == CusomMapOSM_Domain.Entities.StoryElement.Enums.StoryElementType.Segment).ToList();
-        var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
+        var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
 
         var zoneDtos = zones.Select(z => z.ToSegmentZoneDto()).ToList();
 

@@ -15,8 +15,7 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
 
         builder.Property(l => l.LocationId)
             .HasColumnName("location_id")
-            .IsRequired()
-            .ValueGeneratedOnAdd();
+            .IsRequired();
 
         builder.Property(l => l.MapId)
             .HasColumnName("map_id")
@@ -108,7 +107,6 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnName("animation_overrides")
             .HasColumnType("TEXT");
 
-        // Enhanced interaction fields
         builder.Property(l => l.IsVisible)
             .HasColumnName("is_visible")
             .IsRequired();
@@ -129,42 +127,6 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.UpdatedAt)
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
-
-        // Relationships
-        builder.HasOne(l => l.Map)
-            .WithMany()
-            .HasForeignKey(l => l.MapId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasOne(l => l.Segment)
-            .WithMany()
-            .HasForeignKey(l => l.SegmentId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(l => l.Zone)
-            .WithMany()
-            .HasForeignKey(l => l.ZoneId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(l => l.AssociatedLayer)
-            .WithMany()
-            .HasForeignKey(l => l.AssociatedLayerId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(l => l.AnimationPreset)
-            .WithMany()
-            .HasForeignKey(l => l.AnimationPresetId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(l => l.LinkedLocation)
-            .WithMany()
-            .HasForeignKey(l => l.LinkedLocationId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(l => l.Creator)
-            .WithMany()
-            .HasForeignKey(l => l.CreatedBy)
-            .OnDelete(DeleteBehavior.Restrict);
 
     }
 }
