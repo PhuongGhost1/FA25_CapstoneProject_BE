@@ -1,11 +1,11 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
-using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.POIs;
@@ -13,15 +13,13 @@ namespace CusomMapOSM_Infrastructure.Features.POIs;
 public class PoiService : IPoiService
 {
     private readonly IStoryMapRepository _storyMapRepository;
-    private readonly ISegmentLocationStore _locationStore;
+    private readonly ILocationRepository _locationRepository;
     private readonly ICurrentUserService _currentUserService;
 
-    // Mapping moved to Application/Common/Mappers/LocationMappings.cs
-
-    public PoiService(IStoryMapRepository storyMapRepository, ISegmentLocationStore locationStore, ICurrentUserService currentUserService)
+    public PoiService(IStoryMapRepository storyMapRepository, ILocationRepository locationRepository, ICurrentUserService currentUserService)
     {
         _storyMapRepository = storyMapRepository;
-        _locationStore = locationStore;
+        _locationRepository = locationRepository;
         _currentUserService = currentUserService;
     }
 
@@ -33,7 +31,7 @@ public class PoiService : IPoiService
             return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
         }
 
-        var locations = await _locationStore.GetByMapAsync(mapId, ct);
+        var locations = await _locationRepository.GetByMapIdAsync(mapId, ct);
         var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
         return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
     }
@@ -46,7 +44,7 @@ public class PoiService : IPoiService
             return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found"));
         }
 
-        var locations = await _locationStore.GetBySegmentAsync(segmentId, ct);
+        var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
         var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
         return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
     }
@@ -54,9 +52,10 @@ public class PoiService : IPoiService
     public async Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default)
     {
         var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId is null)
+        
+        if (!currentUserId.HasValue)
         {
-            return Option.None<PoiDto, Error>(Error.Unauthorized("Poi.User.NotFound", "User not authenticated"));
+            throw new UnauthorizedAccessException("User is not authenticated");
         }
 
         var map = await _storyMapRepository.GetMapAsync(request.MapId, ct);
@@ -105,7 +104,7 @@ public class PoiService : IPoiService
 
         if (linkedPoiId.HasValue)
         {
-            var linked = await _locationStore.GetAsync(linkedPoiId.Value, ct);
+            var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != request.MapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound", "Linked POI not found in this map"));
@@ -145,7 +144,7 @@ public class PoiService : IPoiService
             UpdatedAt = DateTime.UtcNow
         };
 
-        location = await _locationStore.CreateAsync(location, ct);
+        location = await _locationRepository.CreateAsync(location, ct);
 
         var poiDto = location.ToPoiDto();
 
@@ -154,7 +153,7 @@ public class PoiService : IPoiService
 
     public async Task<Option<PoiDto, Error>> UpdatePoiAsync(Guid poiId, UpdatePoiRequest request, CancellationToken ct = default)
     {
-        var location = await _locationStore.GetAsync(poiId, ct);
+        var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
@@ -197,7 +196,7 @@ public class PoiService : IPoiService
                 return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Linked.Self", "A POI cannot link to itself"));
             }
 
-            var linked = await _locationStore.GetAsync(linkedPoiId.Value, ct);
+            var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != mapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound", "Linked POI not found in this map"));
@@ -239,7 +238,7 @@ public class PoiService : IPoiService
 
         location.UpdatedAt = DateTime.UtcNow;
 
-        var updated = await _locationStore.UpdateAsync(location, ct);
+        var updated = await _locationRepository.UpdateAsync(location, ct);
         if (updated is not null)
         {
             location = updated;
@@ -250,20 +249,20 @@ public class PoiService : IPoiService
 
     public async Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default)
     {
-        var location = await _locationStore.GetAsync(poiId, ct);
+        var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<bool, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
-        await _locationStore.DeleteAsync(poiId, ct);
+        await _locationRepository.DeleteAsync(poiId, ct);
 
         return Option.Some<bool, Error>(true);
     }
 
     public async Task<Option<PoiDto, Error>> UpdatePoiDisplayConfigAsync(Guid poiId, UpdatePoiDisplayConfigRequest request, CancellationToken ct = default)
     {
-        var location = await _locationStore.GetAsync(poiId, ct);
+        var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
@@ -290,7 +289,7 @@ public class PoiService : IPoiService
         }
 
         location.UpdatedAt = DateTime.UtcNow;
-        var updated = await _locationStore.UpdateAsync(location, ct) ?? location;
+        var updated = await _locationRepository.UpdateAsync(location, ct) ?? location;
 
         var dto = updated.ToPoiDto();
 
@@ -299,7 +298,7 @@ public class PoiService : IPoiService
 
     public async Task<Option<PoiDto, Error>> UpdatePoiInteractionConfigAsync(Guid poiId, UpdatePoiInteractionConfigRequest request, CancellationToken ct = default)
     {
-        var location = await _locationStore.GetAsync(poiId, ct);
+        var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
             return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
@@ -326,7 +325,7 @@ public class PoiService : IPoiService
         }
 
         location.UpdatedAt = DateTime.UtcNow;
-        var updated = await _locationStore.UpdateAsync(location, ct) ?? location;
+        var updated = await _locationRepository.UpdateAsync(location, ct) ?? location;
 
         var dto = updated.ToPoiDto();
 

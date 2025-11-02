@@ -158,4 +158,8 @@ public class OrganizationRepository : IOrganizationRepository
             .OrderBy(x => x.JoinedAt)
             .ToListAsync();
     }
+    public async Task<int> GetTotalOrganizationCount()
+    {
+        return await _context.Organizations.CountAsync(x => x.IsActive);
+    }
 }

@@ -23,4 +23,5 @@ public interface IOrganizationService
     Task<Option<CancelInviteOrganizationResDto, Error>> CancelInvite(CancelInviteOrganizationReqDto req);
     Task<Option<GetMyOrganizationsResDto, Error>> GetMyOrganizations();
     Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(TransferOwnershipReqDto req);
+    Task<Option<GetOrganizationNumberResDto, Error>> GetOrganizationNumber();
 }

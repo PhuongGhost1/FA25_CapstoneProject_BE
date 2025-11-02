@@ -15,8 +15,7 @@ internal class SegmentConfiguration : IEntityTypeConfiguration<Segment>
 
         builder.Property(s => s.SegmentId)
             .HasColumnName("segment_id")
-            .IsRequired()
-            .ValueGeneratedOnAdd();
+            .IsRequired();
 
         builder.Property(s => s.Name)
             .HasColumnName("name")

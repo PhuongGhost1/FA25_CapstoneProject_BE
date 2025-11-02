@@ -40,4 +40,5 @@ public interface IOrganizationRepository
     Task<bool> DeleteInvitation(Guid invitationId);
     
     Task<List<OrganizationMember>> GetUserOrganizations(Guid userId);
+    Task<int> GetTotalOrganizationCount();
 }

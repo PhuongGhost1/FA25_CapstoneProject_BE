@@ -15,8 +15,7 @@ internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
 
         builder.Property(z => z.ZoneId)
             .HasColumnName("zone_id")
-            .IsRequired()
-            .ValueGeneratedOnAdd();
+            .IsRequired();
 
         builder.Property(z => z.Name)
             .HasColumnName("name")
