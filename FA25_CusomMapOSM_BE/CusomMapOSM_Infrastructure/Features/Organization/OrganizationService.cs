@@ -8,11 +8,18 @@ using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Application.Models.Templates.Email;
 using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
+using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Services;
+using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using Optional;
+using Optional.Unsafe;
+using Microsoft.AspNetCore.Http;
+using System.Text.RegularExpressions;
+using OfficeOpenXml;
 
 namespace CusomMapOSM_Infrastructure.Features.Organization;
 
@@ -24,11 +31,12 @@ public class OrganizationService : IOrganizationService
     private readonly ICurrentUserService _currentUserService;
     private readonly HangfireEmailService _hangfireEmailService;
     private readonly IMembershipService _membershipService;
+    private readonly IJwtService _jwtService;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
         ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService,
-        IMembershipService membershipService)
+        IMembershipService membershipService, IJwtService jwtService)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
@@ -36,6 +44,7 @@ public class OrganizationService : IOrganizationService
         _currentUserService = currentUserService;
         _hangfireEmailService = hangfireEmailService;
         _membershipService = membershipService;
+        _jwtService = jwtService;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -812,5 +821,343 @@ public class OrganizationService : IOrganizationService
         return Option.Some<TransferOwnershipResDto, Error>(
             new TransferOwnershipResDto { Result = "Ownership transferred successfully" });
 
+    }
+
+    public async Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request)
+    {
+        try
+        {
+            // Validate file
+            if (excelFile == null || excelFile.Length == 0)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.ValidationError("File.Empty", "Excel file is required"));
+            }
+
+            // Validate file size (max 10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+            if (excelFile.Length > maxFileSize)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.ValidationError("File.TooLarge", "File size exceeds 10MB limit"));
+            }
+
+            // Validate file extension
+            var allowedExtensions = new[] { ".xlsx", ".xls" };
+            var fileExtension = Path.GetExtension(excelFile.FileName).ToLower();
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.ValidationError("File.InvalidFormat", "Only .xlsx and .xls files are supported"));
+            }
+
+            // Validate organization exists
+            var organization = await _organizationRepository.GetOrganizationById(request.OrganizationId);
+            if (organization == null)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.NotFound("Organization.NotFound", "Organization not found"));
+            }
+
+            // Check if current user is owner/admin of organization
+            var currentUserId = _currentUserService.GetUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.Unauthorized("User.NotAuthenticated", "User must be authenticated"));
+            }
+
+            var currentUserMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(
+                currentUserId.Value, request.OrganizationId);
+            if (currentUserMember == null ||
+                (currentUserMember.Role != OrganizationMemberTypeEnum.Owner &&
+                 currentUserMember.Role != OrganizationMemberTypeEnum.Admin))
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.Forbidden("Organization.NotAuthorized", "Only organization owners and admins can bulk create student accounts"));
+            }
+
+            // Check organization membership quota
+            var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(
+                organization.OwnerUserId, request.OrganizationId, CancellationToken.None);
+            if (!activeMembership.HasValue)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.NotFound("Organization.NoActiveMembership", "Organization has no active membership"));
+            }
+
+            var membership = activeMembership.ValueOrDefault()!;
+            var membershipWithPlan = await _membershipService.GetCurrentMembershipWithIncludesAsync(
+                organization.OwnerUserId, request.OrganizationId, CancellationToken.None);
+            if (!membershipWithPlan.HasValue || membershipWithPlan.ValueOrDefault()?.Plan == null)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.NotFound("Organization.PlanNotFound", "Organization membership plan not found"));
+            }
+
+            var plan = membershipWithPlan.ValueOrDefault()!.Plan!;
+            var currentMembers = await _organizationRepository.GetOrganizationMembers(request.OrganizationId);
+            var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
+
+            // Read Excel file and parse student data
+            // EPPlus requires license context to be set
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            List<StudentExcelRow> students = new List<StudentExcelRow>();
+
+            using (var stream = new MemoryStream())
+            {
+                await excelFile.CopyToAsync(stream);
+                stream.Position = 0;
+
+                using (var package = new ExcelPackage(stream))
+                {
+                    var worksheet = package.Workbook.Worksheets[0];
+                    if (worksheet == null || worksheet.Dimension == null)
+                    {
+                        return Option.None<BulkCreateStudentsResponse, Error>(
+                            Error.ValidationError("File.NoWorksheet", "Excel file must contain at least one worksheet"));
+                    }
+
+                    // Find header row (assume first row is headers)
+                    int nameColumnIndex = -1;
+                    int classColumnIndex = -1;
+
+                    for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
+                    {
+                        var headerValue = worksheet.Cells[1, col].Text?.Trim().ToLower() ?? "";
+                        if (headerValue == "name")
+                        {
+                            nameColumnIndex = col;
+                        }
+                        else if (headerValue == "class")
+                        {
+                            classColumnIndex = col;
+                        }
+                    }
+
+                    if (nameColumnIndex == -1)
+                    {
+                        return Option.None<BulkCreateStudentsResponse, Error>(
+                            Error.ValidationError("File.MissingColumn", "Excel file must contain a 'Name' column"));
+                    }
+
+                    if (classColumnIndex == -1)
+                    {
+                        return Option.None<BulkCreateStudentsResponse, Error>(
+                            Error.ValidationError("File.MissingColumn", "Excel file must contain a 'Class' column"));
+                    }
+
+                    // Read data rows (skip header row)
+                    for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
+                    {
+                        var name = worksheet.Cells[row, nameColumnIndex].Text?.Trim();
+                        var studentClass = classColumnIndex > 0 ? worksheet.Cells[row, classColumnIndex].Text?.Trim() : null;
+
+                        if (string.IsNullOrWhiteSpace(name))
+                        {
+                            continue; // Skip empty rows
+                        }
+
+                        students.Add(new StudentExcelRow
+                        {
+                            Name = name,
+                            Class = studentClass
+                        });
+                    }
+                }
+            }
+
+            // Validate student count (max 80)
+            const int maxStudents = 80;
+            if (students.Count > maxStudents)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.ValidationError("File.TooManyStudents", $"Maximum {maxStudents} students allowed per upload. Found {students.Count}"));
+            }
+
+            if (students.Count == 0)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.ValidationError("File.NoStudents", "No valid student data found in Excel file"));
+            }
+
+            // Check if adding students would exceed quota
+            if (plan.MaxUsersPerOrg > 0 && (currentUserCount + students.Count) > plan.MaxUsersPerOrg)
+            {
+                return Option.None<BulkCreateStudentsResponse, Error>(
+                    Error.Conflict("Organization.UserQuotaExceeded",
+                        $"Cannot add {students.Count} students. Organization has {currentUserCount}/{plan.MaxUsersPerOrg} users. " +
+                        $"Would exceed limit by {currentUserCount + students.Count - plan.MaxUsersPerOrg} users"));
+            }
+
+            // Process students: handle duplicates and create accounts
+            var createdAccounts = new List<CreatedStudentAccount>();
+            var skippedAccounts = new List<SkippedStudentAccount>();
+            var nameCountInClass = new Dictionary<string, Dictionary<string, int>>(); // Class -> Name -> Count
+
+            foreach (var student in students)
+            {
+                try
+                {
+                    // Generate email: studentName@domain
+                    var cleanName = NormalizeNameForEmail(student.Name);
+                    var baseEmail = $"{cleanName}@{request.Domain}";
+
+                    // Handle duplicates within the same class
+                    var studentClass = student.Class ?? "default";
+                    if (!nameCountInClass.ContainsKey(studentClass))
+                    {
+                        nameCountInClass[studentClass] = new Dictionary<string, int>();
+                    }
+
+                    var nameCounts = nameCountInClass[studentClass];
+                    if (!nameCounts.ContainsKey(cleanName))
+                    {
+                        nameCounts[cleanName] = 0;
+                    }
+
+                    string finalEmail = baseEmail;
+                    if (nameCounts[cleanName] > 0)
+                    {
+                        // Second, third, etc. student with same name - add number suffix
+                        finalEmail = $"{cleanName}{nameCounts[cleanName]}@{request.Domain}";
+                    }
+
+                    nameCounts[cleanName]++;
+
+                    // Check if email already exists
+                    var existingUser = await _authenticationRepository.GetUserByEmail(finalEmail);
+                    if (existingUser != null)
+                    {
+                        skippedAccounts.Add(new SkippedStudentAccount
+                        {
+                            Name = student.Name,
+                            Class = studentClass,
+                            Reason = $"Email {finalEmail} already exists"
+                        });
+                        continue;
+                    }
+
+                    // Generate password: studentName + number (3-digit sequential number based on row index)
+                    var passwordNumber = createdAccounts.Count + skippedAccounts.Count + 1;
+                    var password = $"{cleanName}{passwordNumber:D3}"; // e.g., "johndoe001"
+
+                    // Hash password
+                    var passwordHash = _jwtService.HashObject<string>(password);
+
+                    // Create user account
+                    var newUser = new CusomMapOSM_Domain.Entities.Users.User
+                    {
+                        UserId = Guid.NewGuid(),
+                        Email = finalEmail,
+                        PasswordHash = passwordHash,
+                        FullName = student.Name,
+                        Phone = null,
+                        Role = UserRoleEnum.RegisteredUser,
+                        AccountStatus = AccountStatusEnum.Active, // Students accounts are auto-activated
+                        CreatedAt = DateTime.UtcNow,
+                        MonthlyTokenUsage = 0,
+                        LastTokenReset = DateTime.UtcNow
+                    };
+
+                    var userCreated = await _authenticationRepository.Register(newUser);
+                    if (!userCreated)
+                    {
+                        skippedAccounts.Add(new SkippedStudentAccount
+                        {
+                            Name = student.Name,
+                            Class = studentClass,
+                            Reason = "Failed to create user account"
+                        });
+                        continue;
+                    }
+
+                    // Add user as organization member with Viewer role
+                    var newMember = new OrganizationMember
+                    {
+                        MemberId = Guid.NewGuid(),
+                        OrgId = request.OrganizationId,
+                        UserId = newUser.UserId,
+                        Role = OrganizationMemberTypeEnum.Viewer,
+                        InvitedBy = currentUserId.Value,
+                        JoinedAt = DateTime.UtcNow,
+                        Status = MemberStatus.Active
+                    };
+
+                    var memberAdded = await _organizationRepository.AddMemberToOrganization(newMember);
+                    if (!memberAdded)
+                    {
+                        // Rollback: delete user if member addition fails
+                        // Note: In production, you might want to handle this differently
+                        skippedAccounts.Add(new SkippedStudentAccount
+                        {
+                            Name = student.Name,
+                            Class = studentClass,
+                            Reason = "Failed to add user to organization"
+                        });
+                        continue;
+                    }
+
+                    // Consume user quota
+                    await _membershipService.TryConsumeQuotaAsync(
+                        membership.MembershipId,
+                        request.OrganizationId,
+                        "users",
+                        1,
+                        CancellationToken.None);
+
+                    createdAccounts.Add(new CreatedStudentAccount
+                    {
+                        UserId = newUser.UserId,
+                        Email = finalEmail,
+                        FullName = student.Name,
+                        Password = password, // Return plain password so educator can share it
+                        Class = studentClass
+                    });
+                }
+                catch (Exception ex)
+                {
+                    skippedAccounts.Add(new SkippedStudentAccount
+                    {
+                        Name = student.Name,
+                        Class = student.Class ?? "default",
+                        Reason = $"Error: {ex.Message}"
+                    });
+                }
+            }
+
+            return Option.Some<BulkCreateStudentsResponse, Error>(new BulkCreateStudentsResponse
+            {
+                TotalCreated = createdAccounts.Count,
+                TotalSkipped = skippedAccounts.Count,
+                CreatedAccounts = createdAccounts,
+                SkippedAccounts = skippedAccounts
+            });
+        }
+        catch (Exception ex)
+        {
+            return Option.None<BulkCreateStudentsResponse, Error>(
+                Error.Failure("BulkCreate.Failed", $"Failed to bulk create students: {ex.Message}"));
+        }
+    }
+
+    private string NormalizeNameForEmail(string name)
+    {
+        // Convert to lowercase, remove spaces, and replace special characters
+        var normalized = name.ToLower().Trim();
+        normalized = Regex.Replace(normalized, @"[^a-z0-9]", ""); // Remove non-alphanumeric
+        normalized = Regex.Replace(normalized, @"\s+", ""); // Remove all spaces
+
+        // Replace common Vietnamese characters if needed (optional)
+        // normalized = normalized.Replace("đ", "d").Replace("Đ", "d");
+
+        return normalized;
+    }
+
+    private class StudentExcelRow
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Class { get; set; }
     }
 }
