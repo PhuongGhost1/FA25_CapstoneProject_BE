@@ -822,14 +822,7 @@ public class OrganizationService : IOrganizationService
             new TransferOwnershipResDto { Result = "Ownership transferred successfully" });
 
     }
-    public async Task<Option<GetOrganizationNumberResDto, Error>> GetOrganizationNumber()
-    {
-        var organizationCount = await _organizationRepository.GetTotalOrganizationCount();
-
-        return Option.Some<GetOrganizationNumberResDto, Error>(
-            new GetOrganizationNumberResDto { OrganizationNumber = organizationCount });
-    }
-
+    
     public async Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request)
     {
         try
