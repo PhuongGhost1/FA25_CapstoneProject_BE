@@ -22,4 +22,5 @@ internal static class Tags
     internal const string PointsOfInterest = "PointsOfInterest";
     internal const string Osm = "OSM";
     internal const string Workspace = "Workspace";
+    internal const string Home = "Home";
 }

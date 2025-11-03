@@ -276,5 +276,35 @@ public class MapRepository : IMapRepository
         // For now, return empty list
         return new List<Map>();
     }
+
+    public async Task<int> GetTotalMapsCount()
+    {
+        return await _context.Maps
+            .Where(m => !m.IsTemplate)
+            .CountAsync();
+    }
+
+    public async Task<int> GetMonthlyExportsCount()
+    {
+        // Get the first day of current month
+        var currentMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        
+        // Check if MapExports table exists and has data
+        // If you don't have MapExports tracking yet, return 0
+        try
+        {
+            // If you have a MapExports DbSet, uncomment this:
+            // return await _context.MapExports
+            //     .Where(e => e.CreatedAt >= currentMonth)
+            //     .CountAsync();
+            
+            // For now, return 0 until MapExports tracking is implemented
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 }
 

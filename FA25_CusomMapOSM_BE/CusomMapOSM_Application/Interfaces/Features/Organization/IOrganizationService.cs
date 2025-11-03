@@ -2,6 +2,7 @@
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Organization.Response;
+using Microsoft.AspNetCore.Http;
 using Optional;
 
 namespace CusomMapOSM_Application.Interfaces.Features.Organization;
@@ -23,6 +24,5 @@ public interface IOrganizationService
     Task<Option<CancelInviteOrganizationResDto, Error>> CancelInvite(CancelInviteOrganizationReqDto req);
     Task<Option<GetMyOrganizationsResDto, Error>> GetMyOrganizations();
     Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(TransferOwnershipReqDto req);
-    Task<Option<GetOrganizationNumberResDto, Error>> GetOrganizationNumber();
-    Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(Microsoft.AspNetCore.Http.IFormFile excelFile, BulkCreateStudentsRequest request);
+    Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request);
 }

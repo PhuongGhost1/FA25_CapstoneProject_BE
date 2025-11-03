@@ -57,7 +57,6 @@ public static class Routes
         // User-specific endpoints
         public const string GetMyOrganizations = "my-organizations";
         public const string TransferOwnership = "{orgId:guid}/ownership";
-        public const string GetOrganizationNumber = "organization-number";
 
         // Bulk student account creation
         public const string BulkCreateStudents = "bulk-create-students";

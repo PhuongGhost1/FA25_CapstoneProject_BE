@@ -121,8 +121,3 @@ public record TransferOwnershipResDto
 {
     public required string Result { get; set; }
 }
-
-public record GetOrganizationNumberResDto
-{
-    public required int OrganizationNumber { get; set; }
-}

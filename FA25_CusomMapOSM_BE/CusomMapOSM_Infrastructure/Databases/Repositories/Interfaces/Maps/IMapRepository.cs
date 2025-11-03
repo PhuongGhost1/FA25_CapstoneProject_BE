@@ -44,4 +44,8 @@ public interface IMapRepository
     Task<bool> ShareMap(Guid mapId, Guid userId, string permission);
     Task<bool> UnshareMap(Guid mapId, Guid userId);
     Task<List<Map>> GetSharedMaps(Guid userId);
+    
+    // Statistics operations
+    Task<int> GetTotalMapsCount();
+    Task<int> GetMonthlyExportsCount();
 }

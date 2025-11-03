@@ -9,6 +9,7 @@ using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Features.Workspace;
+using CusomMapOSM_Application.Interfaces.Features.Home;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -54,6 +55,7 @@ using CusomMapOSM_Infrastructure.Features.POIs;
 using CusomMapOSM_Infrastructure.Features.StoryMaps;
 using CusomMapOSM_Infrastructure.Features.Animations;
 using CusomMapOSM_Infrastructure.Features.Workspace;
+using CusomMapOSM_Infrastructure.Features.Home;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
@@ -230,6 +232,9 @@ public static class DependencyInjections
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
         services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
+        
+        // Home service for aggregated statistics
+        services.AddScoped<IHomeService, HomeService>();
 
         services.AddScoped<IFileProcessorService, FileProcessorService>();
         services.AddScoped<IVectorProcessor, VectorProcessor>();
