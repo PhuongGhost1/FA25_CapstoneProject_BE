@@ -25,6 +25,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membersh
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Animations;
@@ -36,6 +37,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
@@ -59,9 +61,7 @@ using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
 using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
 using CusomMapOSM_Application.Interfaces.Services.Maps;
-using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
-using CusomMapOSM_Infrastructure.Services.StoryMaps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.MinIO;
 using MongoDB.Driver;
@@ -86,6 +86,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTicket
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
 using CusomMapOSM_Application.Interfaces.Features.SupportTicket;
 using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
+using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.OrganizationAdmin;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SystemAdmin;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.OrganizationAdmin;
@@ -129,7 +130,7 @@ public static class DependencyInjections
 
         services.AddScoped<ITypeRepository, TypeRepository>();
         services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
-
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMembershipRepository, MembershipRepository>();
         services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
@@ -140,14 +141,13 @@ public static class DependencyInjections
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<IFaqRepository, FaqRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
         services.AddScoped<ILayerAnimationRepository, LayerAnimationRepository>();
         services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
         
-        // Interactive Points repositories - merged into Location entity
-
         services.AddSingleton<IMongoClient>(_ => new MongoClient(MongoDatabaseConstant.ConnectionString));
         services.AddScoped(sp =>
         {
@@ -161,10 +161,7 @@ public static class DependencyInjections
         
         services.AddScoped<IMapFeatureStore, MongoMapFeatureStore>();
         services.AddScoped<IMapHistoryStore, MongoMapHistoryStore>();
-        services.AddScoped<ISegmentLocationStore, MongoSegmentLocationStore>();
         
-        // Interactive Points MongoDB store - merged into Location entity
-
         services.AddScoped<ICacheService,RedisCacheService>();
         
         // MinIO service for file storage
@@ -203,9 +200,7 @@ public static class DependencyInjections
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
         
-        // Interactive Points services - merged into Location entity
 
-        // Organization Admin Services
         services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
         services.AddScoped<IOrganizationAdminRepository, OrganizationAdminRepository>();
 
@@ -225,10 +220,7 @@ public static class DependencyInjections
         {
             client.Timeout = TimeSpan.FromSeconds(15);
         });
-
-        // User Repository
-        services.AddScoped<IUserRepository, UserRepository>();
-
+        
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();

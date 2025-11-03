@@ -212,6 +212,15 @@ public class OrganizationEndpoint : IEndpoint
             .Produces<TransferOwnershipResDto>(200)
             .ProducesValidationProblem();
 
+        group.MapGet(Routes.OrganizationsEndpoints.GetOrganizationNumber, async (
+                [FromServices] IOrganizationService organizationService) =>
+            {
+                var result = await organizationService.GetOrganizationNumber();
+                return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
+            }).WithName(Routes.OrganizationsEndpoints.GetOrganizationNumber)
+            .WithDescription("Get total number of organizations")
+            .Produces<GetOrganizationNumberResDto>(200);
+
         group.MapPost(Routes.OrganizationsEndpoints.BulkCreateStudents, async (
                 IFormFile excelFile,
                 [FromForm] Guid organizationId,

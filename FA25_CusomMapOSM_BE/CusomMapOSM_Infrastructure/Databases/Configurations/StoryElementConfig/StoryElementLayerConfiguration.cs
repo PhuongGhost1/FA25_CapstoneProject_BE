@@ -14,8 +14,7 @@ internal class StoryElementLayerConfiguration : IEntityTypeConfiguration<StoryEl
 
         builder.Property(sel => sel.StoryElementLayerId)
             .HasColumnName("story_element_layer_id")
-            .IsRequired()
-            .ValueGeneratedOnAdd();
+            .IsRequired();
 
         builder.Property(sel => sel.ElementId)
             .HasColumnName("element_id")
