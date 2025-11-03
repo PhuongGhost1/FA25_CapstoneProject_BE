@@ -211,7 +211,7 @@ public class OrganizationEndpoint : IEndpoint
             .RequireAuthorization()
             .Produces<TransferOwnershipResDto>(200)
             .ProducesValidationProblem();
-        
+
         group.MapGet(Routes.OrganizationsEndpoints.GetOrganizationNumber, async (
                 [FromServices] IOrganizationService organizationService) =>
             {
@@ -220,6 +220,30 @@ public class OrganizationEndpoint : IEndpoint
             }).WithName(Routes.OrganizationsEndpoints.GetOrganizationNumber)
             .WithDescription("Get total number of organizations")
             .Produces<GetOrganizationNumberResDto>(200);
-        
+
+        group.MapPost(Routes.OrganizationsEndpoints.BulkCreateStudents, async (
+                IFormFile excelFile,
+                [FromForm] Guid organizationId,
+                [FromForm] string domain,
+                [FromServices] IOrganizationService organizationService) =>
+            {
+                var request = new BulkCreateStudentsRequest
+                {
+                    OrganizationId = organizationId,
+                    Domain = domain
+                };
+                var result = await organizationService.BulkCreateStudents(excelFile, request);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName(Routes.OrganizationsEndpoints.BulkCreateStudents)
+            .WithDescription("Bulk create student accounts from Excel file")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<BulkCreateStudentsResponse>(200)
+            .ProducesValidationProblem();
+
     }
 }
