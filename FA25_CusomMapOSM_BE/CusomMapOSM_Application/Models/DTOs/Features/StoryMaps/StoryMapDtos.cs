@@ -255,5 +255,6 @@ public record ZoneSummaryDto(
     string ZoneCode,
     ZoneType ZoneType,
     ZoneAdminLevel AdminLevel,
+    string? Geometry,
     string? Centroid,
     string? BoundingBox);

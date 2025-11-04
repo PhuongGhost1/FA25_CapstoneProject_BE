@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
@@ -8,6 +9,7 @@ using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -742,6 +744,153 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         return Option.Some<ZoneDto, Error>(zone.ToDto());
+    }
+
+    public async Task<Option<ZoneDto, Error>> CreateZoneFromOsmAsync(CreateZoneFromOsmRequest request, CancellationToken ct = default)
+    {
+        // Validate request
+        if (request.OsmId <= 0)
+        {
+            return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmId", "OSM ID must be greater than 0"));
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.OsmType))
+        {
+            return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmType", "OSM Type is required"));
+        }
+        
+        if (request.ParentZoneId.HasValue)
+        {
+            var parentZone = await _repository.GetZoneAsync(request.ParentZoneId.Value, ct);
+            if (parentZone is null)
+            {
+                return Option.None<ZoneDto, Error>(Error.NotFound("Zone.ParentNotFound", "Parent zone not found"));
+            }
+        }
+
+        var externalId = $"osm:{request.OsmType}:{request.OsmId}";
+
+        var existingZone = await _repository.GetZoneByExternalIdAsync(externalId, ct);
+        if (existingZone is not null)
+        {
+            return Option.Some<ZoneDto, Error>(existingZone.ToDto());
+        }
+
+        string centroid = JsonSerializer.Serialize(new
+        {
+            type = "Point",
+            coordinates = new[] { request.Lon, request.Lat }
+        });
+        
+        var offset = 0.01;
+        string boundingBox = $"{request.Lat - offset},{request.Lon - offset},{request.Lat + offset},{request.Lon + offset}";
+        
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(request.GeoJson))
+            {
+                var geoJson = JsonDocument.Parse(request.GeoJson);
+                if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
+                {
+                    var geometryType = typeProperty.GetString();
+
+                    if (geometryType == "Point" && geoJson.RootElement.TryGetProperty("coordinates", out var coords))
+                    {
+                        var lon = coords[0].GetDouble();
+                        var lat = coords[1].GetDouble();
+                        
+                        centroid = JsonSerializer.Serialize(new
+                        {
+                            type = "Point",
+                            coordinates = new[] { lon, lat }
+                        });
+
+                        var pointOffset = 0.001;
+                        boundingBox = $"{lat - pointOffset},{lon - pointOffset},{lat + pointOffset},{lon + pointOffset}";
+                    }
+                    else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
+                    {
+                        centroid = JsonSerializer.Serialize(new
+                        {
+                            type = "Point",
+                            coordinates = new[] { request.Lon, request.Lat }
+                        });
+                        
+                        var polyOffset = 0.1;
+                        boundingBox = $"{request.Lat - polyOffset},{request.Lon - polyOffset},{request.Lat + polyOffset},{request.Lon + polyOffset}";
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+
+        var zoneType = DetermineZoneType(request.Category, request.Type, request.AdminLevel);
+        var adminLevel = DetermineAdminLevel(request.AdminLevel, request.Category, request.Type);
+
+        var zoneCode = $"OSM_{request.OsmType.ToUpperInvariant()}_{request.OsmId}";
+
+        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
+        {
+            ZoneId = Guid.NewGuid(),
+            ExternalId = externalId,
+            ZoneCode = zoneCode,
+            Name = request.DisplayName,
+            ZoneType = zoneType,
+            AdminLevel = adminLevel,
+            ParentZoneId = request.ParentZoneId,
+            Geometry = request.GeoJson,
+            SimplifiedGeometry = null,
+            Centroid = centroid,
+            BoundingBox = boundingBox,
+            Description = $"Imported from OpenStreetMap: {request.Category}/{request.Type}",
+            IsActive = true,
+            LastSyncedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repository.AddZoneAsync(zone, ct);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<ZoneDto, Error>(zone.ToDto());
+    }
+
+    private ZoneType DetermineZoneType(
+        string? category, 
+        string? type, 
+        int? adminLevel)
+    {
+        if (category == "boundary" && type == "administrative")
+        {
+            return ZoneType.Area;
+        }
+
+        if (category == "highway" || type == "route")
+        {
+            return ZoneType.Route;
+        }
+
+        return ZoneType.Custom;
+    }
+
+    private ZoneAdminLevel DetermineAdminLevel(
+        int? adminLevel,
+        string? category,
+        string? type)
+    {
+        if (adminLevel.HasValue)
+        {
+            return adminLevel.Value switch
+            {
+                2 => ZoneAdminLevel.Country,
+                4 => ZoneAdminLevel.Province,
+                6 => ZoneAdminLevel.District,
+                8 or 9 or 10 => ZoneAdminLevel.Commune,
+                _ => ZoneAdminLevel.Custom
+            };
+        }
+        return ZoneAdminLevel.Custom;
     }
 
     public async Task<Option<ZoneDto, Error>> UpdateZoneAsync(Guid zoneId, UpdateZoneRequest request,

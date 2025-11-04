@@ -33,6 +33,7 @@ public interface IStoryMapService
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> GetZonesByParentAsync(Guid? parentZoneId, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchZonesAsync(string searchTerm, CancellationToken ct = default);
     Task<Option<ZoneDto, Error>> CreateZoneAsync(CreateZoneRequest request, CancellationToken ct = default);
+    Task<Option<ZoneDto, Error>> CreateZoneFromOsmAsync(CreateZoneFromOsmRequest request, CancellationToken ct = default);
     Task<Option<ZoneDto, Error>> UpdateZoneAsync(Guid zoneId, UpdateZoneRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteZoneAsync(Guid zoneId, CancellationToken ct = default);
     Task<Option<int, Error>> SyncZonesFromOSMAsync(SyncZonesFromOSMRequest request, CancellationToken ct = default);

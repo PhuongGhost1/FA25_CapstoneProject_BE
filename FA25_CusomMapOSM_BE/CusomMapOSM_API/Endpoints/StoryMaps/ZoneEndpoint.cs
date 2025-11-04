@@ -112,6 +112,24 @@ public class ZoneEndpoint : IEndpoint
             .ProducesProblem(404)
             .ProducesProblem(500);
 
+        // POST create zone from OSM data
+        group.MapPost("zones/from-osm", async (
+                [FromBody] CreateZoneFromOsmRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.CreateZoneFromOsmAsync(request, ct);
+                return result.Match<IResult>(
+                    zone => Results.Created($"{Routes.Prefix.StoryMap}/zones/{zone.ZoneId}", zone),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("CreateZoneFromOsm")
+            .WithDescription("Create a new zone from OpenStreetMap data")
+            .WithTags(Tags.StoryMaps)
+            .Produces<ZoneDto>(201)
+            .ProducesProblem(400)
+            .ProducesProblem(500);
+
         // PUT update zone
         group.MapPut(Routes.StoryMapEndpoints.UpdateZone, async (
                 [FromRoute] Guid zoneId,

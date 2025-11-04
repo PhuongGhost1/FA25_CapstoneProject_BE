@@ -2,13 +2,15 @@ using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Models.DTOs.Services.OSM;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace CusomMapOSM_Infrastructure.Services
 {
@@ -32,26 +34,27 @@ namespace CusomMapOSM_Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<OsmElementDTO>> SearchByNameAsync(string query, double? lat = null, double? lon = null, double? radiusMeters = null, int limit = 10)
+        public async Task<IEnumerable<OsmSearchResultDTO>> SearchByNameAsync(string query, double? lat = null, double? lon = null, double? radiusMeters = null, int limit = 10)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
-                return Array.Empty<OsmElementDTO>();
+                return Array.Empty<OsmSearchResultDTO>();
             }
 
             var trimmedQuery = query.Trim();
             limit = Math.Clamp(limit, 1, 25);
-            var cacheKey = $"osm:search:{trimmedQuery}:{FormatCoordinate(lat)}:{FormatCoordinate(lon)}:{FormatRadius(radiusMeters)}:{limit}";
+                        var cacheKey = $"osm_search_v3_{trimmedQuery}_{lat}_{lon}_{radiusMeters}_{limit}";
             var cachedResult = await _cache.GetStringAsync(cacheKey);
             
             if (!string.IsNullOrEmpty(cachedResult))
             {
-                return JsonConvert.DeserializeObject<List<OsmElementDTO>>(cachedResult);
+                return JsonSerializer.Deserialize<List<OsmSearchResultDTO>>(cachedResult);
             }
 
             try
             {
-                var nominatimUrl = new StringBuilder($"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(trimmedQuery)}&format=json&addressdetails=1&limit={limit}");
+                // Request with polygon_geojson to get geometry data
+                var nominatimUrl = new StringBuilder($"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(trimmedQuery)}&format=json&addressdetails=1&polygon_geojson=1&limit={limit}");
                 
                 if (lat.HasValue && lon.HasValue)
                 {
@@ -69,24 +72,41 @@ namespace CusomMapOSM_Infrastructure.Services
                 response.EnsureSuccessStatusCode();
                 
                 var content = await response.Content.ReadAsStringAsync();
-                var results = JsonConvert.DeserializeObject<List<NominatimResultDTO>>(content);
+                _logger.LogInformation("Nominatim URL: {Url}", nominatimUrl.ToString());
+                _logger.LogInformation("Nominatim raw response sample: {Content}", content.Substring(0, Math.Min(500, content.Length)));
                 
-                var osmElements = MapNominatimToOsmElements(results);
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var results = JsonSerializer.Deserialize<List<NominatimResultDTO>>(content, jsonOptions);
+                
+                if (results == null || !results.Any())
+                {
+                    _logger.LogWarning("Nominatim returned no results for query: {Query}", trimmedQuery);
+                    return new List<OsmSearchResultDTO>();
+                }
+                
+                var firstResult = results[0];
+                _logger.LogInformation("First result AFTER deserialize - OsmType: {OsmType}, OsmId: {OsmId}, DisplayName: {DisplayName}, PlaceRank: {PlaceRank}", 
+                    firstResult.OsmType ?? "NULL", firstResult.OsmId, firstResult.DisplayName ?? "NULL", firstResult.PlaceRank?.ToString() ?? "NULL");
+                
+                var osmSearchResults = MapNominatimToSearchResults(results);
                 
                 await _cache.SetStringAsync(
                     cacheKey,
-                    JsonConvert.SerializeObject(osmElements),
+                    JsonSerializer.Serialize(osmSearchResults),
                     new DistributedCacheEntryOptions
                     {
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(CACHE_MINUTES)
                     });
                 
-                return osmElements;
+                return osmSearchResults;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error searching OSM elements by name");
-                return new List<OsmElementDTO>();
+                return new List<OsmSearchResultDTO>();
             }
         }
 
@@ -392,6 +412,113 @@ namespace CusomMapOSM_Infrastructure.Services
         }
 
         // Implement remaining methods...
+
+        private IEnumerable<OsmSearchResultDTO> MapNominatimToSearchResults(List<NominatimResultDTO> results)
+        {
+            var searchResults = new List<OsmSearchResultDTO>();
+            
+            foreach (var result in results)
+            {
+                double[] boundingBox = null;
+                if (result.BoundingBox != null && result.BoundingBox.Length == 4)
+                {
+                    // Parse string array to double array
+                    boundingBox = new double[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (double.TryParse(result.BoundingBox[i], NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+                        {
+                            boundingBox[i] = value;
+                        }
+                    }
+                }
+
+                // Convert GeoJSON to string
+                string geoJsonString = null;
+                if (result.GeoJson != null)
+                {
+                    try
+                    {
+                        geoJsonString = JsonSerializer.Serialize(result.GeoJson);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to serialize GeoJSON for OSM {Type} {Id}", result.OsmType, result.OsmId);
+                    }
+                }
+                
+                // If no GeoJSON, create a Point from lat/lon
+                if (string.IsNullOrEmpty(geoJsonString))
+                {
+                    geoJsonString = JsonSerializer.Serialize(new
+                    {
+                        type = "Point",
+                        coordinates = new[] { result.Lon, result.Lat }
+                    });
+                }
+
+                // Map address details
+                OsmAddressDTO addressDetails = null;
+                if (result.Address != null)
+                {
+                    addressDetails = new OsmAddressDTO
+                    {
+                        Road = result.Address.Road ?? string.Empty,
+                        Suburb = result.Address.Suburb ?? string.Empty,
+                        City = result.Address.City ?? string.Empty,
+                        District = result.Address.District ?? string.Empty,
+                        State = result.Address.State ?? string.Empty,
+                        Postcode = result.Address.Postcode ?? string.Empty,
+                        Country = result.Address.Country ?? string.Empty,
+                        CountryCode = result.Address.CountryCode ?? string.Empty
+                    };
+                }
+
+                // Try to extract admin_level from tags (if available)
+                int? adminLevel = null;
+                if (result.Class == "boundary" && result.Type == "administrative")
+                {
+                    // Estimate admin level based on place_rank
+                    if (result.PlaceRank.HasValue)
+                    {
+                        adminLevel = EstimateAdminLevelFromPlaceRank(result.PlaceRank.Value);
+                    }
+                }
+
+                searchResults.Add(new OsmSearchResultDTO
+                {
+                    OsmType = result.OsmType,
+                    OsmId = result.OsmId,
+                    DisplayName = result.DisplayName,
+                    Lat = result.Lat,
+                    Lon = result.Lon,
+                    BoundingBox = boundingBox,
+                    Category = result.Class ?? string.Empty,
+                    Type = result.Type ?? string.Empty,
+                    Importance = result.Importance,
+                    GeoJson = geoJsonString,
+                    AddressDetails = addressDetails,
+                    PlaceRank = result.PlaceRank,
+                    AdminLevel = adminLevel
+                });
+            }
+            
+            return searchResults;
+        }
+        
+        private int? EstimateAdminLevelFromPlaceRank(int placeRank)
+        {
+            // Nominatim place_rank to OSM admin_level mapping (approximate)
+            return placeRank switch
+            {
+                <= 4 => 2,   // Country
+                <= 8 => 4,   // Province/State
+                <= 12 => 6,  // District
+                <= 16 => 8,  // Ward/Commune
+                <= 18 => 9,  // Sub-district
+                _ => 10      // Lowest level
+            };
+        }
 
         private IEnumerable<OsmElementDTO> MapNominatimToOsmElements(List<NominatimResultDTO> results)
         {

@@ -325,6 +325,18 @@ public record SyncZonesFromOSMRequest(
     string? CountryCode,
     bool UpdateExisting);
 
+public record CreateZoneFromOsmRequest(
+    string OsmType,
+    long OsmId,
+    string DisplayName,
+    double Lat,
+    double Lon,
+    string GeoJson,
+    string? Category,
+    string? Type,
+    int? AdminLevel,
+    Guid? ParentZoneId);
+
 // ================== SEGMENT ZONE ==================
 public record CreateSegmentZoneV2Request(
     Guid SegmentId,

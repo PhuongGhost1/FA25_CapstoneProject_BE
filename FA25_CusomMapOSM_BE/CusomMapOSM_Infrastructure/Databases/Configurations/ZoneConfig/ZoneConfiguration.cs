@@ -42,12 +42,12 @@ internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
 
         builder.Property(z => z.Geometry)
             .HasColumnName("geometry")
-            .HasColumnType("text")
+            .HasColumnType("longtext")
             .IsRequired();
 
         builder.Property(z => z.SimplifiedGeometry)
             .HasColumnName("simplified_geometry")
-            .HasColumnType("text");
+            .HasColumnType("longtext");
 
         builder.Property(z => z.Centroid)
             .HasColumnName("centroid")
