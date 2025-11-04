@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CusomMapOSM_Domain.Entities.Animations.Enums;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
@@ -8,25 +9,26 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 public record CreateSegmentRequest(
     Guid MapId,
     string Name,
-    string? Summary,
+    string? Description,
     string? StoryContent,
     int DisplayOrder,
-    bool AutoFitBounds,
-    Guid? EntryAnimationPresetId,
-    Guid? ExitAnimationPresetId,
-    Guid? DefaultLayerAnimationPresetId,
-    SegmentPlaybackMode PlaybackMode);
+    string? CameraState,
+    bool AutoAdvance,
+    int DurationMs,
+    bool RequireUserAction,
+    SegmentPlaybackMode PlaybackMode
+);
 
 public record UpdateSegmentRequest(
     string Name,
-    string? Summary,
+    string? Description,
     string? StoryContent,
-    int DisplayOrder,
-    bool AutoFitBounds,
-    Guid? EntryAnimationPresetId,
-    Guid? ExitAnimationPresetId,
-    Guid? DefaultLayerAnimationPresetId,
-    SegmentPlaybackMode PlaybackMode);
+    int? DisplayOrder,
+    string? CameraState,
+    bool? AutoAdvance,
+    int? DurationMs,
+    bool? RequireUserAction,
+    SegmentPlaybackMode? PlaybackMode);
 
 public record CreateSegmentZoneRequest(
     Guid SegmentId,

@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
@@ -103,25 +104,20 @@ public class StoryMapService : IStoryMapService
 
         var name = string.IsNullOrWhiteSpace(request.Name) ? "Untitled Segment" : request.Name.Trim();
         var displayOrder = request.DisplayOrder < 0 ? 0 : request.DisplayOrder;
-
-        // Map PlaybackMode to AutoAdvance/RequireUserAction
-        var autoAdvance = request.PlaybackMode != CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-        var requireUserAction =
-            request.PlaybackMode == CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-
+        
         var segment = new Segment
         {
             SegmentId = Guid.NewGuid(),
             MapId = request.MapId,
             CreatedBy = userId.Value,
             Name = name,
-            Description = request.Summary,
+            Description = request.Description,
             StoryContent = request.StoryContent,
             DisplayOrder = displayOrder,
-            CameraState = string.Empty,
-            AutoAdvance = autoAdvance,
+            CameraState = request.CameraState ?? string.Empty,
+            AutoAdvance = request.AutoAdvance,
             DurationMs = 6000,
-            RequireUserAction = requireUserAction,
+            RequireUserAction = request.RequireUserAction,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -134,25 +130,73 @@ public class StoryMapService : IStoryMapService
     public async Task<Option<SegmentDto, Error>> UpdateSegmentAsync(Guid segmentId, UpdateSegmentRequest request,
         CancellationToken ct = default)
     {
+        // Validate request
+        var validationResult = SegmentValidator.ValidateUpdateRequest(request);
+        if (validationResult.Match(some: _ => false, none: err => true))
+        {
+            return validationResult.Match<Option<SegmentDto, Error>>(
+                some: _ => throw new InvalidOperationException(),
+                none: err => Option.None<SegmentDto, Error>(err)
+            );
+        }
+
+        // Validate segment exists
         var segment = await _repository.GetSegmentAsync(segmentId, ct);
         if (segment is null)
         {
-            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
+            return Option.None<SegmentDto, Error>(
+                Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var name = string.IsNullOrWhiteSpace(request.Name) ? segment.Name : request.Name.Trim();
-        var displayOrder = request.DisplayOrder < 0 ? segment.DisplayOrder : request.DisplayOrder;
+        segment.Name = request.Name.Trim();
+        
+        if (request.Description != null)
+        {
+            segment.Description = request.Description;
+        }
+        
+        if (request.StoryContent != null)
+        {
+            segment.StoryContent = request.StoryContent;
+        }
+        
+        if (request.DisplayOrder.HasValue)
+        {
+            segment.DisplayOrder = request.DisplayOrder.Value;
+        }
 
-        var autoAdvance = request.PlaybackMode != CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-        var requireUserAction =
-            request.PlaybackMode == CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
+        if (!string.IsNullOrWhiteSpace(request.CameraState))
+        {
+            segment.CameraState = request.CameraState;
+        }
 
-        segment.Name = name;
-        segment.Description = request.Summary;
-        segment.StoryContent = request.StoryContent;
-        segment.DisplayOrder = displayOrder;
-        segment.AutoAdvance = autoAdvance;
-        segment.RequireUserAction = requireUserAction;
+        if (request.AutoAdvance.HasValue)
+        {
+            segment.AutoAdvance = request.AutoAdvance.Value;
+        }
+
+        if (request.DurationMs.HasValue)
+        {
+            segment.DurationMs = request.DurationMs.Value;
+        }
+
+        if (request.RequireUserAction.HasValue)
+        {
+            segment.RequireUserAction = request.RequireUserAction.Value;
+        }
+
+        if (request.PlaybackMode.HasValue)
+        {
+            var autoAdvance = request.PlaybackMode.Value != 
+                SegmentPlaybackMode.Manual;
+            var requireUserAction = request.PlaybackMode.Value == 
+                SegmentPlaybackMode.Manual;
+            
+            segment.AutoAdvance = autoAdvance;
+            segment.RequireUserAction = requireUserAction;
+        }
+
+        // Set updated timestamp
         segment.UpdatedAt = DateTime.UtcNow;
 
         _repository.UpdateSegment(segment);
