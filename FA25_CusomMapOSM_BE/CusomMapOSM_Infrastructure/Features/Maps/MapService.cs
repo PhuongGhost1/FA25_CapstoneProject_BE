@@ -157,13 +157,10 @@ public class MapService : IMapService
                     MapId = newMap.MapId,
                     UserId = newMap.UserId,
                     LayerName = "Default Layer",
-                    LayerType = LayerTypeEnum.GEOJSON,
-                    SourceType = LayerSourceEnum.UserUploaded,
+                    LayerType = LayerType.GEOJSON,
+                    SourceType = LayerSource.UserUploaded,
                     LayerStyle = JsonSerializer.Serialize(new { color = "#2563eb", weight = 2, fillColor = "#3b82f6", fillOpacity = 0.2 }),
                     IsPublic = false,
-                    IsVisible = true,
-                    ZIndex = 1,
-                    LayerOrder = 1,
                     FeatureCount = 0,
                     DataSizeKB = 0,
                     CreatedAt = DateTime.UtcNow
@@ -433,9 +430,9 @@ public class MapService : IMapService
             LayerName = l.LayerName ?? "Unknown Layer",
             LayerTypeId = (int)l.LayerType,
             LayerStyle = l.LayerStyle ?? "",
-            IsVisible = l.IsVisible,
-            ZIndex = l.ZIndex,
-            LayerOrder = l.LayerOrder,
+            IsVisible = true,
+            ZIndex = 1,
+            LayerOrder = 0,
             FeatureCount = l.FeatureCount,
             DataSizeKB = l.DataSizeKB,
             DataBounds = l.DataBounds
@@ -515,9 +512,9 @@ public class MapService : IMapService
                 MapLayerId = layer.LayerId, // Use LayerId since MapLayerId doesn't exist anymore
                 LayerName = layer.LayerName ?? "Unknown Layer",
                 LayerTypeId = (int)layer.LayerType,
-                IsVisible = layer.IsVisible,
-                ZIndex = layer.ZIndex,
-                LayerOrder = layer.LayerOrder,
+                IsVisible = true,
+                ZIndex = 1,
+                LayerOrder = 0,
                 LayerData = layerData ?? string.Empty,
                 LayerStyle = layer.LayerStyle ?? "",
                 FeatureCount = layer.FeatureCount,
@@ -593,9 +590,6 @@ public class MapService : IMapService
             }
 
             layer.MapId = mapId;
-            layer.IsVisible = req.IsVisible;
-            layer.ZIndex = req.ZIndex;
-            layer.LayerOrder = 0;
             layer.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _mapRepository.UpdateLayer(layer);
@@ -615,14 +609,14 @@ public class MapService : IMapService
             }
 
             // Parse LayerTypeId to LayerTypeEnum
-            LayerTypeEnum layerType = LayerTypeEnum.GEOJSON; // Default
+            LayerType layerType = LayerType.GEOJSON; // Default
             if (!string.IsNullOrWhiteSpace(req.LayerTypeId))
             {
                 if (int.TryParse(req.LayerTypeId, out var typeId))
                 {
-                    layerType = (LayerTypeEnum)typeId;
+                    layerType = (LayerType)typeId;
                 }
-                else if (Enum.TryParse<LayerTypeEnum>(req.LayerTypeId, true, out var parsedType))
+                else if (Enum.TryParse<LayerType>(req.LayerTypeId, true, out var parsedType))
                 {
                     layerType = parsedType;
                 }
@@ -643,15 +637,12 @@ public class MapService : IMapService
                 LayerName = req.LayerName,
                 LayerType = layerType,
                 LayerStyle = req.LayerStyle ?? string.Empty,
-                SourceType = LayerSourceEnum.UserUploaded,
+                SourceType = LayerSource.UserUploaded,
                 FilePath = string.Empty,
                 IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 UserId = currentUserId.Value,
-                IsVisible = req.IsVisible,
-                ZIndex = req.ZIndex,
-                LayerOrder = 0,
                 DataSizeKB = dataSizeKB
             };
 
@@ -744,11 +735,6 @@ public class MapService : IMapService
                 Error.NotFound("Map.LayerNotFound", "Layer not found in map"));
         }
 
-        // Update fields if provided
-        if (req.IsVisible.HasValue)
-            mapLayer.IsVisible = req.IsVisible.Value;
-        if (req.ZIndex.HasValue)
-            mapLayer.ZIndex = req.ZIndex.Value;
 
         mapLayer.UpdatedAt = DateTime.UtcNow;
 
@@ -900,9 +886,9 @@ public class MapService : IMapService
                 OwnerId = layer.UserId,
                 OwnerName = layer.User?.FullName ?? "Unknown",
                 MapLayerId = layer.LayerId,
-                IsVisible = layer.IsVisible,
-                ZIndex = layer.ZIndex,
-                LayerOrder = layer.LayerOrder,
+                IsVisible = true,
+                ZIndex = 1,
+                LayerOrder = 0,
             });
         }
 
@@ -975,7 +961,6 @@ public class MapService : IMapService
         };
     }
 
-    // Helper methods for copying template content
     private async Task<int> CopyTemplateLayersToMap(Guid templateId, Guid newMapId, Guid userId)
     {
         var templateLayers = await _mapRepository.GetTemplateLayers(templateId);
@@ -993,12 +978,6 @@ public class MapService : IMapService
                 SourceType = templateLayer.SourceType,
                 LayerStyle = templateLayer.LayerStyle,
                 IsPublic = false,
-
-
-                IsVisible = templateLayer.IsVisible,
-                ZIndex = templateLayer.ZIndex,
-                LayerOrder = templateLayer.LayerOrder,
-
                 FeatureCount = templateLayer.FeatureCount,
                 DataSizeKB = templateLayer.DataSizeKB,
                 DataBounds = templateLayer.DataBounds,
@@ -1106,13 +1085,10 @@ public class MapService : IMapService
                 MapId = mapTemplate.MapId,
                 UserId = mapTemplate.UserId,
                 LayerName = req.LayerName,
-                LayerType = LayerTypeEnum.GEOJSON,
-                SourceType = LayerSourceEnum.UserUploaded,
+                LayerType = LayerType.GEOJSON,
+                SourceType = LayerSource.UserUploaded,
                 LayerStyle = req.LayerStyle,
                 IsPublic = req.IsPublic,
-                IsVisible = true,
-                ZIndex = 1,
-                LayerOrder = 1,
                 FeatureCount = req.FeatureCount,
                 DataSizeKB = req.DataSizeKB,
                 DataBounds = req.DataBounds,
@@ -1227,8 +1203,8 @@ public class MapService : IMapService
                 Description = null, // Layer entity doesn't have Description property
                 LayerType = layer.LayerType.ToString(),
                 FeatureCount = layer.FeatureCount ?? 0, // Handle nullable FeatureCount
-                IsVisible = layer.IsVisible,
-                ZIndex = layer.ZIndex // ZIndex is not nullable
+                IsVisible = true, // Layer entity doesn't have IsVisible property, default to true
+                ZIndex = 0 // Layer entity doesn't have ZIndex property, default to 0
             }).ToList();
 
             return Option.Some<List<LayerInfoResponse>, Error>(layerInfos);
@@ -1319,14 +1295,11 @@ public class MapService : IMapService
                     MapId = mapId,
                     UserId = currentUserId.Value,
                     LayerName = req.NewLayerName,
-                    LayerType = LayerTypeEnum.GEOJSON,
-                    SourceType = LayerSourceEnum.UserUploaded,
+                    LayerType = LayerType.GEOJSON,
+                    SourceType = LayerSource.UserUploaded,
                     LayerStyle = JsonSerializer.Serialize(new
                         { color = "#3388ff", weight = 2, fillColor = "#3388ff", fillOpacity = 0.2 }),
                     IsPublic = false,
-                    IsVisible = true,
-                    ZIndex = 1,
-                    LayerOrder = 1,
                     FeatureCount = 0,
                     DataSizeKB = 0,
                     CreatedAt = DateTime.UtcNow

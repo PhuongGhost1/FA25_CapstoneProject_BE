@@ -8,29 +8,29 @@ public static class LocationMappings
     public static PoiDto ToPoiDto(this Location l)
         => new PoiDto(
             l.LocationId,
-            l.MapId,
+            l.Segment?.MapId ?? Guid.Empty,
             l.SegmentId,
-            l.ZoneId,
+            null, // ZoneId - not in entity
             l.Title,
             l.Subtitle,
             l.LocationType,
             l.MarkerGeometry,
-            l.StoryContent,
-            l.MediaResources,
+            null, // StoryContent - not in entity
+            l.MediaUrls, // MediaResources mapped to MediaUrls
             l.DisplayOrder,
-            l.HighlightOnEnter,
+            false, // HighlightOnEnter - not in entity
             l.ShowTooltip,
             l.TooltipContent,
-            l.EffectType,
-            l.OpenSlideOnClick,
-            l.SlideContent,
+            null, // EffectType - not in entity
+            l.OpenPopupOnClick, // OpenSlideOnClick mapped to OpenPopupOnClick
+            l.PopupContent, // SlideContent mapped to PopupContent
             l.LinkedLocationId,
             l.PlayAudioOnClick,
             l.AudioUrl,
             l.ExternalUrl,
-            l.AssociatedLayerId,
-            l.AnimationPresetId,
-            l.AnimationOverrides,
+            null, // AssociatedLayerId - not in entity
+            null, // AnimationPresetId - not in entity
+            null, // AnimationOverrides - not in entity
             l.IsVisible,
             l.ZIndex,
             l.CreatedBy,

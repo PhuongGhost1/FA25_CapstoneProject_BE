@@ -13,34 +13,34 @@ public class LayerAnimationRepository : ILayerAnimationRepository
         _db = db;
     }
 
-    public async Task<LayerAnimation?> GetAnimationAsync(Guid animationId, CancellationToken ct)
+    public async Task<AnimatedLayer?> GetAnimationAsync(Guid animationId, CancellationToken ct)
     {
-        return await _db.LayerAnimations.FirstOrDefaultAsync(a => a.LayerAnimationId == animationId, ct);
+        return await _db.AnimatedLayers.FirstOrDefaultAsync(a => a.AnimatedLayerId == animationId, ct);
     }
 
-    public async Task<List<LayerAnimation>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct)
+    public async Task<List<AnimatedLayer>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct)
     {
-        return await _db.LayerAnimations.Where(a => a.LayerId == layerId).OrderBy(a => a.ZIndex).ToListAsync(ct);
+        return await _db.AnimatedLayers.Where(a => a.LayerId == layerId).OrderBy(a => a.ZIndex).ToListAsync(ct);
     }
 
-    public async Task AddAnimationAsync(LayerAnimation animation, CancellationToken ct)
+    public async Task AddAnimationAsync(AnimatedLayer animation, CancellationToken ct)
     {
-        await _db.LayerAnimations.AddAsync(animation, ct);
+        await _db.AnimatedLayers.AddAsync(animation, ct);
     }
 
-    public void UpdateAnimation(LayerAnimation animation)
+    public void UpdateAnimation(AnimatedLayer animation)
     {
-        _db.LayerAnimations.Update(animation);
+        _db.AnimatedLayers.Update(animation);
     }
 
-    public void RemoveAnimation(LayerAnimation animation)
+    public void RemoveAnimation(AnimatedLayer animation)
     {
-        _db.LayerAnimations.Remove(animation);
+        _db.AnimatedLayers.Remove(animation);
     }
 
-    public async Task<List<LayerAnimation>> GetActiveAnimationsAsync(CancellationToken ct)
+    public async Task<List<AnimatedLayer>> GetActiveAnimationsAsync(CancellationToken ct)
     {
-        return await _db.LayerAnimations.Where(a => a.IsActive).ToListAsync(ct);
+        return await _db.AnimatedLayers.Where(a => a.IsVisible).ToListAsync(ct);
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken ct)

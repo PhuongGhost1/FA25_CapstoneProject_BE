@@ -44,18 +44,18 @@ public class FileProcessorService : IFileProcessorService
             return layerType switch
             {
                 // Vector formats
-                LayerTypeEnum.GEOJSON => await _vectorProcessor.ProcessGeoJSON(file, layerName),
-                LayerTypeEnum.KML => await _vectorProcessor.ProcessKML(file, layerName),
-                LayerTypeEnum.Shapefile => await _vectorProcessor.ProcessShapefile(file, layerName),
-                LayerTypeEnum.GPX => await _vectorProcessor.ProcessGPX(file, layerName),
+                LayerType.GEOJSON => await _vectorProcessor.ProcessGeoJSON(file, layerName),
+                LayerType.KML => await _vectorProcessor.ProcessKML(file, layerName),
+                LayerType.Shapefile => await _vectorProcessor.ProcessShapefile(file, layerName),
+                LayerType.GPX => await _vectorProcessor.ProcessGPX(file, layerName),
                 
                 // Spreadsheet formats
-                LayerTypeEnum.CSV => await _spreadsheetProcessor.ProcessCSV(file, layerName, new SpreadsheetConfig()),
-                LayerTypeEnum.Excel => await _spreadsheetProcessor.ProcessExcel(file, layerName, new SpreadsheetConfig()),
+                LayerType.CSV => await _spreadsheetProcessor.ProcessCSV(file, layerName, new SpreadsheetConfig()),
+                LayerType.Excel => await _spreadsheetProcessor.ProcessExcel(file, layerName, new SpreadsheetConfig()),
                 
                 // Raster formats
-                LayerTypeEnum.GeoTIFF => await _rasterProcessor.ProcessGeoTIFF(file, layerName),
-                LayerTypeEnum.PNG or LayerTypeEnum.JPG => await _rasterProcessor.ProcessImageFile(file, layerName, new double[4]),
+                LayerType.GeoTIFF => await _rasterProcessor.ProcessGeoTIFF(file, layerName),
+                LayerType.PNG or LayerType.JPG => await _rasterProcessor.ProcessImageFile(file, layerName, new double[4]),
                 
                 _ => new FileProcessingResult
                 {
@@ -74,22 +74,22 @@ public class FileProcessorService : IFileProcessorService
         }
     }
 
-    public LayerTypeEnum DetectFileType(string fileName)
+    public LayerType DetectFileType(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLower();
         
         return extension switch
         {
-            FileExtensionConstant.Vector.GEOJSON or FileExtensionConstant.Vector.JSON => LayerTypeEnum.GEOJSON,
-            FileExtensionConstant.Vector.KML => LayerTypeEnum.KML,
-            FileExtensionConstant.Vector.SHAPEFILE => LayerTypeEnum.Shapefile,
-            FileExtensionConstant.Vector.GPX => LayerTypeEnum.GPX,
-            FileExtensionConstant.Spreadsheet.CSV => LayerTypeEnum.CSV,
-            FileExtensionConstant.Spreadsheet.XLSX or FileExtensionConstant.Spreadsheet.XLS => LayerTypeEnum.Excel,
-            FileExtensionConstant.Raster.TIF or FileExtensionConstant.Raster.TIFF => LayerTypeEnum.GeoTIFF,
-            FileExtensionConstant.Raster.PNG => LayerTypeEnum.PNG,
-            FileExtensionConstant.Raster.JPG or FileExtensionConstant.Raster.JPEG => LayerTypeEnum.JPG,
-            _ => LayerTypeEnum.GEOJSON // Default fallback
+            FileExtensionConstant.Vector.GEOJSON or FileExtensionConstant.Vector.JSON => LayerType.GEOJSON,
+            FileExtensionConstant.Vector.KML => LayerType.KML,
+            FileExtensionConstant.Vector.SHAPEFILE => LayerType.Shapefile,
+            FileExtensionConstant.Vector.GPX => LayerType.GPX,
+            FileExtensionConstant.Spreadsheet.CSV => LayerType.CSV,
+            FileExtensionConstant.Spreadsheet.XLSX or FileExtensionConstant.Spreadsheet.XLS => LayerType.Excel,
+            FileExtensionConstant.Raster.TIF or FileExtensionConstant.Raster.TIFF => LayerType.GeoTIFF,
+            FileExtensionConstant.Raster.PNG => LayerType.PNG,
+            FileExtensionConstant.Raster.JPG or FileExtensionConstant.Raster.JPEG => LayerType.JPG,
+            _ => LayerType.GEOJSON // Default fallback
         };
     }
 

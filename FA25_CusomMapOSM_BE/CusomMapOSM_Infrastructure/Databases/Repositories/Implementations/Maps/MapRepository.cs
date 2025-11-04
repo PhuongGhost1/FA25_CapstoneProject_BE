@@ -151,7 +151,7 @@ public class MapRepository : IMapRepository
         return await _context.Layers
             .Include(l => l.User) // Include User navigation property
             .Where(l => l.MapId == mapId)
-            .OrderBy(l => l.LayerOrder)
+            .OrderBy(l => l.CreatedAt)
             .ToListAsync();
     }
 
@@ -242,7 +242,7 @@ public class MapRepository : IMapRepository
             .Include(l => l.User)
             .Include(l => l.Map)
             .Where(l => l.MapId == mapId)
-            .OrderBy(l => l.LayerOrder)
+            .OrderBy(l => l.CreatedAt)
             .ToListAsync();
     }
 

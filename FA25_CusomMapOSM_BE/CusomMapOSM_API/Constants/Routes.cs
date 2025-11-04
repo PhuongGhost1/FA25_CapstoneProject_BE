@@ -9,7 +9,7 @@ public static class Routes
         public const string Auth = "auth";
         public const string Organization = "organizations";
         public const string PointOfInterest = "points-of-interest";
-        public const string StoryMap = "story-map";
+        public const string StoryMap = "storymaps";
         public const string Animations = "animations";
         public const string Maps = "maps";
         public const string Usage = "usage";
@@ -81,6 +81,9 @@ public static class Routes
         public const string UpdateSegmentLayer = "{mapId:guid}/segments/{segmentId:guid}/layers/{layerId:guid}";
         public const string DeleteSegmentLayer = "{mapId:guid}/segments/{segmentId:guid}/layers/{layerId:guid}";
 
+        // Segment locations (POIs)
+        public const string GetSegmentLocations = "{mapId:guid}/segments/{segmentId:guid}/locations";
+
         // Timeline
         public const string GetTimeline = "{mapId:guid}/timeline";
         public const string CreateTimelineStep = "{mapId:guid}/timeline";
@@ -99,6 +102,47 @@ public static class Routes
         public const string CreateStoryElementLayer = "story-elements/layers";
         public const string UpdateStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
         public const string DeleteStoryElementLayer = "story-elements/layers/{storyElementLayerId:guid}";
+
+        // Zone Master Data
+        public const string GetZones = "zones";
+        public const string GetZone = "zones/{zoneId:guid}";
+        public const string GetZonesByParent = "zones/parent/{parentZoneId:guid}";
+        public const string SearchZones = "zones/search";
+        public const string CreateZone = "zones";
+        public const string UpdateZone = "zones/{zoneId:guid}";
+        public const string DeleteZone = "zones/{zoneId:guid}";
+        public const string SyncZonesFromOSM = "zones/sync-osm";
+
+        // Timeline Transitions
+        public const string GetTimelineTransitions = "{mapId:guid}/timeline-transitions";
+        public const string GetTimelineTransition = "{mapId:guid}/timeline-transitions/{transitionId:guid}";
+        public const string CreateTimelineTransition = "{mapId:guid}/timeline-transitions";
+        public const string UpdateTimelineTransition = "{mapId:guid}/timeline-transitions/{transitionId:guid}";
+        public const string DeleteTimelineTransition = "{mapId:guid}/timeline-transitions/{transitionId:guid}";
+        public const string GenerateTransition = "{mapId:guid}/timeline-transitions/generate";
+
+        // Animated Layers
+        public const string GetAnimatedLayers = "{mapId:guid}/animated-layers";
+        public const string GetAnimatedLayer = "{mapId:guid}/animated-layers/{layerId:guid}";
+        public const string CreateAnimatedLayer = "{mapId:guid}/animated-layers";
+        public const string UpdateAnimatedLayer = "{mapId:guid}/animated-layers/{layerId:guid}";
+        public const string DeleteAnimatedLayer = "{mapId:guid}/animated-layers/{layerId:guid}";
+        public const string AttachAnimatedLayerToSegment = "{mapId:guid}/animated-layers/{layerId:guid}/attach-segment/{segmentId:guid}";
+
+        // Animated Layer Presets
+        public const string GetAnimatedLayerPresets = "animated-layer-presets";
+        public const string GetAnimatedLayerPreset = "animated-layer-presets/{presetId:guid}";
+        public const string SearchAnimatedLayerPresets = "animated-layer-presets/search";
+        public const string CreateAnimatedLayerPreset = "animated-layer-presets";
+        public const string UpdateAnimatedLayerPreset = "animated-layer-presets/{presetId:guid}";
+        public const string DeleteAnimatedLayerPreset = "animated-layer-presets/{presetId:guid}";
+        public const string DuplicateAnimatedLayerPreset = "animated-layer-presets/{presetId:guid}/duplicate";
+        public const string CreateAnimatedLayerFromPreset = "animated-layer-presets/{presetId:guid}/create-layer";
+
+        // Enhanced Segment Operations
+        public const string GetSegmentEnhanced = "{mapId:guid}/segments/{segmentId:guid}";
+        public const string DuplicateSegment = "{mapId:guid}/segments/{segmentId:guid}/duplicate";
+        public const string ReorderSegments = "{mapId:guid}/segments/reorder";
     }
 
     public static class PoiEndpoints

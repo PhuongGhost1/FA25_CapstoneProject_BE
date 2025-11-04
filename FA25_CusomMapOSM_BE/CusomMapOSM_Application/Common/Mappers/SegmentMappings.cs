@@ -15,14 +15,14 @@ public static class SegmentMappings
             segment.SegmentId,
             segment.MapId,
             segment.Name,
-            segment.Summary,
+            segment.Description, // Summary mapped to Description
             segment.StoryContent,
             segment.DisplayOrder,
-            segment.AutoFitBounds,
-            segment.EntryAnimationPresetId,
-            segment.ExitAnimationPresetId,
-            segment.DefaultLayerAnimationPresetId,
-            segment.PlaybackMode,
+            false, // AutoFitBounds - not in entity, default to false
+            null, // EntryAnimationPresetId - not in entity
+            null, // ExitAnimationPresetId - not in entity
+            null, // DefaultLayerAnimationPresetId - not in entity
+            CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Auto, // PlaybackMode - not in entity, default to Auto
             segment.CreatedAt,
             segment.UpdatedAt,
             zones,

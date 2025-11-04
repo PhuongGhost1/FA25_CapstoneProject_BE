@@ -35,10 +35,11 @@ public class LayerAnimationService : ILayerAnimationService
 
     public async Task<Option<LayerAnimationDto, Error>> CreateAnimationAsync(CreateLayerAnimationRequest request, CancellationToken ct = default)
     {
-        var entity = new LayerAnimation
+        var entity = new AnimatedLayer
         {
-            LayerAnimationId = Guid.NewGuid(),
+            AnimatedLayerId = Guid.NewGuid(),
             LayerId = request.LayerId,
+            CreatedBy = Guid.Empty, // TODO: Get from current user context
             Name = request.Name,
             SourceUrl = request.SourceUrl,
             Coordinates = request.Coordinates,
@@ -46,7 +47,7 @@ public class LayerAnimationService : ILayerAnimationService
             Scale = request.Scale,
             ZIndex = request.ZIndex,
             CreatedAt = DateTime.UtcNow,
-            IsActive = true
+            IsVisible = true
         };
 
         await _repository.AddAnimationAsync(entity, ct);
@@ -68,7 +69,7 @@ public class LayerAnimationService : ILayerAnimationService
         entity.RotationDeg = request.RotationDeg;
         entity.Scale = request.Scale;
         entity.ZIndex = request.ZIndex;
-        entity.IsActive = request.IsActive;
+        entity.IsVisible = request.IsActive;
         entity.UpdatedAt = DateTime.UtcNow;
 
         _repository.UpdateAnimation(entity);
@@ -95,11 +96,11 @@ public class LayerAnimationService : ILayerAnimationService
         return Option.Some<IReadOnlyCollection<LayerAnimationDto>, Error>(dtos);
     }
 
-    private static LayerAnimationDto ToDto(LayerAnimation a)
+    private static LayerAnimationDto ToDto(AnimatedLayer a)
     {
         return new LayerAnimationDto(
-            a.LayerAnimationId,
-            a.LayerId,
+            a.AnimatedLayerId,
+            a.LayerId ?? Guid.Empty,
             a.Name,
             a.SourceUrl,
             a.Coordinates,
@@ -108,7 +109,7 @@ public class LayerAnimationService : ILayerAnimationService
             a.ZIndex,
             a.CreatedAt,
             a.UpdatedAt,
-            a.IsActive
+            a.IsVisible
         );
     }
 }

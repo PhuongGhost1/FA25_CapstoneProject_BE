@@ -13,6 +13,12 @@
 
   <ItemGroup>
     <Folder Include="BackgroundJobs\" />
+    <Folder Include="Databases\Configurations\AnimationConfig\" />
+    <Folder Include="Databases\Configurations\LayerConfig\" />
+    <Folder Include="Databases\Configurations\LocationConfig\" />
+    <Folder Include="Databases\Configurations\SegmentConfig\" />
+    <Folder Include="Databases\Configurations\TimelineConfig\" />
+    <Folder Include="Databases\Configurations\ZoneConfig\" />
     <Folder Include="Databases\Repositories\" />
     <Folder Include="Options\" />
   </ItemGroup>

@@ -6,33 +6,60 @@ namespace CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 
 public interface IStoryMapService
 {
+    // ================== SEGMENT (Slides) ==================
     Task<Option<IReadOnlyCollection<SegmentDto>, Error>> GetSegmentsAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<SegmentDto, Error>> GetSegmentAsync(Guid segmentId, CancellationToken ct = default);
     Task<Option<SegmentDto, Error>> CreateSegmentAsync(CreateSegmentRequest request, CancellationToken ct = default);
     Task<Option<SegmentDto, Error>> UpdateSegmentAsync(Guid segmentId, UpdateSegmentRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteSegmentAsync(Guid segmentId, CancellationToken ct = default);
+    Task<Option<SegmentDto, Error>> DuplicateSegmentAsync(Guid segmentId, CancellationToken ct = default);
+    Task<Option<bool, Error>> ReorderSegmentsAsync(Guid mapId, List<Guid> segmentIds, CancellationToken ct = default);
 
+    // ================== SEGMENT ZONE (Zone highlight trên segment) ==================
     Task<Option<IReadOnlyCollection<SegmentZoneDto>, Error>> GetSegmentZonesAsync(Guid segmentId, CancellationToken ct = default);
-    Task<Option<SegmentZoneDto, Error>> CreateSegmentZoneAsync(CreateSegmentZoneRequest request, CancellationToken ct = default);
-    Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid segmentZoneId, UpdateSegmentZoneRequest request, CancellationToken ct = default);
+    Task<Option<SegmentZoneDto, Error>> CreateSegmentZoneAsync(CreateSegmentZoneV2Request request, CancellationToken ct = default);
+    Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid segmentZoneId, UpdateSegmentZoneV2Request request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct = default);
 
+    // ================== SEGMENT LAYER (Layer trên segment) ==================
     Task<Option<IReadOnlyCollection<SegmentLayerDto>, Error>> GetSegmentLayersAsync(Guid segmentId, CancellationToken ct = default);
-    Task<Option<SegmentLayerDto, Error>> CreateSegmentLayerAsync(Guid segmentId, UpsertSegmentLayerRequest request, CancellationToken ct = default);
-    Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId, UpsertSegmentLayerRequest request, CancellationToken ct = default);
+    Task<Option<SegmentLayerDto, Error>> CreateSegmentLayerAsync(CreateSegmentLayerRequest request, CancellationToken ct = default);
+    Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId, UpdateSegmentLayerRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct = default);
 
-    Task<Option<IReadOnlyCollection<TimelineStepDto>, Error>> GetTimelineAsync(Guid mapId, CancellationToken ct = default);
-    Task<Option<TimelineStepDto, Error>> CreateTimelineStepAsync(CreateTimelineStepRequest request, CancellationToken ct = default);
-    Task<Option<TimelineStepDto, Error>> UpdateTimelineStepAsync(Guid timelineStepId, UpdateTimelineStepRequest request, CancellationToken ct = default);
-    Task<Option<bool, Error>> DeleteTimelineStepAsync(Guid timelineStepId, CancellationToken ct = default);
+    // ================== ZONE (Master data - Administrative boundaries) ==================
+    Task<Option<IReadOnlyCollection<ZoneDto>, Error>> GetZonesAsync(CancellationToken ct = default);
+    Task<Option<ZoneDto, Error>> GetZoneAsync(Guid zoneId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<ZoneDto>, Error>> GetZonesByParentAsync(Guid? parentZoneId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchZonesAsync(string searchTerm, CancellationToken ct = default);
+    Task<Option<ZoneDto, Error>> CreateZoneAsync(CreateZoneRequest request, CancellationToken ct = default);
+    Task<Option<ZoneDto, Error>> UpdateZoneAsync(Guid zoneId, UpdateZoneRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteZoneAsync(Guid zoneId, CancellationToken ct = default);
+    Task<Option<int, Error>> SyncZonesFromOSMAsync(SyncZonesFromOSMRequest request, CancellationToken ct = default);
 
-    Task<Option<TransitionPreviewDto, Error>> PreviewTransitionAsync(PreviewTransitionRequest request, CancellationToken ct = default);
+    // ================== TIMELINE TRANSITION (Chuyển cảnh giữa các segments) ==================
+    Task<Option<IReadOnlyCollection<TimelineTransitionDto>, Error>> GetTimelineTransitionsAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<TimelineTransitionDto, Error>> GetTimelineTransitionAsync(Guid transitionId, CancellationToken ct = default);
+    Task<Option<TimelineTransitionDto, Error>> CreateTimelineTransitionAsync(CreateTimelineTransitionRequest request, CancellationToken ct = default);
+    Task<Option<TimelineTransitionDto, Error>> UpdateTimelineTransitionAsync(Guid transitionId, UpdateTimelineTransitionRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteTimelineTransitionAsync(Guid transitionId, CancellationToken ct = default);
 
-    Task<Option<IReadOnlyCollection<StoryElementLayerDto>, Error>> GetStoryElementLayersAsync(Guid elementId, CancellationToken ct = default);
-    Task<Option<StoryElementLayerDto, Error>> CreateStoryElementLayerAsync(CreateStoryElementLayerRequest request, CancellationToken ct = default);
-    Task<Option<StoryElementLayerDto, Error>> UpdateStoryElementLayerAsync(Guid storyElementLayerId, UpdateStoryElementLayerRequest request, CancellationToken ct = default);
-    Task<Option<bool, Error>> DeleteStoryElementLayerAsync(Guid storyElementLayerId, CancellationToken ct = default);
+    // ================== ANIMATED LAYER (GIF/Video overlay trên segment) ==================
+    Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersBySegmentAsync(Guid segmentId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersByLayerAsync(Guid layerId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerDto, Error>> GetAnimatedLayerAsync(Guid animatedLayerId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerDto, Error>> CreateAnimatedLayerAsync(CreateAnimatedLayerRequest request, Guid userId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerDto, Error>> UpdateAnimatedLayerAsync(Guid animatedLayerId, UpdateAnimatedLayerRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteAnimatedLayerAsync(Guid animatedLayerId, CancellationToken ct = default);
 
-    Task<Option<ExportedStoryDto, Error>> ExportAsync(Guid mapId, CancellationToken ct = default);
-    Task<Option<bool, Error>> ImportAsync(ImportStoryRequest request, CancellationToken ct = default);
+    // ================== ANIMATED LAYER PRESET ==================
+    Task<Option<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>> GetAnimatedLayerPresetsAsync(CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>> GetAnimatedLayerPresetsByCategoryAsync(string category, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>> SearchAnimatedLayerPresetsAsync(string searchTerm, CancellationToken ct = default);
+    Task<Option<AnimatedLayerPresetDto, Error>> GetAnimatedLayerPresetAsync(Guid presetId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerPresetDto, Error>> CreateAnimatedLayerPresetAsync(CreateAnimatedLayerPresetRequest request, Guid? userId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerPresetDto, Error>> UpdateAnimatedLayerPresetAsync(Guid presetId, UpdateAnimatedLayerPresetRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteAnimatedLayerPresetAsync(Guid presetId, CancellationToken ct = default);
+    Task<Option<AnimatedLayerDto, Error>> CreateAnimatedLayerFromPresetAsync(Guid presetId, Guid? layerId, Guid? segmentId, CancellationToken ct = default);
 }
