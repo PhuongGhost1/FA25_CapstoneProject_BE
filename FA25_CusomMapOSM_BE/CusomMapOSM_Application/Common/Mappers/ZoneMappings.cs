@@ -33,6 +33,7 @@ public static class ZoneMappings
             zone.ZoneCode,
             zone.ZoneType,
             zone.AdminLevel,
+            zone.Geometry,
             zone.Centroid,
             zone.BoundingBox);
 }

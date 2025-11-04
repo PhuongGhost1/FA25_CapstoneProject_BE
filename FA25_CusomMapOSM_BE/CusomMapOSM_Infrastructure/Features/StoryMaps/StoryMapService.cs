@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
@@ -5,8 +6,10 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -103,25 +106,20 @@ public class StoryMapService : IStoryMapService
 
         var name = string.IsNullOrWhiteSpace(request.Name) ? "Untitled Segment" : request.Name.Trim();
         var displayOrder = request.DisplayOrder < 0 ? 0 : request.DisplayOrder;
-
-        // Map PlaybackMode to AutoAdvance/RequireUserAction
-        var autoAdvance = request.PlaybackMode != CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-        var requireUserAction =
-            request.PlaybackMode == CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-
+        
         var segment = new Segment
         {
             SegmentId = Guid.NewGuid(),
             MapId = request.MapId,
             CreatedBy = userId.Value,
             Name = name,
-            Description = request.Summary,
+            Description = request.Description,
             StoryContent = request.StoryContent,
             DisplayOrder = displayOrder,
-            CameraState = string.Empty,
-            AutoAdvance = autoAdvance,
+            CameraState = request.CameraState ?? string.Empty,
+            AutoAdvance = request.AutoAdvance,
             DurationMs = 6000,
-            RequireUserAction = requireUserAction,
+            RequireUserAction = request.RequireUserAction,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -134,25 +132,73 @@ public class StoryMapService : IStoryMapService
     public async Task<Option<SegmentDto, Error>> UpdateSegmentAsync(Guid segmentId, UpdateSegmentRequest request,
         CancellationToken ct = default)
     {
+        // Validate request
+        var validationResult = SegmentValidator.ValidateUpdateRequest(request);
+        if (validationResult.Match(some: _ => false, none: err => true))
+        {
+            return validationResult.Match<Option<SegmentDto, Error>>(
+                some: _ => throw new InvalidOperationException(),
+                none: err => Option.None<SegmentDto, Error>(err)
+            );
+        }
+
+        // Validate segment exists
         var segment = await _repository.GetSegmentAsync(segmentId, ct);
         if (segment is null)
         {
-            return Option.None<SegmentDto, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
+            return Option.None<SegmentDto, Error>(
+                Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
-        var name = string.IsNullOrWhiteSpace(request.Name) ? segment.Name : request.Name.Trim();
-        var displayOrder = request.DisplayOrder < 0 ? segment.DisplayOrder : request.DisplayOrder;
+        segment.Name = request.Name.Trim();
+        
+        if (request.Description != null)
+        {
+            segment.Description = request.Description;
+        }
+        
+        if (request.StoryContent != null)
+        {
+            segment.StoryContent = request.StoryContent;
+        }
+        
+        if (request.DisplayOrder.HasValue)
+        {
+            segment.DisplayOrder = request.DisplayOrder.Value;
+        }
 
-        var autoAdvance = request.PlaybackMode != CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
-        var requireUserAction =
-            request.PlaybackMode == CusomMapOSM_Domain.Entities.Segments.Enums.SegmentPlaybackMode.Manual;
+        if (!string.IsNullOrWhiteSpace(request.CameraState))
+        {
+            segment.CameraState = request.CameraState;
+        }
 
-        segment.Name = name;
-        segment.Description = request.Summary;
-        segment.StoryContent = request.StoryContent;
-        segment.DisplayOrder = displayOrder;
-        segment.AutoAdvance = autoAdvance;
-        segment.RequireUserAction = requireUserAction;
+        if (request.AutoAdvance.HasValue)
+        {
+            segment.AutoAdvance = request.AutoAdvance.Value;
+        }
+
+        if (request.DurationMs.HasValue)
+        {
+            segment.DurationMs = request.DurationMs.Value;
+        }
+
+        if (request.RequireUserAction.HasValue)
+        {
+            segment.RequireUserAction = request.RequireUserAction.Value;
+        }
+
+        if (request.PlaybackMode.HasValue)
+        {
+            var autoAdvance = request.PlaybackMode.Value != 
+                SegmentPlaybackMode.Manual;
+            var requireUserAction = request.PlaybackMode.Value == 
+                SegmentPlaybackMode.Manual;
+            
+            segment.AutoAdvance = autoAdvance;
+            segment.RequireUserAction = requireUserAction;
+        }
+
+        // Set updated timestamp
         segment.UpdatedAt = DateTime.UtcNow;
 
         _repository.UpdateSegment(segment);
@@ -698,6 +744,153 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         return Option.Some<ZoneDto, Error>(zone.ToDto());
+    }
+
+    public async Task<Option<ZoneDto, Error>> CreateZoneFromOsmAsync(CreateZoneFromOsmRequest request, CancellationToken ct = default)
+    {
+        // Validate request
+        if (request.OsmId <= 0)
+        {
+            return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmId", "OSM ID must be greater than 0"));
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.OsmType))
+        {
+            return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmType", "OSM Type is required"));
+        }
+        
+        if (request.ParentZoneId.HasValue)
+        {
+            var parentZone = await _repository.GetZoneAsync(request.ParentZoneId.Value, ct);
+            if (parentZone is null)
+            {
+                return Option.None<ZoneDto, Error>(Error.NotFound("Zone.ParentNotFound", "Parent zone not found"));
+            }
+        }
+
+        var externalId = $"osm:{request.OsmType}:{request.OsmId}";
+
+        var existingZone = await _repository.GetZoneByExternalIdAsync(externalId, ct);
+        if (existingZone is not null)
+        {
+            return Option.Some<ZoneDto, Error>(existingZone.ToDto());
+        }
+
+        string centroid = JsonSerializer.Serialize(new
+        {
+            type = "Point",
+            coordinates = new[] { request.Lon, request.Lat }
+        });
+        
+        var offset = 0.01;
+        string boundingBox = $"{request.Lat - offset},{request.Lon - offset},{request.Lat + offset},{request.Lon + offset}";
+        
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(request.GeoJson))
+            {
+                var geoJson = JsonDocument.Parse(request.GeoJson);
+                if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
+                {
+                    var geometryType = typeProperty.GetString();
+
+                    if (geometryType == "Point" && geoJson.RootElement.TryGetProperty("coordinates", out var coords))
+                    {
+                        var lon = coords[0].GetDouble();
+                        var lat = coords[1].GetDouble();
+                        
+                        centroid = JsonSerializer.Serialize(new
+                        {
+                            type = "Point",
+                            coordinates = new[] { lon, lat }
+                        });
+
+                        var pointOffset = 0.001;
+                        boundingBox = $"{lat - pointOffset},{lon - pointOffset},{lat + pointOffset},{lon + pointOffset}";
+                    }
+                    else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
+                    {
+                        centroid = JsonSerializer.Serialize(new
+                        {
+                            type = "Point",
+                            coordinates = new[] { request.Lon, request.Lat }
+                        });
+                        
+                        var polyOffset = 0.1;
+                        boundingBox = $"{request.Lat - polyOffset},{request.Lon - polyOffset},{request.Lat + polyOffset},{request.Lon + polyOffset}";
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+
+        var zoneType = DetermineZoneType(request.Category, request.Type, request.AdminLevel);
+        var adminLevel = DetermineAdminLevel(request.AdminLevel, request.Category, request.Type);
+
+        var zoneCode = $"OSM_{request.OsmType.ToUpperInvariant()}_{request.OsmId}";
+
+        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
+        {
+            ZoneId = Guid.NewGuid(),
+            ExternalId = externalId,
+            ZoneCode = zoneCode,
+            Name = request.DisplayName,
+            ZoneType = zoneType,
+            AdminLevel = adminLevel,
+            ParentZoneId = request.ParentZoneId,
+            Geometry = request.GeoJson,
+            SimplifiedGeometry = null,
+            Centroid = centroid,
+            BoundingBox = boundingBox,
+            Description = $"Imported from OpenStreetMap: {request.Category}/{request.Type}",
+            IsActive = true,
+            LastSyncedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repository.AddZoneAsync(zone, ct);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<ZoneDto, Error>(zone.ToDto());
+    }
+
+    private ZoneType DetermineZoneType(
+        string? category, 
+        string? type, 
+        int? adminLevel)
+    {
+        if (category == "boundary" && type == "administrative")
+        {
+            return ZoneType.Area;
+        }
+
+        if (category == "highway" || type == "route")
+        {
+            return ZoneType.Route;
+        }
+
+        return ZoneType.Custom;
+    }
+
+    private ZoneAdminLevel DetermineAdminLevel(
+        int? adminLevel,
+        string? category,
+        string? type)
+    {
+        if (adminLevel.HasValue)
+        {
+            return adminLevel.Value switch
+            {
+                2 => ZoneAdminLevel.Country,
+                4 => ZoneAdminLevel.Province,
+                6 => ZoneAdminLevel.District,
+                8 or 9 or 10 => ZoneAdminLevel.Commune,
+                _ => ZoneAdminLevel.Custom
+            };
+        }
+        return ZoneAdminLevel.Custom;
     }
 
     public async Task<Option<ZoneDto, Error>> UpdateZoneAsync(Guid zoneId, UpdateZoneRequest request,
