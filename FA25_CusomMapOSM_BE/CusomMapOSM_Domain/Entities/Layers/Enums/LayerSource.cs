@@ -2,7 +2,7 @@ using System;
 
 namespace CusomMapOSM_Domain.Entities.Layers.Enums;
 
-public enum LayerSourceEnum
+public enum LayerSource
 {
     OpenStreetMap = 1,
     UserUploaded = 2,

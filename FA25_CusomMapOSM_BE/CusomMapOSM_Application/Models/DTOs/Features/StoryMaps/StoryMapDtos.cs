@@ -1,7 +1,6 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
-using CusomMapOSM_Domain.Entities.StoryElement.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Domain.Entities.Animations.Enums;
@@ -27,38 +26,50 @@ public record SegmentDto(
     IReadOnlyCollection<PoiDto> Locations);
 
 public record SegmentZoneDto(
+    Guid SegmentZoneId,
+    Guid SegmentId,
     Guid ZoneId,
-    Guid? SegmentId,
-    string Name,
-    string? Description,
-    ZoneType ZoneType,
-    string ZoneGeometry,
-    string? FocusCameraState,
     int DisplayOrder,
-    bool IsPrimary,
+    bool IsVisible,
+    int ZIndex,
+    bool HighlightBoundary,
+    string? BoundaryColor,
+    int BoundaryWidth,
+    bool FillZone,
+    string? FillColor,
+    decimal FillOpacity,
+    bool ShowLabel,
+    string? LabelOverride,
+    string? LabelStyle,
+    int EntryDelayMs,
+    int EntryDurationMs,
+    int ExitDelayMs,
+    int ExitDurationMs,
+    string? EntryEffect,
+    string? ExitEffect,
+    bool FitBoundsOnEntry,
+    string? CameraOverride,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    ZoneSummaryDto? Zone);
 
 public record SegmentLayerDto(
     Guid SegmentLayerId,
     Guid SegmentId,
     Guid LayerId,
-    Guid? ZoneId,
-    bool ExpandToZone,
-    bool HighlightZoneBoundary,
     int DisplayOrder,
-    int DelayMs,
-    int FadeInMs,
-    int FadeOutMs,
-    decimal StartOpacity,
-    decimal EndOpacity,
-    AnimationEasingType Easing,
-    Guid? AnimationPresetId,
-    bool AutoPlayAnimation,
-    int RepeatCount,
-    string? AnimationOverrides,
+    bool IsVisible,
+    decimal Opacity,
+    int ZIndex,
+    int EntryDelayMs,
+    int EntryDurationMs,
+    int ExitDelayMs,
+    int ExitDurationMs,
+    string? EntryEffect,
+    string? ExitEffect,
     string? StyleOverride,
-    string? Metadata);
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
 
 public record TimelineStepDto(
     Guid TimelineStepId,
@@ -70,7 +81,6 @@ public record TimelineStepDto(
     int DisplayOrder,
     bool AutoAdvance,
     int DurationMs,
-    TimelineTriggerType TriggerType,
     string? CameraState,
     string? OverlayContent,
     DateTime CreatedAt,
@@ -85,7 +95,6 @@ public record TimelineStepLayerDto(
     int FadeInMs,
     int FadeOutMs,
     int DelayMs,
-    TimelineLayerDisplayMode DisplayMode,
     string? StyleOverride,
     string? Metadata);
 
@@ -113,7 +122,6 @@ public record TransitionPreviewDto(
 public record StoryElementLayerDto(
     Guid StoryElementLayerId,
     Guid ElementId,
-    StoryElementType ElementType,
     Guid LayerId,
     Guid? ZoneId,
     bool ExpandToZone,
@@ -124,7 +132,6 @@ public record StoryElementLayerDto(
     int FadeOutMs,
     decimal StartOpacity,
     decimal EndOpacity,
-    AnimationEasingType Easing,
     Guid? AnimationPresetId,
     bool AutoPlayAnimation,
     int RepeatCount,
@@ -132,7 +139,6 @@ public record StoryElementLayerDto(
     string? Metadata,
     bool IsVisible,
     decimal Opacity,
-    StoryElementDisplayMode DisplayMode,
     string? StyleOverride,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
@@ -141,3 +147,113 @@ public record ExportedStoryDto(
     Guid MapId,
     IReadOnlyCollection<SegmentDto> Segments,
     IReadOnlyCollection<TimelineStepDto> Timeline);
+
+// ================== TIMELINE TRANSITION (Chuyển cảnh) ==================
+public record TimelineTransitionDto(
+    Guid TimelineTransitionId,
+    Guid MapId,
+    Guid FromSegmentId,
+    Guid ToSegmentId,
+    string? TransitionName,
+    int DurationMs,
+    TransitionType TransitionType,
+    bool AnimateCamera,
+    CameraAnimationType CameraAnimationType,
+    int CameraAnimationDurationMs,
+    bool ShowOverlay,
+    string? OverlayContent,
+    bool AutoTrigger,
+    bool RequireUserAction,
+    string? TriggerButtonText,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+// ================== ANIMATED LAYER (GIF/Video overlay) ==================
+public record AnimatedLayerDto(
+    Guid AnimatedLayerId,
+    Guid CreatedBy,
+    Guid? LayerId,
+    Guid? SegmentId,
+    string Name,
+    string? Description,
+    int DisplayOrder,
+    AnimatedLayerType MediaType,
+    string SourceUrl,
+    string? ThumbnailUrl,
+    string? Coordinates,
+    bool IsScreenOverlay,
+    string? ScreenPosition,
+    double RotationDeg,
+    double Scale,
+    decimal Opacity,
+    int ZIndex,
+    string? CssFilter,
+    bool AutoPlay,
+    bool Loop,
+    int PlaybackSpeed,
+    int StartTimeMs,
+    int? EndTimeMs,
+    int EntryDelayMs,
+    int EntryDurationMs,
+    string? EntryEffect,
+    int ExitDelayMs,
+    int ExitDurationMs,
+    string? ExitEffect,
+    bool EnableClick,
+    string? OnClickAction,
+    bool IsVisible,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+// ================== ANIMATED LAYER PRESET (Thư viện GIF) ==================
+public record AnimatedLayerPresetDto(
+    Guid AnimatedLayerPresetId,
+    Guid? CreatedBy,
+    string Name,
+    string? Description,
+    string? Category,
+    string? Tags,
+    AnimatedLayerType MediaType,
+    string SourceUrl,
+    string ThumbnailUrl,
+    string? DefaultCoordinates,
+    bool DefaultIsScreenOverlay,
+    string? DefaultScreenPosition,
+    double DefaultScale,
+    decimal DefaultOpacity,
+    bool DefaultAutoPlay,
+    bool DefaultLoop,
+    bool IsSystemPreset,
+    bool IsPublic,
+    int UsageCount,
+    bool IsActive,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+// ================== ZONE (Master data) ==================
+public record ZoneDto(
+    Guid ZoneId,
+    string ExternalId,
+    string ZoneCode,
+    string Name,
+    ZoneType ZoneType,
+    ZoneAdminLevel AdminLevel,
+    Guid? ParentZoneId,
+    string Geometry,
+    string? SimplifiedGeometry,
+    string? Centroid,
+    string? BoundingBox,
+    string? Description,
+    bool IsActive,
+    DateTime LastSyncedAt,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
+public record ZoneSummaryDto(
+    Guid ZoneId,
+    string Name,
+    string ZoneCode,
+    ZoneType ZoneType,
+    ZoneAdminLevel AdminLevel,
+    string? Centroid,
+    string? BoundingBox);

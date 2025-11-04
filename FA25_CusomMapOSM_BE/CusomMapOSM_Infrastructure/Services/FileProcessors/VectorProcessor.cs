@@ -35,7 +35,7 @@ public class VectorProcessor : IVectorProcessor
             {
                 Success = processed.IsValid,
                 ErrorMessage = processed.ValidationErrors,
-                LayerType = LayerTypeEnum.GEOJSON,
+                LayerType = LayerType.GEOJSON,
                 LayerData = processed.LayerData,
                 FeatureCount = processed.FeatureCount,
                 DataSizeKB = processed.DataSizeKB,
@@ -70,7 +70,7 @@ public class VectorProcessor : IVectorProcessor
             var geoJsonContent = await ConvertKmlToGeoJson(kmlContent);
             
             // Use existing GeoJSON processor
-            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerTypeEnum.KML);
+            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerType.KML);
         }
         catch (Exception ex)
         {
@@ -96,7 +96,7 @@ public class VectorProcessor : IVectorProcessor
             // Convert GPX to GeoJSON
             var geoJsonContent = await ConvertGpxToGeoJson(gpxContent);
             
-            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerTypeEnum.GPX);
+            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerType.GPX);
         }
         catch (Exception ex)
         {
@@ -127,7 +127,7 @@ public class VectorProcessor : IVectorProcessor
         return supportedFormats.Contains(fileExtension.ToLower());
     }
 
-    private async Task<FileProcessingResult> ProcessGeoJsonContent(string geoJsonContent, string layerName, LayerTypeEnum layerType)
+    private async Task<FileProcessingResult> ProcessGeoJsonContent(string geoJsonContent, string layerName, LayerType layerType)
     {
         var processed = _geoJsonService.ProcessGeoJsonUpload(geoJsonContent, layerName);
         

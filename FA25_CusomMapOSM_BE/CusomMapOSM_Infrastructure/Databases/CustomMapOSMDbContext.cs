@@ -17,8 +17,6 @@ using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Zones;
 using CusomMapOSM_Domain.Entities.Animations;
-using CusomMapOSM_Domain.Entities.StoryElement;
-using CusomMapOSM_Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases;
@@ -44,10 +42,12 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
     public DbSet<Segment> MapSegments { get; set; }
+    public DbSet<SegmentLayer> SegmentLayers { get; set; }
+    public DbSet<SegmentZone> SegmentZones { get; set; }
     public DbSet<Location> MapLocations { get; set; }
-    public DbSet<LayerAnimationPreset> LayerAnimationPresets { get; set; }
-    public DbSet<LayerAnimation> LayerAnimations { get; set; }
-    public DbSet<TimelineStep> TimelineSteps { get; set; }
+    public DbSet<AnimatedLayer> AnimatedLayers { get; set; }
+    public DbSet<AnimatedLayerPreset> AnimatedLayerPresets { get; set; }
+    public DbSet<TimelineTransition> TimelineTransitions { get; set; }
     public DbSet<Zone> Zones { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }
@@ -55,7 +55,6 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
-
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<Workspace> Workspaces { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
@@ -63,8 +62,6 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Transactions> Transactions { get; set; }
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<StoryElementLayer> StoryElementLayers { get; set; }
-    
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

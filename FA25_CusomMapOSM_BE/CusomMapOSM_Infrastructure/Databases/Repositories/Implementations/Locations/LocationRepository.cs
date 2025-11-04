@@ -17,6 +17,7 @@ public class LocationRepository : ILocationRepository
     {
         return await _context.MapLocations
             .AsNoTracking()
+            .Include(l => l.Segment)
             .FirstOrDefaultAsync(l => l.LocationId == locationId, ct);
     }
 
@@ -24,7 +25,8 @@ public class LocationRepository : ILocationRepository
     {
         return await _context.MapLocations
             .AsNoTracking()
-            .Where(l => l.MapId == mapId)
+            .Include(l => l.Segment)
+            .Where(l => l.Segment != null && l.Segment.MapId == mapId)
             .OrderBy(l => l.DisplayOrder)
             .ToListAsync(ct);
     }

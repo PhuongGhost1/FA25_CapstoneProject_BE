@@ -17,15 +17,13 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnName("location_id")
             .IsRequired();
 
-        builder.Property(l => l.MapId)
-            .HasColumnName("map_id")
+        builder.Property(l => l.SegmentId)
+            .HasColumnName("segment_id")
             .IsRequired();
 
-        builder.Property(l => l.SegmentId)
-            .HasColumnName("segment_id");
-
-        builder.Property(l => l.ZoneId)
-            .HasColumnName("zone_id");
+        builder.Property(l => l.CreatedBy)
+            .HasColumnName("created_by")
+            .IsRequired();
 
         builder.Property(l => l.Title)
             .HasColumnName("title")
@@ -34,7 +32,11 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
 
         builder.Property(l => l.Subtitle)
             .HasColumnName("subtitle")
-            .HasMaxLength(255);
+            .HasMaxLength(500);
+
+        builder.Property(l => l.Description)
+            .HasColumnName("description")
+            .HasColumnType("TEXT");
 
         builder.Property(l => l.LocationType)
             .HasColumnName("location_type")
@@ -44,89 +46,145 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
 
         builder.Property(l => l.MarkerGeometry)
             .HasColumnName("marker_geometry")
+            .IsRequired()
             .HasColumnType("TEXT");
 
-        builder.Property(l => l.StoryContent)
-            .HasColumnName("story_content")
-            .HasColumnType("TEXT");
+        // Visual settings
+        builder.Property(l => l.IconType)
+            .HasColumnName("icon_type")
+            .HasMaxLength(50);
 
-        builder.Property(l => l.MediaResources)
-            .HasColumnName("media_resources")
-            .HasColumnType("TEXT");
+        builder.Property(l => l.IconUrl)
+            .HasColumnName("icon_url")
+            .HasMaxLength(1000);
+
+        builder.Property(l => l.IconColor)
+            .HasColumnName("icon_color")
+            .HasMaxLength(20);
+
+        builder.Property(l => l.IconSize)
+            .HasColumnName("icon_size")
+            .IsRequired()
+            .HasDefaultValue(32);
+
+        builder.Property(l => l.ZIndex)
+            .HasColumnName("z_index")
+            .IsRequired()
+            .HasDefaultValue(100);
 
         builder.Property(l => l.DisplayOrder)
             .HasColumnName("display_order")
-            .IsRequired();
-
-        builder.Property(l => l.HighlightOnEnter)
-            .HasColumnName("highlight_on_enter")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValue(0);
 
         builder.Property(l => l.ShowTooltip)
             .HasColumnName("show_tooltip")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValue(true);
 
         builder.Property(l => l.TooltipContent)
             .HasColumnName("tooltip_content")
             .HasColumnType("TEXT");
 
-        builder.Property(l => l.EffectType)
-            .HasColumnName("effect_type")
-            .HasMaxLength(100);
+        builder.Property(l => l.OpenPopupOnClick)
+            .HasColumnName("open_popup_on_click")
+            .IsRequired()
+            .HasDefaultValue(false);
 
-        builder.Property(l => l.OpenSlideOnClick)
-            .HasColumnName("open_slide_on_click")
-            .IsRequired();
-
-        builder.Property(l => l.SlideContent)
-            .HasColumnName("slide_content")
+        builder.Property(l => l.PopupContent)
+            .HasColumnName("popup_content")
             .HasColumnType("TEXT");
+
+        // Media
+        builder.Property(l => l.MediaUrls)
+            .HasColumnName("media_urls")
+            .HasColumnType("TEXT");
+
+        builder.Property(l => l.PlayAudioOnClick)
+            .HasColumnName("play_audio_on_click")
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(l => l.AudioUrl)
+            .HasColumnName("audio_url")
+            .HasMaxLength(1000);
+
+        // Entry/Exit animation
+        builder.Property(l => l.EntryDelayMs)
+            .HasColumnName("entry_delay_ms")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(l => l.EntryDurationMs)
+            .HasColumnName("entry_duration_ms")
+            .IsRequired()
+            .HasDefaultValue(400);
+
+        builder.Property(l => l.ExitDelayMs)
+            .HasColumnName("exit_delay_ms")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(l => l.ExitDurationMs)
+            .HasColumnName("exit_duration_ms")
+            .IsRequired()
+            .HasDefaultValue(400);
+
+        builder.Property(l => l.EntryEffect)
+            .HasColumnName("entry_effect")
+            .HasMaxLength(50)
+            .HasDefaultValue("fade");
+
+        builder.Property(l => l.ExitEffect)
+            .HasColumnName("exit_effect")
+            .HasMaxLength(50)
+            .HasDefaultValue("fade");
+
+        // Linking
+        builder.Property(l => l.LinkedSegmentId)
+            .HasColumnName("linked_segment_id");
 
         builder.Property(l => l.LinkedLocationId)
             .HasColumnName("linked_location_id");
 
-        builder.Property(l => l.PlayAudioOnClick)
-            .HasColumnName("play_audio_on_click")
-            .IsRequired();
-
-        builder.Property(l => l.AudioUrl)
-            .HasColumnName("audio_url")
-            .HasMaxLength(500);
-
         builder.Property(l => l.ExternalUrl)
             .HasColumnName("external_url")
-            .HasMaxLength(500);
+            .HasMaxLength(2000);
 
-        builder.Property(l => l.AssociatedLayerId)
-            .HasColumnName("associated_layer_id");
-
-        builder.Property(l => l.AnimationPresetId)
-            .HasColumnName("animation_preset_id");
-
-        builder.Property(l => l.AnimationOverrides)
-            .HasColumnName("animation_overrides")
-            .HasColumnType("TEXT");
-
+        // Metadata
         builder.Property(l => l.IsVisible)
             .HasColumnName("is_visible")
-            .IsRequired();
-
-        builder.Property(l => l.ZIndex)
-            .HasColumnName("z_index")
-            .IsRequired();
-
-        builder.Property(l => l.CreatedBy)
-            .HasColumnName("created_by")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValue(true);
 
         builder.Property(l => l.CreatedAt)
             .HasColumnName("created_at")
-            .HasColumnType("datetime")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(l => l.UpdatedAt)
-            .HasColumnName("updated_at")
-            .HasColumnType("datetime");
+            .HasColumnName("updated_at");
+
+        // Relationships
+        builder.HasOne(l => l.Segment)
+            .WithMany()
+            .HasForeignKey(l => l.SegmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(l => l.Creator)
+            .WithMany()
+            .HasForeignKey(l => l.CreatedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(l => l.LinkedSegment)
+            .WithMany()
+            .HasForeignKey(l => l.LinkedSegmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(l => l.LinkedLocation)
+            .WithMany()
+            .HasForeignKey(l => l.LinkedLocationId)
+            .OnDelete(DeleteBehavior.SetNull);
 
     }
 }

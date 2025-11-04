@@ -6,7 +6,7 @@ public class FileProcessingResult
 {
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
-    public LayerTypeEnum LayerType { get; set; }
+    public LayerType LayerType { get; set; }
     public string? LayerData { get; set; }
     public string? FilePath { get; set; }
     public string? TileUrlTemplate { get; set; }

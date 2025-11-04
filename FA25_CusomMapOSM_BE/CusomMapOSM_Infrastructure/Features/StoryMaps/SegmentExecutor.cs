@@ -13,7 +13,7 @@ public class SegmentExecutor : ISegmentExecutor
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private SegmentExecutionStatus _status = SegmentExecutionStatus.Idle;
     private readonly object _statusLock = new();
-    private readonly System.Threading.ManualResetEventSlim _pauseEvent = new(true);
+    private readonly ManualResetEventSlim _pauseEvent = new(true);
 
     public SegmentExecutor(IStoryMapRepository repository, ISegmentExecutionStateStore stateStore)
     {
@@ -264,18 +264,52 @@ public class SegmentExecutor : ISegmentExecutor
 
     private async Task ExecuteTimelineAsync(SegmentDto segment, CancellationToken ct)
     {
-        var timelineSteps = await _repository.GetTimelineStepsBySegmentAsync(segment.SegmentId, ct);
+        // Get timeline transitions for this segment's map
+        var transitions = await _repository.GetTimelineTransitionsByMapAsync(segment.MapId, ct);
         
-        foreach (var step in timelineSteps.OrderBy(s => s.DisplayOrder))
-        {
-            if (ct.IsCancellationRequested)
-                break;
+        // Find transitions that involve this segment (either as FromSegment or ToSegment)
+        var relevantTransitions = transitions
+            .Where(t => t.FromSegmentId == segment.SegmentId || t.ToSegmentId == segment.SegmentId)
+            .OrderBy(t => t.CreatedAt)
+            .ToList();
 
-            var stepDto = ConvertToTimelineStepDto(step);
-            await ExecuteTimelineStepAsync(stepDto, ct);
+        // Execute each transition
+        foreach (var transition in relevantTransitions)
+        {
+            await ExecuteTransitionAsync(transition, ct);
         }
     }
 
+    private async Task ExecuteTransitionAsync(CusomMapOSM_Domain.Entities.Timeline.TimelineTransition transition, CancellationToken ct)
+    {
+        // Execute camera animation if enabled
+        if (transition.AnimateCamera)
+        {
+            var animationDuration = transition.CameraAnimationDurationMs > 0 
+                ? transition.CameraAnimationDurationMs 
+                : 1500;
+            await DelayWithPauseAsync(animationDuration, ct);
+        }
+
+        // Show overlay if enabled
+        if (transition.ShowOverlay && !string.IsNullOrEmpty(transition.OverlayContent))
+        {
+            var overlayDuration = transition.DurationMs > 0 
+                ? transition.DurationMs 
+                : 1000;
+            await DelayWithPauseAsync(overlayDuration, ct);
+        }
+
+        // Wait for user action if required
+        if (transition.RequireUserAction)
+        {
+            // In a real implementation, this would wait for user input
+            // For now, just add a default wait time
+            await DelayWithPauseAsync(2000, ct);
+        }
+    }
+
+    // Legacy method - kept for backward compatibility but not actively used
     private async Task ExecuteTimelineStepAsync(TimelineStepDto step, CancellationToken ct)
     {
         var duration = step.DurationMs > 0 ? step.DurationMs : 1000;
@@ -336,30 +370,5 @@ public class SegmentExecutor : ISegmentExecutor
             await Task.Delay(wait, ct);
             remaining -= wait;
         }
-    }
-
-    private TimelineStepDto ConvertToTimelineStepDto(CusomMapOSM_Domain.Entities.Timeline.TimelineStep step)
-    {
-        return new TimelineStepDto(
-            step.TimelineStepId,
-            step.MapId,
-            step.SegmentId,
-            step.Title,
-            step.Subtitle,
-            step.Description,
-            step.DisplayOrder,
-            step.AutoAdvance,
-            step.DurationMs,
-            step.TriggerType,
-            step.CameraState,
-            step.OverlayContent,
-            step.CreatedAt,
-            Array.Empty<TimelineStepLayerDto>() // TODO: Load timeline step layers if needed
-        );
-    }
-
-    public void Dispose()
-    {
-        _cancellationTokenSource?.Dispose();
     }
 }

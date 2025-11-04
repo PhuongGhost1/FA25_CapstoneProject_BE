@@ -5,5 +5,6 @@ public enum SegmentPlaybackMode
     Parallel = 1,
     Manual = 2,
     Loop = 3,
+    Auto = 4,
     Custom = 99
 }

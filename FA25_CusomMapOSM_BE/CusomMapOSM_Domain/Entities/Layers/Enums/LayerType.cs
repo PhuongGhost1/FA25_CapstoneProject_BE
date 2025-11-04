@@ -1,6 +1,6 @@
 namespace CusomMapOSM_Domain.Entities.Layers.Enums;
 
-public enum LayerTypeEnum
+public enum LayerType
 {
     GEOJSON = 1,
     KML = 2,

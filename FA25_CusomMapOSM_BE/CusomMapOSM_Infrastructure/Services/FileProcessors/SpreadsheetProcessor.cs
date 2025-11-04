@@ -30,7 +30,7 @@ public class SpreadsheetProcessor : ISpreadsheetProcessor
             }
 
             var geoJsonContent = await ConvertCsvToGeoJson(csvContent, config);
-            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerTypeEnum.CSV);
+            return await ProcessGeoJsonContent(geoJsonContent, layerName, LayerType.CSV);
         }
         catch (Exception ex)
         {
@@ -197,7 +197,7 @@ public class SpreadsheetProcessor : ISpreadsheetProcessor
         return (latColumn, lonColumn);
     }
 
-    private async Task<FileProcessingResult> ProcessGeoJsonContent(string geoJsonContent, string layerName, LayerTypeEnum layerType)
+    private async Task<FileProcessingResult> ProcessGeoJsonContent(string geoJsonContent, string layerName, LayerType layerType)
     {
         var processed = _geoJsonService.ProcessGeoJsonUpload(geoJsonContent, layerName);
         

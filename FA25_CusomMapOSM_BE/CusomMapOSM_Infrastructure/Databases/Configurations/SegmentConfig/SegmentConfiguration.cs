@@ -17,36 +17,6 @@ internal class SegmentConfiguration : IEntityTypeConfiguration<Segment>
             .HasColumnName("segment_id")
             .IsRequired();
 
-        builder.Property(s => s.Name)
-            .HasColumnName("name")
-            .IsRequired()
-            .HasMaxLength(255);
-
-        builder.Property(s => s.Summary)
-            .HasColumnName("summary")
-            .HasMaxLength(1000);
-
-        builder.Property(s => s.StoryContent)
-            .HasColumnName("story_content")
-            .HasColumnType("TEXT");
-
-        builder.Property(s => s.DisplayOrder)
-            .HasColumnName("display_order")
-            .IsRequired();
-
-        builder.Property(s => s.AutoFitBounds)
-            .HasColumnName("auto_fit_bounds")
-            .IsRequired();
-
-        builder.Property(s => s.EntryAnimationPresetId)
-            .HasColumnName("entry_animation_preset_id");
-
-        builder.Property(s => s.ExitAnimationPresetId)
-            .HasColumnName("exit_animation_preset_id");
-
-        builder.Property(s => s.DefaultLayerAnimationPresetId)
-            .HasColumnName("default_layer_animation_preset_id");
-
         builder.Property(s => s.MapId)
             .HasColumnName("map_id")
             .IsRequired();
@@ -55,21 +25,63 @@ internal class SegmentConfiguration : IEntityTypeConfiguration<Segment>
             .HasColumnName("created_by")
             .IsRequired();
 
-        builder.Property(s => s.PlaybackMode)
-            .HasColumnName("playback_mode")
+        builder.Property(s => s.Name)
+            .HasColumnName("name")
             .IsRequired()
-            .HasConversion<string>()
-            .HasMaxLength(50);
+            .HasMaxLength(255);
 
+        builder.Property(s => s.Description)
+            .HasColumnName("description")
+            .HasMaxLength(2000);
+
+        builder.Property(s => s.StoryContent)
+            .HasColumnName("story_content")
+            .HasColumnType("TEXT");
+
+        builder.Property(s => s.DisplayOrder)
+            .HasColumnName("display_order")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(s => s.CameraState)
+            .HasColumnName("camera_state")
+            .IsRequired()
+            .HasColumnType("TEXT");
+
+        // Playback settings
+        builder.Property(s => s.AutoAdvance)
+            .HasColumnName("auto_advance")
+            .IsRequired()
+            .HasDefaultValue(true);
+
+        builder.Property(s => s.DurationMs)
+            .HasColumnName("duration_ms")
+            .IsRequired()
+            .HasDefaultValue(6000);
+
+        builder.Property(s => s.RequireUserAction)
+            .HasColumnName("require_user_action")
+            .IsRequired()
+            .HasDefaultValue(false);
 
         builder.Property(s => s.CreatedAt)
             .HasColumnName("created_at")
-            .HasColumnType("datetime")
-            .IsRequired();
+            .IsRequired()
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(s => s.UpdatedAt)
-            .HasColumnName("updated_at")
-            .HasColumnType("datetime");
+            .HasColumnName("updated_at");
+
+        // Relationships
+        builder.HasOne(s => s.Map)
+            .WithMany()
+            .HasForeignKey(s => s.MapId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(s => s.Creator)
+            .WithMany()
+            .HasForeignKey(s => s.CreatedBy)
+            .OnDelete(DeleteBehavior.Restrict);
 
     }
 }

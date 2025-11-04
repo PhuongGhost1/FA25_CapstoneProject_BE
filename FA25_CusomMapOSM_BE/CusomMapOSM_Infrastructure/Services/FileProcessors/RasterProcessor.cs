@@ -46,7 +46,7 @@ public class RasterProcessor : IRasterProcessor
             return new FileProcessingResult
             {
                 Success = true,
-                LayerType = LayerTypeEnum.GeoTIFF,
+                LayerType = LayerType.GeoTIFF,
                 FilePath = filePath,
                 TileUrlTemplate = tileUrlTemplate,
                 DataBounds = bounds,
@@ -94,9 +94,9 @@ public class RasterProcessor : IRasterProcessor
 
             var layerType = Path.GetExtension(file.FileName).ToLower() switch
             {
-                ".png" => LayerTypeEnum.PNG,
-                ".jpg" or ".jpeg" => LayerTypeEnum.JPG,
-                _ => LayerTypeEnum.PNG
+                ".png" => LayerType.PNG,
+                ".jpg" or ".jpeg" => LayerType.JPG,
+                _ => LayerType.PNG
             };
 
             return new FileProcessingResult

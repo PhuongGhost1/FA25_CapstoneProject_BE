@@ -29,7 +29,16 @@ public class AuthenticationRepository : IAuthenticationRepository
 
     public async Task<DomainUser.User?> Login(string email, string pwd)
     {
-        return await _context.Users.FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
+        var user = await _context.Users
+            .FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
+
+        if (user != null)
+        {
+            user.LastLogin = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        return user;
     }
 
     public async Task<bool> Register(DomainUser.User user)
