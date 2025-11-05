@@ -31,7 +31,8 @@ internal class SupportTicketMessageConfiguration : IEntityTypeConfiguration<Supp
 
         builder.Property(m => m.CreatedAt)
                .HasColumnName("created_at")
-               .IsRequired();
+               .HasColumnType("datetime")
+               .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         // Foreign key relationship
         builder.HasOne(m => m.SupportTicket)

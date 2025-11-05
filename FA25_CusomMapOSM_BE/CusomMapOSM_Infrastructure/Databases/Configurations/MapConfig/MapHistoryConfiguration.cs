@@ -40,7 +40,7 @@ internal class MapHistoryConfiguration : IEntityTypeConfiguration<MapHistory>
               builder.Property(mh => mh.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
               builder.HasOne(mh => mh.Map)
                      .WithMany()
                      .HasForeignKey(mh => mh.MapId)

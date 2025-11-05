@@ -31,13 +31,25 @@ public class AuthenticationRepository : IAuthenticationRepository
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
-
+    
         if (user != null)
         {
-            user.LastLogin = DateTime.UtcNow;
+            if (user.LastLogin == null)
+            {
+                user.LastLogin = DateTime.MinValue;
+            }
+            else if (user.LastLogin == DateTime.MinValue)
+            {
+                user.LastLogin = DateTime.UtcNow;
+            }
+            else
+            {
+                user.LastLogin = DateTime.UtcNow;
+            }
+        
             await _context.SaveChangesAsync();
         }
-
+    
         return user;
     }
 

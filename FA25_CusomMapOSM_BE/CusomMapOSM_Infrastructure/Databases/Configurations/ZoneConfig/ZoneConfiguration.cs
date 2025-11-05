@@ -71,11 +71,13 @@ internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
 
         builder.Property(z => z.CreatedAt)
             .HasColumnName("created_at")
+            .HasColumnType("datetime")
             .IsRequired()
-            .HasDefaultValueSql("NOW()");
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(z => z.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
         
         builder.HasOne(z => z.ParentZone)
             .WithMany()

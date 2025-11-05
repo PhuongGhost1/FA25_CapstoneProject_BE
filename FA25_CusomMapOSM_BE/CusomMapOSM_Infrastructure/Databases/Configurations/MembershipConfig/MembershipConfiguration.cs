@@ -67,7 +67,7 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
         builder.Property(m => m.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(m => m.UpdatedAt)
             .HasColumnName("updated_at")

@@ -40,7 +40,7 @@ internal class FaqConfiguration : IEntityTypeConfiguration<Faq>
         builder.Property(f => f.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         // Sample FAQ data based on project requirements and documentation
         builder.HasData(

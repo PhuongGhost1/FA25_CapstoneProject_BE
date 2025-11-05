@@ -47,7 +47,7 @@ internal class SupportTicketConfiguration : IEntityTypeConfiguration<SupportTick
               builder.Property(x => x.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.Property(x => x.ResolvedAt)
                      .HasColumnName("resolved_at")

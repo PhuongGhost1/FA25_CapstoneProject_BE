@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251104072504_Storymap_update")]
+    [Migration("20251105125930_Storymap_update")]
     partial class Storymap_update
     {
         /// <inheritdoc />
@@ -78,7 +78,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -238,7 +238,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("thumbnail_url");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("ZIndex")
@@ -272,7 +272,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -371,7 +371,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("thumbnail_url");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("UsageCount")
@@ -397,8 +397,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("BookmarkId"));
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("MapId")
                         .HasColumnType("char(36)")
@@ -442,8 +444,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("content");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid?>("LayerId")
                         .HasColumnType("char(36)")
@@ -488,8 +492,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ExportId"));
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("ExportType")
                         .IsRequired()
@@ -557,8 +563,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("category");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Question")
                         .IsRequired()
@@ -678,7 +686,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -741,7 +749,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("source_type");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserId")
@@ -771,7 +779,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -924,7 +932,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("tooltip_content");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("ZIndex")
@@ -967,8 +975,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("category");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("DefaultBounds")
                         .HasColumnType("longtext")
@@ -1068,8 +1078,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("annotation_type");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("char(36)")
@@ -1144,8 +1156,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("history_id");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int>("HistoryVersion")
                         .HasColumnType("int")
@@ -1183,8 +1197,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MapImageId"));
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -1261,8 +1277,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("auto_renew");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("CurrentUsage")
                         .HasColumnType("json")
@@ -1323,8 +1341,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("active_users_in_org");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<DateTime>("CycleEndDate")
                         .HasColumnType("datetime")
@@ -1385,8 +1405,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -1576,8 +1598,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("NotificationId"));
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<bool>("IsRead")
                         .ValueGeneratedOnAdd()
@@ -1646,8 +1670,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("contact_phone");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
                         .HasColumnType("longtext")
@@ -1839,7 +1865,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -1885,7 +1911,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("story_content");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.HasKey("SegmentId");
@@ -1906,7 +1932,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -1979,7 +2005,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("style_override");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("ZIndex")
@@ -2021,7 +2047,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -2124,7 +2150,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("show_label");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<int>("ZIndex")
@@ -2156,8 +2182,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TicketId"));
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Message")
                         .HasColumnType("text")
@@ -2205,8 +2233,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MessageId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<bool>("IsFromUser")
                         .ValueGeneratedOnAdd()
@@ -2267,7 +2297,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -2324,7 +2354,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("trigger_button_text");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.HasKey("TimelineTransitionId");
@@ -2400,8 +2430,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("content");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasColumnName("created_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<int?>("ExportId")
                         .HasColumnType("int")
@@ -2605,9 +2637,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("created_at")
-                        .HasDefaultValueSql("NOW()");
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                     b.Property<string>("Description")
                         .HasColumnType("text")
@@ -2621,7 +2653,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.Property<string>("Geometry")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasColumnType("longtext")
                         .HasColumnName("geometry");
 
                     b.Property<bool>("IsActive")
@@ -2645,11 +2677,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("parent_zone_id");
 
                     b.Property<string>("SimplifiedGeometry")
-                        .HasColumnType("text")
+                        .HasColumnType("longtext")
                         .HasColumnName("simplified_geometry");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
                     b.Property<string>("ZoneCode")

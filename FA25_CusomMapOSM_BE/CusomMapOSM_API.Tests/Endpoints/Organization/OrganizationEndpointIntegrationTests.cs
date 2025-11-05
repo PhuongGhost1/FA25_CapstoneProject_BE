@@ -81,7 +81,11 @@ public class OrganizationEndpointIntegrationTests : IClassFixture<WebApplication
             Description = longDescription
         };
 
-        var response = new OrganizationResDto { Result = "Organization created successfully" };
+        var response = new OrganizationResDto 
+        { 
+            Result = "Organization created successfully",
+            OrgId = Guid.NewGuid()
+        };
 
         _mockOrganizationService.Setup(x => x.Create(request))
             .ReturnsAsync(Option.Some<OrganizationResDto, Error>(response));
