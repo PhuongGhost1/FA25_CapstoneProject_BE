@@ -68,7 +68,9 @@ namespace CusomMapOSM_Infrastructure.Services
                     }
                 }
                 
+                _logger.LogInformation("Sending request to Nominatim API: {Url}", nominatimUrl.ToString());
                 var response = await _httpClient.GetAsync(nominatimUrl.ToString());
+                _logger.LogInformation("Nominatim API response status: {StatusCode}", response.StatusCode);
                 response.EnsureSuccessStatusCode();
                 
                 var content = await response.Content.ReadAsStringAsync();
@@ -103,9 +105,24 @@ namespace CusomMapOSM_Infrastructure.Services
                 
                 return osmSearchResults;
             }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                _logger.LogError(ex, "Timeout occurred while searching OSM elements for query: {Query}. The request took longer than the configured timeout.", trimmedQuery);
+                return new List<OsmSearchResultDTO>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Request was canceled while searching OSM elements for query: {Query}", trimmedQuery);
+                return new List<OsmSearchResultDTO>();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "HTTP request error while searching OSM elements for query: {Query}. Status: {StatusCode}", trimmedQuery, ex.StatusCode);
+                return new List<OsmSearchResultDTO>();
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching OSM elements by name");
+                _logger.LogError(ex, "Unexpected error searching OSM elements by name for query: {Query}", trimmedQuery);
                 return new List<OsmSearchResultDTO>();
             }
         }

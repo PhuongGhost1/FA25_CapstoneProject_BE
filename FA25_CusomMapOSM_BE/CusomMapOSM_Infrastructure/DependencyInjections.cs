@@ -220,8 +220,9 @@ public static class DependencyInjections
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
         services.AddHttpClient<IOsmService, OsmService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(15);
-        });
+            client.Timeout = TimeSpan.FromSeconds(60);
+        })
+        .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
