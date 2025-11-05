@@ -110,11 +110,12 @@ internal class AnimatedLayerPresetConfiguration : IEntityTypeConfiguration<Anima
 
         builder.Property(alp => alp.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(alp => alp.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(alp => alp.Creator)

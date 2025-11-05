@@ -3,6 +3,7 @@
 public record OrganizationResDto
 {
     public required string Result { get; set; }
+    public required Guid OrgId { get; set; }
 }
 
 public record InviteMemberOrganizationResDto

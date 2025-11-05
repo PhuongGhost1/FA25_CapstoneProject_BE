@@ -48,7 +48,7 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transactions>
               builder.Property(t => t.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.Property(t => t.MembershipId)
                      .HasColumnName("membership_id");

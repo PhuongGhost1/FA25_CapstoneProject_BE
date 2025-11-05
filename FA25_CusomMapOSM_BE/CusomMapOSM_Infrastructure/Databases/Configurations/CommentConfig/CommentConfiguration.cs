@@ -44,7 +44,7 @@ internal class CommentConfiguration : IEntityTypeConfiguration<Comment>
               builder.Property(c => c.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.Property(c => c.UpdatedAt)
                      .HasColumnName("updated_at")

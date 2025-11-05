@@ -66,11 +66,12 @@ internal class SegmentConfiguration : IEntityTypeConfiguration<Segment>
 
         builder.Property(s => s.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(s => s.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(s => s.Map)

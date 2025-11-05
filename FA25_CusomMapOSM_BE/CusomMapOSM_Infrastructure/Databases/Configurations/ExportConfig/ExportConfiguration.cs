@@ -38,7 +38,7 @@ internal class ExportConfiguration : IEntityTypeConfiguration<Export>
         builder.Property(e => e.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.HasOne(e => e.User)
             .WithMany()

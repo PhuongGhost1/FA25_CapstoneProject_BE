@@ -43,7 +43,7 @@ internal class BookmarkConfiguration : IEntityTypeConfiguration<Bookmark>
               builder.Property(b => b.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               // Relationships
               builder.HasOne(b => b.Map)

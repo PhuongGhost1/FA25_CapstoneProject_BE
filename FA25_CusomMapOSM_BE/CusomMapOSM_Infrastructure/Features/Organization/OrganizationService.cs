@@ -10,9 +10,11 @@ using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Users.Enums;
+using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using Optional;
@@ -32,11 +34,13 @@ public class OrganizationService : IOrganizationService
     private readonly HangfireEmailService _hangfireEmailService;
     private readonly IMembershipService _membershipService;
     private readonly IJwtService _jwtService;
+    private readonly IWorkspaceRepository _workspaceRepository;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
         ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService,
-        IMembershipService membershipService, IJwtService jwtService)
+        IMembershipService membershipService, IJwtService jwtService,
+        IWorkspaceRepository workspaceRepository)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
@@ -45,6 +49,7 @@ public class OrganizationService : IOrganizationService
         _hangfireEmailService = hangfireEmailService;
         _membershipService = membershipService;
         _jwtService = jwtService;
+        _workspaceRepository = workspaceRepository;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -118,8 +123,39 @@ public class OrganizationService : IOrganizationService
             Console.WriteLine($"Failed to create free membership for user {currentUserId} in organization {createdOrg.OrgId}: {error?.Description}");
         }
 
+        // Auto-create default workspace for the organization
+        try
+        {
+            var currentUser = await _authenticationRepository.GetUserById(currentUserId);
+            if (currentUser != null)
+            {
+                var defaultWorkspace = new CusomMapOSM_Domain.Entities.Workspaces.Workspace
+                {
+                    WorkspaceId = Guid.NewGuid(),
+                    WorkspaceName = $"{req.OrgName} Workspace",
+                    Description = "Default workspace created automatically",
+                    OrgId = createdOrg.OrgId,
+                    CreatedBy = currentUserId,
+                    Creator = currentUser,
+                    Access = WorkspaceAccessEnum.AllMembers,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                await _workspaceRepository.CreateAsync(defaultWorkspace);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log warning but don't fail organization creation
+            Console.WriteLine($"Failed to create default workspace for organization {createdOrg.OrgId}: {ex.Message}");
+        }
+
         return Option.Some<OrganizationResDto, Error>(new OrganizationResDto
-        { Result = "Create Organization Success" });
+        { 
+            Result = "Create Organization Success",
+            OrgId = createdOrg.OrgId
+        });
     }
 
     public async Task<Option<GetAllOrganizationsResDto, Error>> GetAll()

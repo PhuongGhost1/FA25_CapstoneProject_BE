@@ -51,7 +51,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     category = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -73,7 +73,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     cycle_start_date = table.Column<DateTime>(type: "datetime", nullable: false),
                     cycle_end_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
@@ -129,7 +129,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     AllowAudioContent = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     AllowAnimatedConnections = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
@@ -179,9 +179,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     zone_type = table.Column<int>(type: "int", maxLength: 50, nullable: false),
                     admin_level = table.Column<int>(type: "int", nullable: false),
                     parent_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    geometry = table.Column<string>(type: "text", nullable: false)
+                    geometry = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    simplified_geometry = table.Column<string>(type: "text", nullable: true)
+                    simplified_geometry = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     centroid = table.Column<string>(type: "text", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -191,8 +191,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     last_synced_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "NOW()"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -239,8 +239,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     usage_count = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -267,7 +267,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     status = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     sent_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     is_read = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     metadata = table.Column<string>(type: "json", nullable: true)
@@ -305,7 +305,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     address = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     owner_user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false)
@@ -336,7 +336,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     status = table.Column<int>(type: "int", nullable: false),
                     priority = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "low")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     resolved_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
@@ -366,7 +366,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     current_usage = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     last_reset_date = table.Column<DateTime>(type: "datetime", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
@@ -478,7 +478,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     message = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_from_user = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -569,7 +569,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     Status = table.Column<int>(type: "int", nullable: false),
                     PublishedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
@@ -608,7 +608,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     view_state = table.Column<string>(type: "json", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -643,7 +643,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     ExportTypeId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     quota_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     export_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
@@ -697,8 +697,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     data_size_kb = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     data_bounds = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -728,7 +728,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     snapshot_data = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -770,7 +770,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -803,8 +803,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     auto_advance = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     duration_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 6000),
                     require_user_action = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -836,7 +836,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     status = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "pending")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     transaction_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     membership_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     export_id = table.Column<int>(type: "int", nullable: true),
                     purpose = table.Column<string>(type: "text", nullable: false)
@@ -881,7 +881,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     position = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: false)
                 },
                 constraints: table =>
@@ -928,7 +928,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     mongo_document_id = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 0)
@@ -1004,8 +1004,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     on_click_action = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1081,8 +1081,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     external_url = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1135,8 +1135,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     style_override = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1190,8 +1190,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     fit_bounds_on_entry = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     camera_override = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -1235,8 +1235,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     require_user_action = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     trigger_button_text = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true, defaultValue: "Next")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {

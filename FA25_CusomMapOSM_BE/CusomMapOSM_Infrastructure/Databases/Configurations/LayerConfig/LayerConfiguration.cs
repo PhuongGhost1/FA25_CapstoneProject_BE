@@ -80,11 +80,12 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
 
         builder.Property(l => l.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(l => l.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(l => l.Map)

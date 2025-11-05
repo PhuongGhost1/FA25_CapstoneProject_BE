@@ -89,7 +89,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
         builder.Property(p => p.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(p => p.UpdatedAt)
             .HasColumnName("updated_at")

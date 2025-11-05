@@ -86,11 +86,12 @@ internal class SegmentLayerConfiguration : IEntityTypeConfiguration<SegmentLayer
         // Metadata
         builder.Property(sl => sl.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(sl => sl.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(sl => sl.Segment)

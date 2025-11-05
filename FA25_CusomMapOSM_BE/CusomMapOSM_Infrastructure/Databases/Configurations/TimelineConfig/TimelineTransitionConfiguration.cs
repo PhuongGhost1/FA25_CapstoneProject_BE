@@ -88,11 +88,12 @@ internal class TimelineTransitionConfiguration : IEntityTypeConfiguration<Timeli
 
         builder.Property(tt => tt.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(tt => tt.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(tt => tt.Map)

@@ -44,7 +44,7 @@ internal class NotificationConfiguration : IEntityTypeConfiguration<Notification
         builder.Property(n => n.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(n => n.SentAt)
             .HasColumnName("sent_at")

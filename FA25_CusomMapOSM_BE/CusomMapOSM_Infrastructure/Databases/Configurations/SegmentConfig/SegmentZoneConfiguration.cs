@@ -129,11 +129,12 @@ internal class SegmentZoneConfiguration : IEntityTypeConfiguration<SegmentZone>
         // Metadata
         builder.Property(sz => sz.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(sz => sz.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(sz => sz.Segment)

@@ -58,7 +58,7 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
         builder.Property(mf => mf.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(mf => mf.UpdatedAt)
             .HasColumnName("updated_at")

@@ -169,11 +169,12 @@ internal class AnimatedLayerConfiguration : IEntityTypeConfiguration<AnimatedLay
 
         builder.Property(al => al.CreatedAt)
             .HasColumnName("created_at")
-            .IsRequired()
+            .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(al => al.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("updated_at")
+            .HasColumnType("datetime");
 
         // Relationships
         builder.HasOne(al => al.Layer)
