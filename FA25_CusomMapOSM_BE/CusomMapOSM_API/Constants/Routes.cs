@@ -22,6 +22,7 @@ public static class Routes
         public const string Osm = "osm";
         public const string Workspace = "workspaces";
         public const string User = "user";
+        public const string Layers = "layers";
     }
 
     public static class AuthEndpoints
@@ -72,8 +73,8 @@ public static class Routes
         // Segment zones
         public const string GetSegmentZones = "{mapId:guid}/segments/{segmentId:guid}/zones";
         public const string CreateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones";
-        public const string UpdateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{zoneId:guid}";
-        public const string DeleteSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{zoneId:guid}";
+        public const string UpdateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
+        public const string DeleteSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
 
         // Segment layers
         public const string GetSegmentLayers = "{mapId:guid}/segments/{segmentId:guid}/layers";
@@ -83,6 +84,9 @@ public static class Routes
 
         // Segment locations (POIs)
         public const string GetSegmentLocations = "{mapId:guid}/segments/{segmentId:guid}/locations";
+        public const string CreateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations";
+        public const string UpdateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
+        public const string DeleteSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
 
         // Timeline
         public const string GetTimeline = "{mapId:guid}/timeline";
@@ -197,5 +201,15 @@ public static class Routes
         public const string GetMe = "me";
         public const string GetMyMembership = "me/membership/{orgId:guid}";
         public const string UpdatePersonalInfo = "me/personal-info";
+    }
+
+    public static class LayerEndpoints
+    {
+        public const string GetAvailable = "available";
+        public const string GetById = "{layerId:guid}";
+        public const string GetByMap = "map/{mapId:guid}";
+        public const string Create = "";
+        public const string Update = "{layerId:guid}";
+        public const string Delete = "{layerId:guid}";
     }
 }
