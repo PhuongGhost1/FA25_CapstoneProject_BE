@@ -72,8 +72,8 @@ public static class Routes
         // Segment zones
         public const string GetSegmentZones = "{mapId:guid}/segments/{segmentId:guid}/zones";
         public const string CreateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones";
-        public const string UpdateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{zoneId:guid}";
-        public const string DeleteSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{zoneId:guid}";
+        public const string UpdateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
+        public const string DeleteSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
 
         // Segment layers
         public const string GetSegmentLayers = "{mapId:guid}/segments/{segmentId:guid}/layers";
@@ -83,6 +83,9 @@ public static class Routes
 
         // Segment locations (POIs)
         public const string GetSegmentLocations = "{mapId:guid}/segments/{segmentId:guid}/locations";
+        public const string CreateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations";
+        public const string UpdateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
+        public const string DeleteSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
 
         // Timeline
         public const string GetTimeline = "{mapId:guid}/timeline";

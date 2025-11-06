@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
+using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.StoryMaps;
@@ -203,18 +204,18 @@ public class StoryMapEndpoint : IEndpoint
         group.MapPut(Routes.StoryMapEndpoints.UpdateSegmentZone, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromRoute] Guid zoneId,
+                [FromRoute] Guid segmentZoneId,
                 [FromBody] UpdateSegmentZoneV2Request request,
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
-                var result = await service.UpdateSegmentZoneAsync(zoneId, request, ct);
+                var result = await service.UpdateSegmentZoneAsync(segmentZoneId, request, ct);
                 return result.Match<IResult>(
                     zone => Results.Ok(zone),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("UpdateStoryMapSegmentZone")
-            .WithDescription("Update a segment zone")
+            .WithDescription("Update a segment zone (relationship properties)")
             .WithTags(Tags.StoryMaps)
             .ProducesProblem(400)
             .ProducesProblem(404)
@@ -223,17 +224,17 @@ public class StoryMapEndpoint : IEndpoint
         group.MapDelete(Routes.StoryMapEndpoints.DeleteSegmentZone, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromRoute] Guid zoneId,
+                [FromRoute] Guid segmentZoneId,
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
-                var result = await service.DeleteSegmentZoneAsync(zoneId, ct);
+                var result = await service.DeleteSegmentZoneAsync(segmentZoneId, ct);
                 return result.Match<IResult>(
                     _ => Results.NoContent(),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("DeleteStoryMapSegmentZone")
-            .WithDescription("Delete a segment zone")
+            .WithDescription("Delete a segment zone (removes zone from segment)")
             .WithTags(Tags.StoryMaps)
             .Produces(204)
             .ProducesProblem(400)
@@ -337,6 +338,68 @@ public class StoryMapEndpoint : IEndpoint
             })
             .WithName("GetStoryMapSegmentLocations")
             .WithDescription("Retrieve locations (POIs) for a segment")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.CreateSegmentLocation, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid segmentId,
+                [FromBody] CreatePoiRequest request,
+                [FromServices] IPoiService service,
+                CancellationToken ct) =>
+            {
+                // Override mapId and segmentId from route
+                var requestWithRoute = request with { MapId = mapId, SegmentId = segmentId };
+                var result = await service.CreatePoiAsync(requestWithRoute, ct);
+                return result.Match<IResult>(
+                    location => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/locations/{location.PoiId}", location),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("CreateStoryMapSegmentLocation")
+            .WithDescription("Create a new location (POI) for a segment")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPut(Routes.StoryMapEndpoints.UpdateSegmentLocation, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid segmentId,
+                [FromRoute] Guid locationId,
+                [FromBody] UpdatePoiRequest request,
+                [FromServices] IPoiService service,
+                CancellationToken ct) =>
+            {
+                // Override segmentId from route
+                var requestWithRoute = request with { SegmentId = segmentId };
+                var result = await service.UpdatePoiAsync(locationId, requestWithRoute, ct);
+                return result.Match<IResult>(
+                    location => Results.Ok(location),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("UpdateStoryMapSegmentLocation")
+            .WithDescription("Update a location (POI) in a segment")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapDelete(Routes.StoryMapEndpoints.DeleteSegmentLocation, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid segmentId,
+                [FromRoute] Guid locationId,
+                [FromServices] IPoiService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.DeletePoiAsync(locationId, ct);
+                return result.Match<IResult>(
+                    success => Results.NoContent(),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("DeleteStoryMapSegmentLocation")
+            .WithDescription("Delete a location (POI) from a segment")
             .WithTags(Tags.StoryMaps)
             .ProducesProblem(400)
             .ProducesProblem(404)
