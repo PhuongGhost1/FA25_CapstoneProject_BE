@@ -22,6 +22,7 @@ public static class Routes
         public const string Osm = "osm";
         public const string Workspace = "workspaces";
         public const string User = "user";
+        public const string Layers = "layers";
     }
 
     public static class AuthEndpoints
@@ -200,5 +201,15 @@ public static class Routes
         public const string GetMe = "me";
         public const string GetMyMembership = "me/membership/{orgId:guid}";
         public const string UpdatePersonalInfo = "me/personal-info";
+    }
+
+    public static class LayerEndpoints
+    {
+        public const string GetAvailable = "available";
+        public const string GetById = "{layerId:guid}";
+        public const string GetByMap = "map/{mapId:guid}";
+        public const string Create = "";
+        public const string Update = "{layerId:guid}";
+        public const string Delete = "{layerId:guid}";
     }
 }
