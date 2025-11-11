@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using System.Linq;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 
 namespace CusomMapOSM_Application;
@@ -32,10 +34,26 @@ public static class DependencyInjections
                 };
                 options.Events = new JwtBearerEvents
                 {
-                    OnAuthenticationFailed = context =>
+                    OnMessageReceived = context =>
                     {
-                        Console.WriteLine("JWT auth failed: " + context.Exception.Message);
-                        Console.WriteLine("Authorization header: " + context.Request.Headers["Authorization"]);
+                        var path = context.HttpContext.Request.Path;
+                        var isSignalRHub = path.StartsWithSegments("/api/v1/hubs") || path.StartsWithSegments("/hubs");
+                        
+                        if (isSignalRHub)
+                        {
+                            var accessToken = context.Request.Query["access_token"].FirstOrDefault();
+                            var authHeader = context.Request.Headers["Authorization"].ToString();
+                            
+                            if (!string.IsNullOrEmpty(accessToken))
+                            {
+                                context.Token = accessToken;
+                            }
+                            else if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                            }
+                        }
+                        
                         return Task.CompletedTask;
                     }
                 };

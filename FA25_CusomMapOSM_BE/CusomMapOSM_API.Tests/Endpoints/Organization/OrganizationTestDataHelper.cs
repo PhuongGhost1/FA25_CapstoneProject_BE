@@ -187,11 +187,10 @@ public static class OrganizationTestDataHelper
         };
     }
 
-    public static TransferOwnershipReqDto CreateTransferOwnershipRequest(Guid? orgId = null, Guid? newOwnerId = null)
+    public static TransferOwnershipReqDto CreateTransferOwnershipRequest(Guid? newOwnerId = null)
     {
         return new TransferOwnershipReqDto
         {
-            OrgId = orgId ?? Guid.NewGuid(),
             NewOwnerId = newOwnerId ?? Guid.NewGuid()
         };
     }

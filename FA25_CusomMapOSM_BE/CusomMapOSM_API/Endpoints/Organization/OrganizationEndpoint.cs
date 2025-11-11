@@ -201,10 +201,11 @@ public class OrganizationEndpoint : IEndpoint
             .Produces<GetMyOrganizationsResDto>(200);
 
         group.MapPost(Routes.OrganizationsEndpoints.TransferOwnership, async (
+                [FromRoute] Guid orgId,
                 [FromBody] TransferOwnershipReqDto req,
                 [FromServices] IOrganizationService organizationService) =>
             {
-                var result = await organizationService.TransferOwnership(req);
+                var result = await organizationService.TransferOwnership(orgId, req);
                 return result.Match(Results.Ok, e => e.ToProblemDetailsResult());
             }).WithName(Routes.OrganizationsEndpoints.TransferOwnership)
             .WithDescription("Transfer organization ownership")

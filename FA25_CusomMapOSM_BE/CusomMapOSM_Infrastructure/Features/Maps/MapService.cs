@@ -230,12 +230,26 @@ public class MapService : IMapService
         }
 
         var maps = await _mapRepository.GetUserMaps(currentUserId.Value);
-        var mapDtos = new List<MapDetailDTO>();
+        var mapDtos = new List<MapListItemDTO>();
 
         foreach (var map in maps.Where(m => m.IsActive))
         {
-            var mapDto = await MapToMapDetailDTO(map, currentUserId.Value);
-            mapDtos.Add(mapDto);
+            mapDtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = map.UpdatedAt ?? map.CreatedAt,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
         }
 
         return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
@@ -257,12 +271,26 @@ public class MapService : IMapService
         // TODO: Check if user is member of the organization
 
         var maps = await _mapRepository.GetOrganizationMaps(orgId);
-        var mapDtos = new List<MapDetailDTO>();
+        var mapDtos = new List<MapListItemDTO>();
 
         foreach (var map in maps.Where(m => m.IsActive))
         {
-            var mapDto = await MapToMapDetailDTO(map, currentUserId.Value);
-            mapDtos.Add(mapDto);
+            mapDtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = map.UpdatedAt ?? map.CreatedAt,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = currentUserId.Value == map.UserId,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
         }
 
         return Option.Some<GetOrganizationMapsResponse, Error>(new GetOrganizationMapsResponse
@@ -1800,4 +1828,83 @@ public class MapService : IMapService
     }
     
     #endregion
+
+    // Custom listings
+    public async Task<Option<GetMyMapsResponse, Error>> GetMyRecentMaps(int limit)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<GetMyMapsResponse, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var results = await _mapRepository.GetUserRecentMapsWithActivity(currentUserId.Value, limit);
+        var dtos = new List<MapListItemDTO>();
+        
+        foreach (var (map, lastActivity) in results.Where(x => x.Map.IsActive))
+        {
+            dtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = lastActivity,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
+        }
+
+        return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
+        {
+            Maps = dtos,
+            TotalCount = dtos.Count
+        });
+    }
+
+    public async Task<Option<GetMyMapsResponse, Error>> GetMyDraftMaps()
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<GetMyMapsResponse, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var maps = await _mapRepository.GetUserDraftMaps(currentUserId.Value);
+        var dtos = new List<MapListItemDTO>();
+        
+        foreach (var m in maps.Where(m => m.IsActive))
+        {
+            dtos.Add(new MapListItemDTO
+            {
+                Id = m.MapId,
+                Name = m.MapName,
+                Description = m.Description ?? "",
+                IsPublic = m.IsPublic,
+                Status = m.Status,
+                PreviewImage = m.PreviewImage,
+                CreatedAt = m.CreatedAt,
+                UpdatedAt = m.UpdatedAt,
+                LastActivityAt = m.UpdatedAt ?? m.CreatedAt,
+                OwnerId = m.UserId,
+                OwnerName = m.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = m.Workspace?.WorkspaceName
+            });
+        }
+
+        return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
+        {
+            Maps = dtos,
+            TotalCount = dtos.Count
+        });
+    }
 }
