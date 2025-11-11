@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Maps;
+using CusomMapOSM_Domain.Entities.Maps.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -76,6 +77,15 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.Property(m => m.IsActive)
                      .HasColumnName("is_active")
                      .HasDefaultValue(true);
+              
+              builder.Property(m => m.Status)
+                     .HasColumnName("map_status")
+                     .HasConversion<int>()
+                     .HasDefaultValue(MapStatusEnum.Draft);
+              
+              builder.Property(m => m.PublishedAt)
+                     .HasColumnName("published_at")
+                     .HasColumnType("datetime");
 
               builder.Property(m => m.CreatedAt)
                      .HasColumnName("created_at")
