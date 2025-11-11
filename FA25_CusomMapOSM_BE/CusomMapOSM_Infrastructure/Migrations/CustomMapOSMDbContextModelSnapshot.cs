@@ -1024,10 +1024,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("preview_image");
 
                     b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime")
+                        .HasColumnName("published_at");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("map_status");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")

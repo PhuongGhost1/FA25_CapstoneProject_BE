@@ -415,19 +415,19 @@ public class OrganizationEndpointIntegrationTests : IClassFixture<WebApplication
     {
         // Arrange
         var client = CreateAuthenticatedClient();
+        var orgId = Guid.NewGuid();
         var request = new TransferOwnershipReqDto
         {
-            OrgId = Guid.NewGuid(),
             NewOwnerId = _testUserId // Same as current user
         };
 
         var error = new Error("Organization.SameOwner", "Cannot transfer ownership to current owner", ErrorType.Validation);
 
-        _mockOrganizationService.Setup(x => x.TransferOwnership(request))
+        _mockOrganizationService.Setup(x => x.TransferOwnership(orgId, request))
             .ReturnsAsync(Option.None<TransferOwnershipResDto, Error>(error));
 
         // Act
-        var httpResponse = await client.PostAsJsonAsync("/organizations/transfer-ownership", request);
+        var httpResponse = await client.PostAsJsonAsync($"/api/v1/organizations/{orgId}/ownership", request);
 
         // Assert
         httpResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);

@@ -12,7 +12,7 @@ using CusomMapOSM_API;
 using CusomMapOSM_API.Constants;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
-using CusomMapOSM_API.Hubs;
+using CusomMapOSM_Infrastructure.Hubs;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -36,6 +36,7 @@ public class Program
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
                 allowIntegerValues: true));
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
@@ -45,6 +46,7 @@ public class Program
         builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
         {
             options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
                 allowIntegerValues: true));
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
@@ -129,7 +131,11 @@ public class Program
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
 
-        app.MapHub<StoryHub>("/hubs/story").RequireCors("FrontendCors");
+        app.MapHub<StoryHub>("/hubs/story")
+        .RequireCors("FrontendCors");
+        api.MapHub<NotificationHub>("/hubs/notifications")
+            .RequireCors("FrontendCors")
+            .RequireAuthorization();
 
         app.Run();
     }

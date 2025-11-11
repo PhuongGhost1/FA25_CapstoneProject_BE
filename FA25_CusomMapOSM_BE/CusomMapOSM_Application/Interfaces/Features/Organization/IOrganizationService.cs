@@ -23,6 +23,6 @@ public interface IOrganizationService
     Task<Option<RejectInviteOrganizationResDto, Error>> RejectInvite(RejectInviteOrganizationReqDto req);
     Task<Option<CancelInviteOrganizationResDto, Error>> CancelInvite(CancelInviteOrganizationReqDto req);
     Task<Option<GetMyOrganizationsResDto, Error>> GetMyOrganizations();
-    Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(TransferOwnershipReqDto req);
+    Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(Guid orgId, TransferOwnershipReqDto req);
     Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request);
 }

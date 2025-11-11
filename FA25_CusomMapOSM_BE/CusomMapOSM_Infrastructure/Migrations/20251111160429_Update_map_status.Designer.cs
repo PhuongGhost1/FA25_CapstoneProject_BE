@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251105125930_Storymap_update")]
-    partial class Storymap_update
+    [Migration("20251111160429_Update_map_status")]
+    partial class Update_map_status
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1027,10 +1027,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("preview_image");
 
                     b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime")
+                        .HasColumnName("published_at");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("map_status");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime")

@@ -3,7 +3,7 @@ using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Models.StoryMaps;
 using System.Collections.Concurrent;
 
-namespace CusomMapOSM_API.Hubs;
+namespace CusomMapOSM_Infrastructure.Hubs;
 
 public class StoryHub : Hub
 {
@@ -127,3 +127,4 @@ public class StoryHub : Hub
         await Clients.Caller.SendAsync("SessionEnded");
     }
 }
+

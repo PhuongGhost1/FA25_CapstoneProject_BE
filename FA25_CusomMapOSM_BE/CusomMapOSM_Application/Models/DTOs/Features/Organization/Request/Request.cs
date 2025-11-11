@@ -72,6 +72,5 @@ public record CancelInviteOrganizationReqDto
 
 public record TransferOwnershipReqDto
 {
-    public required Guid OrgId { get; set; }
     public required Guid NewOwnerId { get; set; }
 }

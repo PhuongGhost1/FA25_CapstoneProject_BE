@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
@@ -190,34 +191,40 @@ public class MapService : IMapService
             return Option.None<GetMapByIdResponse, Error>(
                 Error.NotFound("Map.NotFound", "Map not found"));
         }
-
-        // Access rules:
-        // - If user is authenticated and is the owner: allow
-        // - Else if map is public or published: allow anonymous/public view
-        // - Else: forbid
-        if (currentUserId.HasValue)
+        
+        var hasAccess = map.IsPublic || map.Status == MapStatusEnum.Published;
+    
+        if (!hasAccess && currentUserId.HasValue && map.UserId == currentUserId.Value)
         {
-            if (map.UserId != currentUserId.Value && !map.IsPublic && map.Status != MapStatusEnum.Published)
-            {
-                return Option.None<GetMapByIdResponse, Error>(
-                    Error.Forbidden("Map.AccessDenied", "You don't have access to this map"));
-            }
-        }
-        else
-        {
-            if (!map.IsPublic && map.Status != MapStatusEnum.Published)
-            {
-                return Option.None<GetMapByIdResponse, Error>(
-                    Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
-            }
+            hasAccess = true;
         }
 
-        var mapDto = await MapToMapDetailDTO(map, currentUserId ?? Guid.Empty);
-
-        return Option.Some<GetMapByIdResponse, Error>(new GetMapByIdResponse
+        if (!hasAccess)
         {
-            Map = mapDto
-        });
+            var errorCode = currentUserId.HasValue ? "Map.AccessDenied" : "Map.Unauthorized";
+            var errorMessage = currentUserId.HasValue 
+                ? "You don't have access to this map" 
+                : "User not authenticated";
+        
+            return Option.None<GetMapByIdResponse, Error>(
+                Error.Forbidden(errorCode, errorMessage));
+        }
+        
+        var layers = await _mapRepository.GetMapLayers(mapId);
+        
+        var layerDataMap = new Dictionary<Guid, string>();
+        foreach (var layer in layers)
+        {
+            var layerData = await _layerDataStore.GetDataAsync(layer);
+            if (!string.IsNullOrEmpty(layerData))
+            {
+                layerDataMap[layer.LayerId] = layerData;
+            }
+        }
+        
+        var response = map.ToGetMapByIdResponse(layers, layerDataMap);
+        
+        return Option.Some<GetMapByIdResponse, Error>(response);
     }
 
     public async Task<Option<GetMyMapsResponse, Error>> GetMyMaps()
@@ -230,12 +237,26 @@ public class MapService : IMapService
         }
 
         var maps = await _mapRepository.GetUserMaps(currentUserId.Value);
-        var mapDtos = new List<MapDetailDTO>();
+        var mapDtos = new List<MapListItemDTO>();
 
         foreach (var map in maps.Where(m => m.IsActive))
         {
-            var mapDto = await MapToMapDetailDTO(map, currentUserId.Value);
-            mapDtos.Add(mapDto);
+            mapDtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = map.UpdatedAt ?? map.CreatedAt,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
         }
 
         return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
@@ -257,12 +278,26 @@ public class MapService : IMapService
         // TODO: Check if user is member of the organization
 
         var maps = await _mapRepository.GetOrganizationMaps(orgId);
-        var mapDtos = new List<MapDetailDTO>();
+        var mapDtos = new List<MapListItemDTO>();
 
         foreach (var map in maps.Where(m => m.IsActive))
         {
-            var mapDto = await MapToMapDetailDTO(map, currentUserId.Value);
-            mapDtos.Add(mapDto);
+            mapDtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = map.UpdatedAt ?? map.CreatedAt,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = currentUserId.Value == map.UserId,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
         }
 
         return Option.Some<GetOrganizationMapsResponse, Error>(new GetOrganizationMapsResponse
@@ -861,106 +896,6 @@ public class MapService : IMapService
         return Option.Some<Guid, Error>(createdWorkspace.WorkspaceId);
     }
 
-    private async Task<MapDetailDTO> MapToMapDetailDTO(Map map, Guid currentUserId)
-    {
-        // Get layers for this map
-        var mapLayers = await _mapRepository.GetMapLayers(map.MapId);
-        var layerDtos = new List<LayerDTO>();
-        foreach (var layer in mapLayers)
-        {
-            var layerData = await _layerDataStore.GetDataAsync(layer);
-            layerDtos.Add(new LayerDTO
-            {
-                Id = layer.LayerId,
-                Name = layer.LayerName ?? "Unknown Layer",
-                LayerTypeId = (int)layer.LayerType,
-                LayerTypeName = layer.LayerType.ToString(),
-                LayerTypeIcon = "",
-                SourceName = layer.SourceType.ToString(),
-                FilePath = layer.FilePath ?? "",
-                LayerData = layerData ?? "",
-                LayerStyle = layer.LayerStyle ?? "",
-                IsPublic = layer.IsPublic,
-                CreatedAt = layer.CreatedAt,
-                UpdatedAt = layer.UpdatedAt,
-                OwnerId = layer.UserId,
-                OwnerName = layer.User?.FullName ?? "Unknown",
-                MapLayerId = layer.LayerId,
-                IsVisible = true,
-                ZIndex = 1,
-                LayerOrder = 0,
-            });
-        }
-
-        // Parse geographic bounds - Support both legacy and new format
-        double latitude = 0, longitude = 0;
-        if (!string.IsNullOrEmpty(map.DefaultBounds))
-        {
-            // Try legacy simple format first: "lat,lng"
-            var parts = map.DefaultBounds.Split(',');
-            if (parts.Length == 2 &&
-                double.TryParse(parts[0], out var lat) &&
-                double.TryParse(parts[1], out var lng))
-            {
-                latitude = lat;
-                longitude = lng;
-            }
-            else
-            {
-                // Try new GeoJSON Polygon format
-                try
-                {
-                    using var boundsDoc = JsonDocument.Parse(map.DefaultBounds);
-                    if (boundsDoc.RootElement.TryGetProperty("type", out var typeElement) &&
-                        typeElement.GetString() == "Polygon")
-                    {
-                        var coordinates = boundsDoc.RootElement.GetProperty("coordinates")[0];
-                        double minLat = double.MaxValue, maxLat = double.MinValue;
-                        double minLng = double.MaxValue, maxLng = double.MinValue;
-
-                        foreach (var coord in coordinates.EnumerateArray())
-                        {
-                            var coordLng = coord[0].GetDouble();
-                            var coordLat = coord[1].GetDouble();
-                            minLat = Math.Min(minLat, coordLat);
-                            maxLat = Math.Max(maxLat, coordLat);
-                            minLng = Math.Min(minLng, coordLng);
-                            maxLng = Math.Max(maxLng, coordLng);
-                        }
-
-                        latitude = (minLat + maxLat) / 2;
-                        longitude = (minLng + maxLng) / 2;
-                    }
-                }
-                catch
-                {
-                    // If parsing fails, keep latitude/longitude as 0
-                }
-            }
-        }
-
-        var viewState = string.IsNullOrEmpty(map.ViewState) ? null : JsonDocument.Parse(map.ViewState);
-
-        return new MapDetailDTO
-        {
-            Id = map.MapId,
-            Name = map.MapName,
-            Description = map.Description ?? "",
-            IsPublic = map.IsPublic,
-            CreatedAt = map.CreatedAt,
-            UpdatedAt = map.UpdatedAt,
-            InitialLatitude = latitude,
-            InitialLongitude = longitude,
-            ViewState = viewState,
-            BaseLayer = map.BaseLayer,
-            OwnerId = map.UserId,
-            OwnerName = map.User?.FullName ?? "Unknown",
-            IsOwner = currentUserId != Guid.Empty && map.UserId == currentUserId,
-            UserRole = currentUserId != Guid.Empty && map.UserId == currentUserId ? "Owner" : "Viewer",
-            Layers = layerDtos
-        };
-    }
-
     private async Task<int> CopyTemplateLayersToMap(Guid templateId, Guid newMapId, Guid userId)
     {
         var templateLayers = await _mapRepository.GetTemplateLayers(templateId);
@@ -1040,7 +975,6 @@ public class MapService : IMapService
 
         try
         {
-            // Guard: ensure user exists to satisfy FK(layers.user_id -> users.user_id)
             var userExists = await _mapRepository.CheckUserExists(currentUserId.Value);
             if (!userExists)
             {
@@ -1645,22 +1579,12 @@ public class MapService : IMapService
                 Error.Forbidden("Map.NotOwner", "Only the map owner can publish it"));
         }
 
-        // Chỉ cho phép publish khi map đang ở trạng thái Draft hoặc Unpublished
-        if (map.Status != MapStatusEnum.Draft && map.Status != MapStatusEnum.Unpublished)
+        if (map.Status != MapStatusEnum.Draft)
         {
             return Option.None<bool, Error>(
                 Error.ValidationError("Map.InvalidStatus", 
                     $"Map cannot be published from status {map.Status}. Only Draft or Unpublished maps can be published."));
         }
-
-        // TODO: Validation - Map phải có ít nhất 1 segment để publish (cần check với StoryMap repository)
-        // var hasSegments = await _storyMapRepository.HasSegments(mapId);
-        // if (!hasSegments)
-        // {
-        //     return Option.None<bool, Error>(
-        //         Error.ValidationError("Map.NoSegments", "Story Map must have at least one segment before publishing"));
-        // }
-
         map.Status = MapStatusEnum.Published;
         map.IsPublic = true;
         map.PublishedAt = DateTime.UtcNow;
@@ -1698,7 +1622,6 @@ public class MapService : IMapService
                 Error.Forbidden("Map.NotOwner", "Only the map owner can unpublish it"));
         }
 
-        // Chỉ cho phép unpublish khi map đang ở trạng thái Published
         if (map.Status != MapStatusEnum.Published)
         {
             return Option.None<bool, Error>(
@@ -1706,7 +1629,7 @@ public class MapService : IMapService
                     $"Only published maps can be unpublished. Current status: {map.Status}"));
         }
 
-        map.Status = MapStatusEnum.Unpublished;
+        map.Status = MapStatusEnum.Draft;
         map.UpdatedAt = DateTime.UtcNow;
 
         var updateResult = await _mapRepository.UpdateMap(map);
@@ -1800,4 +1723,83 @@ public class MapService : IMapService
     }
     
     #endregion
+
+    // Custom listings
+    public async Task<Option<GetMyMapsResponse, Error>> GetMyRecentMaps(int limit)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<GetMyMapsResponse, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var results = await _mapRepository.GetUserRecentMapsWithActivity(currentUserId.Value, limit);
+        var dtos = new List<MapListItemDTO>();
+        
+        foreach (var (map, lastActivity) in results.Where(x => x.Map.IsActive))
+        {
+            dtos.Add(new MapListItemDTO
+            {
+                Id = map.MapId,
+                Name = map.MapName,
+                Description = map.Description ?? "",
+                IsPublic = map.IsPublic,
+                Status = map.Status,
+                PreviewImage = map.PreviewImage,
+                CreatedAt = map.CreatedAt,
+                UpdatedAt = map.UpdatedAt,
+                LastActivityAt = lastActivity,
+                OwnerId = map.UserId,
+                OwnerName = map.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = map.Workspace?.WorkspaceName
+            });
+        }
+
+        return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
+        {
+            Maps = dtos,
+            TotalCount = dtos.Count
+        });
+    }
+
+    public async Task<Option<GetMyMapsResponse, Error>> GetMyDraftMaps()
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<GetMyMapsResponse, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var maps = await _mapRepository.GetUserDraftMaps(currentUserId.Value);
+        var dtos = new List<MapListItemDTO>();
+        
+        foreach (var m in maps.Where(m => m.IsActive))
+        {
+            dtos.Add(new MapListItemDTO
+            {
+                Id = m.MapId,
+                Name = m.MapName,
+                Description = m.Description ?? "",
+                IsPublic = m.IsPublic,
+                Status = m.Status,
+                PreviewImage = m.PreviewImage,
+                CreatedAt = m.CreatedAt,
+                UpdatedAt = m.UpdatedAt,
+                LastActivityAt = m.UpdatedAt ?? m.CreatedAt,
+                OwnerId = m.UserId,
+                OwnerName = m.User?.FullName ?? "Unknown",
+                IsOwner = true,
+                WorkspaceName = m.Workspace?.WorkspaceName
+            });
+        }
+
+        return Option.Some<GetMyMapsResponse, Error>(new GetMyMapsResponse
+        {
+            Maps = dtos,
+            TotalCount = dtos.Count
+        });
+    }
 }

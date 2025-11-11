@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Storymap_update : Migration
+    public partial class Update_map_status : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -567,8 +567,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    PublishedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    map_status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    published_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },

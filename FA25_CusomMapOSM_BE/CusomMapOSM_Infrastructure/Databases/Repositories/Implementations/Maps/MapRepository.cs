@@ -306,5 +306,77 @@ public class MapRepository : IMapRepository
             return 0;
         }
     }
+
+    // Custom listings
+    public async Task<List<Map>> GetUserDraftMaps(Guid userId)
+    {
+        return await _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.UserId == userId && m.IsActive && m.Status == CusomMapOSM_Domain.Entities.Maps.Enums.MapStatusEnum.Draft)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<(Map Map, DateTime LastActivity)>> GetUserRecentMapsWithActivity(Guid userId, int limit)
+    {
+        var baseQuery = _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.UserId == userId && m.IsActive && !m.IsTemplate);
+
+        var mapIds = await baseQuery.Select(m => m.MapId).ToListAsync();
+
+        if (mapIds.Count == 0) return new List<(Map, DateTime)>();
+
+        var layerMax = await _context.Layers
+            .Where(l => mapIds.Contains(l.MapId))
+            .GroupBy(l => l.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(l => l.UpdatedAt ?? l.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var historyMax = await _context.MapHistories
+            .Where(h => mapIds.Contains(h.MapId))
+            .GroupBy(h => h.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(h => h.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var imageMax = await _context.MapImages
+            .Where(i => mapIds.Contains(i.MapId))
+            .GroupBy(i => i.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(i => i.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var featureMax = await _context.MapFeatures
+            .Where(f => mapIds.Contains(f.MapId))
+            .GroupBy(f => f.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(f => f.UpdatedAt ?? f.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var maps = await baseQuery.ToListAsync();
+
+        var ordered = maps
+            .Select(m =>
+            {
+                var baseAt = m.UpdatedAt ?? m.CreatedAt;
+                var lAt = layerMax.TryGetValue(m.MapId, out var v1) ? v1 : DateTime.MinValue;
+                var hAt = historyMax.TryGetValue(m.MapId, out var v2) ? v2 : DateTime.MinValue;
+                var iAt = imageMax.TryGetValue(m.MapId, out var v3) ? v3 : DateTime.MinValue;
+                var fAt = featureMax.TryGetValue(m.MapId, out var v4) ? v4 : DateTime.MinValue;
+                var last = new[] { baseAt, lAt, hAt, iAt, fAt }.Max();
+                return (Map: m, LastActivity: last);
+            })
+            .OrderByDescending(x => x.LastActivity)
+            .Take(Math.Max(1, limit))
+            .ToList();
+
+        return ordered;
+    }
+    
+    public async Task<List<Map>> GetUserRecentMaps(Guid userId, int limit)
+    {
+        var results = await GetUserRecentMapsWithActivity(userId, limit);
+        return results.Select(x => x.Map).ToList();
+    }
 }
 

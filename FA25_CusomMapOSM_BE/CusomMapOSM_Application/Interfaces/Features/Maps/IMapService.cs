@@ -50,4 +50,8 @@ public interface IMapService
     Task<Option<bool, Error>> UnpublishMap(Guid mapId);
     Task<Option<bool, Error>> ArchiveMap(Guid mapId);
     Task<Option<bool, Error>> RestoreMap(Guid mapId);
+
+    // Custom listings
+    Task<Option<GetMyMapsResponse, Error>> GetMyRecentMaps(int limit);
+    Task<Option<GetMyMapsResponse, Error>> GetMyDraftMaps();
 }

@@ -13,5 +13,6 @@ public interface INotificationRepository
     Task<bool> UpdateNotificationAsync(Notification notification, CancellationToken ct = default);
     Task<bool> DeleteNotificationAsync(int notificationId, CancellationToken ct = default);
     Task<int> GetUnreadCountAsync(Guid userId, CancellationToken ct = default);
+    Task<int> GetTotalCountAsync(Guid userId, CancellationToken ct = default);
     Task<bool> HasQuotaNotificationAsync(Guid userId, string quotaType, string notificationType, CancellationToken ct = default);
 }
