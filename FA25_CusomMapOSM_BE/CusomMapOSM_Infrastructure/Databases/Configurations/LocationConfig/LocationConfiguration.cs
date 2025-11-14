@@ -1,5 +1,6 @@
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
+using CusomMapOSM_Domain.Entities.Maps;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,9 +18,17 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnName("location_id")
             .IsRequired();
 
+        builder.Property(l => l.MapId)
+            .HasColumnName("map_id")
+            .IsRequired();
+
         builder.Property(l => l.SegmentId)
             .HasColumnName("segment_id")
-            .IsRequired();
+            .IsRequired(false);
+
+        builder.Property(l => l.ZoneId)
+            .HasColumnName("zone_id")
+            .IsRequired(false);
 
         builder.Property(l => l.CreatedBy)
             .HasColumnName("created_by")
@@ -140,10 +149,6 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasMaxLength(50)
             .HasDefaultValue("fade");
 
-        // Linking
-        builder.Property(l => l.LinkedSegmentId)
-            .HasColumnName("linked_segment_id");
-
         builder.Property(l => l.LinkedLocationId)
             .HasColumnName("linked_location_id");
 
@@ -167,25 +172,31 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnType("datetime");
 
         // Relationships
+        builder.HasOne<Map>()
+            .WithMany()
+            .HasForeignKey(l => l.MapId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
+
         builder.HasOne(l => l.Segment)
             .WithMany()
             .HasForeignKey(l => l.SegmentId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+
+        builder.HasOne(l => l.Zone)
+            .WithMany()
+            .HasForeignKey(l => l.ZoneId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
 
         builder.HasOne(l => l.Creator)
             .WithMany()
             .HasForeignKey(l => l.CreatedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(l => l.LinkedSegment)
-            .WithMany()
-            .HasForeignKey(l => l.LinkedSegmentId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         builder.HasOne(l => l.LinkedLocation)
             .WithMany()
-            .HasForeignKey(l => l.LinkedLocationId)
-            .OnDelete(DeleteBehavior.SetNull);
-
+            .HasForeignKey(l => l.LinkedLocationId);
     }
 }

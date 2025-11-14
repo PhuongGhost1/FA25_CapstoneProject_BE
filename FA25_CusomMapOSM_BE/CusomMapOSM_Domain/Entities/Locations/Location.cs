@@ -12,7 +12,9 @@ namespace CusomMapOSM_Domain.Entities.Locations;
 public class Location
 {
     public Guid LocationId { get; set; }
-    public Guid SegmentId { get; set; }
+    public Guid MapId { get; set; }
+    public Guid? SegmentId { get; set; }
+    public Guid? ZoneId { get; set; }
     public Guid CreatedBy { get; set; }
     
     public string Title { get; set; } = string.Empty;
@@ -45,7 +47,6 @@ public class Location
     public string? EntryEffect { get; set; } = "fade";
     public string? ExitEffect { get; set; } = "fade";
     
-    public Guid? LinkedSegmentId { get; set; }
     public Guid? LinkedLocationId { get; set; }
     public string? ExternalUrl { get; set; }
     
@@ -54,7 +55,7 @@ public class Location
     public DateTime? UpdatedAt { get; set; }
     
     public Segment? Segment { get; set; }
+    public Zone? Zone { get; set; }
     public User? Creator { get; set; }
-    public Segment? LinkedSegment { get; set; }
     public Location? LinkedLocation { get; set; }
 }

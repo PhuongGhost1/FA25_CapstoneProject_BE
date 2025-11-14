@@ -10,7 +10,7 @@ public static class LocationMappings
             l.LocationId,
             l.Segment?.MapId ?? Guid.Empty,
             l.SegmentId,
-            null, // ZoneId - not in entity
+            l.ZoneId,
             l.Title,
             l.Subtitle,
             l.LocationType,
@@ -18,6 +18,13 @@ public static class LocationMappings
             null, // StoryContent - not in entity
             l.MediaUrls, // MediaResources mapped to MediaUrls
             l.DisplayOrder,
+            
+            // Icon configuration
+            l.IconType,
+            l.IconUrl,
+            l.IconColor,
+            l.IconSize,
+            
             false, // HighlightOnEnter - not in entity
             l.ShowTooltip,
             l.TooltipContent,
@@ -31,6 +38,15 @@ public static class LocationMappings
             null, // AssociatedLayerId - not in entity
             null, // AnimationPresetId - not in entity
             null, // AnimationOverrides - not in entity
+            
+            // Animation effects
+            l.EntryDelayMs,
+            l.EntryDurationMs,
+            l.ExitDelayMs,
+            l.ExitDurationMs,
+            l.EntryEffect,
+            l.ExitEffect,
+            
             l.IsVisible,
             l.ZIndex,
             l.CreatedBy,

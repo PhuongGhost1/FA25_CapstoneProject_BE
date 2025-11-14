@@ -6,7 +6,6 @@ using CusomMapOSM_Infrastructure;
 using CusomMapOSM_Infrastructure.Extensions;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using System.Text.Json.Serialization;
 using CusomMapOSM_API;
 using CusomMapOSM_API.Constants;
@@ -14,7 +13,6 @@ using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
 using CusomMapOSM_Infrastructure.Hubs;
 using CusomMapOSM_Infrastructure.Services;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace CusomMapOSM_API;
@@ -81,12 +79,6 @@ public class Program
 
         builder.Services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
-
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-            options.InstanceName = "CustomMapOSM:";
-        });
 
         builder.Services.AddSingleton<TemplateCacheManager>();
         builder.Services.AddHostedService<TemplateCacheHostedService>();

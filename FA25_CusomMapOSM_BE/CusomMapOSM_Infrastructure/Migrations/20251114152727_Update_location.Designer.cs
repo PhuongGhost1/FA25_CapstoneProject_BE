@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251111160429_Update_map_status")]
-    partial class Update_map_status
+    [Migration("20251114152727_Update_location")]
+    partial class Update_location
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -871,15 +871,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("linked_location_id");
 
-                    b.Property<Guid?>("LinkedSegmentId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("linked_segment_id");
-
                     b.Property<string>("LocationType")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)")
                         .HasColumnName("location_type");
+
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
 
                     b.Property<string>("MarkerGeometry")
                         .IsRequired()
@@ -906,7 +906,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("popup_content");
 
-                    b.Property<Guid>("SegmentId")
+                    b.Property<Guid?>("SegmentId")
                         .HasColumnType("char(36)")
                         .HasColumnName("segment_id");
 
@@ -941,15 +941,21 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(100)
                         .HasColumnName("z_index");
 
+                    b.Property<Guid?>("ZoneId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("zone_id");
+
                     b.HasKey("LocationId");
 
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("LinkedLocationId");
 
-                    b.HasIndex("LinkedSegmentId");
+                    b.HasIndex("MapId");
 
                     b.HasIndex("SegmentId");
+
+                    b.HasIndex("ZoneId");
 
                     b.ToTable("locations", (string)null);
                 });
@@ -2841,27 +2847,31 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Locations.Location", "LinkedLocation")
                         .WithMany()
-                        .HasForeignKey("LinkedLocationId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("LinkedLocationId");
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "LinkedSegment")
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", null)
                         .WithMany()
-                        .HasForeignKey("LinkedSegmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
                         .WithMany()
                         .HasForeignKey("SegmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.Zone", "Zone")
+                        .WithMany()
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Creator");
 
                     b.Navigation("LinkedLocation");
 
-                    b.Navigation("LinkedSegment");
-
                     b.Navigation("Segment");
+
+                    b.Navigation("Zone");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>

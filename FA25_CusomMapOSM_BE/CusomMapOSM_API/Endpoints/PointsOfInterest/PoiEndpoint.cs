@@ -48,6 +48,32 @@ public class PoiEndpoint : IEndpoint
             })
             .WithName("GetSegmentPois")
             .WithDescription("Retrieve points of interest scoped to a segment");
+
+        group.MapGet("/zones/{zoneId}/pois", async (
+                [FromRoute] Guid zoneId,
+                [FromServices] IPoiService poiService,
+                CancellationToken ct) =>
+            {
+                var result = await poiService.GetZonePoisAsync(zoneId, ct);
+                return result.Match<IResult>(
+                    pois => Results.Ok(pois),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("GetZonePois")
+            .WithDescription("Retrieve points of interest in a specific zone");
+
+        group.MapGet("/segments/{segmentId}/pois/without-zone", async (
+                [FromRoute] Guid segmentId,
+                [FromServices] IPoiService poiService,
+                CancellationToken ct) =>
+            {
+                var result = await poiService.GetPoisWithoutZoneAsync(segmentId, ct);
+                return result.Match<IResult>(
+                    pois => Results.Ok(pois),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("GetPoisWithoutZone")
+            .WithDescription("Retrieve points of interest not assigned to any zone");
     }
 
     private static void MapMutationEndpoints(RouteGroupBuilder group)

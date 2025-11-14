@@ -205,6 +205,10 @@ public record UpdateTimelineTransitionRequest(
     bool RequireUserAction,
     string? TriggerButtonText);
 
+public record GenerateTimelineTransitionRequest(
+    Guid FromSegmentId,
+    Guid ToSegmentId);
+
 // ================== ANIMATED LAYER ==================
 public record CreateAnimatedLayerRequest(
     Guid? LayerId,
