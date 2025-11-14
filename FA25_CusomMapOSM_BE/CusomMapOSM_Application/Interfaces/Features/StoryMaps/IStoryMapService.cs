@@ -44,6 +44,7 @@ public interface IStoryMapService
     Task<Option<TimelineTransitionDto, Error>> CreateTimelineTransitionAsync(CreateTimelineTransitionRequest request, CancellationToken ct = default);
     Task<Option<TimelineTransitionDto, Error>> UpdateTimelineTransitionAsync(Guid transitionId, UpdateTimelineTransitionRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteTimelineTransitionAsync(Guid transitionId, CancellationToken ct = default);
+    Task<Option<TimelineTransitionDto, Error>> GenerateTimelineTransitionAsync(Guid mapId, GenerateTimelineTransitionRequest request, CancellationToken ct = default);
 
     // ================== ANIMATED LAYER (GIF/Video overlay trên segment) ==================
     Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(Guid mapId, CancellationToken ct = default);

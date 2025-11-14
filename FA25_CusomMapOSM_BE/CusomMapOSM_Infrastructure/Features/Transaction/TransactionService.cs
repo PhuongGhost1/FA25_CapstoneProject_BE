@@ -13,8 +13,8 @@ using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Infrastructure.Services;
-using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using Microsoft.Extensions.Logging;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
@@ -39,7 +39,7 @@ public class TransactionService : ITransactionService
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
     private readonly HangfireEmailService _hangfireEmailService;
-    private readonly IEmailNotificationService _notificationService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly IUserRepository _userRepository;
     private readonly IMembershipRepository _membershipRepository;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
@@ -52,7 +52,7 @@ public class TransactionService : ITransactionService
         IServiceProvider serviceProvider,
         IPaymentGatewayRepository paymentGatewayRepository,
         HangfireEmailService hangfireEmailService,
-        IEmailNotificationService notificationService,
+        IEmailNotificationService emailNotificationService,
         IUserRepository userRepository,
         IMembershipRepository membershipRepository,
         IMembershipPlanRepository membershipPlanRepository, ILogger<TransactionService> logger)
@@ -63,7 +63,7 @@ public class TransactionService : ITransactionService
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
         _hangfireEmailService = hangfireEmailService;
-        _notificationService = notificationService;
+        _emailNotificationService = emailNotificationService;
         _userRepository = userRepository;
         _membershipRepository = membershipRepository;
         _membershipPlanRepository = membershipPlanRepository;
@@ -286,7 +286,7 @@ public class TransactionService : ITransactionService
 
                     // Send purchase confirmation notification
                     var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
-                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                    await _emailNotificationService.SendTransactionCompletedNotificationAsync(
                         user?.Email ?? "unknown@example.com",
                         user?.FullName ?? "User",
                         transaction.Amount,
@@ -340,7 +340,7 @@ public class TransactionService : ITransactionService
 
                     // Send upgrade confirmation notification
                     var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
-                    await _notificationService.SendTransactionCompletedNotificationAsync(
+                    await _emailNotificationService.SendTransactionCompletedNotificationAsync(
                         user?.Email ?? "unknown@example.com",
                         user?.FullName ?? "User",
                         transaction.Amount,

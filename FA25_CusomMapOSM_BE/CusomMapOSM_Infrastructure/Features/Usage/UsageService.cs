@@ -1,12 +1,12 @@
 using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
-using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
 using Optional;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Infrastructure.Services;
 using Optional.Unsafe;
 
 namespace CusomMapOSM_Infrastructure.Features.Usage;

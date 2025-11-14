@@ -8,6 +8,8 @@ public interface IPoiService
 {
     Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetMapPoisAsync(Guid mapId, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetSegmentPoisAsync(Guid mapId, Guid segmentId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetZonePoisAsync(Guid zoneId, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetPoisWithoutZoneAsync(Guid segmentId, CancellationToken ct = default);
     Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default);
     Task<Option<PoiDto, Error>> UpdatePoiAsync(Guid poiId, UpdatePoiRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default);

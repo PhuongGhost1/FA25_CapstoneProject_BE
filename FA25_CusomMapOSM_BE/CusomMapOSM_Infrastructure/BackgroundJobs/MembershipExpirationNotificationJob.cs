@@ -41,7 +41,7 @@ public class MembershipExpirationNotificationJob
             using var scope = _serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<CustomMapOSMDbContext>();
             var hangfireEmailService = scope.ServiceProvider.GetRequiredService<HangfireEmailService>();
-            var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+            var emailNotificationService = scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
 
             var today = DateTime.UtcNow.Date;
             var expirationDates = new[]
@@ -72,7 +72,7 @@ public class MembershipExpirationNotificationJob
                     var daysUntilExpiration = (membership.EndDate!.Value.Date - today).Days;
 
                     // Send expiration notification
-                    await SendExpirationNotificationAsync(membership, daysUntilExpiration, hangfireEmailService, notificationService);
+                    await SendExpirationNotificationAsync(membership, daysUntilExpiration, hangfireEmailService, emailNotificationService);
 
                     // Auto-downgrade Premium memberships (Plan 2) expiring in 7 days
                     // If user hasn't extended by now, downgrade to Free (Plan 1)
@@ -96,12 +96,12 @@ public class MembershipExpirationNotificationJob
         CusomMapOSM_Domain.Entities.Memberships.Membership membership,
         int daysUntilExpiration,
         HangfireEmailService hangfireEmailService,
-        INotificationService notificationService)
+        IEmailNotificationService emailNotificationService)
     {
         try
         {
             // Use the new NotificationService for both database record and email
-            await notificationService.SendMembershipExpirationWarningAsync(
+            await emailNotificationService.SendMembershipExpirationWarningAsync(
                 membership.User!.Email,
                 membership.User.FullName ?? "User",
                 daysUntilExpiration,
