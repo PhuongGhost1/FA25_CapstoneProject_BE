@@ -277,7 +277,6 @@ public static class DependencyInjections
         services.AddHangfire(config =>
         {
             config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
-            config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
             {
                 Db = 1
             });
