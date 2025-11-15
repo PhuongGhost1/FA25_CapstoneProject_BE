@@ -16,6 +16,7 @@ using CusomMapOSM_API.Hubs;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using CusomMapOSM_Commons.Constant;
 
 namespace CusomMapOSM_API;
 
@@ -82,8 +83,8 @@ public class Program
 
         builder.Services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
-            options.InstanceName = "CustomMapOSM:";
+            options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
+            options.InstanceName = "IMOS:";
         });
 
         builder.Services.AddSingleton<TemplateCacheManager>();

@@ -18,6 +18,7 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.MinIO;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
+using CusomMapOSM_Application.Interfaces.Services.Blog;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Faqs;
@@ -241,13 +242,18 @@ public static class DependencyInjections
         services.AddScoped<IVectorProcessor, VectorProcessor>();
         services.AddScoped<IRasterProcessor, RasterProcessor>();
         services.AddScoped<ISpreadsheetProcessor, SpreadsheetProcessor>();
+        
+        // Blog storage service for Azure Blob Storage
+        services.AddScoped<IBlogStorageService, BlogStorageService>();
 
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
-            var host = Environment.GetEnvironmentVariable("REDIS_HOST");
-            var port = Environment.GetEnvironmentVariable("REDIS_PORT");
-            var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-            var redisConnectionString = $"{host}:{port},password={password}";
+            // var host = Environment.GetEnvironmentVariable("REDIS_HOST");
+            // var port = Environment.GetEnvironmentVariable("REDIS_PORT");
+            // var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
+            // var redisConnectionString = $"{host}:{port},password={password}";
+
+            var redisConnectionString = RedisConstant.REDIS_CONNECTION_STRING;
 
             var policy = Policy
                 .Handle<RedisConnectionException>()
@@ -259,14 +265,14 @@ public static class DependencyInjections
             return policy.Execute(() => ConnectionMultiplexer.Connect(redisConnectionString));
         });
 
-        var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
-        var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
-        var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-        var redisConnectionString = $"{redisHost}:{redisPort},password={redisPassword}";
+        // var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
+        // var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
+        // var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
+        // var redisConnectionString = $"{redisHost}:{redisPort},password={redisPassword}";
 
         services.AddHangfire(config =>
         {
-            config.UseRedisStorage(redisConnectionString, new RedisStorageOptions
+            config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
             {
                 Db = 1
             });
