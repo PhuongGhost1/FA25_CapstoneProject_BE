@@ -5,6 +5,8 @@ using CusomMapOSM_Domain.Entities.Notifications;
 using CusomMapOSM_Domain.Entities.Notifications.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Notifications;
 using CusomMapOSM_Application.Interfaces.Services;
+using CusomMapOSM_Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Optional;
 using System.Text.Json;
 
@@ -13,11 +15,14 @@ namespace CusomMapOSM_Infrastructure.Features.Notifications;
 public class NotificationService : INotificationService
 {
     private readonly INotificationRepository _notificationRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public NotificationService(
-        INotificationRepository notificationRepository)
+        INotificationRepository notificationRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _notificationRepository = notificationRepository;
+        _hubContext = hubContext;
     }
 
     public async Task<Option<GetUserNotificationsResponse, Error>> GetUserNotificationsAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken ct = default)
@@ -26,6 +31,8 @@ public class NotificationService : INotificationService
         {
             var notifications = await _notificationRepository.GetUserNotificationsAsync(userId, page, pageSize, ct);
             var unreadCount = await _notificationRepository.GetUnreadCountAsync(userId, ct);
+            var totalCount = await _notificationRepository.GetTotalCountAsync(userId, ct);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
             var notificationDtos = notifications.Select(n => new NotificationDto
             {
@@ -42,10 +49,11 @@ public class NotificationService : INotificationService
             return Option.Some<GetUserNotificationsResponse, Error>(new GetUserNotificationsResponse
             {
                 Notifications = notificationDtos,
-                TotalCount = notifications.Count,
+                TotalCount = totalCount,
                 UnreadCount = unreadCount,
                 Page = page,
-                PageSize = pageSize
+                PageSize = pageSize,
+                TotalPages = totalPages
             });
         }
         catch (Exception ex)
@@ -58,10 +66,28 @@ public class NotificationService : INotificationService
     {
         try
         {
+            // Get notification to get userId before marking as read
+            var notification = await _notificationRepository.GetNotificationByIdAsync(notificationId, ct);
+            if (notification == null)
+            {
+                return Option.None<MarkNotificationReadResponse, Error>(Error.NotFound("Notification.NotFound", "Notification not found"));
+            }
+
             var result = await _notificationRepository.MarkAsReadAsync(notificationId, ct);
             if (!result)
             {
                 return Option.None<MarkNotificationReadResponse, Error>(Error.NotFound("Notification.NotFound", "Notification not found"));
+            }
+
+            // Update unread count via SignalR
+            try
+            {
+                var unreadCount = await _notificationRepository.GetUnreadCountAsync(notification.UserId, ct);
+                await _hubContext.Clients.Group($"user_{notification.UserId}").SendAsync("UnreadCountUpdated", unreadCount, cancellationToken: ct);
+            }
+            catch
+            {
+                // Ignore SignalR errors for read status updates
             }
 
             return Option.Some<MarkNotificationReadResponse, Error>(new MarkNotificationReadResponse
@@ -85,6 +111,16 @@ public class NotificationService : INotificationService
             if (!result)
             {
                 return Option.None<MarkAllNotificationsReadResponse, Error>(Error.Failure("Notification.UpdateFailed", "Failed to mark notifications as read"));
+            }
+
+            // Update unread count via SignalR (should be 0 now)
+            try
+            {
+                await _hubContext.Clients.Group($"user_{userId}").SendAsync("UnreadCountUpdated", 0, cancellationToken: ct);
+            }
+            catch
+            {
+                // Ignore SignalR errors for read status updates
             }
 
             return Option.Some<MarkAllNotificationsReadResponse, Error>(new MarkAllNotificationsReadResponse
@@ -123,15 +159,54 @@ public class NotificationService : INotificationService
                 Message = message,
                 Status = "pending",
                 Metadata = metadata,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                SentAt = DateTime.UtcNow
             };
 
             var result = await _notificationRepository.CreateNotificationAsync(notification, ct);
+            
+            if (result && notification.NotificationId > 0)
+            {
+                // Push notification to user via SignalR (only if NotificationId was set by database)
+                await PushNotificationToUserAsync(userId, notification, ct);
+            }
+            
             return Option.Some<bool, Error>(result);
         }
         catch (Exception ex)
         {
             return Option.None<bool, Error>(Error.Failure("Notification.CreateFailed", $"Failed to create notification: {ex.Message}"));
+        }
+    }
+
+    private async Task PushNotificationToUserAsync(Guid userId, Notification notification, CancellationToken ct = default)
+    {
+        try
+        {
+            var notificationDto = new NotificationDto
+            {
+                NotificationId = notification.NotificationId,
+                Type = notification.Type ?? "",
+                Message = notification.Message ?? "",
+                Status = notification.Status ?? "",
+                CreatedAt = notification.CreatedAt,
+                SentAt = notification.SentAt,
+                IsRead = notification.IsRead,
+                Metadata = notification.Metadata
+            };
+
+            // Send notification to user's group
+            await _hubContext.Clients.Group($"user_{userId}").SendAsync("NotificationReceived", notificationDto, cancellationToken: ct);
+            
+            // Also update unread count
+            var unreadCount = await _notificationRepository.GetUnreadCountAsync(userId, ct);
+            await _hubContext.Clients.Group($"user_{userId}").SendAsync("UnreadCountUpdated", unreadCount, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail the notification creation
+            // SignalR push is best-effort; notification is already saved to DB
+            Console.WriteLine($"Failed to push notification via SignalR: {ex.Message}");
         }
     }
 

@@ -811,7 +811,7 @@ public class OrganizationService : IOrganizationService
             new GetMyOrganizationsResDto { Organizations = organizationDtos });
     }
 
-    public async Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(TransferOwnershipReqDto req)
+    public async Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(Guid orgId, TransferOwnershipReqDto req)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId is null)
@@ -820,21 +820,21 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
 
-        var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
+        var organization = await _organizationRepository.GetOrganizationById(orgId);
         if (organization is null)
         {
             return Option.None<TransferOwnershipResDto, Error>(
                 Error.NotFound("Organization.NotFound", "Organization not found"));
         }
 
-        var newOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(req.NewOwnerId, req.OrgId);
+        var newOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(req.NewOwnerId, orgId);
         if (newOwnerMember is null)
         {
             return Option.None<TransferOwnershipResDto, Error>(
                 Error.NotFound("Organization.NewOwnerNotMember", "New owner is not a member of this organization"));
         }
 
-        var currentOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
+        var currentOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, orgId);
         if (currentOwnerMember is null || currentOwnerMember.Role.ToString() != "Owner")
         {
             return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));

@@ -97,7 +97,9 @@ public class QuotaCheckingMiddleware
             "/api/membership-plans",
             "/api/notifications",
             "/api/usage",
-            "/api/health"
+            "/api/health",
+            "/hubs",  // Skip SignalR hubs
+            "/api/v1/hubs"  // Skip SignalR hubs with API prefix
         };
 
         return skipPaths.Any(skipPath => path.StartsWithSegments(skipPath));

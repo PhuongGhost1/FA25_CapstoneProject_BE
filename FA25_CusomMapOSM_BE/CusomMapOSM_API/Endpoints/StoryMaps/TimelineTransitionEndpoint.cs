@@ -119,7 +119,25 @@ public class TimelineTransitionEndpoint : IEndpoint
             .ProducesProblem(404)
             .ProducesProblem(500);
 
-        // POST generate smart transition - removed because GenerateTransitionAsync doesn't exist in interface
-        // TODO: Implement GenerateTransitionAsync in IStoryMapService if needed
+        // POST generate smart transition
+        group.MapPost(Routes.StoryMapEndpoints.GenerateTransition, async (
+                [FromRoute] Guid mapId,
+                [FromBody] GenerateTimelineTransitionRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.GenerateTimelineTransitionAsync(mapId, request, ct);
+                return result.Match<IResult>(
+                    transition => Results.Created($"{Routes.Prefix.StoryMap}/{mapId}/timeline-transitions/{transition.TimelineTransitionId}", transition),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("GenerateTimelineTransition")
+            .WithDescription("Auto-generate a smart timeline transition between two segments")
+            .WithTags(Tags.StoryMaps)
+            .Produces<TimelineTransitionDto>(201)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(409)
+            .ProducesProblem(500);
     }
 }

@@ -48,4 +48,9 @@ public interface IMapRepository
     // Statistics operations
     Task<int> GetTotalMapsCount();
     Task<int> GetMonthlyExportsCount();
+
+    // Custom listings
+    Task<List<Map>> GetUserDraftMaps(Guid userId);
+    Task<List<Map>> GetUserRecentMaps(Guid userId, int limit);
+    Task<List<(Map Map, DateTime LastActivity)>> GetUserRecentMapsWithActivity(Guid userId, int limit);
 }

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Storymap_update : Migration
+    public partial class Update_location : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -567,8 +567,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    PublishedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    map_status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    published_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
@@ -1036,7 +1036,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: table => new
                 {
                     location_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    segment_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     title = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -1076,7 +1078,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     exit_effect = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true, defaultValue: "fade")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    linked_segment_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     linked_location_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     external_url = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -1091,25 +1092,30 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         name: "FK_locations_locations_linked_location_id",
                         column: x => x.linked_location_id,
                         principalTable: "locations",
-                        principalColumn: "location_id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "location_id");
                     table.ForeignKey(
-                        name: "FK_locations_segments_linked_segment_id",
-                        column: x => x.linked_segment_id,
-                        principalTable: "segments",
-                        principalColumn: "segment_id",
-                        onDelete: ReferentialAction.SetNull);
+                        name: "FK_locations_maps_map_id",
+                        column: x => x.map_id,
+                        principalTable: "maps",
+                        principalColumn: "map_id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_locations_segments_segment_id",
                         column: x => x.segment_id,
                         principalTable: "segments",
                         principalColumn: "segment_id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_locations_users_created_by",
                         column: x => x.created_by,
                         principalTable: "users",
                         principalColumn: "user_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_locations_zones_zone_id",
+                        column: x => x.zone_id,
+                        principalTable: "zones",
+                        principalColumn: "zone_id",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -1389,14 +1395,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "linked_location_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_locations_linked_segment_id",
+                name: "IX_locations_map_id",
                 table: "locations",
-                column: "linked_segment_id");
+                column: "map_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_locations_segment_id",
                 table: "locations",
                 column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_locations_zone_id",
+                table: "locations",
+                column: "zone_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_map_features_created_by",

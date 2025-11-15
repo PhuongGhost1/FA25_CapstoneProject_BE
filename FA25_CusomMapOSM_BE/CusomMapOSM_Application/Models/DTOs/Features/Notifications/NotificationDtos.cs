@@ -19,6 +19,7 @@ public record GetUserNotificationsResponse
     public required int UnreadCount { get; set; }
     public required int Page { get; set; }
     public required int PageSize { get; set; }
+    public int TotalPages { get; set; }
 }
 
 public record MarkNotificationReadResponse

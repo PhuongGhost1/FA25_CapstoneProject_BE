@@ -18,6 +18,7 @@ public class LocationRepository : ILocationRepository
         return await _context.MapLocations
             .AsNoTracking()
             .Include(l => l.Segment)
+            .Include(l => l.Zone)
             .FirstOrDefaultAsync(l => l.LocationId == locationId, ct);
     }
 
@@ -26,7 +27,7 @@ public class LocationRepository : ILocationRepository
         return await _context.MapLocations
             .AsNoTracking()
             .Include(l => l.Segment)
-            .Where(l => l.Segment != null && l.Segment.MapId == mapId)
+            .Where(l => l.MapId == mapId)
             .OrderBy(l => l.DisplayOrder)
             .ToListAsync(ct);
     }
@@ -36,6 +37,25 @@ public class LocationRepository : ILocationRepository
         return await _context.MapLocations
             .AsNoTracking()
             .Where(l => l.SegmentId == segmentId)
+            .OrderBy(l => l.DisplayOrder)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyCollection<Location>> GetByZoneIdAsync(Guid zoneId, CancellationToken ct = default)
+    {
+        return await _context.MapLocations
+            .AsNoTracking()
+            .Include(l => l.Zone)
+            .Where(l => l.ZoneId == zoneId)
+            .OrderBy(l => l.DisplayOrder)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyCollection<Location>> GetWithoutZoneAsync(Guid segmentId, CancellationToken ct = default)
+    {
+        return await _context.MapLocations
+            .AsNoTracking()
+            .Where(l => l.SegmentId == segmentId && l.ZoneId == null)
             .OrderBy(l => l.DisplayOrder)
             .ToListAsync(ct);
     }

@@ -4,6 +4,7 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
@@ -325,7 +326,7 @@ public class StoryMapService : IStoryMapService
         var originalLocations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
         foreach (var originalLocation in originalLocations)
         {
-            var newLocation = new CusomMapOSM_Domain.Entities.Locations.Location
+            var newLocation = new Location
             {
                 LocationId = Guid.NewGuid(),
                 SegmentId = newSegment.SegmentId,
@@ -352,7 +353,6 @@ public class StoryMapService : IStoryMapService
                 ExitDurationMs = originalLocation.ExitDurationMs,
                 EntryEffect = originalLocation.EntryEffect,
                 ExitEffect = originalLocation.ExitEffect,
-                LinkedSegmentId = originalLocation.LinkedSegmentId,
                 LinkedLocationId = originalLocation.LinkedLocationId,
                 ExternalUrl = originalLocation.ExternalUrl,
                 IsVisible = originalLocation.IsVisible,
@@ -1071,26 +1071,32 @@ public class StoryMapService : IStoryMapService
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<TimelineTransitionDto, Error>> GenerateTransitionAsync(Guid fromSegmentId,
-        Guid toSegmentId, CancellationToken ct = default)
+    public async Task<Option<TimelineTransitionDto, Error>> GenerateTimelineTransitionAsync(Guid mapId,
+        GenerateTimelineTransitionRequest request, CancellationToken ct = default)
     {
-        var fromSegment = await _repository.GetSegmentAsync(fromSegmentId, ct);
+        var map = await _repository.GetMapAsync(mapId, ct);
+        if (map is null)
+        {
+            return Option.None<TimelineTransitionDto, Error>(Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        var fromSegment = await _repository.GetSegmentAsync(request.FromSegmentId, ct);
         if (fromSegment is null)
         {
             return Option.None<TimelineTransitionDto, Error>(
-                Error.NotFound("Segment.NotFound", "From segment not found"));
+                Error.NotFound("Segment.FromNotFound", "From segment not found"));
         }
 
-        var toSegment = await _repository.GetSegmentAsync(toSegmentId, ct);
+        var toSegment = await _repository.GetSegmentAsync(request.ToSegmentId, ct);
         if (toSegment is null)
         {
             return Option.None<TimelineTransitionDto, Error>(
-                Error.NotFound("Segment.NotFound", "To segment not found"));
+                Error.NotFound("Segment.ToNotFound", "To segment not found"));
         }
 
         // Check if transition already exists
         var existingTransition =
-            await _repository.GetTransitionBetweenSegmentsAsync(fromSegmentId, toSegmentId, ct);
+            await _repository.GetTransitionBetweenSegmentsAsync(request.FromSegmentId, request.ToSegmentId, ct);
         if (existingTransition is not null)
         {
             return Option.None<TimelineTransitionDto, Error>(
@@ -1104,9 +1110,9 @@ public class StoryMapService : IStoryMapService
         var transition = new TimelineTransition
         {
             TimelineTransitionId = Guid.NewGuid(),
-            MapId = fromSegment.MapId,
-            FromSegmentId = fromSegmentId,
-            ToSegmentId = toSegmentId,
+            MapId = mapId,
+            FromSegmentId = request.FromSegmentId,
+            ToSegmentId = request.ToSegmentId,
             TransitionName = $"Transition: {fromSegment.Name} → {toSegment.Name}",
             DurationMs = 1000,
             TransitionType = TransitionType.Ease,
@@ -1125,7 +1131,7 @@ public class StoryMapService : IStoryMapService
 
         return Option.Some<TimelineTransitionDto, Error>(transition.ToDto());
     }
-
+    
     public async Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(
         Guid mapId, CancellationToken ct = default)
     {

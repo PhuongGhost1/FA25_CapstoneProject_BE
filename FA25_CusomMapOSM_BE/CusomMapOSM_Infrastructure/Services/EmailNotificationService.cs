@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Services;
 
-public interface INotificationService
+public interface IEmailNotificationService
 {
     Task SendTransactionCompletedNotificationAsync(string userEmail, string userName, decimal amount, string planName);
     Task SendMembershipExpirationWarningAsync(string userEmail, string userName, int daysRemaining, string planName);
@@ -22,16 +22,16 @@ public interface INotificationService
     Task SendOrganizationInvitationNotificationAsync(string userEmail, string userName, string organizationName, string inviterName);
 }
 
-public class NotificationService : INotificationService
+public class EmailNotificationService : IEmailNotificationService
 {
     private readonly HangfireEmailService _emailService;
-    private readonly ILogger<NotificationService> _logger;
+    private readonly ILogger<EmailNotificationService> _logger;
     private readonly IUserRepository _userRepository;
     private readonly CustomMapOSMDbContext _context;
 
-    public NotificationService(
+    public EmailNotificationService(
         HangfireEmailService emailService,
-        ILogger<NotificationService> logger,
+        ILogger<EmailNotificationService> logger,
         IUserRepository userRepository,
         CustomMapOSMDbContext context)
     {

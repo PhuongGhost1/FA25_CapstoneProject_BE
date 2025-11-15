@@ -60,6 +60,33 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<GetMyMapsResponse>(200);
 
+        group.MapGet("/my/recents", async (
+                [FromServices] IMapService mapService,
+                [FromQuery] int? limit) =>
+            {
+                var result = await mapService.GetMyRecentMaps(limit ?? 20);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMyRecentMaps")
+            .WithDescription("Get recent maps owned by current user ordered by last activity (layers/features/images/history)")
+            .RequireAuthorization()
+            .Produces<GetMyMapsResponse>(200);
+
+        group.MapGet("/my/drafts", async (
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.GetMyDraftMaps();
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMyDraftMaps")
+            .WithDescription("Get draft maps owned by current user")
+            .RequireAuthorization()
+            .Produces<GetMyMapsResponse>(200);
+
         group.MapGet("/organization/{orgId:guid}", async (
                 [FromRoute] Guid orgId,
                 [FromServices] IMapService mapService) =>

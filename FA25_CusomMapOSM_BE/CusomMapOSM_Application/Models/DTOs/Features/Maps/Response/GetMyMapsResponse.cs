@@ -4,7 +4,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
 {
     public class GetMyMapsResponse
     {
-        public List<MapDetailDTO> Maps { get; set; } = new();
+        public List<MapListItemDTO> Maps { get; set; } = new();
         public int TotalCount { get; set; }
     }
 }

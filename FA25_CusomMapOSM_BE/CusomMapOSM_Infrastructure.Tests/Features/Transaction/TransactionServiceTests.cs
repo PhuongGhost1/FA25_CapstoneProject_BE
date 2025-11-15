@@ -2,6 +2,7 @@ using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Models.DTOs.Services;
@@ -32,7 +33,7 @@ public class TransactionServiceTests
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IPaymentGatewayRepository> _mockPaymentGatewayRepository;
     private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
-    private readonly Mock<INotificationService> _mockNotificationService;
+    private readonly Mock<IEmailNotificationService> _mockEmailNotificationService;
     private readonly Mock<IUserRepository> _mockUserRepository;
     private readonly Mock<IMembershipRepository> _mockMembershipRepository;
     private readonly Mock<IMembershipPlanRepository> _mockMembershipPlanRepository;
@@ -48,7 +49,7 @@ public class TransactionServiceTests
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockPaymentGatewayRepository = new Mock<IPaymentGatewayRepository>();
         _mockHangfireEmailService = new Mock<HangfireEmailService>();
-        _mockNotificationService = new Mock<INotificationService>();
+        _mockEmailNotificationService = new Mock<IEmailNotificationService>();
         _mockUserRepository = new Mock<IUserRepository>();
         _mockMembershipRepository = new Mock<IMembershipRepository>();
         _mockMembershipPlanRepository = new Mock<IMembershipPlanRepository>();
@@ -61,7 +62,7 @@ public class TransactionServiceTests
             _mockServiceProvider.Object,
             _mockPaymentGatewayRepository.Object,
             _mockHangfireEmailService.Object,
-            _mockNotificationService.Object,
+            _mockEmailNotificationService.Object,
             _mockUserRepository.Object,
             _mockMembershipRepository.Object,
             _mockMembershipPlanRepository.Object,

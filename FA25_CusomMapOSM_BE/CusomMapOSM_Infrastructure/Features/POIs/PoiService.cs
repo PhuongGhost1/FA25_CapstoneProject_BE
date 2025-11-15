@@ -6,6 +6,7 @@ using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
+using CusomMapOSM_Infrastructure.Services;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.POIs;
@@ -15,13 +16,18 @@ public class PoiService : IPoiService
     private readonly IStoryMapRepository _storyMapRepository;
     private readonly ILocationRepository _locationRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly HtmlContentImageProcessor _htmlImageProcessor;
 
-    public PoiService(IStoryMapRepository storyMapRepository, ILocationRepository locationRepository,
-        ICurrentUserService currentUserService)
+    public PoiService(
+        IStoryMapRepository storyMapRepository, 
+        ILocationRepository locationRepository,
+        ICurrentUserService currentUserService,
+        HtmlContentImageProcessor htmlImageProcessor)
     {
         _storyMapRepository = storyMapRepository;
         _locationRepository = locationRepository;
         _currentUserService = currentUserService;
+        _htmlImageProcessor = htmlImageProcessor;
     }
 
     public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetMapPoisAsync(Guid mapId,
@@ -53,6 +59,36 @@ public class PoiService : IPoiService
         return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
     }
 
+    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetZonePoisAsync(Guid zoneId,
+        CancellationToken ct = default)
+    {
+        var zone = await _storyMapRepository.GetZoneAsync(zoneId, ct);
+        if (zone is null)
+        {
+            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Zone.NotFound",
+                "Zone not found"));
+        }
+
+        var locations = await _locationRepository.GetByZoneIdAsync(zoneId, ct);
+        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
+        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+    }
+
+    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetPoisWithoutZoneAsync(Guid segmentId,
+        CancellationToken ct = default)
+    {
+        var segment = await _storyMapRepository.GetSegmentAsync(segmentId, ct);
+        if (segment is null)
+        {
+            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Segment.NotFound",
+                "Segment not found"));
+        }
+
+        var locations = await _locationRepository.GetWithoutZoneAsync(segmentId, ct);
+        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
+        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+    }
+
     public async Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default)
     {
         var currentUserId = _currentUserService.GetUserId();
@@ -71,69 +107,62 @@ public class PoiService : IPoiService
         Guid? segmentId = NormalizeGuid(request.SegmentId);
         Guid? zoneId = NormalizeGuid(request.ZoneId);
         Guid? linkedPoiId = NormalizeGuid(request.LinkedPoiId);
-
+        
+        // Validate SegmentId if provided
         if (segmentId.HasValue)
         {
             var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
             if (segment is null || segment.MapId != request.MapId)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound",
-                    "Segment not found for this map"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
             }
         }
-
+        
+        // Validate ZoneId if provided
         if (zoneId.HasValue)
         {
-            var segmentZone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
-            if (segmentZone is null)
+            var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
+            if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
-
-            var zoneSegment = await _storyMapRepository.GetSegmentAsync(segmentZone.SegmentId, ct);
-            if (zoneSegment is null || zoneSegment.MapId != request.MapId)
-            {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound",
-                    "Segment not found for this map"));
-            }
-
-            if (segmentId.HasValue && segmentId.Value != segmentZone.SegmentId)
-            {
-                return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid",
-                    "Zone does not belong to the provided segment"));
-            }
-
-            segmentId ??= segmentZone.SegmentId;
         }
 
         if (linkedPoiId.HasValue)
         {
             var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
-            if (linked is null || linked.Segment?.MapId != request.MapId)
+            if (linked is null || linked.MapId != request.MapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound",
                     "Linked POI not found in this map"));
             }
         }
-
-        if (!segmentId.HasValue)
-        {
-            return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Segment.Required",
-                "SegmentId is required to create a location"));
-        }
+        
+        // Process HTML content to upload base64 images to MinIO
+        var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+            request.TooltipContent, 
+            folder: "poi-tooltips", 
+            ct);
+        
+        var processedPopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+            request.SlideContent, 
+            folder: "poi-popups", 
+            ct);
 
         var location = new Location
         {
             LocationId = Guid.NewGuid(),
-            SegmentId = segmentId.Value,
+            MapId = request.MapId,
+            SegmentId = segmentId,
+            ZoneId = zoneId,
             Title = request.Title,
             Subtitle = request.Subtitle,
             LocationType = request.LocationType,
             MarkerGeometry = request.MarkerGeometry ?? string.Empty,
             ShowTooltip = request.ShowTooltip,
-            TooltipContent = request.TooltipContent,
+            TooltipContent = processedTooltipContent,
             OpenPopupOnClick = request.OpenSlideOnClick,
-            PopupContent = request.SlideContent,
+            PopupContent = processedPopupContent,
             MediaUrls = request.MediaResources,
             LinkedLocationId = linkedPoiId,
             PlayAudioOnClick = request.PlayAudioOnClick,
@@ -162,12 +191,8 @@ public class PoiService : IPoiService
             return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
-        if (location.Segment is null)
-        {
-            return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Location segment not found"));
-        }
-
-        var mapId = location.Segment.MapId;
+        // Use MapId directly from location
+        var mapId = location.MapId;
 
         Guid? segmentId = request.SegmentId.HasValue ? NormalizeGuid(request.SegmentId) : location.SegmentId;
         if (segmentId.HasValue)
@@ -180,23 +205,14 @@ public class PoiService : IPoiService
             }
         }
 
-        Guid? zoneId = request.ZoneId.HasValue ? NormalizeGuid(request.ZoneId) : null;
+        Guid? zoneId = request.ZoneId.HasValue ? NormalizeGuid(request.ZoneId) : location.ZoneId;
         if (zoneId.HasValue)
         {
-            var segmentZone = await _storyMapRepository.GetSegmentZoneAsync(zoneId.Value, ct);
-            if (segmentZone is null)
+            var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
+            if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Segment zone not found"));
+                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
-
-            // SegmentZone.SegmentId is not nullable
-            if (segmentId.HasValue && segmentZone.SegmentId != segmentId.Value)
-            {
-                return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Zone.Invalid",
-                    "Zone does not belong to the provided segment"));
-            }
-
-            segmentId ??= segmentZone.SegmentId;
         }
 
         Guid? linkedPoiId = request.LinkedPoiId.HasValue
@@ -211,7 +227,7 @@ public class PoiService : IPoiService
             }
 
             var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
-            if (linked is null || linked.Segment?.MapId != mapId)
+            if (linked is null || linked.MapId != mapId)
             {
                 return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound",
                     "Linked POI not found in this map"));
@@ -222,7 +238,12 @@ public class PoiService : IPoiService
         {
             location.SegmentId = segmentId.Value;
         }
+        else
+        {
+            location.SegmentId = null;
+        }
 
+        location.ZoneId = zoneId;
         location.Title = request.Title;
         location.Subtitle = request.Subtitle;
         location.LocationType = request.LocationType;
@@ -231,10 +252,25 @@ public class PoiService : IPoiService
             location.MarkerGeometry = request.MarkerGeometry;
         }
 
+        // Process HTML content to upload base64 images to MinIO
+        if (request.TooltipContent is not null)
+        {
+            location.TooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+                request.TooltipContent, 
+                folder: "poi-tooltips", 
+                ct);
+        }
+        
+        if (request.SlideContent is not null)
+        {
+            location.PopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+                request.SlideContent, 
+                folder: "poi-popups", 
+                ct);
+        }
+
         location.ShowTooltip = request.ShowTooltip;
-        location.TooltipContent = request.TooltipContent;
         location.OpenPopupOnClick = request.OpenSlideOnClick;
-        location.PopupContent = request.SlideContent;
         location.MediaUrls = request.MediaResources;
         location.LinkedLocationId = linkedPoiId;
         location.PlayAudioOnClick = request.PlayAudioOnClick;
@@ -302,7 +338,10 @@ public class PoiService : IPoiService
 
         if (request.TooltipContent is not null)
         {
-            location.TooltipContent = request.TooltipContent;
+            location.TooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+                request.TooltipContent, 
+                folder: "poi-tooltips", 
+                ct);
         }
 
         location.UpdatedAt = DateTime.UtcNow;

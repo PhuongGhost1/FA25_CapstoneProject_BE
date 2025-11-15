@@ -93,6 +93,12 @@ public class NotificationRepository : INotificationRepository
             .CountAsync(n => n.UserId == userId && !n.IsRead, ct);
     }
 
+    public async Task<int> GetTotalCountAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await _context.Notifications
+            .CountAsync(n => n.UserId == userId, ct);
+    }
+
     public async Task<bool> HasQuotaNotificationAsync(Guid userId, string quotaType, string notificationType, CancellationToken ct = default)
     {
         // Check if user already has a quota notification of this type in the last 24 hours

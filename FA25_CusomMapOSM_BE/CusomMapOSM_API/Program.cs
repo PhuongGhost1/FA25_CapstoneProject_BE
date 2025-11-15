@@ -6,15 +6,14 @@ using CusomMapOSM_Infrastructure;
 using CusomMapOSM_Infrastructure.Extensions;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using System.Text.Json.Serialization;
 using CusomMapOSM_API;
 using CusomMapOSM_API.Constants;
+using CusomMapOSM_Commons.Constant;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
-using CusomMapOSM_API.Hubs;
+using CusomMapOSM_Infrastructure.Hubs;
 using CusomMapOSM_Infrastructure.Services;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using CusomMapOSM_Commons.Constant;
 
@@ -30,13 +29,14 @@ public class Program
         var envPath = Path.Combine(solutionRoot, ".env");
         Console.WriteLine($"Loading environment variables from: {envPath}");
         Env.Load(envPath);
-        var origins = (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? "")
+        var origins = FrontendConstant.FRONTEND_ORIGINS
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
                 allowIntegerValues: true));
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
@@ -46,6 +46,7 @@ public class Program
         builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
         {
             options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase,
                 allowIntegerValues: true));
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
@@ -130,7 +131,11 @@ public class Program
         var api = app.MapGroup(Routes.ApiBase);
         app.MapEndpoints(api);
 
-        app.MapHub<StoryHub>("/hubs/story").RequireCors("FrontendCors");
+        app.MapHub<StoryHub>("/hubs/story")
+        .RequireCors("FrontendCors");
+        api.MapHub<NotificationHub>("/hubs/notifications")
+            .RequireCors("FrontendCors")
+            .RequireAuthorization();
 
         app.Run();
     }

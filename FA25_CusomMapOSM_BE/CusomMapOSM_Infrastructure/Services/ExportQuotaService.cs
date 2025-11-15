@@ -1,6 +1,5 @@
 using CusomMapOSM_Commons.Configuration;
 using CusomMapOSM_Infrastructure.Services;
-using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using Microsoft.Extensions.Logging;
 

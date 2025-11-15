@@ -15,6 +15,13 @@ public record PoiDto(
     string? StoryContent,
     string? MediaResources,
     int DisplayOrder,
+    
+    // Icon configuration
+    string? IconType,
+    string? IconUrl,
+    string? IconColor,
+    int IconSize,
+    
     bool HighlightOnEnter,
     bool ShowTooltip,
     string? TooltipContent,
@@ -28,6 +35,15 @@ public record PoiDto(
     Guid? AssociatedLayerId,
     Guid? AnimationPresetId,
     string? AnimationOverrides,
+    
+    // Animation effects
+    int EntryDelayMs,
+    int EntryDurationMs,
+    int ExitDelayMs,
+    int ExitDurationMs,
+    string? EntryEffect,
+    string? ExitEffect,
+    
     bool IsVisible,
     int ZIndex,
     Guid CreatedBy,

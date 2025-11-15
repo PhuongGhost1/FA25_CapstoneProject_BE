@@ -10,6 +10,11 @@ using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Features.Workspace;
 using CusomMapOSM_Application.Interfaces.Features.Home;
+using CusomMapOSM_Application.Interfaces.Features.User;
+using CusomMapOSM_Application.Interfaces.Features.Organization;
+using CusomMapOSM_Application.Interfaces.Features.OrganizationAdmin;
+using CusomMapOSM_Application.Interfaces.Features.SupportTicket;
+using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
@@ -18,6 +23,11 @@ using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Interfaces.Services.MinIO;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
+using CusomMapOSM_Application.Interfaces.Services.LayerData;
+using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
+using CusomMapOSM_Application.Interfaces.Services.Maps;
+using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.Blog;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
@@ -59,37 +69,11 @@ using CusomMapOSM_Infrastructure.Features.Workspace;
 using CusomMapOSM_Infrastructure.Features.Home;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
-using CusomMapOSM_Application.Interfaces.Services.LayerData;
-using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
-using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
-using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
-using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.MinIO;
-using MongoDB.Driver;
-using Minio;
-using CusomMapOSM_Application.Interfaces.Features.User;
-using CusomMapOSM_Application.Interfaces.Services.User;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Polly;
-using StackExchange.Redis;
-using System.Net.Sockets;
-using CusomMapOSM_Application.Interfaces.Features.Organization;
-using CusomMapOSM_Application.Interfaces.Features.OrganizationAdmin;
-using CusomMapOSM_Commons.Constant;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
-using CusomMapOSM_Infrastructure.Features.Organization;
-using Hangfire;
-using CusomMapOSM_Infrastructure.BackgroundJobs;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTicket;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
-using CusomMapOSM_Application.Interfaces.Features.SupportTicket;
-using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
-using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
+using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
+using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.OrganizationAdmin;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SystemAdmin;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.OrganizationAdmin;
@@ -99,11 +83,25 @@ using CusomMapOSM_Infrastructure.Features.SupportTicket;
 using CusomMapOSM_Infrastructure.Features.SystemAdmin;
 using CusomMapOSM_Infrastructure.Services.FileProcessors;
 using CusomMapOSM_Infrastructure.Services.LayerData.Relational;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Infrastructure.Features.Organization;
+using CusomMapOSM_Infrastructure.BackgroundJobs;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTicket;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
+using MongoDB.Driver;
+using Minio;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Polly;
+using StackExchange.Redis;
+using System.Net.Sockets;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Features.Notifications;
+using Hangfire;
 using Hangfire.Redis;
-using INotificationService = CusomMapOSM_Application.Interfaces.Features.Notifications.INotificationService;
-using NotificationService = CusomMapOSM_Infrastructure.Features.Notifications.NotificationService;
-using IEmailNotificationService = CusomMapOSM_Infrastructure.Services.INotificationService;
-using EmailNotificationService = CusomMapOSM_Infrastructure.Services.NotificationService;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -186,7 +184,7 @@ public static class DependencyInjections
 
         return services;
     }
-
+    
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IMembershipService, MembershipService>();
@@ -197,6 +195,7 @@ public static class DependencyInjections
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IPoiService, PoiService>();
+        services.AddScoped<HtmlContentImageProcessor>();
         services.AddScoped<IStoryMapService, StoryMapService>();
         services.AddScoped<ISegmentExecutor, SegmentExecutor>();
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
@@ -246,6 +245,11 @@ public static class DependencyInjections
         // Blog storage service for Azure Blob Storage
         services.AddScoped<IBlogStorageService, BlogStorageService>();
 
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
+            options.InstanceName = "IMOS:";
+        });
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             // var host = Environment.GetEnvironmentVariable("REDIS_HOST");
@@ -272,6 +276,7 @@ public static class DependencyInjections
 
         services.AddHangfire(config =>
         {
+            config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
             config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
             {
                 Db = 1
