@@ -20,7 +20,7 @@ public static class MapMappings
             PreviewImage = map.PreviewImage,
             DefaultBounds = JsonDocument.Parse(string.IsNullOrEmpty(map.DefaultBounds) ? "{}" : map.DefaultBounds),
             BaseLayer = map.BaseLayer,
-            ViewState = string.IsNullOrEmpty(map.ViewState) ? JsonDocument.Parse("{}") : JsonDocument.Parse(map.ViewState),
+            ViewState = JsonDocument.Parse(string.IsNullOrEmpty(map.ViewState) ? "{}" : map.ViewState),
             IsPublic = map.IsPublic,
             Status = map.Status,
             PublishedAt = map.PublishedAt,
