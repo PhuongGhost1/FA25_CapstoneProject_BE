@@ -18,8 +18,12 @@ namespace CusomMapOSM_Application.Common.Mappers
             var dataToParse = layerData ?? layer.LayerData;
             if (!string.IsNullOrEmpty(dataToParse))
             {
-                    layerDataDoc = JsonDocument.Parse(dataToParse);
+                layerDataDoc = JsonDocument.Parse(dataToParse);
             }
+
+            var layerStyleDoc = string.IsNullOrEmpty(layer.LayerStyle) 
+                ? JsonDocument.Parse("{}") 
+                : JsonDocument.Parse(layer.LayerStyle);
 
             return new LayerDTO
             {
@@ -29,7 +33,7 @@ namespace CusomMapOSM_Application.Common.Mappers
                 SourceType = layer.SourceType,
                 FilePath = layer.FilePath ?? string.Empty,
                 LayerData = layerDataDoc,
-                LayerStyle = JsonDocument.Parse(layer.LayerStyle ?? string.Empty),
+                LayerStyle = layerStyleDoc,
                 IsPublic = layer.IsPublic,
                 FeatureCount = layer.FeatureCount ?? 0,
                 DataSizeKB = layer.DataSizeKB ?? 0,
