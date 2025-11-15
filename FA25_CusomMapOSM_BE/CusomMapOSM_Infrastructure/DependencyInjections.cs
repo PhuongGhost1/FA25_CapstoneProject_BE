@@ -194,6 +194,7 @@ public static class DependencyInjections
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IPoiService, PoiService>();
+        services.AddScoped<HtmlContentImageProcessor>();
         services.AddScoped<IStoryMapService, StoryMapService>();
         services.AddScoped<ISegmentExecutor, SegmentExecutor>();
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
@@ -240,10 +241,9 @@ public static class DependencyInjections
         services.AddScoped<IRasterProcessor, RasterProcessor>();
         services.AddScoped<ISpreadsheetProcessor, SpreadsheetProcessor>();
 
-        var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
         services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = redisConnectionString;
+            options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
             options.InstanceName = "IMOS:";
         });
         services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -255,13 +255,13 @@ public static class DependencyInjections
                     TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
                 );
 
-            return policy.Execute(() => ConnectionMultiplexer.Connect(redisConnectionString));
+            return policy.Execute(() => ConnectionMultiplexer.Connect(RedisConstant.REDIS_CONNECTION_STRING));
         });
 
         // Configure Hangfire with Redis storage
         services.AddHangfire(config =>
         {
-            config.UseRedisStorage(redisConnectionString, new RedisStorageOptions
+            config.UseRedisStorage(RedisConstant.REDIS_CONNECTION_STRING, new RedisStorageOptions
             {
                 Db = 1
             });

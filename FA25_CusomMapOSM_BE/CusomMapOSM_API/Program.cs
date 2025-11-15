@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 using CusomMapOSM_API;
 using CusomMapOSM_API.Constants;
+using CusomMapOSM_Commons.Constant;
 using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.AspNetCore.Http.Features;
 using CusomMapOSM_Infrastructure.Hubs;
@@ -27,7 +28,7 @@ public class Program
         var envPath = Path.Combine(solutionRoot, ".env");
         Console.WriteLine($"Loading environment variables from: {envPath}");
         Env.Load(envPath);
-        var origins = (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? "")
+        var origins = FrontendConstant.FRONTEND_ORIGINS
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 
