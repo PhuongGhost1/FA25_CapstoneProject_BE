@@ -183,21 +183,7 @@ public static class DependencyInjections
 
         return services;
     }
-
-    private static string BuildRedisConnectionString()
-    {
-        var host = Environment.GetEnvironmentVariable("REDIS_HOST");
-        var port = Environment.GetEnvironmentVariable("REDIS_PORT");
-        var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-
-        if (string.IsNullOrWhiteSpace(password))
-        {
-            return $"{host}:{port}";
-        }
-        
-        return $"{host}:{port},password={password}";
-    }
-
+    
     public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IMembershipService, MembershipService>();
@@ -254,7 +240,7 @@ public static class DependencyInjections
         services.AddScoped<IRasterProcessor, RasterProcessor>();
         services.AddScoped<ISpreadsheetProcessor, SpreadsheetProcessor>();
 
-        var redisConnectionString = BuildRedisConnectionString();
+        var redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
         services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = redisConnectionString;
