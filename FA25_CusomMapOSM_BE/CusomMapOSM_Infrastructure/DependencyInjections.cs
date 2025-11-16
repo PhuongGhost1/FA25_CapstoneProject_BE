@@ -197,6 +197,7 @@ public static class DependencyInjections
         services.AddScoped<IPoiService, PoiService>();
         services.AddScoped<HtmlContentImageProcessor>();
         services.AddScoped<IStoryMapService, StoryMapService>();
+        services.AddScoped<IMapSelectionService, MapSelectionService>();
         services.AddScoped<ISegmentExecutor, SegmentExecutor>();
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
@@ -304,6 +305,7 @@ public static class DependencyInjections
         services.AddScoped<ExportFileCleanupJob>();
         services.AddScoped<MapHistoryCleanupJob>();
         services.AddScoped<UserAccountDeactivationJob>();
+        services.AddScoped<MapSelectionCleanupJob>();
         // services.AddScoped<SystemLogCleanupJob>();
         services.AddScoped<BackgroundJobScheduler>();
 

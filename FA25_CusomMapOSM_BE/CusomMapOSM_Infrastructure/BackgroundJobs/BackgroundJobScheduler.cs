@@ -148,6 +148,18 @@ public class BackgroundJobScheduler
             "0 6 * * 0", // Weekly on Sunday at 6 AM UTC
             TimeZoneInfo.Utc);
         
+        RecurringJob.AddOrUpdate(
+
+            "map-selection-cleanup",
+
+            () => _serviceProvider.GetRequiredService<MapSelectionCleanupJob>()
+
+                .CleanupAllStaleSelectionsAsync(),
+
+            "*/5 * * * *", // Every 5 minutes
+
+            TimeZoneInfo.Utc);
+        
         _logger.LogInformation("Cleanup jobs registered");
     }
 
@@ -184,6 +196,7 @@ public class BackgroundJobScheduler
                 "export-file-cleanup",
                 "map-history-cleanup",
                 "user-account-deactivation",
+                "map-selection-cleanup",
                 "collaboration-invitation-cleanup",
                 "system-log-cleanup"
             };
@@ -287,6 +300,10 @@ public class BackgroundJobScheduler
                 case "payment-failure-warnings":
                     BackgroundJob.Enqueue(() => _serviceProvider.GetRequiredService<PaymentFailureHandlingJob>()
                         .SendPaymentFailureWarningsAsync());
+                    break;
+                case "map-selection-cleanup":
+                    BackgroundJob.Enqueue(() => _serviceProvider.GetRequiredService<MapSelectionCleanupJob>()
+                        .CleanupAllStaleSelectionsAsync());
                     break;
 
 

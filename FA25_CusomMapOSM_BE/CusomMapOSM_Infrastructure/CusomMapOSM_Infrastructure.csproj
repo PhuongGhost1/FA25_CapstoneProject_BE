@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="BackgroundJobs\" />
     <Folder Include="Databases\Configurations\AnimationConfig\" />
     <Folder Include="Databases\Configurations\LayerConfig\" />
     <Folder Include="Databases\Configurations\LocationConfig\" />

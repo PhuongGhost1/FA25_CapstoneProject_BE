@@ -487,6 +487,23 @@ public class MapEndpoints : IEndpoint
             .RequireAuthorization()
             .Produces<List<MapFeatureResponse>>(200);
 
+        group.MapGet("/{mapId:guid}/features/{featureId:guid}", async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid featureId,
+                [FromServices] IMapFeatureService featureService) =>
+            {
+                var result = await featureService.GetById(featureId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("GetMapFeatureById")
+            .WithDescription("Get a specific feature by ID")
+            .RequireAuthorization()
+            .Produces<MapFeatureResponse>(200)
+            .ProducesProblem(404);
+
         // Undo map history (up to last 10 snapshots)
         group.MapPost("/{mapId:guid}/history/undo", async (
                 [FromRoute] Guid mapId,
