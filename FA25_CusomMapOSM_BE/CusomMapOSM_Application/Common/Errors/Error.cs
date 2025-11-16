@@ -32,4 +32,9 @@ public record Error
     public static Error Forbidden(string code, string description) => new(code, description, ErrorType.Forbidden);
 
     public static Error Conflict(string code, string description) => new(code, description, ErrorType.Conflict);
+
+    /// <summary>
+    /// Creates a new Failure error with a generic code and the provided message
+    /// </summary>
+    public static Error New(string message) => new("General.Error", message, ErrorType.Failure);
 }

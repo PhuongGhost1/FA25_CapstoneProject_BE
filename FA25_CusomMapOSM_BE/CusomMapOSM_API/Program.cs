@@ -136,6 +136,9 @@ public class Program
         api.MapHub<NotificationHub>("/hubs/notifications")
             .RequireCors("FrontendCors")
             .RequireAuthorization();
+        api.MapHub<MapCollaborationHub>("/hubs/mapCollaboration")
+            .RequireCors("FrontendCors")
+            .RequireAuthorization();
 
         app.Run();
     }
