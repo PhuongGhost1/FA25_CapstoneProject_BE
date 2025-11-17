@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using Optional;
 
@@ -64,4 +65,8 @@ public interface IStoryMapService
     Task<Option<AnimatedLayerPresetDto, Error>> UpdateAnimatedLayerPresetAsync(Guid presetId, UpdateAnimatedLayerPresetRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteAnimatedLayerPresetAsync(Guid presetId, CancellationToken ct = default);
     Task<Option<AnimatedLayerDto, Error>> CreateAnimatedLayerFromPresetAsync(Guid presetId, Guid? layerId, Guid? segmentId, CancellationToken ct = default);
+
+    // ================== SEARCH ==================
+    Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchRoutesAsync(string from, string to, CancellationToken ct = default);
 }

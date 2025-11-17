@@ -117,6 +117,12 @@ public static class Routes
         public const string DeleteZone = "zones/{zoneId:guid}";
         public const string SyncZonesFromOSM = "zones/sync-osm";
 
+        // Location Search
+        public const string SearchLocations = "locations/search";
+
+        // Route Search
+        public const string SearchRoutes = "routes/search";
+
         // Timeline Transitions
         public const string GetTimelineTransitions = "{mapId:guid}/timeline-transitions";
         public const string GetTimelineTransition = "{mapId:guid}/timeline-transitions/{transitionId:guid}";

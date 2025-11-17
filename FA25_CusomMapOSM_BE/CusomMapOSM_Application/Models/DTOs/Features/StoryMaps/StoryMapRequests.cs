@@ -339,7 +339,8 @@ public record CreateZoneFromOsmRequest(
     string? Category,
     string? Type,
     int? AdminLevel,
-    Guid? ParentZoneId);
+    Guid? ParentZoneId,
+    string? BoundingBox = null);
 
 // ================== SEGMENT ZONE ==================
 public record CreateSegmentZoneV2Request(

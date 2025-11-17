@@ -2,8 +2,11 @@ using System.Text.Json;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
+using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Application.Models.DTOs.Services.OSM;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
@@ -24,14 +27,16 @@ public class StoryMapService : IStoryMapService
     private readonly ICurrentUserService _currentUserService;
     private readonly ILocationRepository _locationRepository;
     private readonly IMapRepository _mapRepository;
+    private readonly IOsmService _osmService;
 
     public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService,
-        ILocationRepository locationRepository, IMapRepository mapRepository)
+        ILocationRepository locationRepository, IMapRepository mapRepository, IOsmService osmService)
     {
         _repository = repository;
         _currentUserService = currentUserService;
         _locationRepository = locationRepository;
         _mapRepository = mapRepository;
+        _osmService = osmService;
     }
 
 
@@ -695,9 +700,71 @@ public class StoryMapService : IStoryMapService
             return await GetZonesAsync(ct);
         }
 
+        // First, search in database
         var zones = await _repository.SearchZonesAsync(searchTerm, ct);
         var zoneDtos = zones.Select(z => z.ToDto()).ToList();
-        return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(zoneDtos);
+
+        // If found results in DB, return them
+        if (zoneDtos.Count > 0)
+        {
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(zoneDtos);
+        }
+
+        // If not found in DB, search OSM
+        try
+        {
+            var osmResults = await _osmService.SearchByNameAsync(searchTerm, null, null, null, 10);
+            var osmZoneDtos = new List<ZoneDto>();
+
+            foreach (var osmResult in osmResults)
+            {
+                var externalId = $"osm:{osmResult.OsmType}:{osmResult.OsmId}";
+                
+                // Check if zone already exists in DB by externalId
+                var existingZone = await _repository.GetZoneByExternalIdAsync(externalId, ct);
+                if (existingZone is not null)
+                {
+                    // Zone already exists in DB, return it
+                    osmZoneDtos.Add(existingZone.ToDto());
+                    continue;
+                }
+
+                // Zone doesn't exist in DB, create it from OSM data
+                var boundingBoxStr = osmResult.BoundingBox != null && osmResult.BoundingBox.Length == 4
+                    ? $"{osmResult.BoundingBox[0]},{osmResult.BoundingBox[2]},{osmResult.BoundingBox[1]},{osmResult.BoundingBox[3]}"
+                    : null;
+
+                var createRequest = new CreateZoneFromOsmRequest(
+                    OsmId: osmResult.OsmId,
+                    OsmType: osmResult.OsmType,
+                    DisplayName: osmResult.DisplayName,
+                    Lat: osmResult.Lat,
+                    Lon: osmResult.Lon,
+                    GeoJson: osmResult.GeoJson,
+                    Category: osmResult.Category,
+                    Type: osmResult.Type,
+                    AdminLevel: osmResult.AdminLevel,
+                    ParentZoneId: null,
+                    BoundingBox: boundingBoxStr
+                );
+
+                var createResult = await CreateZoneFromOsmAsync(createRequest, ct);
+                if (createResult.Match(some: _ => true, none: _ => false))
+                {
+                    createResult.Match(
+                        some: zoneDto => osmZoneDtos.Add(zoneDto),
+                        none: _ => { } // Skip if creation failed
+                    );
+                }
+            }
+
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(osmZoneDtos);
+        }
+        catch (Exception ex)
+        {
+            // If OSM search fails, return empty list
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(new List<ZoneDto>());
+        }
     }
 
     public async Task<Option<ZoneDto, Error>> CreateZoneAsync(CreateZoneRequest request, CancellationToken ct = default)
@@ -758,6 +825,11 @@ public class StoryMapService : IStoryMapService
         {
             return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmType", "OSM Type is required"));
         }
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidDisplayName", "Display name is required"));
+        }
         
         if (request.ParentZoneId.HasValue)
         {
@@ -782,54 +854,71 @@ public class StoryMapService : IStoryMapService
             coordinates = new[] { request.Lon, request.Lat }
         });
         
-        var offset = 0.01;
-        string boundingBox = $"{request.Lat - offset},{request.Lon - offset},{request.Lat + offset},{request.Lon + offset}";
-        
-        try
+        // Use boundingBox from request if provided, otherwise calculate it
+        string boundingBox = request.BoundingBox;
+        if (string.IsNullOrWhiteSpace(boundingBox))
         {
-            if (!string.IsNullOrWhiteSpace(request.GeoJson))
+            var offset = 0.01;
+            boundingBox = $"{request.Lat - offset},{request.Lon - offset},{request.Lat + offset},{request.Lon + offset}";
+            
+            try
             {
-                var geoJson = JsonDocument.Parse(request.GeoJson);
-                if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
+                if (!string.IsNullOrWhiteSpace(request.GeoJson))
                 {
-                    var geometryType = typeProperty.GetString();
-
-                    if (geometryType == "Point" && geoJson.RootElement.TryGetProperty("coordinates", out var coords))
+                    var geoJson = JsonDocument.Parse(request.GeoJson);
+                    if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
                     {
-                        var lon = coords[0].GetDouble();
-                        var lat = coords[1].GetDouble();
-                        
-                        centroid = JsonSerializer.Serialize(new
-                        {
-                            type = "Point",
-                            coordinates = new[] { lon, lat }
-                        });
+                        var geometryType = typeProperty.GetString();
 
-                        var pointOffset = 0.001;
-                        boundingBox = $"{lat - pointOffset},{lon - pointOffset},{lat + pointOffset},{lon + pointOffset}";
-                    }
-                    else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
-                    {
-                        centroid = JsonSerializer.Serialize(new
+                        if (geometryType == "Point" && geoJson.RootElement.TryGetProperty("coordinates", out var coords))
                         {
-                            type = "Point",
-                            coordinates = new[] { request.Lon, request.Lat }
-                        });
-                        
-                        var polyOffset = 0.1;
-                        boundingBox = $"{request.Lat - polyOffset},{request.Lon - polyOffset},{request.Lat + polyOffset},{request.Lon + polyOffset}";
+                            var lon = coords[0].GetDouble();
+                            var lat = coords[1].GetDouble();
+                            
+                            centroid = JsonSerializer.Serialize(new
+                            {
+                                type = "Point",
+                                coordinates = new[] { lon, lat }
+                            });
+
+                            var pointOffset = 0.001;
+                            boundingBox = $"{lat - pointOffset},{lon - pointOffset},{lat + pointOffset},{lon + pointOffset}";
+                        }
+                        else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
+                        {
+                            centroid = JsonSerializer.Serialize(new
+                            {
+                                type = "Point",
+                                coordinates = new[] { request.Lon, request.Lat }
+                            });
+                            
+                            var polyOffset = 0.1;
+                            boundingBox = $"{request.Lat - polyOffset},{request.Lon - polyOffset},{request.Lat + polyOffset},{request.Lon + polyOffset}";
+                        }
                     }
                 }
             }
-        }
-        catch (Exception)
-        {
+            catch (Exception)
+            {
+            }
         }
 
         var zoneType = DetermineZoneType(request.Category, request.Type, request.AdminLevel);
         var adminLevel = DetermineAdminLevel(request.AdminLevel, request.Category, request.Type);
 
         var zoneCode = $"OSM_{request.OsmType.ToUpperInvariant()}_{request.OsmId}";
+
+        // Ensure Geometry is not null or empty - create Point geometry if GeoJson is missing
+        string geometry = request.GeoJson;
+        if (string.IsNullOrWhiteSpace(geometry))
+        {
+            // Create a Point geometry from lat/lon if GeoJson is not available
+            geometry = JsonSerializer.Serialize(new
+            {
+                type = "Point",
+                coordinates = new[] { request.Lon, request.Lat }
+            });
+        }
 
         var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
         {
@@ -840,7 +929,7 @@ public class StoryMapService : IStoryMapService
             ZoneType = zoneType,
             AdminLevel = adminLevel,
             ParentZoneId = request.ParentZoneId,
-            Geometry = request.GeoJson,
+            Geometry = geometry,
             SimplifiedGeometry = null,
             Centroid = centroid,
             BoundingBox = boundingBox,
@@ -1624,6 +1713,173 @@ public class StoryMapService : IStoryMapService
     private double ToRadians(double degrees)
     {
         return degrees * Math.PI / 180;
+    }
+
+    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(new List<PoiDto>());
+        }
+
+        // Search OSM for locations (since locations are typically map-specific, 
+        // we search OSM to provide general location search)
+        try
+        {
+            var osmResults = await _osmService.SearchByNameAsync(searchTerm, null, null, null, 10);
+            var osmPoiDtos = new List<PoiDto>();
+
+            foreach (var osmResult in osmResults)
+            {
+                // Convert OSM result to PoiDto format
+                var poiDto = new PoiDto(
+                    PoiId: Guid.Empty, // Not in DB yet
+                    MapId: Guid.Empty,
+                    SegmentId: null,
+                    ZoneId: null,
+                    Title: osmResult.DisplayName,
+                    Subtitle: osmResult.AddressDetails != null 
+                        ? $"{osmResult.AddressDetails.City}, {osmResult.AddressDetails.Country}"
+                        : null,
+                    LocationType: CusomMapOSM_Domain.Entities.Locations.Enums.LocationType.PointOfInterest,
+                    MarkerGeometry: osmResult.GeoJson ?? JsonSerializer.Serialize(new
+                    {
+                        type = "Point",
+                        coordinates = new[] { osmResult.Lon, osmResult.Lat }
+                    }),
+                    StoryContent: null,
+                    MediaResources: null,
+                    DisplayOrder: 0,
+                    IconType: null,
+                    IconUrl: null,
+                    IconColor: null,
+                    IconSize: 32,
+                    HighlightOnEnter: false,
+                    ShowTooltip: true,
+                    TooltipContent: osmResult.DisplayName,
+                    EffectType: null,
+                    OpenSlideOnClick: false,
+                    SlideContent: null,
+                    LinkedPoiId: null,
+                    PlayAudioOnClick: false,
+                    AudioUrl: null,
+                    ExternalUrl: null,
+                    AssociatedLayerId: null,
+                    AnimationPresetId: null,
+                    AnimationOverrides: null,
+                    EntryDelayMs: 0,
+                    EntryDurationMs: 400,
+                    ExitDelayMs: 0,
+                    ExitDurationMs: 400,
+                    EntryEffect: "fade",
+                    ExitEffect: "fade",
+                    IsVisible: true,
+                    ZIndex: 100,
+                    CreatedBy: Guid.Empty,
+                    CreatedAt: DateTime.UtcNow,
+                    UpdatedAt: null
+                );
+                osmPoiDtos.Add(poiDto);
+            }
+
+            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(osmPoiDtos);
+        }
+        catch (Exception ex)
+        {
+            // If OSM search fails, return empty list
+            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(new List<PoiDto>());
+        }
+    }
+
+    public async Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchRoutesAsync(string from, string to,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
+        {
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(new List<ZoneDto>());
+        }
+
+        // First, search in database for routes (zones with ZoneType.Route)
+        var allZones = await _repository.GetZonesByTypeAsync(ZoneType.Route.ToString(), ct);
+        var dbRoutes = allZones
+            .Where(z => (z.Name.Contains(from, StringComparison.OrdinalIgnoreCase) ||
+                        z.Name.Contains(to, StringComparison.OrdinalIgnoreCase)) &&
+                       z.ZoneType == ZoneType.Route)
+            .Take(20)
+            .ToList();
+
+        var dbRouteDtos = dbRoutes.Select(z => z.ToDto()).ToList();
+
+        // If found results in DB, return them
+        if (dbRouteDtos.Count > 0)
+        {
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(dbRouteDtos);
+        }
+
+        // If not found in DB, search OSM for route between two points
+        try
+        {
+            // Geocode both locations
+            var fromGeocode = await _osmService.GeocodeAddressAsync(from);
+            var toGeocode = await _osmService.GeocodeAddressAsync(to);
+
+            if (fromGeocode == null || toGeocode == null)
+            {
+                return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(new List<ZoneDto>());
+            }
+
+            // Search for routes/highways between the two points
+            var searchQuery = $"{from} to {to}";
+            var osmResults = await _osmService.SearchByNameAsync(searchQuery, 
+                (fromGeocode.Lat + toGeocode.Lat) / 2, 
+                (fromGeocode.Lon + toGeocode.Lon) / 2, 
+                50000, // 50km radius
+                10);
+
+            var osmRouteDtos = new List<ZoneDto>();
+
+            foreach (var osmResult in osmResults)
+            {
+                // Filter for route-related results
+                if (osmResult.Category == "highway" || osmResult.Category == "route" || 
+                    osmResult.Type == "highway" || osmResult.Type == "route")
+                {
+                    var routeDto = new ZoneDto(
+                        ZoneId: Guid.Empty, // Not in DB yet
+                        ExternalId: $"osm:{osmResult.OsmType}:{osmResult.OsmId}",
+                        ZoneCode: $"OSM_ROUTE_{osmResult.OsmId}",
+                        Name: $"{from} → {to}",
+                        ZoneType: ZoneType.Route,
+                        AdminLevel: ZoneAdminLevel.Custom,
+                        ParentZoneId: null,
+                        Geometry: osmResult.GeoJson,
+                        SimplifiedGeometry: null,
+                        Centroid: JsonSerializer.Serialize(new
+                        {
+                            type = "Point",
+                            coordinates = new[] { osmResult.Lon, osmResult.Lat }
+                        }),
+                        BoundingBox: osmResult.BoundingBox != null && osmResult.BoundingBox.Length == 4
+                            ? $"{osmResult.BoundingBox[0]},{osmResult.BoundingBox[2]},{osmResult.BoundingBox[1]},{osmResult.BoundingBox[3]}"
+                            : null,
+                        Description: $"Route from {from} to {to}",
+                        IsActive: true,
+                        LastSyncedAt: DateTime.UtcNow,
+                        CreatedAt: DateTime.UtcNow,
+                        UpdatedAt: null
+                    );
+                    osmRouteDtos.Add(routeDto);
+                }
+            }
+
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(osmRouteDtos);
+        }
+        catch (Exception ex)
+        {
+            // If OSM search fails, return empty list
+            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(new List<ZoneDto>());
+        }
     }
 }
 
