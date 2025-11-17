@@ -2,6 +2,7 @@ using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
+using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using Microsoft.AspNetCore.Mvc;
 
@@ -184,6 +185,46 @@ public class ZoneEndpoint : IEndpoint
             .WithDescription("Sync zones from OpenStreetMap data")
             .WithTags(Tags.StoryMaps)
             .Produces<IEnumerable<ZoneDto>>(200)
+            .ProducesProblem(500);
+
+        // GET search locations
+        group.MapGet(Routes.StoryMapEndpoints.SearchLocations, async (
+                [FromQuery] string? name,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var searchTerm = name ?? string.Empty;
+                var result = await service.SearchLocationsAsync(searchTerm, ct);
+                return result.Match<IResult>(
+                    locations => Results.Ok(locations),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("SearchLocations")
+            .WithDescription("Search locations by name (checks DB first, then OSM)")
+            .WithTags(Tags.StoryMaps)
+            .Produces<IEnumerable<PoiDto>>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(500);
+
+        // GET search routes
+        group.MapGet(Routes.StoryMapEndpoints.SearchRoutes, async (
+                [FromQuery] string? from,
+                [FromQuery] string? to,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var fromLocation = from ?? string.Empty;
+                var toLocation = to ?? string.Empty;
+                var result = await service.SearchRoutesAsync(fromLocation, toLocation, ct);
+                return result.Match<IResult>(
+                    routes => Results.Ok(routes),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("SearchRoutes")
+            .WithDescription("Search routes between two locations (checks DB first, then OSM)")
+            .WithTags(Tags.StoryMaps)
+            .Produces<IEnumerable<ZoneDto>>(200)
+            .ProducesProblem(400)
             .ProducesProblem(500);
     }
 }

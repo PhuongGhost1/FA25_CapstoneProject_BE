@@ -24,6 +24,9 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        builder.Logging.AddFilter(
+            "Microsoft.EntityFrameworkCore.Database.Command",
+            LogLevel.Warning);
 
         var solutionRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../../../../"));
         var envPath = Path.Combine(solutionRoot, ".env");
