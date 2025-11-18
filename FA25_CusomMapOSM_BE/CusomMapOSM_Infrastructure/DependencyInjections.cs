@@ -28,6 +28,8 @@ using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
+using System.Net.Http;
+using System.Net.Security;
 using CusomMapOSM_Application.Interfaces.Services.Blog;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
@@ -222,6 +224,18 @@ public static class DependencyInjections
         services.AddHttpClient<IOsmService, OsmService>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+            {
+                // Allow OSRM public API even if certificate validation fails
+                if (message.RequestUri?.Host.Contains("project-osrm.org") == true)
+                {
+                    return true;
+                }
+                return errors == System.Net.Security.SslPolicyErrors.None;
+            }
         })
         .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         

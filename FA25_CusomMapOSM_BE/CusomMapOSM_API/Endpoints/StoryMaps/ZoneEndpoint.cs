@@ -226,5 +226,27 @@ public class ZoneEndpoint : IEndpoint
             .Produces<IEnumerable<ZoneDto>>(200)
             .ProducesProblem(400)
             .ProducesProblem(500);
+
+        // GET search route between two location IDs
+        group.MapGet(Routes.StoryMapEndpoints.SearchRouteBetweenLocations, async (
+                [FromQuery] Guid fromLocationId,
+                [FromQuery] Guid toLocationId,
+                [FromQuery] string? routeType,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var routeTypeValue = routeType ?? "road"; // Default to road
+                var result = await service.SearchRouteBetweenLocationsAsync(fromLocationId, toLocationId, routeTypeValue, ct);
+                return result.Match<IResult>(
+                    routeGeoJson => Results.Ok(new { routePath = routeGeoJson }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("SearchRouteBetweenLocations")
+            .WithDescription("Search route between two location IDs (returns GeoJSON LineString). routeType: 'road' for actual road route, 'straight' or 'plane' for straight line")
+            .WithTags(Tags.StoryMaps)
+            .Produces<object>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 }
