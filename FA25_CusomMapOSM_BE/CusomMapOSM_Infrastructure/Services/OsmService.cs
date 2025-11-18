@@ -616,5 +616,121 @@ namespace CusomMapOSM_Infrastructure.Services
 
         private static string FormatRadius(double? value) =>
             value?.ToString("F0", CultureInfo.InvariantCulture) ?? "na";
+
+        public async Task<string> GetRouteBetweenPointsAsync(double fromLat, double fromLon, double toLat, double toLon, string routeType = "road")
+        {
+            // If route type is "straight" or "plane", return straight line
+            if (routeType?.ToLowerInvariant() == "straight" || routeType?.ToLowerInvariant() == "plane")
+            {
+                return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+            }
+
+            // For road routes, use OSRM
+            var cacheKey = $"osm:route:road:{fromLat}:{fromLon}:{toLat}:{toLon}";
+            var cachedResult = await _cache.GetStringAsync(cacheKey);
+            
+            if (!string.IsNullOrEmpty(cachedResult))
+            {
+                return cachedResult;
+            }
+
+            try
+            {
+                // Use OSRM public API for routing (HTTP only, as HTTPS may have SSL issues)
+                // Format: /route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson
+                var osrmUrl = $"http://router.project-osrm.org/route/v1/driving/{fromLon.ToString(CultureInfo.InvariantCulture)},{fromLat.ToString(CultureInfo.InvariantCulture)};{toLon.ToString(CultureInfo.InvariantCulture)},{toLat.ToString(CultureInfo.InvariantCulture)}?overview=full&geometries=geojson";
+                
+                _logger.LogInformation("Requesting route from OSRM: {Url}", osrmUrl);
+                
+                // Create a request with timeout
+                using var request = new HttpRequestMessage(HttpMethod.Get, osrmUrl);
+                request.Headers.Add("User-Agent", "CustomMapOSM_Application/1.0");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cts.Token);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM API returned status {StatusCode} for route request", response.StatusCode);
+                    // Return a simple straight line as fallback
+                    return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var osrmResult = JsonConvert.DeserializeObject<OsmRouteResponseDTO>(content);
+                
+                if (osrmResult?.Routes == null || osrmResult.Routes.Count == 0)
+                {
+                    _logger.LogWarning("OSRM returned no routes");
+                    return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                var route = osrmResult.Routes[0];
+                string geoJson;
+                
+                // OSRM with geometries=geojson returns geometry as GeoJSON LineString
+                if (route.Geometry != null && route.Geometry.Coordinates != null && route.Geometry.Coordinates.Length > 0)
+                {
+                    geoJson = JsonSerializer.Serialize(new
+                    {
+                        type = "LineString",
+                        coordinates = route.Geometry.Coordinates
+                    });
+                }
+                else
+                {
+                    // Fallback to straight line if geometry is missing
+                    geoJson = CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                await _cache.SetStringAsync(
+                    cacheKey,
+                    geoJson,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Cache routes for 24 hours
+                    });
+                
+                return geoJson;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting route between points ({FromLat}, {FromLon}) to ({ToLat}, {ToLon})", fromLat, fromLon, toLat, toLon);
+                // Return a simple straight line as fallback
+                return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+            }
+        }
+
+        private string CreateStraightLineGeoJson(double fromLat, double fromLon, double toLat, double toLon)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                type = "LineString",
+                coordinates = new[]
+                {
+                    new[] { fromLon, fromLat },
+                    new[] { toLon, toLat }
+                }
+            });
+        }
+    }
+
+    // DTOs for OSRM API response
+    public class OsmRouteResponseDTO
+    {
+        [JsonProperty("routes")]
+        public List<OsmRouteDTO> Routes { get; set; }
+    }
+
+    public class OsmRouteDTO
+    {
+        [JsonProperty("geometry")]
+        public OsmRouteGeometryDTO Geometry { get; set; }
+    }
+
+    public class OsmRouteGeometryDTO
+    {
+        [JsonProperty("coordinates")]
+        public double[][] Coordinates { get; set; }
     }
 }

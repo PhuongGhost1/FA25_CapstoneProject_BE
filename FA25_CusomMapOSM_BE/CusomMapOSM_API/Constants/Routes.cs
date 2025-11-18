@@ -122,6 +122,14 @@ public static class Routes
 
         // Route Search
         public const string SearchRoutes = "routes/search";
+        public const string SearchRouteBetweenLocations = "routes/between-locations";
+
+        // Route Animations
+        public const string GetRouteAnimations = "{mapId:guid}/segments/{segmentId:guid}/route-animations";
+        public const string GetRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations/{routeAnimationId:guid}";
+        public const string CreateRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations";
+        public const string UpdateRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations/{routeAnimationId:guid}";
+        public const string DeleteRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations/{routeAnimationId:guid}";
 
         // Timeline Transitions
         public const string GetTimelineTransitions = "{mapId:guid}/timeline-transitions";

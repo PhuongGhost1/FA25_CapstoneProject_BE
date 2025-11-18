@@ -47,6 +47,13 @@ public interface IStoryMapService
     Task<Option<bool, Error>> DeleteTimelineTransitionAsync(Guid transitionId, CancellationToken ct = default);
     Task<Option<TimelineTransitionDto, Error>> GenerateTimelineTransitionAsync(Guid mapId, GenerateTimelineTransitionRequest request, CancellationToken ct = default);
 
+    // ================== ROUTE ANIMATION (Animation route trong segment) ==================
+    Task<Option<IReadOnlyCollection<RouteAnimationDto>, Error>> GetRouteAnimationsBySegmentAsync(Guid segmentId, CancellationToken ct = default);
+    Task<Option<RouteAnimationDto, Error>> GetRouteAnimationAsync(Guid routeAnimationId, CancellationToken ct = default);
+    Task<Option<RouteAnimationDto, Error>> CreateRouteAnimationAsync(CreateRouteAnimationRequest request, CancellationToken ct = default);
+    Task<Option<RouteAnimationDto, Error>> UpdateRouteAnimationAsync(Guid routeAnimationId, UpdateRouteAnimationRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteRouteAnimationAsync(Guid routeAnimationId, CancellationToken ct = default);
+
     // ================== ANIMATED LAYER (GIF/Video overlay trên segment) ==================
     Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(Guid mapId, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersBySegmentAsync(Guid segmentId, CancellationToken ct = default);
@@ -69,4 +76,5 @@ public interface IStoryMapService
     // ================== SEARCH ==================
     Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchRoutesAsync(string from, string to, CancellationToken ct = default);
+    Task<Option<string, Error>> SearchRouteBetweenLocationsAsync(Guid fromLocationId, Guid toLocationId, string routeType = "road", CancellationToken ct = default);
 }
