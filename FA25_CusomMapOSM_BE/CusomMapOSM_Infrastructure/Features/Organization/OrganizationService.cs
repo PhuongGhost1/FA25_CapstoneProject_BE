@@ -580,6 +580,7 @@ public class OrganizationService : IOrganizationService
 
         var memberDtos = members.Select(member => new MemberDto
         {
+            UserId = member.UserId,
             MemberId = member.MemberId,
             Email = member.User?.Email ?? "Unknown Email",
             FullName = member.User?.FullName ?? "Unknown User",

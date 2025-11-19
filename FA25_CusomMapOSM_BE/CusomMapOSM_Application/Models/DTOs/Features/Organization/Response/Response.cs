@@ -70,6 +70,7 @@ public record DeleteOrganizationResDto
 
 public record MemberDto
 {
+    public required Guid UserId { get; set; }
     public required Guid MemberId { get; set; }
     public required string Email { get; set; }
     public required string FullName { get; set; }

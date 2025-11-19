@@ -28,6 +28,8 @@ using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Application.Interfaces.Services.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
+using System.Net.Http;
+using System.Net.Security;
 using CusomMapOSM_Application.Interfaces.Services.Blog;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
@@ -197,6 +199,7 @@ public static class DependencyInjections
         services.AddScoped<IPoiService, PoiService>();
         services.AddScoped<HtmlContentImageProcessor>();
         services.AddScoped<IStoryMapService, StoryMapService>();
+        services.AddScoped<IMapSelectionService, MapSelectionService>();
         services.AddScoped<ISegmentExecutor, SegmentExecutor>();
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
@@ -221,6 +224,18 @@ public static class DependencyInjections
         services.AddHttpClient<IOsmService, OsmService>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(60);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+            {
+                // Allow OSRM public API even if certificate validation fails
+                if (message.RequestUri?.Host.Contains("project-osrm.org") == true)
+                {
+                    return true;
+                }
+                return errors == System.Net.Security.SslPolicyErrors.None;
+            }
         })
         .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         
@@ -304,6 +319,7 @@ public static class DependencyInjections
         services.AddScoped<ExportFileCleanupJob>();
         services.AddScoped<MapHistoryCleanupJob>();
         services.AddScoped<UserAccountDeactivationJob>();
+        services.AddScoped<MapSelectionCleanupJob>();
         // services.AddScoped<SystemLogCleanupJob>();
         services.AddScoped<BackgroundJobScheduler>();
 

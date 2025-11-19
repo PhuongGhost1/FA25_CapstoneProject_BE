@@ -14,7 +14,7 @@ public class GeoJsonService : IGeoJsonService
     public GeoJsonLayerData ProcessGeoJsonUpload(string geoJsonString, string layerName)
     {
         var result = new GeoJsonLayerData();
-        
+
         try
         {
             // Validate GeoJSON format
@@ -26,7 +26,7 @@ public class GeoJsonService : IGeoJsonService
             }
 
             var geoJson = JsonSerializer.Deserialize<JsonElement>(geoJsonString);
-            
+
             // Calculate metadata
             var featureCount = 0;
             var geometryTypes = new HashSet<string>();
@@ -35,7 +35,7 @@ public class GeoJsonService : IGeoJsonService
             if (geoJson.TryGetProperty("features", out var features) && features.ValueKind == JsonValueKind.Array)
             {
                 featureCount = features.GetArrayLength();
-                
+
                 foreach (var feature in features.EnumerateArray())
                 {
                     // Extract geometry types
@@ -44,7 +44,7 @@ public class GeoJsonService : IGeoJsonService
                     {
                         geometryTypes.Add(geomType.GetString() ?? "Unknown");
                     }
-                    
+
                     // Extract property names
                     if (feature.TryGetProperty("properties", out var properties) &&
                         properties.ValueKind == JsonValueKind.Object)
@@ -58,10 +58,10 @@ public class GeoJsonService : IGeoJsonService
             }
 
             var dataSizeKB = Encoding.UTF8.GetByteCount(geoJsonString) / 1024.0;
-            
+
             // Calculate bounds
             var bounds = CalculateBounds(geoJsonString);
-            
+
             // Generate default style
             var defaultStyle = GenerateDefaultStyle(geoJsonString);
 
@@ -73,7 +73,7 @@ public class GeoJsonService : IGeoJsonService
             result.GeometryType = string.Join(", ", geometryTypes);
             result.PropertyNames = propertyNames.ToList();
             result.IsValid = true;
-            
+
             return result;
         }
         catch (JsonException ex)
@@ -98,24 +98,27 @@ public class GeoJsonService : IGeoJsonService
                 return false;
 
             var geoJson = JsonSerializer.Deserialize<JsonElement>(geoJsonString);
-            
+
             // Check for required GeoJSON structure
             if (!geoJson.TryGetProperty("type", out var typeProperty))
                 return false;
 
             var type = typeProperty.GetString();
-            
+
             // Validate GeoJSON types
-            var validTypes = new[] { "FeatureCollection", "Feature", "Point", "LineString", "Polygon", 
-                                   "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection" };
-            
+            var validTypes = new[]
+            {
+                "FeatureCollection", "Feature", "Point", "LineString", "Polygon",
+                "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"
+            };
+
             if (!validTypes.Contains(type))
                 return false;
 
             // Additional validation for FeatureCollection
             if (type == "FeatureCollection")
             {
-                if (!geoJson.TryGetProperty("features", out var features) || 
+                if (!geoJson.TryGetProperty("features", out var features) ||
                     features.ValueKind != JsonValueKind.Array)
                     return false;
             }
@@ -133,7 +136,7 @@ public class GeoJsonService : IGeoJsonService
         try
         {
             var geoJson = JsonSerializer.Deserialize<JsonElement>(geoJsonString);
-            
+
             double minLng = double.MaxValue;
             double maxLng = double.MinValue;
             double minLat = double.MaxValue;
@@ -159,7 +162,7 @@ public class GeoJsonService : IGeoJsonService
             }
 
             // Return bounding box as GeoJSON Polygon if valid bounds were found
-            if (minLng != double.MaxValue && maxLng != double.MinValue && 
+            if (minLng != double.MaxValue && maxLng != double.MinValue &&
                 minLat != double.MaxValue && maxLat != double.MinValue)
             {
                 return $@"{{
@@ -214,16 +217,41 @@ public class GeoJsonService : IGeoJsonService
                 return @"{
                     ""fill"": {""color"": ""#3388ff"", ""opacity"": 0.2},
                     ""stroke"": {""color"": ""#3388ff"", ""width"": 2},
-                    ""popup"": {""enabled"": true},
+                    ""labels"": {
+                        ""enabled"": false,
+                        ""field"": ""name"",
+                        ""fontSize"": 12,
+                        ""fontFamily"": ""Arial"",
+                        ""fontColor"": ""#000000"",
+                        ""fontWeight"": ""normal"",
+                        ""textAnchor"": ""center"",
+                        ""alignment"": ""center"",
+                        ""offset"": [0, 0],
+                        ""haloColor"": ""#FFFFFF"",
+                        ""haloWidth"": 2
+                    },
                     ""type"": ""polygon""
                 }";
             }
             else if (hasLine)
             {
                 return @"{
-                    ""stroke"": {""color"": ""#ff6b6b"", ""width"": 3},
-                    ""popup"": {""enabled"": true},
-                    ""type"": ""line""
+                    ""fill"": {""color"": ""#3388ff"", ""opacity"": 0.2},
+                    ""stroke"": {""color"": ""#3388ff"", ""width"": 2},
+                    ""labels"": {
+                        ""enabled"": false,
+                        ""field"": ""name"",
+                        ""fontSize"": 12,
+                        ""fontFamily"": ""Arial"",
+                        ""fontColor"": ""#000000"",
+                        ""fontWeight"": ""normal"",
+                        ""textAnchor"": ""center"",
+                        ""alignment"": ""center"",
+                        ""offset"": [0, 0],
+                        ""haloColor"": ""#FFFFFF"",
+                        ""haloWidth"": 2
+                    },
+                    ""type"": ""polygon""
                 }";
             }
             else if (hasPoint)
@@ -234,23 +262,51 @@ public class GeoJsonService : IGeoJsonService
                         ""size"": 8,
                         ""symbol"": ""circle""
                     },
-                    ""popup"": {""enabled"": true},
+                    ""radius"": {
+                        ""type"": ""fixed"",
+                        ""value"": 8,
+                        ""field"": null,
+                        ""scale"": {
+                            ""min"": 5,
+                            ""max"": 50
+                        }
+                    },
+                    ""labels"": {
+                        ""enabled"": false,
+                        ""field"": ""name"",
+                        ""fontSize"": 12,
+                        ""fontFamily"": ""Arial"",
+                        ""fontColor"": ""#000000"",
+                        ""fontWeight"": ""normal"",
+                        ""textAnchor"": ""center"",
+                        ""alignment"": ""top"",
+                        ""offset"": [0, -10],
+                        ""haloColor"": ""#FFFFFF"",
+                        ""haloWidth"": 2
+                    },
                     ""type"": ""point""
                 }";
             }
 
             // Default mixed geometry style
             return @"{
-                ""fill"": {""color"": ""#3388ff"", ""opacity"": 0.2},
-                ""stroke"": {""color"": ""#3388ff"", ""width"": 2},
-                ""marker"": {
-                    ""color"": ""#51cf66"",
-                    ""size"": 8,
-                    ""symbol"": ""circle""
-                },
-                ""popup"": {""enabled"": true},
-                ""type"": ""mixed""
-            }";
+                    ""fill"": {""color"": ""#3388ff"", ""opacity"": 0.2},
+                    ""stroke"": {""color"": ""#3388ff"", ""width"": 2},
+                    ""labels"": {
+                        ""enabled"": false,
+                        ""field"": ""name"",
+                        ""fontSize"": 12,
+                        ""fontFamily"": ""Arial"",
+                        ""fontColor"": ""#000000"",
+                        ""fontWeight"": ""normal"",
+                        ""textAnchor"": ""center"",
+                        ""alignment"": ""center"",
+                        ""offset"": [0, 0],
+                        ""haloColor"": ""#FFFFFF"",
+                        ""haloWidth"": 2
+                    },
+                    ""type"": ""polygon""
+                }";
         }
         catch
         {
@@ -258,6 +314,19 @@ public class GeoJsonService : IGeoJsonService
             return @"{
                 ""fill"": {""color"": ""#3388ff"", ""opacity"": 0.2},
                 ""stroke"": {""color"": ""#3388ff"", ""width"": 2},
+                ""labels"": {
+                    ""enabled"": false,
+                    ""field"": ""name"",
+                    ""fontSize"": 12,
+                    ""fontFamily"": ""Arial"",
+                    ""fontColor"": ""#000000"",
+                    ""fontWeight"": ""normal"",
+                    ""textAnchor"": ""center"",
+                    ""alignment"": ""center"",
+                    ""offset"": [0, 0],
+                    ""haloColor"": ""#FFFFFF"",
+                    ""haloWidth"": 2
+                },
                 ""popup"": {""enabled"": true}
             }";
         }
@@ -298,17 +367,14 @@ public class GeoJsonService : IGeoJsonService
                 if (element.ValueKind == JsonValueKind.Array)
                 {
                     var array = element.EnumerateArray().ToArray();
-                    
-                    // Check if this is a coordinate pair [lng, lat]
-                    if (array.Length == 2 && 
-                        array[0].ValueKind == JsonValueKind.Number && 
+                    if (array.Length == 2 &&
+                        array[0].ValueKind == JsonValueKind.Number &&
                         array[1].ValueKind == JsonValueKind.Number)
                     {
                         allCoords.Add((array[0].GetDouble(), array[1].GetDouble()));
                     }
                     else
                     {
-                        // Recursively extract from nested arrays
                         ExtractAllCoordinates(element, allCoords);
                     }
                 }

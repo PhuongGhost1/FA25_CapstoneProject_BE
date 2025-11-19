@@ -1,4 +1,5 @@
 using CusomMapOSM_Domain.Entities.Zones;
+using CusomMapOSM_Domain.Entities.Zones.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -32,10 +33,16 @@ internal class ZoneConfiguration : IEntityTypeConfiguration<Zone>
         builder.Property(z => z.ZoneType)
             .HasColumnName("zone_type")
             .IsRequired()
-            .HasMaxLength(50);
+            .HasMaxLength(50)
+            .HasConversion(
+                v => v.ToString().ToLowerInvariant(),
+                v => Enum.Parse<ZoneType>(v, true));
 
         builder.Property(z => z.AdminLevel)
-            .HasColumnName("admin_level");
+            .HasColumnName("admin_level")
+            .HasConversion(
+                v => v.ToString().ToLowerInvariant(),
+                v => Enum.Parse<ZoneAdminLevel>(v, true));
 
         builder.Property(z => z.ParentZoneId)
             .HasColumnName("parent_zone_id");

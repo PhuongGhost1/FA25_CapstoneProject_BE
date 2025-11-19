@@ -9,6 +9,9 @@ using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using Optional;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -21,17 +24,23 @@ public class MapFeatureService : IMapFeatureService
     private readonly IMapFeatureStore _mongoStore;
     private readonly ICurrentUserService _currentUserService;
     private readonly IMapHistoryService _mapHistoryService;
+    private readonly IHubContext<MapCollaborationHub> _hubContext;
+    private readonly ILogger<MapFeatureService> _logger;
 
     public MapFeatureService(
         IMapFeatureRepository repository,
         IMapFeatureStore mongoStore,
         ICurrentUserService currentUserService,
-        IMapHistoryService mapHistoryService)
+        IMapHistoryService mapHistoryService,
+        IHubContext<MapCollaborationHub> hubContext,
+        ILogger<MapFeatureService> logger)
     {
         _repository = repository;
         _mongoStore = mongoStore;
         _currentUserService = currentUserService;
         _mapHistoryService = mapHistoryService;
+        _hubContext = hubContext;
+        _logger = logger;
     }
 
     public async Task<Option<MapFeatureResponse, Error>> Create(CreateMapFeatureRequest req)
@@ -109,7 +118,21 @@ public class MapFeatureService : IMapFeatureService
         }
         
         var mongoData = await _mongoStore.GetAsync(featureId);
-        return Option.Some<MapFeatureResponse, Error>(ToResponse(created, mongoData));
+        var response = ToResponse(created, mongoData);
+        
+        // Notify other users via SignalR
+        try
+        {
+            await _hubContext.Clients.Group($"map:{req.MapId}")
+                .SendAsync("FeatureCreated", new { MapId = req.MapId, FeatureId = id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send FeatureCreated event for feature {FeatureId} on map {MapId}", 
+                id, req.MapId);
+        }
+        
+        return Option.Some<MapFeatureResponse, Error>(response);
     }
 
     public async Task<Option<MapFeatureResponse, Error>> Update(Guid featureId, UpdateMapFeatureRequest req)
@@ -174,9 +197,25 @@ public class MapFeatureService : IMapFeatureService
         }
         
         var mongoData = await _mongoStore.GetAsync(featureId);
-        return ok
-            ? Option.Some<MapFeatureResponse, Error>(ToResponse(existed, mongoData))
-            : Option.None<MapFeatureResponse, Error>(Error.Failure("Feature.UpdateFailed", "Update failed"));
+        if (ok)
+        {
+            var response = ToResponse(existed, mongoData);
+            
+            // Notify other users via SignalR
+            try
+            {
+                await _hubContext.Clients.Group($"map:{existed.MapId}")
+                    .SendAsync("FeatureUpdated", new { MapId = existed.MapId, FeatureId = featureId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send FeatureUpdated event for feature {FeatureId} on map {MapId}", 
+                    featureId, existed.MapId);
+            }
+            
+            return Option.Some<MapFeatureResponse, Error>(response);
+        }
+        return Option.None<MapFeatureResponse, Error>(Error.Failure("Feature.UpdateFailed", "Update failed"));
     }
 
     public async Task<Option<bool, Error>> Delete(Guid featureId)
@@ -189,17 +228,44 @@ public class MapFeatureService : IMapFeatureService
         
         await _mongoStore.DeleteAsync(featureId);
         
+        var mapId = existed.MapId;
         var ok = await _repository.Delete(featureId);
         if (ok)
         {
-            var snapshot = await _repository.GetByMap(existed.MapId);
+            var snapshot = await _repository.GetByMap(mapId);
             var uid = _currentUserService.GetUserId();
             if (uid != null)
-                await _mapHistoryService.RecordSnapshot(existed.MapId, uid.Value, JsonSerializer.Serialize(snapshot));
+                await _mapHistoryService.RecordSnapshot(mapId, uid.Value, JsonSerializer.Serialize(snapshot));
+            
+            // Notify other users via SignalR
+            try
+            {
+                await _hubContext.Clients.Group($"map:{mapId}")
+                    .SendAsync("FeatureDeleted", new { MapId = mapId, FeatureId = featureId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send FeatureDeleted event for feature {FeatureId} on map {MapId}", 
+                    featureId, mapId);
+            }
         }
         return ok
             ? Option.Some<bool, Error>(true)
             : Option.None<bool, Error>(Error.Failure("Feature.DeleteFailed", "Delete failed"));
+    }
+
+    public async Task<Option<MapFeatureResponse, Error>> GetById(Guid featureId)
+    {
+        var existed = await _repository.GetById(featureId);
+        if (existed == null)
+        {
+            return Option.None<MapFeatureResponse, Error>(Error.NotFound("Feature.NotFound", "Feature not found"));
+        }
+
+        var mongoData = await _mongoStore.GetAsync(featureId);
+        var response = ToResponse(existed, mongoData);
+        
+        return Option.Some<MapFeatureResponse, Error>(response);
     }
 
     public async Task<Option<List<MapFeatureResponse>, Error>> GetByMap(Guid mapId)

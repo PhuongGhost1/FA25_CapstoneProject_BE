@@ -59,6 +59,14 @@ public interface IStoryMapRepository
     void UpdateTimelineTransition(TimelineTransition transition);
     void RemoveTimelineTransition(TimelineTransition transition);
 
+    // ================== ROUTE ANIMATION (Animation route trong segment) ==================
+    Task<RouteAnimation?> GetRouteAnimationAsync(Guid routeAnimationId, CancellationToken ct);
+    Task<List<RouteAnimation>> GetRouteAnimationsBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task<List<RouteAnimation>> GetRouteAnimationsByMapAsync(Guid mapId, CancellationToken ct);
+    Task AddRouteAnimationAsync(RouteAnimation routeAnimation, CancellationToken ct);
+    void UpdateRouteAnimation(RouteAnimation routeAnimation);
+    void RemoveRouteAnimation(RouteAnimation routeAnimation);
+
     // ================== ANIMATED LAYER (GIF/Video overlay) ==================
     Task<AnimatedLayer?> GetAnimatedLayerAsync(Guid animatedLayerId, CancellationToken ct);
     Task<List<AnimatedLayer>> GetAnimatedLayersByLayerAsync(Guid layerId, CancellationToken ct);

@@ -99,11 +99,20 @@ public class StoryMapRepository : IStoryMapRepository
             .OrderBy(z => z.Name)
             .ToListAsync(ct);
 
-    public Task<List<Zone>> GetZonesByTypeAsync(string zoneType, CancellationToken ct) =>
-        _context.Zones
-            .Where(z => z.ZoneType.ToString() == zoneType && z.IsActive)
-            .OrderBy(z => z.Name)
+    public async Task<List<Zone>> GetZonesByTypeAsync(string zoneType, CancellationToken ct)
+    {
+        // Load all active zones first (to avoid ToString() in LINQ query)
+        var allZones = await _context.Zones
+            .Where(z => z.IsActive)
             .ToListAsync(ct);
+        
+        // Filter by zoneType in memory (ZoneType is stored as lowercase string in DB)
+        var zoneTypeLower = zoneType?.ToLowerInvariant();
+        return allZones
+            .Where(z => z.ZoneType.ToString().ToLowerInvariant() == zoneTypeLower)
+            .OrderBy(z => z.Name)
+            .ToList();
+    }
 
     public Task<List<Zone>> SearchZonesAsync(string searchTerm, CancellationToken ct) =>
         _context.Zones
@@ -175,6 +184,34 @@ public class StoryMapRepository : IStoryMapRepository
 
     public void RemoveTimelineTransition(TimelineTransition transition) =>
         _context.TimelineTransitions.Remove(transition);
+
+    public Task<RouteAnimation?> GetRouteAnimationAsync(Guid routeAnimationId, CancellationToken ct) =>
+        _context.RouteAnimations
+            .Include(ra => ra.Segment)
+            .FirstOrDefaultAsync(ra => ra.RouteAnimationId == routeAnimationId, ct);
+
+    public Task<List<RouteAnimation>> GetRouteAnimationsBySegmentAsync(Guid segmentId, CancellationToken ct) =>
+        _context.RouteAnimations
+            .Where(ra => ra.SegmentId == segmentId)
+            .OrderBy(ra => ra.DisplayOrder)
+            .ThenBy(ra => ra.CreatedAt)
+            .ToListAsync(ct);
+
+    public Task<List<RouteAnimation>> GetRouteAnimationsByMapAsync(Guid mapId, CancellationToken ct) =>
+        _context.RouteAnimations
+            .Where(ra => ra.MapId == mapId)
+            .OrderBy(ra => ra.DisplayOrder)
+            .ThenBy(ra => ra.CreatedAt)
+            .ToListAsync(ct);
+
+    public Task AddRouteAnimationAsync(RouteAnimation routeAnimation, CancellationToken ct) =>
+        _context.RouteAnimations.AddAsync(routeAnimation, ct).AsTask();
+
+    public void UpdateRouteAnimation(RouteAnimation routeAnimation) =>
+        _context.RouteAnimations.Update(routeAnimation);
+
+    public void RemoveRouteAnimation(RouteAnimation routeAnimation) =>
+        _context.RouteAnimations.Remove(routeAnimation);
 
     public Task<AnimatedLayer?> GetAnimatedLayerAsync(Guid animatedLayerId, CancellationToken ct) =>
         _context.AnimatedLayers

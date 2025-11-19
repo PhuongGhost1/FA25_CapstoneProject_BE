@@ -146,6 +146,37 @@ public record ExportedStoryDto(
     IReadOnlyCollection<TimelineStepDto> Timeline);
 
 // ================== TIMELINE TRANSITION (Chuyển cảnh) ==================
+public record RouteAnimationDto(
+    Guid RouteAnimationId,
+    Guid SegmentId,
+    Guid MapId,
+    double FromLat,
+    double FromLng,
+    string? FromName,
+    double ToLat,
+    double ToLng,
+    string? ToName,
+    string RoutePath, // GeoJSON LineString
+    string IconType,
+    string? IconUrl,
+    int IconWidth,
+    int IconHeight,
+    string RouteColor,
+    string VisitedColor,
+    int RouteWidth,
+    int DurationMs,
+    int? StartDelayMs,
+    string Easing,
+    bool AutoPlay,
+    bool Loop,
+    bool IsVisible,
+    int ZIndex,
+    int DisplayOrder,
+    int? StartTimeMs,
+    int? EndTimeMs,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
+
 public record TimelineTransitionDto(
     Guid TimelineTransitionId,
     Guid MapId,

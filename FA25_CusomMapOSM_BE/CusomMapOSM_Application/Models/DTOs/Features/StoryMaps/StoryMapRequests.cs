@@ -209,6 +209,60 @@ public record GenerateTimelineTransitionRequest(
     Guid FromSegmentId,
     Guid ToSegmentId);
 
+// ================== ROUTE ANIMATION ==================
+public record CreateRouteAnimationRequest(
+    Guid SegmentId,
+    double FromLat,
+    double FromLng,
+    string? FromName,
+    double ToLat,
+    double ToLng,
+    string? ToName,
+    string RoutePath, // GeoJSON LineString
+    string IconType, // car, walking, bike, plane, custom
+    string? IconUrl,
+    int? IconWidth,
+    int? IconHeight,
+    string? RouteColor,
+    string? VisitedColor,
+    int? RouteWidth,
+    int DurationMs,
+    int? StartDelayMs,
+    string? Easing, // linear, ease-in, ease-out, ease-in-out
+    bool? AutoPlay,
+    bool? Loop,
+    bool? IsVisible,
+    int? ZIndex,
+    int? DisplayOrder,
+    int? StartTimeMs,
+    int? EndTimeMs);
+
+public record UpdateRouteAnimationRequest(
+    double? FromLat,
+    double? FromLng,
+    string? FromName,
+    double? ToLat,
+    double? ToLng,
+    string? ToName,
+    string? RoutePath,
+    string? IconType,
+    string? IconUrl,
+    int? IconWidth,
+    int? IconHeight,
+    string? RouteColor,
+    string? VisitedColor,
+    int? RouteWidth,
+    int? DurationMs,
+    int? StartDelayMs,
+    string? Easing,
+    bool? AutoPlay,
+    bool? Loop,
+    bool? IsVisible,
+    int? ZIndex,
+    int? DisplayOrder,
+    int? StartTimeMs,
+    int? EndTimeMs);
+
 // ================== ANIMATED LAYER ==================
 public record CreateAnimatedLayerRequest(
     Guid? LayerId,
@@ -339,7 +393,8 @@ public record CreateZoneFromOsmRequest(
     string? Category,
     string? Type,
     int? AdminLevel,
-    Guid? ParentZoneId);
+    Guid? ParentZoneId,
+    string? BoundingBox = null);
 
 // ================== SEGMENT ZONE ==================
 public record CreateSegmentZoneV2Request(

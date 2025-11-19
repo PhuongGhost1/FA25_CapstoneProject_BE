@@ -48,6 +48,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<AnimatedLayer> AnimatedLayers { get; set; }
     public DbSet<AnimatedLayerPreset> AnimatedLayerPresets { get; set; }
     public DbSet<TimelineTransition> TimelineTransitions { get; set; }
+    public DbSet<RouteAnimation> RouteAnimations { get; set; }
     public DbSet<Zone> Zones { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }

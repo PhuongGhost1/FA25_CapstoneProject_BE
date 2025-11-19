@@ -16,6 +16,10 @@ using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.Enums;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
+using CusomMapOSM_Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -27,6 +31,8 @@ public class MapService : IMapService
     private readonly IMapHistoryService _mapHistoryService;
     private readonly ILayerDataStore _layerDataStore;
     private readonly IWorkspaceRepository _workspaceRepository;
+    private readonly IOrganizationRepository _organizationRepository;
+    private readonly IHubContext<MapCollaborationHub> _hubContext;
 
     public MapService(
         IMapRepository mapRepository,
@@ -34,7 +40,9 @@ public class MapService : IMapService
         ICacheService cacheService,
         IMapHistoryService mapHistoryService,
         ILayerDataStore layerDataStore,
-        IWorkspaceRepository workspaceRepository)
+        IWorkspaceRepository workspaceRepository,
+        IOrganizationRepository organizationRepository,
+        IHubContext<MapCollaborationHub> hubContext)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
@@ -42,6 +50,8 @@ public class MapService : IMapService
         _mapHistoryService = mapHistoryService;
         _layerDataStore = layerDataStore;
         _workspaceRepository = workspaceRepository;
+        _organizationRepository = organizationRepository;
+        _hubContext = hubContext;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -197,6 +207,11 @@ public class MapService : IMapService
         if (!hasAccess && currentUserId.HasValue && map.UserId == currentUserId.Value)
         {
             hasAccess = true;
+        }
+
+        if (!hasAccess && currentUserId.HasValue)
+        {
+            hasAccess = await HasOrganizationAccess(currentUserId.Value, map.UserId);
         }
 
         if (!hasAccess)
@@ -1123,7 +1138,13 @@ public class MapService : IMapService
                     Error.NotFound("Map.NotFound", "Map not found"));
             }
 
-            if (map.UserId != currentUserId)
+            var hasAccess = map.UserId == currentUserId.Value;
+            if (!hasAccess)
+            {
+                hasAccess = await HasOrganizationAccess(currentUserId.Value, map.UserId);
+            }
+            
+            if (!hasAccess)
             {
                 return Option.None<List<LayerInfoResponse>, Error>(
                     Error.Forbidden("Map.Forbidden", "You don't have permission to access this map"));
@@ -1156,8 +1177,53 @@ public class MapService : IMapService
         if (currentUserId is null) return false;
         var map = await _mapRepository.GetMapById(mapId);
         if (map is null) return false;
-        // Owner can edit; future: check collaboration permissions for editors
-        return map.UserId == currentUserId.Value;
+        
+        // Owner can always edit
+        if (map.UserId == currentUserId.Value)
+        {
+            return true;
+        }
+        
+        // Check if user is in same organization as map owner with permission higher than Viewer
+        return await HasOrganizationAccess(currentUserId.Value, map.UserId);
+    }
+
+    /// <summary>
+    /// Checks if the current user has access to maps owned by another user through shared organization membership
+    /// with permission level higher than Viewer (Owner, Admin, or Member)
+    /// </summary>
+    private async Task<bool> HasOrganizationAccess(Guid currentUserId, Guid mapOwnerId)
+    {
+        // Get all organizations for map owner
+        var ownerOrganizations = await _organizationRepository.GetUserOrganizations(mapOwnerId);
+        if (ownerOrganizations.Count == 0)
+        {
+            return false;
+        }
+
+        // Get all organizations for current user
+        var userOrganizations = await _organizationRepository.GetUserOrganizations(currentUserId);
+        if (userOrganizations.Count == 0)
+        {
+            return false;
+        }
+
+        // Find common organizations
+        var ownerOrgIds = ownerOrganizations.Select(o => o.OrgId).ToHashSet();
+        var commonOrganizations = userOrganizations
+            .Where(uo => ownerOrgIds.Contains(uo.OrgId))
+            .ToList();
+
+        if (commonOrganizations.Count == 0)
+        {
+            return false;
+        }
+
+        // Check if user has permission higher than Viewer in any common organization
+        // OrganizationMemberTypeEnum: Owner=1, Admin=2, Member=3, Viewer=4
+        // Higher permission means lower enum value
+        return commonOrganizations.Any(member => 
+            member.Role < OrganizationMemberTypeEnum.Viewer);
     }
 
     #region Zone/Feature Operations
@@ -1532,6 +1598,18 @@ public class MapService : IMapService
                 var featuresAfterUpdateData = await _mapRepository.GetMapFeatures(mapId);
                 await _mapHistoryService.RecordSnapshot(mapId, currentUserId.Value,
                     JsonSerializer.Serialize(featuresAfterUpdateData));
+
+                // Notify other users via SignalR
+                try
+                {
+                    await _hubContext.Clients.Group($"map:{mapId}")
+                        .SendAsync("LayerUpdated", new { MapId = mapId, LayerId = layerId });
+                }
+                catch (Exception ex)
+                {
+                    // Log error but don't fail the update
+                    // Logger can be added if needed
+                }
 
                 return Option.Some<UpdateLayerDataResponse, Error>(new UpdateLayerDataResponse
                 {
