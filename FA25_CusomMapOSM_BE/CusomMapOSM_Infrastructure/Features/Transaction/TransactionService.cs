@@ -112,8 +112,8 @@ public class TransactionService : ITransactionService
         _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
-        var returnUrl = $"https://localhost:3000/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
-        var cancelUrl = $"https://localhost:3000/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var returnUrl = $"https://custommaposm.vercel.app/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"https://custommaposm.vercel.app/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
 
         _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
 
