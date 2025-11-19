@@ -1,13 +1,13 @@
 using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
-using CusomMapOSM_Application.Interfaces.Features.POIs;
+using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CusomMapOSM_API.Endpoints.PointsOfInterest;
+namespace CusomMapOSM_API.Endpoints.Locations;
 
-public class PoiEndpoint : IEndpoint
+public class LocationEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
@@ -24,10 +24,10 @@ public class PoiEndpoint : IEndpoint
     {
         group.MapGet(Routes.PoiEndpoints.GetMapPois, async (
                 [FromRoute] Guid mapId,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.GetMapPoisAsync(mapId, ct);
+                var result = await locationService.GetMapPoisAsync(mapId, ct);
                 return result.Match<IResult>(
                     pois => Results.Ok(pois),
                     err => err.ToProblemDetailsResult());
@@ -38,10 +38,10 @@ public class PoiEndpoint : IEndpoint
         group.MapGet(Routes.PoiEndpoints.GetSegmentPois, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.GetSegmentPoisAsync(mapId, segmentId, ct);
+                var result = await locationService.GetSegmentPoisAsync(mapId, segmentId, ct);
                 return result.Match<IResult>(
                     pois => Results.Ok(pois),
                     err => err.ToProblemDetailsResult());
@@ -51,10 +51,10 @@ public class PoiEndpoint : IEndpoint
 
         group.MapGet("/zones/{zoneId}/pois", async (
                 [FromRoute] Guid zoneId,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.GetZonePoisAsync(zoneId, ct);
+                var result = await locationService.GetZonePoisAsync(zoneId, ct);
                 return result.Match<IResult>(
                     pois => Results.Ok(pois),
                     err => err.ToProblemDetailsResult());
@@ -64,10 +64,10 @@ public class PoiEndpoint : IEndpoint
 
         group.MapGet("/segments/{segmentId}/pois/without-zone", async (
                 [FromRoute] Guid segmentId,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.GetPoisWithoutZoneAsync(segmentId, ct);
+                var result = await locationService.GetPoisWithoutZoneAsync(segmentId, ct);
                 return result.Match<IResult>(
                     pois => Results.Ok(pois),
                     err => err.ToProblemDetailsResult());
@@ -81,11 +81,11 @@ public class PoiEndpoint : IEndpoint
         group.MapPost(Routes.PoiEndpoints.CreateMapPoi, async (
                 [FromRoute] Guid mapId,
                 [FromBody] CreatePoiRequest request,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
                 var enriched = request with { MapId = mapId };
-                var result = await poiService.CreatePoiAsync(enriched, ct);
+                var result = await locationService.CreatePoiAsync(enriched, ct);
                 return result.Match<IResult>(
                     poi => Results.Created($"{Routes.Prefix.PointOfInterest}/{mapId}/{poi.PoiId}", poi),
                     err => err.ToProblemDetailsResult());
@@ -97,11 +97,11 @@ public class PoiEndpoint : IEndpoint
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromBody] CreatePoiRequest request,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
                 var enriched = request with { MapId = mapId, SegmentId = segmentId };
-                var result = await poiService.CreatePoiAsync(enriched, ct);
+                var result = await locationService.CreatePoiAsync(enriched, ct);
                 return result.Match<IResult>(
                     poi => Results.Created($"{Routes.Prefix.PointOfInterest}/{mapId}/segments/{segmentId}/{poi.PoiId}", poi),
                     err => err.ToProblemDetailsResult());
@@ -112,10 +112,10 @@ public class PoiEndpoint : IEndpoint
         group.MapPut(Routes.PoiEndpoints.UpdatePoi, async (
                 [FromRoute] Guid poiId,
                 [FromBody] UpdatePoiRequest request,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.UpdatePoiAsync(poiId, request, ct);
+                var result = await locationService.UpdatePoiAsync(poiId, request, ct);
                 return result.Match<IResult>(
                     poi => Results.Ok(poi),
                     err => err.ToProblemDetailsResult());
@@ -125,10 +125,10 @@ public class PoiEndpoint : IEndpoint
 
         group.MapDelete(Routes.PoiEndpoints.DeletePoi, async (
                 [FromRoute] Guid poiId,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.DeletePoiAsync(poiId, ct);
+                var result = await locationService.DeletePoiAsync(poiId, ct);
                 return result.Match<IResult>(
                     _ => Results.NoContent(),
                     err => err.ToProblemDetailsResult());
@@ -139,10 +139,10 @@ public class PoiEndpoint : IEndpoint
         group.MapPut("/pois/{poiId}/display-config", async (
                 [FromRoute] Guid poiId,
                 [FromBody] UpdatePoiDisplayConfigRequest request,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.UpdatePoiDisplayConfigAsync(poiId, request, ct);
+                var result = await locationService.UpdatePoiDisplayConfigAsync(poiId, request, ct);
                 return result.Match<IResult>(
                     poi => Results.Ok(poi),
                     err => err.ToProblemDetailsResult());
@@ -153,10 +153,10 @@ public class PoiEndpoint : IEndpoint
         group.MapPut("/pois/{poiId}/interaction-config", async (
                 [FromRoute] Guid poiId,
                 [FromBody] UpdatePoiInteractionConfigRequest request,
-                [FromServices] IPoiService poiService,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await poiService.UpdatePoiInteractionConfigAsync(poiId, request, ct);
+                var result = await locationService.UpdatePoiInteractionConfigAsync(poiId, request, ct);
                 return result.Match<IResult>(
                     poi => Results.Ok(poi),
                     err => err.ToProblemDetailsResult());

@@ -1,8 +1,8 @@
 using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
+using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
-using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
@@ -240,6 +240,26 @@ public class StoryMapEndpoint : IEndpoint
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.MoveZoneToSegment, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid fromSegmentId,
+                [FromRoute] Guid segmentZoneId,
+                [FromRoute] Guid toSegmentId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.MoveZoneToSegmentAsync(segmentZoneId, fromSegmentId, toSegmentId, ct);
+                return result.Match<IResult>(
+                    success => Results.Ok(new { success = true, message = "Zone moved successfully" }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("MoveZoneToSegment")
+            .WithDescription("Move a zone from one segment to another")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 
     private static void MapSegmentLayersEndpoints(RouteGroupBuilder group)
@@ -321,6 +341,26 @@ public class StoryMapEndpoint : IEndpoint
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.MoveLayerToSegment, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid fromSegmentId,
+                [FromRoute] Guid segmentLayerId,
+                [FromRoute] Guid toSegmentId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.MoveLayerToSegmentAsync(segmentLayerId, fromSegmentId, toSegmentId, ct);
+                return result.Match<IResult>(
+                    success => Results.Ok(new { success = true, message = "Layer moved successfully" }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("MoveLayerToSegment")
+            .WithDescription("Move a layer from one segment to another")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 
     private static void MapSegmentLocationsEndpoints(RouteGroupBuilder group)
@@ -328,7 +368,7 @@ public class StoryMapEndpoint : IEndpoint
         group.MapGet(Routes.StoryMapEndpoints.GetSegmentLocations, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromServices] IPoiService service,
+                [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 var result = await service.GetSegmentPoisAsync(mapId, segmentId, ct);
@@ -343,11 +383,28 @@ public class StoryMapEndpoint : IEndpoint
             .ProducesProblem(404)
             .ProducesProblem(500);
 
+        group.MapGet(Routes.StoryMapEndpoints.GetMapLocations, async (
+                [FromRoute] Guid mapId,
+                [FromServices] ILocationService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.GetMapPoisAsync(mapId, ct);
+                return result.Match<IResult>(
+                    locations => Results.Ok(locations),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("GetStoryMapLocations")
+            .WithDescription("Retrieve all locations (POIs) for a map across all segments")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
         group.MapPost(Routes.StoryMapEndpoints.CreateSegmentLocation, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromBody] CreatePoiRequest request,
-                [FromServices] IPoiService service,
+                [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 // Override mapId and segmentId from route
@@ -369,7 +426,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromRoute] Guid segmentId,
                 [FromRoute] Guid locationId,
                 [FromBody] UpdatePoiRequest request,
-                [FromServices] IPoiService service,
+                [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 // Override segmentId from route
@@ -390,7 +447,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromRoute] Guid locationId,
-                [FromServices] IPoiService service,
+                [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 var result = await service.DeletePoiAsync(locationId, ct);
@@ -400,6 +457,26 @@ public class StoryMapEndpoint : IEndpoint
             })
             .WithName("DeleteStoryMapSegmentLocation")
             .WithDescription("Delete a location (POI) from a segment")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
+        group.MapPost(Routes.StoryMapEndpoints.MoveLocationToSegment, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid fromSegmentId,
+                [FromRoute] Guid locationId,
+                [FromRoute] Guid toSegmentId,
+                [FromServices] ILocationService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.MoveLocationToSegmentAsync(locationId, fromSegmentId, toSegmentId, ct);
+                return result.Match<IResult>(
+                    success => Results.Ok(new { success = true, message = "Location moved successfully" }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("MoveLocationToSegment")
+            .WithDescription("Move a location from one segment to another")
             .WithTags(Tags.StoryMaps)
             .ProducesProblem(400)
             .ProducesProblem(404)

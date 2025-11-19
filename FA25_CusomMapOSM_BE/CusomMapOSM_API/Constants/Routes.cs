@@ -75,18 +75,22 @@ public static class Routes
         public const string CreateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones";
         public const string UpdateSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
         public const string DeleteSegmentZone = "{mapId:guid}/segments/{segmentId:guid}/zones/{segmentZoneId:guid}";
+        public const string MoveZoneToSegment = "{mapId:guid}/segments/{fromSegmentId:guid}/zones/{segmentZoneId:guid}/move-to/{toSegmentId:guid}";
 
         // Segment layers
         public const string GetSegmentLayers = "{mapId:guid}/segments/{segmentId:guid}/layers";
         public const string CreateSegmentLayer = "{mapId:guid}/segments/{segmentId:guid}/layers";
         public const string UpdateSegmentLayer = "{mapId:guid}/segments/{segmentId:guid}/layers/{layerId:guid}";
         public const string DeleteSegmentLayer = "{mapId:guid}/segments/{segmentId:guid}/layers/{layerId:guid}";
+        public const string MoveLayerToSegment = "{mapId:guid}/segments/{fromSegmentId:guid}/layers/{segmentLayerId:guid}/move-to/{toSegmentId:guid}";
 
         // Segment locations (POIs)
         public const string GetSegmentLocations = "{mapId:guid}/segments/{segmentId:guid}/locations";
+        public const string GetMapLocations = "{mapId:guid}/locations";
         public const string CreateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations";
         public const string UpdateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
         public const string DeleteSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}/locations/{locationId:guid}";
+        public const string MoveLocationToSegment = "{mapId:guid}/segments/{fromSegmentId:guid}/locations/{locationId:guid}/move-to/{toSegmentId:guid}";
 
         // Timeline
         public const string GetTimeline = "{mapId:guid}/timeline";
@@ -123,6 +127,7 @@ public static class Routes
         // Route Search
         public const string SearchRoutes = "routes/search";
         public const string SearchRouteBetweenLocations = "routes/between-locations";
+        public const string SearchRouteWithMultipleLocations = "routes/multiple-locations";
 
         // Route Animations
         public const string GetRouteAnimations = "{mapId:guid}/segments/{segmentId:guid}/route-animations";
@@ -130,6 +135,7 @@ public static class Routes
         public const string CreateRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations";
         public const string UpdateRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations/{routeAnimationId:guid}";
         public const string DeleteRouteAnimation = "{mapId:guid}/segments/{segmentId:guid}/route-animations/{routeAnimationId:guid}";
+        public const string MoveRouteToSegment = "{mapId:guid}/segments/{fromSegmentId:guid}/route-animations/{routeAnimationId:guid}/move-to/{toSegmentId:guid}";
 
         // Timeline Transitions
         public const string GetTimelineTransitions = "{mapId:guid}/timeline-transitions";

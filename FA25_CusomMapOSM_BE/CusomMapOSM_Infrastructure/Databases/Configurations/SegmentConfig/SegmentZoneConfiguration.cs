@@ -147,5 +147,12 @@ internal class SegmentZoneConfiguration : IEntityTypeConfiguration<SegmentZone>
             .HasForeignKey(sz => sz.ZoneId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Indexes for performance optimization
+        builder.HasIndex(sz => sz.SegmentId)
+            .HasDatabaseName("IX_segment_zones_segment_id");
+        
+        // Composite index for batch queries (used in GetSegmentZonesBySegmentsAsync)
+        builder.HasIndex(sz => new { sz.SegmentId, sz.DisplayOrder })
+            .HasDatabaseName("IX_segment_zones_segment_id_display_order");
     }
 }

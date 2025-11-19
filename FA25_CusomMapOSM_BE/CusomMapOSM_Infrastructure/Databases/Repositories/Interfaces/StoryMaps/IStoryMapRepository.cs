@@ -22,6 +22,7 @@ public interface IStoryMapRepository
     // ================== SEGMENT ZONE (Zone highlight trên segment) ==================
     Task<SegmentZone?> GetSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct);
     Task<List<SegmentZone>> GetSegmentZonesBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task<List<SegmentZone>> GetSegmentZonesBySegmentsAsync(List<Guid> segmentIds, CancellationToken ct);
     Task AddSegmentZoneAsync(SegmentZone segmentZone, CancellationToken ct);
     void UpdateSegmentZone(SegmentZone segmentZone);
     void RemoveSegmentZone(SegmentZone segmentZone);
@@ -29,6 +30,7 @@ public interface IStoryMapRepository
     // ================== SEGMENT LAYER (Layer trên segment) ==================
     Task<SegmentLayer?> GetSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct);
     Task<List<SegmentLayer>> GetSegmentLayersBySegmentAsync(Guid segmentId, CancellationToken ct);
+    Task<List<SegmentLayer>> GetSegmentLayersBySegmentsAsync(List<Guid> segmentIds, CancellationToken ct);
     Task AddSegmentLayerAsync(SegmentLayer segmentLayer, CancellationToken ct);
     void UpdateSegmentLayer(SegmentLayer segmentLayer);
     void RemoveSegmentLayer(SegmentLayer segmentLayer);

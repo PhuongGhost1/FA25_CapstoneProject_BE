@@ -701,6 +701,92 @@ namespace CusomMapOSM_Infrastructure.Services
             }
         }
 
+        public async Task<string> GetRouteWithWaypointsAsync(List<(double lat, double lon)> waypoints, string routeType = "road")
+        {
+            if (waypoints == null || waypoints.Count < 2)
+            {
+                throw new ArgumentException("At least 2 waypoints are required", nameof(waypoints));
+            }
+
+            // If route type is "straight" or "plane", return straight line through all waypoints
+            if (routeType?.ToLowerInvariant() == "straight" || routeType?.ToLowerInvariant() == "plane")
+            {
+                return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+            }
+
+            // For road routes, use OSRM with waypoints
+            // Build cache key from all waypoints
+            var cacheKeyParts = waypoints.SelectMany(w => new[] { w.lat.ToString(CultureInfo.InvariantCulture), w.lon.ToString(CultureInfo.InvariantCulture) });
+            var cacheKey = $"osm:route:road:waypoints:{string.Join(":", cacheKeyParts)}";
+            var cachedResult = await _cache.GetStringAsync(cacheKey);
+            
+            if (!string.IsNullOrEmpty(cachedResult))
+            {
+                return cachedResult;
+            }
+
+            try
+            {
+                // OSRM format: /route/v1/driving/{lon1},{lat1};{lon2},{lat2};{lon3},{lat3}?overview=full&geometries=geojson
+                var waypointsStr = string.Join(";", waypoints.Select(w => $"{w.lon.ToString(CultureInfo.InvariantCulture)},{w.lat.ToString(CultureInfo.InvariantCulture)}"));
+                var osrmUrl = $"http://router.project-osrm.org/route/v1/driving/{waypointsStr}?overview=full&geometries=geojson";
+                
+                _logger.LogInformation("Requesting route with waypoints from OSRM: {Url}", osrmUrl);
+                
+                using var request = new HttpRequestMessage(HttpMethod.Get, osrmUrl);
+                request.Headers.Add("User-Agent", "CustomMapOSM_Application/1.0");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)); // Longer timeout for multi-point routes
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cts.Token);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM API returned status {StatusCode} for waypoints route request", response.StatusCode);
+                    return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var osrmResult = JsonConvert.DeserializeObject<OsmRouteResponseDTO>(content);
+                
+                if (osrmResult?.Routes == null || osrmResult.Routes.Count == 0)
+                {
+                    _logger.LogWarning("OSRM returned no routes for waypoints");
+                    return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                var route = osrmResult.Routes[0];
+                string geoJson;
+                
+                if (route.Geometry != null && route.Geometry.Coordinates != null && route.Geometry.Coordinates.Length > 0)
+                {
+                    geoJson = JsonSerializer.Serialize(new
+                    {
+                        type = "LineString",
+                        coordinates = route.Geometry.Coordinates
+                    });
+                }
+                else
+                {
+                    geoJson = CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                await _cache.SetStringAsync(
+                    cacheKey,
+                    geoJson,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    });
+                
+                return geoJson;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting route with waypoints");
+                return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+            }
+        }
+
         private string CreateStraightLineGeoJson(double fromLat, double fromLon, double toLat, double toLon)
         {
             return JsonSerializer.Serialize(new
@@ -711,6 +797,16 @@ namespace CusomMapOSM_Infrastructure.Services
                     new[] { fromLon, fromLat },
                     new[] { toLon, toLat }
                 }
+            });
+        }
+
+        private string CreateStraightLineGeoJsonFromWaypoints(List<(double lat, double lon)> waypoints)
+        {
+            var coordinates = waypoints.Select(w => new[] { w.lon, w.lat }).ToArray();
+            return JsonSerializer.Serialize(new
+            {
+                type = "LineString",
+                coordinates = coordinates
             });
         }
     }

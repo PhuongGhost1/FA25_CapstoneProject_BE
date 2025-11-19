@@ -103,5 +103,13 @@ internal class SegmentLayerConfiguration : IEntityTypeConfiguration<SegmentLayer
             .WithMany()
             .HasForeignKey(sl => sl.LayerId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Indexes for performance optimization
+        builder.HasIndex(sl => sl.SegmentId)
+            .HasDatabaseName("IX_segment_layers_segment_id");
+        
+        // Composite index for batch queries (used in GetSegmentLayersBySegmentsAsync)
+        builder.HasIndex(sl => new { sl.SegmentId, sl.DisplayOrder })
+            .HasDatabaseName("IX_segment_layers_segment_id_display_order");
     }
 }

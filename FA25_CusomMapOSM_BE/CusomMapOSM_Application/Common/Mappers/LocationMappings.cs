@@ -8,7 +8,7 @@ public static class LocationMappings
     public static PoiDto ToPoiDto(this Location l)
         => new PoiDto(
             l.LocationId,
-            l.Segment?.MapId ?? Guid.Empty,
+            l.MapId, // Use MapId directly instead of l.Segment?.MapId for better performance
             l.SegmentId,
             l.ZoneId,
             l.Title,

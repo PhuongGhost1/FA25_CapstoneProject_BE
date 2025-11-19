@@ -55,18 +55,23 @@ public class StoryMapService : IStoryMapService
         {
             return Option.Some<IReadOnlyCollection<SegmentDto>, Error>(Array.Empty<SegmentDto>());
         }
+        
+        var segmentIds = segments.Select(s => s.SegmentId).ToList();
+
+        var allZones = await _repository.GetSegmentZonesBySegmentsAsync(segmentIds, ct);
+        var allLayers = await _repository.GetSegmentLayersBySegmentsAsync(segmentIds, ct);
+        var allLocations = await _locationRepository.GetBySegmentIdsAsync(segmentIds, ct);
+        
+        var zonesBySegment = allZones.GroupBy(sz => sz.SegmentId).ToDictionary(g => g.Key, g => g.Select(sz => sz.ToDto()).ToList());
+        var layersBySegment = allLayers.GroupBy(sl => sl.SegmentId).ToDictionary(g => g.Key, g => g.Select(sl => sl.ToDto()).ToList());
+        var locationsBySegment = allLocations.GroupBy(l => l.SegmentId).ToDictionary(g => g.Key, g => g.Select(loc => loc.ToPoiDto()).ToList());
 
         var segmentDtos = new List<SegmentDto>(segments.Count);
         foreach (var segment in segments)
         {
-            var segmentZones = await _repository.GetSegmentZonesBySegmentAsync(segment.SegmentId, ct);
-            var zones = segmentZones.Select(sz => sz.ToDto()).ToList();
-
-            var segmentLayers = await _repository.GetSegmentLayersBySegmentAsync(segment.SegmentId, ct);
-            var layers = segmentLayers.Select(sl => sl.ToDto()).ToList();
-
-            var locationsRaw = await _locationRepository.GetBySegmentIdAsync(segment.SegmentId, ct);
-            var locations = locationsRaw.Select(loc => loc.ToPoiDto()).ToList();
+            var zones = zonesBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentZoneDto>();
+            var layers = layersBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentLayerDto>();
+            var locations = locationsBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<PoiDto>();
 
             var dto = segment.ToSegmentDto(zones, layers, locations);
             segmentDtos.Add(dto);
@@ -82,7 +87,7 @@ public class StoryMapService : IStoryMapService
         {
             return Option.None<SegmentDto, Error>(Error.NotFound("Segment.NotFound", "Segment not found"));
         }
-
+        
         var segmentZones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         var segmentLayers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
         var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
@@ -112,7 +117,7 @@ public class StoryMapService : IStoryMapService
 
         var name = string.IsNullOrWhiteSpace(request.Name) ? "Untitled Segment" : request.Name.Trim();
         var displayOrder = request.DisplayOrder < 0 ? 0 : request.DisplayOrder;
-
+        
         var segment = new Segment
         {
             SegmentId = Guid.NewGuid(),
@@ -157,17 +162,17 @@ public class StoryMapService : IStoryMapService
         }
 
         segment.Name = request.Name.Trim();
-
+        
         if (request.Description != null)
         {
             segment.Description = request.Description;
         }
-
+        
         if (request.StoryContent != null)
         {
             segment.StoryContent = request.StoryContent;
         }
-
+        
         if (request.DisplayOrder.HasValue)
         {
             segment.DisplayOrder = request.DisplayOrder.Value;
@@ -195,11 +200,11 @@ public class StoryMapService : IStoryMapService
 
         if (request.PlaybackMode.HasValue)
         {
-            var autoAdvance = request.PlaybackMode.Value !=
-                              SegmentPlaybackMode.Manual;
-            var requireUserAction = request.PlaybackMode.Value ==
-                                    SegmentPlaybackMode.Manual;
-
+            var autoAdvance = request.PlaybackMode.Value != 
+                SegmentPlaybackMode.Manual;
+            var requireUserAction = request.PlaybackMode.Value == 
+                SegmentPlaybackMode.Manual;
+            
             segment.AutoAdvance = autoAdvance;
             segment.RequireUserAction = requireUserAction;
         }
@@ -707,7 +712,7 @@ public class StoryMapService : IStoryMapService
         // If found results in DB, return them
         if (zoneDtos.Count > 0)
         {
-            return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(zoneDtos);
+        return Option.Some<IReadOnlyCollection<ZoneDto>, Error>(zoneDtos);
         }
 
         // If not found in DB, search OSM
@@ -822,7 +827,7 @@ public class StoryMapService : IStoryMapService
             return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmId",
                 "OSM ID must be greater than 0"));
         }
-
+        
         if (string.IsNullOrWhiteSpace(request.OsmType))
         {
             return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidOsmType", "OSM Type is required"));
@@ -833,7 +838,7 @@ public class StoryMapService : IStoryMapService
             return Option.None<ZoneDto, Error>(Error.ValidationError("Zone.InvalidDisplayName",
                 "Display name is required"));
         }
-
+        
         if (request.ParentZoneId.HasValue)
         {
             var parentZone = await _repository.GetZoneAsync(request.ParentZoneId.Value, ct);
@@ -856,57 +861,57 @@ public class StoryMapService : IStoryMapService
             type = "Point",
             coordinates = new[] { request.Lon, request.Lat }
         });
-
+        
         // Use boundingBox from request if provided, otherwise calculate it
         string boundingBox = request.BoundingBox;
         if (string.IsNullOrWhiteSpace(boundingBox))
         {
-            var offset = 0.01;
+        var offset = 0.01;
             boundingBox =
                 $"{request.Lat - offset},{request.Lon - offset},{request.Lat + offset},{request.Lon + offset}";
-
-            try
+        
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(request.GeoJson))
             {
-                if (!string.IsNullOrWhiteSpace(request.GeoJson))
+                var geoJson = JsonDocument.Parse(request.GeoJson);
+                if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
                 {
-                    var geoJson = JsonDocument.Parse(request.GeoJson);
-                    if (geoJson.RootElement.TryGetProperty("type", out var typeProperty))
-                    {
-                        var geometryType = typeProperty.GetString();
+                    var geometryType = typeProperty.GetString();
 
                         if (geometryType == "Point" &&
                             geoJson.RootElement.TryGetProperty("coordinates", out var coords))
+                    {
+                        var lon = coords[0].GetDouble();
+                        var lat = coords[1].GetDouble();
+                        
+                        centroid = JsonSerializer.Serialize(new
                         {
-                            var lon = coords[0].GetDouble();
-                            var lat = coords[1].GetDouble();
+                            type = "Point",
+                            coordinates = new[] { lon, lat }
+                        });
 
-                            centroid = JsonSerializer.Serialize(new
-                            {
-                                type = "Point",
-                                coordinates = new[] { lon, lat }
-                            });
-
-                            var pointOffset = 0.001;
+                        var pointOffset = 0.001;
                             boundingBox =
                                 $"{lat - pointOffset},{lon - pointOffset},{lat + pointOffset},{lon + pointOffset}";
-                        }
-                        else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
+                    }
+                    else if ((geometryType == "Polygon" || geometryType == "MultiPolygon"))
+                    {
+                        centroid = JsonSerializer.Serialize(new
                         {
-                            centroid = JsonSerializer.Serialize(new
-                            {
-                                type = "Point",
-                                coordinates = new[] { request.Lon, request.Lat }
-                            });
-
-                            var polyOffset = 0.1;
+                            type = "Point",
+                            coordinates = new[] { request.Lon, request.Lat }
+                        });
+                        
+                        var polyOffset = 0.1;
                             boundingBox =
                                 $"{request.Lat - polyOffset},{request.Lon - polyOffset},{request.Lat + polyOffset},{request.Lon + polyOffset}";
-                        }
                     }
                 }
             }
-            catch (Exception)
-            {
+        }
+        catch (Exception)
+        {
             }
         }
 
@@ -953,8 +958,8 @@ public class StoryMapService : IStoryMapService
     }
 
     private ZoneType DetermineZoneType(
-        string? category,
-        string? type,
+        string? category, 
+        string? type, 
         int? adminLevel)
     {
         if (category == "boundary" && type == "administrative")
@@ -1037,7 +1042,7 @@ public class StoryMapService : IStoryMapService
         await Task.CompletedTask;
         return Option.None<int, Error>(Error.Problem("Zone.SyncNotImplemented", "OSM sync not yet implemented"));
     }
-
+    
     public async Task<Option<IReadOnlyCollection<TimelineTransitionDto>, Error>> GetTimelineTransitionsAsync(
         Guid mapId, CancellationToken ct = default)
     {
@@ -1229,7 +1234,7 @@ public class StoryMapService : IStoryMapService
 
         return Option.Some<TimelineTransitionDto, Error>(transition.ToDto());
     }
-
+    
     public async Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(
         Guid mapId, CancellationToken ct = default)
     {
@@ -1242,7 +1247,7 @@ public class StoryMapService : IStoryMapService
 
         var animatedLayers = await _repository.GetAnimatedLayersByMapAsync(mapId, ct);
         var dtos = animatedLayers.Select(al => al.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerDto>, Error>(dtos);
     }
 
@@ -1258,7 +1263,7 @@ public class StoryMapService : IStoryMapService
 
         var animatedLayers = await _repository.GetAnimatedLayersBySegmentAsync(segmentId, ct);
         var dtos = animatedLayers.Select(al => al.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerDto>, Error>(dtos);
     }
 
@@ -1267,7 +1272,7 @@ public class StoryMapService : IStoryMapService
     {
         var animatedLayers = await _repository.GetAnimatedLayersByLayerAsync(layerId, ct);
         var dtos = animatedLayers.Select(al => al.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerDto>, Error>(dtos);
     }
 
@@ -1421,7 +1426,7 @@ public class StoryMapService : IStoryMapService
     {
         var presets = await _repository.GetAnimatedLayerPresetsAsync(ct);
         var dtos = presets.Select(p => p.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>(dtos);
     }
 
@@ -1435,7 +1440,7 @@ public class StoryMapService : IStoryMapService
 
         var presets = await _repository.GetAnimatedLayerPresetsByCategoryAsync(category, ct);
         var dtos = presets.Select(p => p.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>(dtos);
     }
 
@@ -1449,7 +1454,7 @@ public class StoryMapService : IStoryMapService
 
         var presets = await _repository.SearchAnimatedLayerPresetsAsync(searchTerm, ct);
         var dtos = presets.Select(p => p.ToDto()).ToList();
-
+        
         return Option.Some<IReadOnlyCollection<AnimatedLayerPresetDto>, Error>(dtos);
     }
 
@@ -1636,7 +1641,7 @@ public class StoryMapService : IStoryMapService
 
     // Helper method for smart transition calculation
     private (CameraAnimationType animationType, int durationMs) CalculateOptimalTransition(
-        string? fromCameraState,
+        string? fromCameraState, 
         string? toCameraState)
     {
         // Default values
@@ -1958,6 +1963,63 @@ public class StoryMapService : IStoryMapService
             return Option.Some<string, Error>(routeGeoJson);
     }
 
+    public async Task<Option<string, Error>> SearchRouteWithMultipleLocationsAsync(
+        List<Guid> locationIds, string routeType = "road", CancellationToken ct = default)
+    {
+        if (locationIds == null || locationIds.Count < 2)
+        {
+            return Option.None<string, Error>(
+                Error.ValidationError("Route.InvalidWaypoints", "At least 2 locations are required"));
+        }
+
+        var waypoints = new List<(double lat, double lon)>();
+
+        foreach (var locationId in locationIds)
+        {
+            var location = await _repository.GetLocationAsync(locationId, ct);
+            if (location == null)
+            {
+                return Option.None<string, Error>(
+                    Error.NotFound("Location.NotFound", $"Location {locationId} not found"));
+            }
+
+            // Parse coordinates from markerGeometry
+            if (string.IsNullOrEmpty(location.MarkerGeometry))
+            {
+                return Option.None<string, Error>(
+                    Error.Failure("Location.InvalidGeometry", $"Location {locationId} has invalid geometry"));
+            }
+
+            try
+            {
+                var geoJson = JsonSerializer.Deserialize<JsonElement>(location.MarkerGeometry);
+                if (geoJson.TryGetProperty("coordinates", out var coords) &&
+                    coords.ValueKind == JsonValueKind.Array &&
+                    coords.GetArrayLength() >= 2)
+                {
+                    var lon = coords[0].GetDouble();
+                    var lat = coords[1].GetDouble();
+                    waypoints.Add((lat, lon));
+                }
+                else
+                {
+                    return Option.None<string, Error>(
+                        Error.Failure("Location.InvalidGeometry", $"Location {locationId} has invalid coordinates"));
+                }
+            }
+            catch (Exception ex)
+            {
+                return Option.None<string, Error>(
+                    Error.Failure("Location.ParseError", $"Failed to parse location {locationId}: {ex.Message}"));
+            }
+        }
+
+        // Get route from OSM service with waypoints
+        var routeGeoJson = await _osmService.GetRouteWithWaypointsAsync(waypoints, routeType);
+
+        return Option.Some<string, Error>(routeGeoJson);
+    }
+
     // ================== ROUTE ANIMATION ==================
     public async Task<Option<IReadOnlyCollection<RouteAnimationDto>, Error>> GetRouteAnimationsBySegmentAsync(
         Guid segmentId, CancellationToken ct = default)
@@ -2009,7 +2071,9 @@ public class StoryMapService : IStoryMapService
             ToLat = request.ToLat,
             ToLng = request.ToLng,
             ToName = request.ToName,
+            ToLocationId = request.ToLocationId,
             RoutePath = request.RoutePath,
+            Waypoints = request.Waypoints,
             IconType = request.IconType ?? "car",
             IconUrl = request.IconUrl,
             IconWidth = request.IconWidth ?? 32,
@@ -2027,6 +2091,10 @@ public class StoryMapService : IStoryMapService
             DisplayOrder = request.DisplayOrder ?? 0,
             StartTimeMs = request.StartTimeMs,
             EndTimeMs = request.EndTimeMs,
+            CameraStateBefore = request.CameraStateBefore,
+            CameraStateAfter = request.CameraStateAfter,
+            ShowLocationInfoOnArrival = request.ShowLocationInfoOnArrival ?? true,
+            LocationInfoDisplayDurationMs = request.LocationInfoDisplayDurationMs,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -2052,7 +2120,9 @@ public class StoryMapService : IStoryMapService
         if (request.ToLat.HasValue) routeAnimation.ToLat = request.ToLat.Value;
         if (request.ToLng.HasValue) routeAnimation.ToLng = request.ToLng.Value;
         if (request.ToName is not null) routeAnimation.ToName = request.ToName;
+        if (request.ToLocationId.HasValue) routeAnimation.ToLocationId = request.ToLocationId;
         if (request.RoutePath is not null) routeAnimation.RoutePath = request.RoutePath;
+        if (request.Waypoints is not null) routeAnimation.Waypoints = request.Waypoints;
         if (request.IconType is not null) routeAnimation.IconType = request.IconType;
         if (request.IconUrl is not null) routeAnimation.IconUrl = request.IconUrl;
         if (request.IconWidth.HasValue) routeAnimation.IconWidth = request.IconWidth.Value;
@@ -2070,6 +2140,10 @@ public class StoryMapService : IStoryMapService
         if (request.DisplayOrder.HasValue) routeAnimation.DisplayOrder = request.DisplayOrder.Value;
         if (request.StartTimeMs.HasValue) routeAnimation.StartTimeMs = request.StartTimeMs;
         if (request.EndTimeMs.HasValue) routeAnimation.EndTimeMs = request.EndTimeMs;
+        if (request.CameraStateBefore is not null) routeAnimation.CameraStateBefore = request.CameraStateBefore;
+        if (request.CameraStateAfter is not null) routeAnimation.CameraStateAfter = request.CameraStateAfter;
+        if (request.ShowLocationInfoOnArrival.HasValue) routeAnimation.ShowLocationInfoOnArrival = request.ShowLocationInfoOnArrival.Value;
+        if (request.LocationInfoDisplayDurationMs.HasValue) routeAnimation.LocationInfoDisplayDurationMs = request.LocationInfoDisplayDurationMs;
 
         routeAnimation.UpdatedAt = DateTime.UtcNow;
 
@@ -2090,6 +2164,150 @@ public class StoryMapService : IStoryMapService
         }
 
         _repository.RemoveRouteAnimation(routeAnimation);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> MoveZoneToSegmentAsync(
+        Guid segmentZoneId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default)
+    {
+        // Validate segments exist and belong to same map
+        var fromSegment = await _repository.GetSegmentAsync(fromSegmentId, ct);
+        if (fromSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Source segment {fromSegmentId} not found"));
+        }
+
+        var toSegment = await _repository.GetSegmentAsync(toSegmentId, ct);
+        if (toSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Target segment {toSegmentId} not found"));
+        }
+
+        if (fromSegment.MapId != toSegment.MapId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Segment.MoveInvalid", "Cannot move zone between segments from different maps"));
+        }
+
+        // Get the segment zone
+        var segmentZone = await _repository.GetSegmentZoneAsync(segmentZoneId, ct);
+        if (segmentZone is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("SegmentZone.NotFound", "Segment zone not found"));
+        }
+
+        if (segmentZone.SegmentId != fromSegmentId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("SegmentZone.MoveInvalid", "Segment zone does not belong to source segment"));
+        }
+
+        // Update segment zone
+        segmentZone.SegmentId = toSegmentId;
+        segmentZone.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateSegmentZone(segmentZone);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> MoveLayerToSegmentAsync(
+        Guid segmentLayerId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default)
+    {
+        // Validate segments exist and belong to same map
+        var fromSegment = await _repository.GetSegmentAsync(fromSegmentId, ct);
+        if (fromSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Source segment {fromSegmentId} not found"));
+        }
+
+        var toSegment = await _repository.GetSegmentAsync(toSegmentId, ct);
+        if (toSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Target segment {toSegmentId} not found"));
+        }
+
+        if (fromSegment.MapId != toSegment.MapId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Segment.MoveInvalid", "Cannot move layer between segments from different maps"));
+        }
+
+        // Get the segment layer
+        var segmentLayer = await _repository.GetSegmentLayerAsync(segmentLayerId, ct);
+        if (segmentLayer is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("SegmentLayer.NotFound", "Segment layer not found"));
+        }
+
+        if (segmentLayer.SegmentId != fromSegmentId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("SegmentLayer.MoveInvalid", "Segment layer does not belong to source segment"));
+        }
+
+        // Update segment layer
+        segmentLayer.SegmentId = toSegmentId;
+        segmentLayer.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateSegmentLayer(segmentLayer);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> MoveRouteToSegmentAsync(
+        Guid routeAnimationId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default)
+    {
+        // Validate segments exist and belong to same map
+        var fromSegment = await _repository.GetSegmentAsync(fromSegmentId, ct);
+        if (fromSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Source segment {fromSegmentId} not found"));
+        }
+
+        var toSegment = await _repository.GetSegmentAsync(toSegmentId, ct);
+        if (toSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Target segment {toSegmentId} not found"));
+        }
+
+        if (fromSegment.MapId != toSegment.MapId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Segment.MoveInvalid", "Cannot move route between segments from different maps"));
+        }
+
+        // Get the route animation
+        var routeAnimation = await _repository.GetRouteAnimationAsync(routeAnimationId, ct);
+        if (routeAnimation is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("RouteAnimation.NotFound", "Route animation not found"));
+        }
+
+        if (routeAnimation.SegmentId != fromSegmentId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("RouteAnimation.MoveInvalid", "Route animation does not belong to source segment"));
+        }
+
+        // Update route animation
+        routeAnimation.SegmentId = toSegmentId;
+        routeAnimation.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateRouteAnimation(routeAnimation);
         await _repository.SaveChangesAsync(ct);
 
         return Option.Some<bool, Error>(true);

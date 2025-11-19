@@ -248,5 +248,30 @@ public class ZoneEndpoint : IEndpoint
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
+
+        // GET search route with multiple locations (waypoints)
+        group.MapPost(Routes.StoryMapEndpoints.SearchRouteWithMultipleLocations, async (
+                [FromBody] SearchRouteWithMultipleLocationsRequest request,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.SearchRouteWithMultipleLocationsAsync(request.LocationIds, request.RouteType ?? "road", ct);
+                return result.Match<IResult>(
+                    routeGeoJson => Results.Ok(new { routePath = routeGeoJson }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("SearchRouteWithMultipleLocations")
+            .WithDescription("Search route through multiple location IDs (returns GeoJSON LineString). Supports locations from different segments.")
+            .WithTags(Tags.StoryMaps)
+            .Produces<object>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
+}
+
+public record SearchRouteWithMultipleLocationsRequest
+{
+    public required List<Guid> LocationIds { get; init; }
+    public string? RouteType { get; init; } // "road" or "straight"
 }

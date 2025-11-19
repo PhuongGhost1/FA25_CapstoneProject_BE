@@ -1,24 +1,24 @@
 using CusomMapOSM_Application.Common.Errors;
-using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Common.Mappers;
+using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Services;
 using Optional;
 
-namespace CusomMapOSM_Infrastructure.Features.POIs;
+namespace CusomMapOSM_Infrastructure.Features.Locations;
 
-public class PoiService : IPoiService
+public class LocationService : ILocationService
 {
     private readonly IStoryMapRepository _storyMapRepository;
     private readonly ILocationRepository _locationRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly HtmlContentImageProcessor _htmlImageProcessor;
 
-    public PoiService(
+    public LocationService(
         IStoryMapRepository storyMapRepository, 
         ILocationRepository locationRepository,
         ICurrentUserService currentUserService,
@@ -387,6 +387,40 @@ public class PoiService : IPoiService
         var dto = updated.ToPoiDto();
 
         return Option.Some<PoiDto, Error>(dto);
+    }
+
+    public async Task<Option<bool, Error>> MoveLocationToSegmentAsync(
+        Guid locationId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default)
+    {
+        var location = await _locationRepository.GetByIdAsync(locationId, ct);
+        if (location is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Location.NotFound", "Location not found"));
+        }
+        
+        if (location.SegmentId != fromSegmentId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Location.MoveInvalid", "Location does not belong to source segment"));
+        }
+
+        var toSegment = await _storyMapRepository.GetSegmentAsync(toSegmentId, ct);
+        if (toSegment is null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Segment.NotFound", $"Target segment {toSegmentId} not found"));
+        }
+
+        if (toSegment.MapId != location.MapId)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Location.MoveInvalid", "Cannot move location between segments from different maps"));
+        }
+
+        await _locationRepository.UpdateSegmentIdAsync(locationId, toSegmentId, ct);
+
+        return Option.Some<bool, Error>(true);
     }
 
     private static Guid? NormalizeGuid(Guid? value) =>
