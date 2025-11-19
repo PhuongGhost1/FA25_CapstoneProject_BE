@@ -5,7 +5,6 @@ using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
-using CusomMapOSM_Application.Interfaces.Features.POIs;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Features.Workspace;
@@ -64,7 +63,6 @@ using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Infrastructure.Features.User;
 using CusomMapOSM_Infrastructure.Features.Usage;
 using CusomMapOSM_Infrastructure.Features.Payment;
-using CusomMapOSM_Infrastructure.Features.POIs;
 using CusomMapOSM_Infrastructure.Features.StoryMaps;
 using CusomMapOSM_Infrastructure.Features.Animations;
 using CusomMapOSM_Infrastructure.Features.Workspace;
@@ -99,8 +97,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using StackExchange.Redis;
 using System.Net.Sockets;
+using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Features.Locations;
 using CusomMapOSM_Infrastructure.Features.Notifications;
 using Hangfire;
 using Hangfire.Redis;
@@ -196,7 +196,7 @@ public static class DependencyInjections
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
-        services.AddScoped<IPoiService, PoiService>();
+        services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<HtmlContentImageProcessor>();
         services.AddScoped<IStoryMapService, StoryMapService>();
         services.AddScoped<IMapSelectionService, MapSelectionService>();
@@ -267,10 +267,7 @@ public static class DependencyInjections
         });
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
-            // var host = Environment.GetEnvironmentVariable("REDIS_HOST");
-            // var port = Environment.GetEnvironmentVariable("REDIS_PORT");
-            // var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-            // var redisConnectionString = $"{host}:{port},password={password}";
+
 
             var redisConnectionString = RedisConstant.REDIS_CONNECTION_STRING;
 
@@ -283,11 +280,7 @@ public static class DependencyInjections
 
             return policy.Execute(() => ConnectionMultiplexer.Connect(redisConnectionString));
         });
-
-        // var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
-        // var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT");
-        // var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
-        // var redisConnectionString = $"{redisHost}:{redisPort},password={redisPassword}";
+        
 
         services.AddHangfire(config =>
         {

@@ -130,16 +130,14 @@ public class MapRepository : IMapRepository
         if (template == null)
             return null;
 
-        var mapLayersTask = GetTemplateLayers(templateId);
-        var mapImagesTask = GetTemplateImages(templateId);
-
-        await Task.WhenAll(mapLayersTask, mapImagesTask);
+        var layers = await GetTemplateLayers(templateId);
+        var mapImages = await GetTemplateImages(templateId);
 
         var templateWithDetails = new MapTemplateWithDetails
         {
             Map = template,
-            Layers = mapLayersTask.Result,
-            MapImages = mapImagesTask.Result
+            Layers = layers,
+            MapImages = mapImages
         };
 
         return templateWithDetails;

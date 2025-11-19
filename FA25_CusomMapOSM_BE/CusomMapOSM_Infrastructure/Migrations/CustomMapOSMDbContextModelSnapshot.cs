@@ -948,11 +948,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("LinkedLocationId");
 
-                    b.HasIndex("MapId");
+                    b.HasIndex("MapId")
+                        .HasDatabaseName("IX_map_locations_map_id");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_map_locations_segment_id");
 
                     b.HasIndex("ZoneId");
+
+                    b.HasIndex("MapId", "DisplayOrder")
+                        .HasDatabaseName("IX_map_locations_map_id_display_order");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_map_locations_segment_id_display_order");
 
                     b.ToTable("locations", (string)null);
                 });
@@ -2025,7 +2033,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("LayerId");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_segment_layers_segment_id");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_segment_layers_segment_id_display_order");
 
                     b.ToTable("segment_layers", (string)null);
                 });
@@ -2172,9 +2184,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("SegmentZoneId");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_segment_zones_segment_id");
 
                     b.HasIndex("ZoneId");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_segment_zones_segment_id_display_order");
 
                     b.ToTable("segment_zones", (string)null);
                 });
@@ -2284,6 +2300,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("auto_play");
 
+                    b.Property<string>("CameraStateAfter")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("camera_state_after");
+
+                    b.Property<string>("CameraStateBefore")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("camera_state_before");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
@@ -2356,6 +2380,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_visible");
 
+                    b.Property<int?>("LocationInfoDisplayDurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("location_info_display_duration_ms");
+
                     b.Property<bool>("Loop")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -2389,6 +2417,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("segment_id");
 
+                    b.Property<bool>("ShowLocationInfoOnArrival")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("show_location_info_on_arrival");
+
                     b.Property<int?>("StartDelayMs")
                         .HasColumnType("int")
                         .HasColumnName("start_delay_ms");
@@ -2404,6 +2438,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<double>("ToLng")
                         .HasColumnType("double")
                         .HasColumnName("to_lng");
+
+                    b.Property<Guid?>("ToLocationId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("to_location_id");
 
                     b.Property<string>("ToName")
                         .HasMaxLength(255)
@@ -2422,6 +2460,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue("#3b82f6")
                         .HasColumnName("visited_color");
 
+                    b.Property<string>("Waypoints")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("waypoints");
+
                     b.Property<int>("ZIndex")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -2434,7 +2476,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("SegmentId");
 
-                    b.HasIndex("SegmentId", "DisplayOrder");
+                    b.HasIndex("ToLocationId")
+                        .HasDatabaseName("IX_route_animations_to_location_id");
 
                     b.ToTable("route_animations", (string)null);
                 });

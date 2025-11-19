@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class Update_location : Migration
+    public partial class update_route : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -176,8 +176,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    zone_type = table.Column<int>(type: "int", maxLength: 50, nullable: false),
-                    admin_level = table.Column<int>(type: "int", nullable: false),
+                    zone_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    admin_level = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     parent_zone_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     geometry = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -1121,6 +1123,75 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "route_animations",
+                columns: table => new
+                {
+                    route_animation_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    segment_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    from_lat = table.Column<double>(type: "double", nullable: false),
+                    from_lng = table.Column<double>(type: "double", nullable: false),
+                    from_name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    to_lat = table.Column<double>(type: "double", nullable: false),
+                    to_lng = table.Column<double>(type: "double", nullable: false),
+                    to_name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    to_location_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    route_path = table.Column<string>(type: "TEXT", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    waypoints = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    icon_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "car")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    icon_url = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    icon_width = table.Column<int>(type: "int", nullable: false, defaultValue: 32),
+                    icon_height = table.Column<int>(type: "int", nullable: false, defaultValue: 32),
+                    route_color = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "#666666")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    visited_color = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "#3b82f6")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    route_width = table.Column<int>(type: "int", nullable: false, defaultValue: 4),
+                    duration_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 5000),
+                    start_delay_ms = table.Column<int>(type: "int", nullable: true),
+                    easing = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "linear")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    auto_play = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    loop = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 1000),
+                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    start_time_ms = table.Column<int>(type: "int", nullable: true),
+                    end_time_ms = table.Column<int>(type: "int", nullable: true),
+                    camera_state_before = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    camera_state_after = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    show_location_info_on_arrival = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    location_info_display_duration_ms = table.Column<int>(type: "int", nullable: true),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_route_animations", x => x.route_animation_id);
+                    table.ForeignKey(
+                        name: "FK_route_animations_maps_map_id",
+                        column: x => x.map_id,
+                        principalTable: "maps",
+                        principalColumn: "map_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_route_animations_segments_segment_id",
+                        column: x => x.segment_id,
+                        principalTable: "segments",
+                        principalColumn: "segment_id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "segment_layers",
                 columns: table => new
                 {
@@ -1395,19 +1466,29 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "linked_location_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_locations_map_id",
+                name: "IX_locations_zone_id",
+                table: "locations",
+                column: "zone_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_map_locations_map_id",
                 table: "locations",
                 column: "map_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_locations_segment_id",
+                name: "IX_map_locations_map_id_display_order",
+                table: "locations",
+                columns: new[] { "map_id", "display_order" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_map_locations_segment_id",
                 table: "locations",
                 column: "segment_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_locations_zone_id",
+                name: "IX_map_locations_segment_id_display_order",
                 table: "locations",
-                column: "zone_id");
+                columns: new[] { "segment_id", "display_order" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_map_features_created_by",
@@ -1531,6 +1612,21 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "owner_user_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_route_animations_map_id",
+                table: "route_animations",
+                column: "map_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_route_animations_segment_id",
+                table: "route_animations",
+                column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_route_animations_to_location_id",
+                table: "route_animations",
+                column: "to_location_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_segment_layers_layer_id",
                 table: "segment_layers",
                 column: "layer_id");
@@ -1541,9 +1637,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "segment_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_segment_layers_segment_id_display_order",
+                table: "segment_layers",
+                columns: new[] { "segment_id", "display_order" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_segment_zones_segment_id",
                 table: "segment_zones",
                 column: "segment_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_segment_zones_segment_id_display_order",
+                table: "segment_zones",
+                columns: new[] { "segment_id", "display_order" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_segment_zones_zone_id",
@@ -1662,6 +1768,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "organization_members");
+
+            migrationBuilder.DropTable(
+                name: "route_animations");
 
             migrationBuilder.DropTable(
                 name: "segment_layers");

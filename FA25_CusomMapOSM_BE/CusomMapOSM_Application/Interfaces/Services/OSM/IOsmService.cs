@@ -12,5 +12,6 @@ namespace CusomMapOSM_Application.Interfaces.Services.OSM
         Task<GeocodingResultDTO> GeocodeAddressAsync(string address);
         Task<string> GetReverseGeocodingAsync(double lat, double lon);
         Task<string> GetRouteBetweenPointsAsync(double fromLat, double fromLon, double toLat, double toLon, string routeType = "road");
+        Task<string> GetRouteWithWaypointsAsync(List<(double lat, double lon)> waypoints, string routeType = "road");
     }
 }

@@ -21,12 +21,14 @@ public interface IStoryMapService
     Task<Option<SegmentZoneDto, Error>> CreateSegmentZoneAsync(CreateSegmentZoneV2Request request, CancellationToken ct = default);
     Task<Option<SegmentZoneDto, Error>> UpdateSegmentZoneAsync(Guid segmentZoneId, UpdateSegmentZoneV2Request request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteSegmentZoneAsync(Guid segmentZoneId, CancellationToken ct = default);
+    Task<Option<bool, Error>> MoveZoneToSegmentAsync(Guid segmentZoneId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default);
 
     // ================== SEGMENT LAYER (Layer trên segment) ==================
     Task<Option<IReadOnlyCollection<SegmentLayerDto>, Error>> GetSegmentLayersAsync(Guid segmentId, CancellationToken ct = default);
     Task<Option<SegmentLayerDto, Error>> CreateSegmentLayerAsync(CreateSegmentLayerRequest request, CancellationToken ct = default);
     Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId, UpdateSegmentLayerRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct = default);
+    Task<Option<bool, Error>> MoveLayerToSegmentAsync(Guid segmentLayerId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default);
 
     // ================== ZONE (Master data - Administrative boundaries) ==================
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> GetZonesAsync(CancellationToken ct = default);
@@ -53,6 +55,7 @@ public interface IStoryMapService
     Task<Option<RouteAnimationDto, Error>> CreateRouteAnimationAsync(CreateRouteAnimationRequest request, CancellationToken ct = default);
     Task<Option<RouteAnimationDto, Error>> UpdateRouteAnimationAsync(Guid routeAnimationId, UpdateRouteAnimationRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> DeleteRouteAnimationAsync(Guid routeAnimationId, CancellationToken ct = default);
+    Task<Option<bool, Error>> MoveRouteToSegmentAsync(Guid routeAnimationId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default);
 
     // ================== ANIMATED LAYER (GIF/Video overlay trên segment) ==================
     Task<Option<IReadOnlyCollection<AnimatedLayerDto>, Error>> GetAnimatedLayersAsync(Guid mapId, CancellationToken ct = default);
@@ -77,4 +80,5 @@ public interface IStoryMapService
     Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchRoutesAsync(string from, string to, CancellationToken ct = default);
     Task<Option<string, Error>> SearchRouteBetweenLocationsAsync(Guid fromLocationId, Guid toLocationId, string routeType = "road", CancellationToken ct = default);
+    Task<Option<string, Error>> SearchRouteWithMultipleLocationsAsync(List<Guid> locationIds, string routeType = "road", CancellationToken ct = default);
 }

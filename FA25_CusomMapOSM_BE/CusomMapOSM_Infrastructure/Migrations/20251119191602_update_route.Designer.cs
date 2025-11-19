@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251117214608_Update_zone")]
-    partial class Update_zone
+    [Migration("20251119191602_update_route")]
+    partial class update_route
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -951,11 +951,19 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("LinkedLocationId");
 
-                    b.HasIndex("MapId");
+                    b.HasIndex("MapId")
+                        .HasDatabaseName("IX_map_locations_map_id");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_map_locations_segment_id");
 
                     b.HasIndex("ZoneId");
+
+                    b.HasIndex("MapId", "DisplayOrder")
+                        .HasDatabaseName("IX_map_locations_map_id_display_order");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_map_locations_segment_id_display_order");
 
                     b.ToTable("locations", (string)null);
                 });
@@ -2028,7 +2036,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("LayerId");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_segment_layers_segment_id");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_segment_layers_segment_id_display_order");
 
                     b.ToTable("segment_layers", (string)null);
                 });
@@ -2175,9 +2187,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasKey("SegmentZoneId");
 
-                    b.HasIndex("SegmentId");
+                    b.HasIndex("SegmentId")
+                        .HasDatabaseName("IX_segment_zones_segment_id");
 
                     b.HasIndex("ZoneId");
+
+                    b.HasIndex("SegmentId", "DisplayOrder")
+                        .HasDatabaseName("IX_segment_zones_segment_id_display_order");
 
                     b.ToTable("segment_zones", (string)null);
                 });
@@ -2272,6 +2288,201 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDatabaseName("IX_support_ticket_messages_ticket_id");
 
                     b.ToTable("support_ticket_messages", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.RouteAnimation", b =>
+                {
+                    b.Property<Guid>("RouteAnimationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("route_animation_id");
+
+                    b.Property<bool>("AutoPlay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("auto_play");
+
+                    b.Property<string>("CameraStateAfter")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("camera_state_after");
+
+                    b.Property<string>("CameraStateBefore")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("camera_state_before");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<int>("DurationMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(5000)
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("Easing")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("linear")
+                        .HasColumnName("easing");
+
+                    b.Property<int?>("EndTimeMs")
+                        .HasColumnType("int")
+                        .HasColumnName("end_time_ms");
+
+                    b.Property<double>("FromLat")
+                        .HasColumnType("double")
+                        .HasColumnName("from_lat");
+
+                    b.Property<double>("FromLng")
+                        .HasColumnType("double")
+                        .HasColumnName("from_lng");
+
+                    b.Property<string>("FromName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("from_name");
+
+                    b.Property<int>("IconHeight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(32)
+                        .HasColumnName("icon_height");
+
+                    b.Property<string>("IconType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("car")
+                        .HasColumnName("icon_type");
+
+                    b.Property<string>("IconUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("icon_url");
+
+                    b.Property<int>("IconWidth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(32)
+                        .HasColumnName("icon_width");
+
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_visible");
+
+                    b.Property<int?>("LocationInfoDisplayDurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("location_info_display_duration_ms");
+
+                    b.Property<bool>("Loop")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("loop");
+
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
+
+                    b.Property<string>("RouteColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("#666666")
+                        .HasColumnName("route_color");
+
+                    b.Property<string>("RoutePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("route_path");
+
+                    b.Property<int>("RouteWidth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(4)
+                        .HasColumnName("route_width");
+
+                    b.Property<Guid>("SegmentId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("segment_id");
+
+                    b.Property<bool>("ShowLocationInfoOnArrival")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("show_location_info_on_arrival");
+
+                    b.Property<int?>("StartDelayMs")
+                        .HasColumnType("int")
+                        .HasColumnName("start_delay_ms");
+
+                    b.Property<int?>("StartTimeMs")
+                        .HasColumnType("int")
+                        .HasColumnName("start_time_ms");
+
+                    b.Property<double>("ToLat")
+                        .HasColumnType("double")
+                        .HasColumnName("to_lat");
+
+                    b.Property<double>("ToLng")
+                        .HasColumnType("double")
+                        .HasColumnName("to_lng");
+
+                    b.Property<Guid?>("ToLocationId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("to_location_id");
+
+                    b.Property<string>("ToName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("to_name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("VisitedColor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("#3b82f6")
+                        .HasColumnName("visited_color");
+
+                    b.Property<string>("Waypoints")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("waypoints");
+
+                    b.Property<int>("ZIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1000)
+                        .HasColumnName("z_index");
+
+                    b.HasKey("RouteAnimationId");
+
+                    b.HasIndex("MapId");
+
+                    b.HasIndex("SegmentId");
+
+                    b.HasIndex("ToLocationId")
+                        .HasDatabaseName("IX_route_animations_to_location_id");
+
+                    b.ToTable("route_animations", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.TimelineTransition", b =>
@@ -3135,6 +3346,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("SupportTicket");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.RouteAnimation", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                        .WithMany()
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Segments.Segment", "Segment")
+                        .WithMany()
+                        .HasForeignKey("SegmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Map");
+
+                    b.Navigation("Segment");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Timeline.TimelineTransition", b =>
