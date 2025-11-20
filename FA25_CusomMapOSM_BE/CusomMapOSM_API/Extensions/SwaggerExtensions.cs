@@ -92,8 +92,6 @@ public static class SwaggerExtensions
 
     public static WebApplication UseSwaggerServices(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-        {
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
@@ -114,7 +112,6 @@ public static class SwaggerExtensions
                 options.DisplayRequestDuration();
                 options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
             });
-        }
 
         return app;
     }
