@@ -3,13 +3,15 @@ version: '3.8'
 services:
   redis:
     image: redis:latest
+    container_name: redis_osm
     ports:
       - "6379:6379"
     networks:
       - backend
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
 
   mysql:
     image: mysql:8.0
@@ -17,10 +19,10 @@ services:
     ports:
       - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-123456}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-imos}
+      - MYSQL_USER=${MYSQL_USER:-imosuser}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-imospassword}
     networks:
       - backend
     volumes:
@@ -28,15 +30,71 @@ services:
       - ./mysql-init:/docker-entrypoint-initdb.d
     command: --default-authentication-plugin=mysql_native_password
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # cusommaposm_api:
-  #   image: cusommaposmapi
-  #   container_name: cusommaposm_api
-  #   build:
-  #       context: .
-  #       dockerfile: src/CusomMapOSM_API/Dockerfile
-  #   networks:
-  #     - backend
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb_osm
+    ports:
+      - "27017:27017"
+    networks:
+      - backend
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE_NAME:-custommap_osm_dev}
+
+  cusommaposm_api:
+    build:
+      context: .
+      dockerfile: CusomMapOSM_API/Dockerfile
+    container_name: cusommaposm_api
+    ports:
+      - "5000:5000"
+    networks:
+      - backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mongodb:
+        condition: service_started
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - DATABASE_CONNECTION_STRING=${DATABASE_CONNECTION_STRING}
+      - REDIS_CONNECTION_STRING=${REDIS_CONNECTION_STRING}
+      - MONGO_CONNECTION_STRING=${MONGO_CONNECTION_STRING}
+      - MONGO_DATABASE_NAME=${MONGO_DATABASE_NAME:-custommap_osm_dev}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
+      - PAYPAL_SECRET=${PAYPAL_SECRET}
+      - STRIPE_SECRET=${STRIPE_SECRET}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
+      - PAYOS_API_KEY=${PAYOS_API_KEY}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
+      - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
+      - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - VNPAY_URL=${VNPAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      - MinIO__Endpoint=${MinIO__Endpoint:-minio:9000}
+      - MinIO__AccessKey=${MinIO__AccessKey:-minioadmin}
+      - MinIO__SecretKey=${MinIO__SecretKey:-minioadmin}
+      - MinIO__UseSSL=${MinIO__UseSSL:-false}
+    volumes:
+      - ./uploads:/App/uploads
+    restart: unless-stopped
 
 networks:
   backend:
@@ -44,3 +102,5 @@ networks:
 
 volumes:
   mysql_data:
+  redis_data:
+  mongodb_data:

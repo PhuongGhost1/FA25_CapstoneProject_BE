@@ -99,9 +99,17 @@ using StackExchange.Redis;
 using System.Net.Sockets;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
+using CusomMapOSM_Application.Interfaces.Features.Sessions;
 using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Sessions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Features.Locations;
 using CusomMapOSM_Infrastructure.Features.Notifications;
+using CusomMapOSM_Infrastructure.Features.QuestionBanks;
+using CusomMapOSM_Infrastructure.Features.Sessions;
 using Hangfire;
 using Hangfire.Redis;
 
@@ -138,7 +146,12 @@ public static class DependencyInjections
         services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
-
+        services.AddScoped<IQuestionBankRepository, QuestionBankRepository>();
+        services.AddScoped<IQuestionRepository, QuestionRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
+        services.AddScoped<ISessionParticipantRepository, SessionParticipantRepository>();
+        services.AddScoped<ISessionQuestionRepository, SessionQuestionRepository>();
+        services.AddScoped<IStudentResponseRepository, StudentResponseRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
@@ -204,7 +217,7 @@ public static class DependencyInjections
         services.AddSingleton<ISegmentExecutionStateStore, InMemorySegmentExecutionStateStore>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
-        
+        services.AddScoped<ISessionService, SessionService>();
 
         services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
         services.AddScoped<IOrganizationAdminRepository, OrganizationAdminRepository>();
@@ -238,7 +251,7 @@ public static class DependencyInjections
             }
         })
         .SetHandlerLifetime(TimeSpan.FromMinutes(5));
-        
+        services.AddScoped<IQuestionBankService, QuestionBankService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
