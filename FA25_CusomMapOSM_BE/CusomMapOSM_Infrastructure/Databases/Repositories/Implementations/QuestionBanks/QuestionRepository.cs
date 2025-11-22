@@ -17,6 +17,15 @@ public class QuestionRepository : IQuestionRepository
     public async Task<bool> CreateQuestion(Question question)
     {
         _context.Questions.Add(question);
+        
+        if (question.QuestionOptions != null && question.QuestionOptions.Any())
+        {
+            foreach (var option in question.QuestionOptions)
+            {
+                _context.Entry(option).State = EntityState.Added;
+            }
+        }
+        
         return await _context.SaveChangesAsync() > 0;
     }
 

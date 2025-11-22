@@ -178,14 +178,7 @@ public class QuestionBankService : IQuestionBankService
             CreatedAt = DateTime.UtcNow
         };
 
-        var created = await _questionRepository.CreateQuestion(question);
-        if (!created)
-        {
-            return Option.None<Guid, Error>(
-                Error.Failure("Question.CreateFailed", "Failed to create question"));
-        }
-
-        // Create options if provided
+        // Create options if provided and assign to question before saving
         if (request.Options != null && request.Options.Any())
         {
             var options = request.Options.Select(o => new QuestionOption
@@ -199,9 +192,14 @@ public class QuestionBankService : IQuestionBankService
                 CreatedAt = DateTime.UtcNow
             }).ToList();
 
-            // Note: This requires adding CreateOptions method to repository
-            // For now, we'll assume it's handled by cascade
             question.QuestionOptions = options;
+        }
+
+        var created = await _questionRepository.CreateQuestion(question);
+        if (!created)
+        {
+            return Option.None<Guid, Error>(
+                Error.Failure("Question.CreateFailed", "Failed to create question"));
         }
 
         // Update question count
