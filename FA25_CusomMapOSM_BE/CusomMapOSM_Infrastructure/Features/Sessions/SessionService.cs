@@ -754,16 +754,6 @@ public class SessionService : ISessionService
                     StringComparison.OrdinalIgnoreCase);
                 break;
 
-            case QuestionTypeEnum.WORD_CLOUD:
-                if (string.IsNullOrWhiteSpace(request.ResponseText))
-                {
-                    return Option.None<SubmitResponseResponse, Error>(
-                        Error.ValidationError("Response.MissingText", "Response text is required"));
-                }
-                // Word cloud doesn't have right/wrong answers
-                isCorrect = true;
-                break;
-
             case QuestionTypeEnum.PIN_ON_MAP:
                 if (request.ResponseLatitude == null || request.ResponseLongitude == null)
                 {
@@ -786,6 +776,10 @@ public class SessionService : ISessionService
                 var acceptanceRadius = question.AcceptanceRadiusMeters ?? 1000; // Default 1km
                 isCorrect = distanceError <= acceptanceRadius;
                 break;
+
+            default:
+                return Option.None<SubmitResponseResponse, Error>(
+                    Error.ValidationError("Question.UnsupportedType", "Question type is not supported"));
         }
 
         // Calculate points

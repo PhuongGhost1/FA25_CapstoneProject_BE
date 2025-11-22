@@ -138,7 +138,7 @@ public class LocationService : ILocationService
             }
         }
         
-        // Process HTML content to upload base64 images to MinIO
+        // Process HTML content to upload base64 images to Firebase Storage
         var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
             request.TooltipContent, 
             folder: "poi-tooltips", 
@@ -252,7 +252,7 @@ public class LocationService : ILocationService
             location.MarkerGeometry = request.MarkerGeometry;
         }
 
-        // Process HTML content to upload base64 images to MinIO
+        // Process HTML content to upload base64 images to Firebase Storage
         if (request.TooltipContent is not null)
         {
             location.TooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(

@@ -36,6 +36,4 @@ public class Session
     public Map? Map { get; set; }
     public QuestionBank? QuestionBank { get; set; }
     public User? HostUser { get; set; }
-    public ICollection<SessionQuestion>? SessionQuestions { get; set; }
-    public ICollection<SessionParticipant>? SessionParticipants { get; set; }
 }

@@ -11,7 +11,8 @@
 *.sln.docstates
 *.env
 *env
-
+*firebase-service-account.json
+*.vscode
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

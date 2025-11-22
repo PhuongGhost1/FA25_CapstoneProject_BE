@@ -2,10 +2,10 @@
 
 public enum SessionStatusEnum
 {
-    DRAFT = 1,
-    WAITING = 2,
-    IN_PROGRESS = 3,
-    PAUSED = 4,
-    COMPLETED = 5,
-    CANCELLED = 6
+    DRAFT = 0,
+    WAITING = 1,
+    IN_PROGRESS = 2,
+    PAUSED = 3,
+    COMPLETED = 4,
+    CANCELLED = 5
 }

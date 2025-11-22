@@ -1,6 +1,9 @@
-﻿using CusomMapOSM_Application.Interfaces.Services.Cache;
+using CusomMapOSM_Application.Interfaces.Features.QuickPolls;
+using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Models.DTOs.Features.QuickPolls;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Events;
+using CusomMapOSM_Application.Models.DTOs.Features.QuickPolls.Request;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -13,6 +16,7 @@ public class SessionHub : Hub
     private readonly ISessionParticipantRepository _participantRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IRedisCacheService _redisCacheService;
+    private readonly IQuickPollService _quickPollService;
     private readonly ILogger<SessionHub> _logger;
 
     // Track connection to session mapping for cleanup
@@ -25,12 +29,14 @@ public class SessionHub : Hub
         ISessionParticipantRepository participantRepository,
         ICurrentUserService currentUserService,
         IRedisCacheService redisCacheService,
+        IQuickPollService quickPollService,
         ILogger<SessionHub> logger)
     {
         _sessionRepository = sessionRepository;
         _participantRepository = participantRepository;
         _currentUserService = currentUserService;
         _redisCacheService = redisCacheService;
+        _quickPollService = quickPollService;
         _logger = logger;
     }
 
@@ -170,6 +176,102 @@ public class SessionHub : Hub
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync map state" });
         }
     }
+
+    #region Quick Polls
+
+    public async Task CreatePoll(CreateQuickPollRequest request)
+    {
+        var result = await _quickPollService.CreatePoll(request);
+        await result.Match(
+            async poll =>
+            {
+                await Clients.Group(GetSessionGroupName(request.SessionId))
+                    .SendAsync("PollCreated", poll);
+                if (poll.Status == PollStatusEnum.Active)
+                {
+                    await Clients.Group(GetSessionGroupName(request.SessionId))
+                        .SendAsync("PollActivated", poll);
+                }
+            },
+            async error =>
+            {
+                await Clients.Caller.SendAsync("Error", error.Description);
+            });
+    }
+
+    public async Task SubmitVote(VoteRequest request)
+    {
+        var result = await _quickPollService.Vote(request);
+        await result.Match(
+            async _ =>
+            {
+                var resultsOption = await _quickPollService.GetPollResults(request.PollId);
+                await resultsOption.Match(
+                    async results =>
+                    {
+                        await Clients.Group(GetSessionGroupName(results.SessionId))
+                            .SendAsync("PollResultsUpdated", results);
+                    },
+                    async _ => { });
+            },
+            async error =>
+            {
+                await Clients.Caller.SendAsync("Error", error.Description);
+            });
+    }
+
+    public async Task ClosePoll(Guid pollId, Guid sessionId)
+    {
+        var result = await _quickPollService.ClosePoll(pollId);
+        await result.Match(
+            async _ =>
+            {
+                await Clients.Group(GetSessionGroupName(sessionId))
+                    .SendAsync("PollClosed", pollId);
+            },
+            async error =>
+            {
+                await Clients.Caller.SendAsync("Error", error.Description);
+            });
+    }
+
+    public async Task GetResults(Guid pollId)
+    {
+        var result = await _quickPollService.GetPollResults(pollId);
+        await result.Match(
+            async poll => await Clients.Caller.SendAsync("PollResults", poll),
+            async error => await Clients.Caller.SendAsync("Error", error.Description));
+    }
+
+    public async Task GetActivePoll(Guid sessionId)
+    {
+        var result = await _quickPollService.GetActivePoll(sessionId);
+        await result.Match(
+            async poll => await Clients.Caller.SendAsync("PollResults", poll),
+            async error => await Clients.Caller.SendAsync("Error", error.Description));
+    }
+
+    public async Task ActivatePoll(Guid pollId)
+    {
+        var result = await _quickPollService.ActivatePoll(pollId);
+        await result.Match(
+            async poll =>
+            {
+                await Clients.Group(GetSessionGroupName(poll.SessionId))
+                    .SendAsync("PollActivated", poll);
+            },
+            async error => await Clients.Caller.SendAsync("Error", error.Description));
+    }
+
+    public async Task GetPollHistory(Guid sessionId)
+    {
+        var result = await _quickPollService.GetPollHistory(sessionId);
+        await result.Match(
+            async polls => await Clients.Caller.SendAsync("PollHistory", polls),
+            async error => await Clients.Caller.SendAsync("Error", error.Description));
+    }
+
+    #endregion
 
     /// <summary>
     /// Auto-cleanup on disconnect

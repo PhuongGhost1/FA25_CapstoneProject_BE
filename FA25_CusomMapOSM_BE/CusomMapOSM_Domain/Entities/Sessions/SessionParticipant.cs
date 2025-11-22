@@ -21,9 +21,6 @@ public class SessionParticipant
     public string? IpAddress { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-
-    // Navigation properties
     public Session? Session { get; set; }
     public User? User { get; set; }
-    public ICollection<StudentResponse>? StudentResponses { get; set; }
 }

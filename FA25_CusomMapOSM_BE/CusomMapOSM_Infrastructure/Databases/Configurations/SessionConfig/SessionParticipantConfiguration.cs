@@ -85,7 +85,7 @@ internal class SessionParticipantConfiguration : IEntityTypeConfiguration<Sessio
 
         // Relationships
         builder.HasOne(sp => sp.Session)
-            .WithMany(s => s.SessionParticipants)
+            .WithMany()
             .HasForeignKey(sp => sp.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -93,11 +93,6 @@ internal class SessionParticipantConfiguration : IEntityTypeConfiguration<Sessio
             .WithMany()
             .HasForeignKey(sp => sp.UserId)
             .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasMany(sp => sp.StudentResponses)
-            .WithOne(sr => sr.SessionParticipant)
-            .HasForeignKey(sr => sr.SessionParticipantId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         // Indexes
         builder.HasIndex(sp => sp.SessionId)

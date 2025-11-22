@@ -674,6 +674,127 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.GroupSubmission", b =>
+                {
+                    b.Property<Guid>("SubmissionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("submission_id");
+
+                    b.Property<string>("AttachmentUrls")
+                        .HasColumnType("json")
+                        .HasColumnName("attachment_urls");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<string>("Feedback")
+                        .HasColumnType("text")
+                        .HasColumnName("feedback");
+
+                    b.Property<DateTime?>("GradedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("graded_at");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("group_id");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("int")
+                        .HasColumnName("score");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("submitted_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("SubmissionId");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("group_submissions", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.SessionGroup", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("group_id");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("color");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("GroupName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("group_name");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("session_id");
+
+                    b.HasKey("GroupId");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("session_groups", (string)null);
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.SessionGroupMember", b =>
+                {
+                    b.Property<Guid>("GroupMemberId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("group_member_id");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsLeader")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_leader");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("joined_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("SessionParticipantId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("session_participant_id");
+
+                    b.HasKey("GroupMemberId");
+
+                    b.HasIndex("GroupId");
+
+                    b.HasIndex("SessionParticipantId");
+
+                    b.ToTable("session_group_members", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.Layer", b =>
                 {
                     b.Property<Guid>("LayerId")
@@ -3715,6 +3836,47 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Membership");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.GroupSubmission", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Groups.SessionGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.SessionGroup", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Sessions.Session", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Groups.SessionGroupMember", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Groups.SessionGroup", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Sessions.SessionParticipant", "SessionParticipant")
+                        .WithMany()
+                        .HasForeignKey("SessionParticipantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("SessionParticipant");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Layers.Layer", b =>

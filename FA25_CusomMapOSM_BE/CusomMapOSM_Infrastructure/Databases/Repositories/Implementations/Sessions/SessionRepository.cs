@@ -91,9 +91,6 @@ public class SessionRepository : ISessionRepository
             .Include(s => s.Map)
             .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
-            .Include(s => s.SessionQuestions!.OrderBy(sq => sq.QueueOrder))
-                .ThenInclude(sq => sq.Question)
-                    .ThenInclude(q => q!.QuestionOptions!.OrderBy(o => o.DisplayOrder))
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
 
@@ -103,8 +100,6 @@ public class SessionRepository : ISessionRepository
             .Include(s => s.Map)
             .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
-            .Include(s => s.SessionParticipants!.OrderByDescending(sp => sp.TotalScore))
-                .ThenInclude(sp => sp.User)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
 
@@ -114,11 +109,6 @@ public class SessionRepository : ISessionRepository
             .Include(s => s.Map)
             .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
-            .Include(s => s.SessionQuestions!.OrderBy(sq => sq.QueueOrder))
-                .ThenInclude(sq => sq.Question)
-                    .ThenInclude(q => q!.QuestionOptions)
-            .Include(s => s.SessionParticipants!.OrderByDescending(sp => sp.TotalScore))
-                .ThenInclude(sp => sp.User)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
 

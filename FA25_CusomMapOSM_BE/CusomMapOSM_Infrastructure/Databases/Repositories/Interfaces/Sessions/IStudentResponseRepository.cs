@@ -21,9 +21,6 @@ public interface IStudentResponseRepository
     Task<decimal> GetAverageResponseTime(Guid sessionQuestionId);
     Task<List<StudentResponse>> GetResponsesForAnalytics(Guid sessionQuestionId);
 
-    // Word Cloud Data (for WORD_CLOUD question type)
-    Task<Dictionary<string, int>> GetWordCloudData(Guid sessionQuestionId);
-
     // Map Pin Data (for PIN_ON_MAP question type)
     Task<List<StudentResponse>> GetMapPinResponses(Guid sessionQuestionId);
 }

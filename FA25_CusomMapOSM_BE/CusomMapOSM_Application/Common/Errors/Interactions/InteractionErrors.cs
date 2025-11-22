@@ -65,9 +65,9 @@ public static class InteractionErrors
         "Interaction.MongoConnectionFailed",
         $"Failed to connect to MongoDB: {reason}");
 
-    public static Error MinIOConnectionFailed(string reason) => Error.Problem(
-        "Interaction.MinIOConnectionFailed",
-        $"Failed to connect to MinIO storage: {reason}");
+    public static Error FirebaseStorageConnectionFailed(string reason) => Error.Problem(
+        "Interaction.FirebaseStorageConnectionFailed",
+        $"Failed to connect to Firebase Storage: {reason}");
 
     public static Error InactiveInteraction(Guid interactionId) => Error.Forbidden(
         "Interaction.InactiveInteraction",
