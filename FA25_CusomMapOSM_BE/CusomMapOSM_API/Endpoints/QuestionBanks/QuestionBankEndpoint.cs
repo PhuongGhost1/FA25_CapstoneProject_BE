@@ -153,6 +153,21 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(401)
             .Produces(403);
 
+        // Get Questions by Question Bank ID
+        group.MapGet("/{questionBankId:guid}/questions", async (
+                [FromRoute] Guid questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetQuestionsByQuestionBankId(questionBankId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetQuestionsByQuestionBankId")
+            .WithDescription("Get all questions in a question bank")
+            .Produces(200)
+            .Produces(404);
+
         // Delete Question
         group.MapDelete("/questions/{questionId:guid}", async (
                 [FromRoute] Guid questionId,

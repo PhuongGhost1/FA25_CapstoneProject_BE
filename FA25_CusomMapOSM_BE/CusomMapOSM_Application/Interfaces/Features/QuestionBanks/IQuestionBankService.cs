@@ -18,5 +18,6 @@ public interface IQuestionBankService
 
     // Question CRUD
     Task<Option<Guid, Error>> CreateQuestion(CreateQuestionRequest request);
+    Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId);
     Task<Option<bool, Error>> DeleteQuestion(Guid questionId);
 }
