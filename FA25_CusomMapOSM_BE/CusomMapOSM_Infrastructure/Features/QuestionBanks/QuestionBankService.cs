@@ -208,6 +208,22 @@ public class QuestionBankService : IQuestionBankService
         return Option.Some<Guid, Error>(question.QuestionId);
     }
 
+    public async Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId)
+    {
+        // Check if question bank exists
+        var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+        if (questionBank == null)
+        {
+            return Option.None<List<QuestionDTO>, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        var questions = await _questionRepository.GetQuestionsWithOptions(questionBankId);
+        var dtos = questions.Select(MapToQuestionDto).ToList();
+
+        return Option.Some<List<QuestionDTO>, Error>(dtos);
+    }
+
     public async Task<Option<QuestionBankDTO, Error>> AddQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
@@ -431,6 +447,40 @@ public class QuestionBankService : IQuestionBankService
             IsPublic = questionBank.IsPublic,
             CreatedAt = questionBank.CreatedAt,
             UpdatedAt = questionBank.UpdatedAt
+        };
+    }
+
+    private static QuestionDTO MapToQuestionDto(Question question)
+    {
+        return new QuestionDTO
+        {
+            QuestionId = question.QuestionId,
+            QuestionBankId = question.QuestionBankId,
+            LocationId = question.LocationId,
+            QuestionType = question.QuestionType.ToString(),
+            QuestionText = question.QuestionText,
+            QuestionImageUrl = question.QuestionImageUrl,
+            QuestionAudioUrl = question.QuestionAudioUrl,
+            Points = question.Points,
+            TimeLimit = question.TimeLimit,
+            CorrectAnswerText = question.CorrectAnswerText,
+            CorrectLatitude = question.CorrectLatitude,
+            CorrectLongitude = question.CorrectLongitude,
+            AcceptanceRadiusMeters = question.AcceptanceRadiusMeters,
+            HintText = question.HintText,
+            Explanation = question.Explanation,
+            DisplayOrder = question.DisplayOrder,
+            CreatedAt = question.CreatedAt,
+            UpdatedAt = question.UpdatedAt,
+            Options = question.QuestionOptions?.Select(o => new QuestionOptionDTO
+            {
+                QuestionOptionId = o.QuestionOptionId,
+                QuestionId = o.QuestionId,
+                OptionText = o.OptionText,
+                OptionImageUrl = o.OptionImageUrl,
+                IsCorrect = o.IsCorrect,
+                DisplayOrder = o.DisplayOrder
+            }).OrderBy(o => o.DisplayOrder).ToList()
         };
     }
 }

@@ -77,7 +77,7 @@ internal class StudentResponseConfiguration : IEntityTypeConfiguration<StudentRe
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(sr => sr.SessionParticipant)
-            .WithMany(sp => sp.StudentResponses)
+            .WithMany()
             .HasForeignKey(sr => sr.SessionParticipantId)
             .OnDelete(DeleteBehavior.Cascade);
 

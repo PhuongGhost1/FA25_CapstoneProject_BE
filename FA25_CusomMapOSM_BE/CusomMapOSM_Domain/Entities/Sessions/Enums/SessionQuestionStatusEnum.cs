@@ -2,8 +2,8 @@
 
 public enum SessionQuestionStatusEnum
 {
-    QUEUED = 1,
-    ACTIVE = 2,
-    SKIPPED = 3,
-    COMPLETED = 4
+    QUEUED = 0,
+    ACTIVE = 1,
+    SKIPPED = 2,
+    COMPLETED = 3
 }

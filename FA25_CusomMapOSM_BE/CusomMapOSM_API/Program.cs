@@ -91,10 +91,7 @@ public class Program
             options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
             options.InstanceName = "IMOS:";
         });
-
-        builder.Services.AddSingleton<TemplateCacheManager>();
-        builder.Services.AddHostedService<TemplateCacheHostedService>();
-
+        
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("FrontendCors", policy =>

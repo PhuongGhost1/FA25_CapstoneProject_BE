@@ -102,37 +102,6 @@ public class StudentResponseRepository : IStudentResponseRepository
             .ToListAsync();
     }
 
-    public async Task<Dictionary<string, int>> GetWordCloudData(Guid sessionQuestionId)
-    {
-        var responses = await _context.StudentResponses
-            .Where(sr => sr.SessionQuestionId == sessionQuestionId && !string.IsNullOrEmpty(sr.ResponseText))
-            .Select(sr => sr.ResponseText!)
-            .ToListAsync();
-
-        var wordFrequency = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var response in responses)
-        {
-            // Simple word tokenization - can be improved with NLP libraries
-            var words = response.Split(new[] { ' ', ',', '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var word in words)
-            {
-                var cleanWord = word.Trim().ToLower();
-                if (cleanWord.Length > 2) // Ignore very short words
-                {
-                    if (wordFrequency.ContainsKey(cleanWord))
-                        wordFrequency[cleanWord]++;
-                    else
-                        wordFrequency[cleanWord] = 1;
-                }
-            }
-        }
-
-        return wordFrequency.OrderByDescending(kvp => kvp.Value)
-            .Take(50) // Top 50 words
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-    }
-
     public async Task<List<StudentResponse>> GetMapPinResponses(Guid sessionQuestionId)
     {
         return await _context.StudentResponses

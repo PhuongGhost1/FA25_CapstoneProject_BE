@@ -71,7 +71,7 @@ internal class SessionQuestionConfiguration : IEntityTypeConfiguration<SessionQu
 
         // Relationships
         builder.HasOne(sq => sq.Session)
-            .WithMany(s => s.SessionQuestions)
+            .WithMany()
             .HasForeignKey(sq => sq.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
 

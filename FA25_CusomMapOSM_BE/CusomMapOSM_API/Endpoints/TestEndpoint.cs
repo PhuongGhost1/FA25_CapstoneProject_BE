@@ -1,5 +1,5 @@
 ﻿using CusomMapOSM_API.Interfaces;
-using CusomMapOSM_Application.Interfaces.Services.Blog;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -61,11 +61,11 @@ public class TestEndpoint : IEndpoint
         .WithDescription("Admin test endpoint - admin role required")
         .WithTags("Test");
 
-        // Azure Blob Storage Test Endpoints
+        // Firebase Storage Test Endpoints
         // Upload file test
-        group.MapPost("/blob/upload", async (
+        group.MapPost("/storage/upload", async (
                 IFormFile file,
-                [FromServices] IBlogStorageService blogStorageService) =>
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
             {
                 if (file == null || file.Length == 0)
                 {
@@ -80,16 +80,16 @@ public class TestEndpoint : IEndpoint
                 try
                 {
                     using var stream = file.OpenReadStream();
-                    var blobUrl = await blogStorageService.UploadFileAsync(file.FileName, stream);
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream);
 
                     return Results.Ok(new
                     {
                         success = true,
-                        message = "File uploaded successfully to Azure Blob Storage",
+                        message = "File uploaded successfully to Firebase Storage",
                         fileName = file.FileName,
                         fileSize = file.Length,
                         contentType = file.ContentType,
-                        blobUrl = blobUrl
+                        storageUrl = storageUrl
                     });
                 }
                 catch (Exception ex)
@@ -100,8 +100,8 @@ public class TestEndpoint : IEndpoint
                         statusCode: 500);
                 }
             })
-            .WithName("TestBlobUpload")
-            .WithDescription("Test endpoint for uploading file to Azure Blob Storage")
+            .WithName("TestStorageUpload")
+            .WithDescription("Test endpoint for uploading file to Firebase Storage")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Produces(200)
@@ -110,9 +110,9 @@ public class TestEndpoint : IEndpoint
             .WithTags("Test");
 
         // Download file test (returns URL)
-        group.MapGet("/blob/download/{fileName}", async (
+        group.MapGet("/storage/download/{fileName}", async (
                 string fileName,
-                [FromServices] IBlogStorageService blogStorageService) =>
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
             {
                 if (string.IsNullOrWhiteSpace(fileName))
                 {
@@ -126,14 +126,14 @@ public class TestEndpoint : IEndpoint
 
                 try
                 {
-                    var blobUrl = await blogStorageService.DownloadFileAsync(fileName);
+                    var storageUrl = await firebaseStorageService.DownloadFileAsync(fileName);
 
                     return Results.Ok(new
                     {
                         success = true,
                         message = "File download URL generated successfully",
                         fileName = fileName,
-                        blobUrl = blobUrl,
+                        storageUrl = storageUrl,
                         note = "Use this URL to download the file"
                     });
                 }
@@ -155,17 +155,17 @@ public class TestEndpoint : IEndpoint
                         statusCode: 500);
                 }
             })
-            .WithName("TestBlobDownload")
-            .WithDescription("Test endpoint for getting download URL from Azure Blob Storage")
+            .WithName("TestStorageDownload")
+            .WithDescription("Test endpoint for getting download URL from Firebase Storage")
             .Produces(200)
             .Produces(404)
             .Produces(500)
             .WithTags("Test");
 
         // Delete file test
-        group.MapDelete("/blob/delete/{fileName}", async (
+        group.MapDelete("/storage/delete/{fileName}", async (
                 string fileName,
-                [FromServices] IBlogStorageService blogStorageService) =>
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
             {
                 if (string.IsNullOrWhiteSpace(fileName))
                 {
@@ -179,14 +179,14 @@ public class TestEndpoint : IEndpoint
 
                 try
                 {
-                    var deleted = await blogStorageService.DeleteFileAsync(fileName);
+                    var deleted = await firebaseStorageService.DeleteFileAsync(fileName);
 
                     if (deleted)
                     {
                         return Results.Ok(new
                         {
                             success = true,
-                            message = "File deleted successfully from Azure Blob Storage",
+                            message = "File deleted successfully from Firebase Storage",
                             fileName = fileName
                         });
                     }
@@ -196,7 +196,7 @@ public class TestEndpoint : IEndpoint
                         {
                             success = false,
                             error = "File not found",
-                            message = $"File '{fileName}' was not found in Azure Blob Storage",
+                            message = $"File '{fileName}' was not found in Firebase Storage",
                             fileName = fileName
                         });
                     }
@@ -209,8 +209,8 @@ public class TestEndpoint : IEndpoint
                         statusCode: 500);
                 }
             })
-            .WithName("TestBlobDelete")
-            .WithDescription("Test endpoint for deleting file from Azure Blob Storage")
+            .WithName("TestStorageDelete")
+            .WithDescription("Test endpoint for deleting file from Firebase Storage")
             .Produces(200)
             .Produces(404)
             .Produces(500)

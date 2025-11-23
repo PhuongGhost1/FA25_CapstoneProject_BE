@@ -2,7 +2,7 @@
 
 public enum SessionTypeEnum
 {
-    LIVE = 1,
-    SELF_PACED = 2,
-    PRACTICE = 3
+    LIVE = 0,
+    SELF_PACED = 1,
+    PRACTICE = 2
 }

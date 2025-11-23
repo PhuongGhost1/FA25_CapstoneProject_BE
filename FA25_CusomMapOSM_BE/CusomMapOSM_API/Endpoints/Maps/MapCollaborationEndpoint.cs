@@ -111,9 +111,7 @@ public class MapCollaborationEndpoint : IEndpoint
     }
 }
 
-/// <summary>
-/// Response for getting active users
-/// </summary>
+
 public class GetActiveUsersResponse
 {
     public Guid MapId { get; set; }

@@ -1,6 +1,7 @@
 ﻿using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using Microsoft.AspNetCore.Mvc;
 
@@ -152,6 +153,21 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(401)
             .Produces(403);
 
+        // Get Questions by Question Bank ID
+        group.MapGet("/{questionBankId:guid}/questions", async (
+                [FromRoute] Guid questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetQuestionsByQuestionBankId(questionBankId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetQuestionsByQuestionBankId")
+            .WithDescription("Get all questions in a question bank")
+            .Produces(200)
+            .Produces(404);
+
         // Delete Question
         group.MapDelete("/questions/{questionId:guid}", async (
                 [FromRoute] Guid questionId,
@@ -169,5 +185,116 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(401)
             .Produces(403)
             .Produces(404);
+
+        // Upload Question Image
+        group.MapPost("/questions/upload-image", async (
+                IFormFile file,
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new { error = "No file provided" });
+                }
+
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return Results.BadRequest(new { error = "Invalid file type. Only images are allowed." });
+                }
+
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-images");
+                    return Results.Ok(new { imageUrl = storageUrl });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(detail: ex.Message, statusCode: 500);
+                }
+            })
+            .WithName("UploadQuestionImage")
+            .WithDescription("Upload an image for question")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
+
+        // Upload Question Audio
+        group.MapPost("/questions/upload-audio", async (
+                IFormFile file,
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new { error = "No file provided" });
+                }
+
+                var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return Results.BadRequest(new { error = "Invalid file type. Only audio files are allowed." });
+                }
+
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-audio");
+                    return Results.Ok(new { audioUrl = storageUrl });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(detail: ex.Message, statusCode: 500);
+                }
+            })
+            .WithName("UploadQuestionAudio")
+            .WithDescription("Upload an audio file for question")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
+
+        // Upload Option Image
+        group.MapPost("/questions/options/upload-image", async (
+                IFormFile file,
+                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new { error = "No file provided" });
+                }
+
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return Results.BadRequest(new { error = "Invalid file type. Only images are allowed." });
+                }
+
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-option-images");
+                    return Results.Ok(new { imageUrl = storageUrl });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(detail: ex.Message, statusCode: 500);
+                }
+            })
+            .WithName("UploadOptionImage")
+            .WithDescription("Upload an image for question option")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
     }
 }

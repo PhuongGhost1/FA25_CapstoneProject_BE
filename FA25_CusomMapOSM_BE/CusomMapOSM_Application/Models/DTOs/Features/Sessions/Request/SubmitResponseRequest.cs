@@ -10,7 +10,7 @@ public class SubmitResponseRequest
     // For MULTIPLE_CHOICE and TRUE_FALSE
     public Guid? QuestionOptionId { get; set; }
 
-    // For SHORT_ANSWER and WORD_CLOUD
+    // For SHORT_ANSWER
     [StringLength(1000)]
     public string? ResponseText { get; set; }
 

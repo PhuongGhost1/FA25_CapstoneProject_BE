@@ -130,16 +130,6 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasForeignKey(s => s.HostUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasMany(s => s.SessionQuestions)
-            .WithOne(sq => sq.Session)
-            .HasForeignKey(sq => sq.SessionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasMany(s => s.SessionParticipants)
-            .WithOne(sp => sp.Session)
-            .HasForeignKey(sp => sp.SessionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         // Indexes
         builder.HasIndex(s => s.SessionCode)
             .IsUnique()

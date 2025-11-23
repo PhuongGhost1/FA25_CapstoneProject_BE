@@ -1,16 +1,16 @@
 using System.Text.RegularExpressions;
-using CusomMapOSM_Application.Interfaces.Services.MinIO;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using Microsoft.Extensions.Logging;
 
 namespace CusomMapOSM_Infrastructure.Services;
 
 /// <summary>
-/// Service to process HTML content and upload base64 images to MinIO storage,
-/// replacing base64 data URLs with MinIO URLs to reduce database size.
+/// Service to process HTML content and upload base64 images to Firebase Storage,
+/// replacing base64 data URLs with Firebase Storage URLs to reduce database size.
 /// </summary>
 public class HtmlContentImageProcessor
 {
-    private readonly IMinIOService _minioService;
+    private readonly IFirebaseStorageService _storageService;
     private readonly ILogger<HtmlContentImageProcessor> _logger;
     private const int MaxBase64SizeBytes = 5 * 1024 * 1024; // 5MB limit per image
 
@@ -21,21 +21,21 @@ public class HtmlContentImageProcessor
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public HtmlContentImageProcessor(
-        IMinIOService minioService,
+        IFirebaseStorageService storageService,
         ILogger<HtmlContentImageProcessor> logger)
     {
-        _minioService = minioService;
+        _storageService = storageService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Processes HTML content, extracts base64 images, uploads them to MinIO,
-    /// and replaces base64 data URLs with MinIO URLs.
+    /// Processes HTML content, extracts base64 images, uploads them to Firebase Storage,
+    /// and replaces base64 data URLs with Firebase Storage URLs.
     /// </summary>
     /// <param name="htmlContent">HTML content that may contain base64 images</param>
-    /// <param name="folder">Folder path in MinIO (e.g., "poi-tooltips", "poi-popups")</param>
+    /// <param name="folder">Folder path in Firebase Storage (e.g., "poi-tooltips", "poi-popups")</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>Processed HTML content with base64 images replaced by MinIO URLs</returns>
+    /// <returns>Processed HTML content with base64 images replaced by Firebase Storage URLs</returns>
     public async Task<string> ProcessHtmlContentAsync(
         string? htmlContent,
         string folder = "poi-content",
@@ -89,33 +89,19 @@ public class HtmlContentImageProcessor
                     _ => "jpg" // Default to jpg
                 };
 
-                var contentType = $"image/{imageType}";
                 var fileName = $"image_{Guid.NewGuid():N}.{extension}";
 
-                // Upload to MinIO
+                // Upload to Firebase Storage
                 using var imageStream = new MemoryStream(imageBytes);
-                var objectName = await _minioService.UploadFileAsync(
-                    imageStream,
-                    fileName,
-                    contentType,
-                    folder,
-                    ct);
+                var imageUrl = await _storageService.UploadFileAsync(fileName, imageStream, folder);
 
-                // Generate presigned URL (valid for 1 year)
-                var imageUrl = await _minioService.GetPresignedUrlAsync(
-                    objectName,
-                    expiryInSeconds: 31536000, // 1 year
-                    ct);
-
-                // Replace base64 data URL with MinIO URL
+                // Replace base64 data URL with Firebase Storage URL
                 var originalDataUrl = match.Value;
-                // Simply replace the data URL with the MinIO URL
-                // This works whether it's in an img src or standalone
                 replacements.Add((originalDataUrl, imageUrl));
 
                 _logger.LogInformation(
-                    "Uploaded base64 image ({Size} bytes) to MinIO: {ObjectName}",
-                    imageSizeBytes, objectName);
+                    "Uploaded base64 image ({Size} bytes) to Firebase Storage: {Url}",
+                    imageSizeBytes, imageUrl);
             }
             catch (Exception ex)
             {
@@ -133,7 +119,7 @@ public class HtmlContentImageProcessor
         if (replacements.Count > 0)
         {
             _logger.LogInformation(
-                "Processed {Count} base64 images, replaced with MinIO URLs",
+                "Processed {Count} base64 images, replaced with Firebase Storage URLs",
                 replacements.Count);
         }
 
@@ -157,4 +143,3 @@ public class HtmlContentImageProcessor
         return sizeBytes <= maxSizeBytes;
     }
 }
-

@@ -18,11 +18,6 @@ public enum QuestionTypeEnum
     SHORT_ANSWER = 3,
 
     /// <summary>
-    /// Word cloud - multiple students submit keywords that form a visual cloud
-    /// </summary>
-    WORD_CLOUD = 4,
-
-    /// <summary>
     /// Pin on map - students click on the map to mark a location
     /// </summary>
     PIN_ON_MAP = 5

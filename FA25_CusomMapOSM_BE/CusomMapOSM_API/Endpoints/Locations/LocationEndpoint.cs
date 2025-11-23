@@ -2,6 +2,7 @@ using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using Microsoft.AspNetCore.Mvc;
 
@@ -163,5 +164,42 @@ public class LocationEndpoint : IEndpoint
             })
             .WithName("UpdatePoiInteractionConfig")
             .WithDescription("Update interaction configuration of a POI");
+
+        // Upload POI Audio
+        group.MapPost("/pois/upload-audio", async (
+                IFormFile file,
+                [FromServices] IFirebaseStorageService firebaseStorageService,
+                CancellationToken ct) =>
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Results.BadRequest(new { error = "No file provided" });
+                }
+
+                var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
+                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return Results.BadRequest(new { error = "Invalid file type. Only audio files are allowed." });
+                }
+
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "poi-audio");
+                    return Results.Ok(new { audioUrl = storageUrl });
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(detail: ex.Message, statusCode: 500);
+                }
+            })
+            .WithName("UploadPoiAudio")
+            .WithDescription("Upload an audio file for POI")
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces(200)
+            .Produces(400)
+            .Produces(500);
     }
 }

@@ -19,7 +19,6 @@ using CusomMapOSM_Application.Interfaces.Services.GeoJson;
 using CusomMapOSM_Application.Interfaces.Services.FileProcessors;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using CusomMapOSM_Application.Interfaces.Services.Mail;
-using CusomMapOSM_Application.Interfaces.Services.MinIO;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
@@ -29,7 +28,6 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using System.Net.Http;
 using System.Net.Security;
-using CusomMapOSM_Application.Interfaces.Services.Blog;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Faqs;
@@ -71,7 +69,6 @@ using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
-using CusomMapOSM_Infrastructure.Services.MinIO;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
 using CusomMapOSM_Infrastructure.Services.MapFeatures.Mongo;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.OrganizationAdmin;
@@ -90,26 +87,34 @@ using CusomMapOSM_Infrastructure.BackgroundJobs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTicket;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
 using MongoDB.Driver;
-using Minio;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using StackExchange.Redis;
 using System.Net.Sockets;
+using CusomMapOSM_Application.Interfaces.Features.Groups;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
+using CusomMapOSM_Application.Interfaces.Features.QuickPolls;
 using CusomMapOSM_Application.Interfaces.Features.Sessions;
+using CusomMapOSM_Application.Interfaces.Features.TreasureHunts;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Groups;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Sessions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Groups;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
+using CusomMapOSM_Infrastructure.Features.Groups;
 using CusomMapOSM_Infrastructure.Features.Locations;
 using CusomMapOSM_Infrastructure.Features.Notifications;
 using CusomMapOSM_Infrastructure.Features.QuestionBanks;
+using CusomMapOSM_Infrastructure.Features.QuickPolls;
 using CusomMapOSM_Infrastructure.Features.Sessions;
+using CusomMapOSM_Infrastructure.Features.TreasureHunts;
 using Hangfire;
 using Hangfire.Redis;
 
@@ -152,6 +157,9 @@ public static class DependencyInjections
         services.AddScoped<ISessionParticipantRepository, SessionParticipantRepository>();
         services.AddScoped<ISessionQuestionRepository, SessionQuestionRepository>();
         services.AddScoped<IStudentResponseRepository, StudentResponseRepository>();
+        services.AddScoped<ISessionGroupRepository, SessionGroupRepository>();
+        services.AddScoped<IGroupMemberRepository, GroupMemberRepository>();
+        services.AddScoped<IGroupSubmissionRepository, GroupSubmissionRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
@@ -178,24 +186,6 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureStore, MongoMapFeatureStore>();
         services.AddScoped<IMapHistoryStore, MongoMapHistoryStore>();
         
-        services.AddScoped<ICacheService,RedisCacheService>();
-        
-        // MinIO service for file storage
-        services.AddSingleton<IMinioClient>(sp =>
-        {
-            var config = sp.GetRequiredService<IConfiguration>();
-            var endpoint = config["MinIO:Endpoint"] ?? "localhost:9000";
-            var accessKey = config["MinIO:AccessKey"] ?? "minioadmin";
-            var secretKey = config["MinIO:SecretKey"] ?? "minioadmin";
-            var useSSL = bool.Parse(config["MinIO:UseSSL"] ?? "false");
-
-            return new MinioClient()
-                .WithEndpoint(endpoint)
-                .WithCredentials(accessKey, secretKey)
-                .WithSSL(useSSL)
-                .Build();
-        });
-        services.AddScoped<IMinIOService, MinIOService>();
 
         return services;
     }
@@ -218,6 +208,9 @@ public static class DependencyInjections
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
         services.AddScoped<ISessionService, SessionService>();
+        services.AddScoped<IQuickPollService, QuickPollService>();
+        services.AddScoped<ITreasureHuntService, TreasureHuntService>();
+        services.AddScoped<IGroupCollaborationService, GroupCollaborationService>();
 
         services.AddScoped<IOrganizationAdminService, OrganizationAdminService>();
         services.AddScoped<IOrganizationAdminRepository, OrganizationAdminRepository>();
@@ -270,8 +263,8 @@ public static class DependencyInjections
         services.AddScoped<IRasterProcessor, RasterProcessor>();
         services.AddScoped<ISpreadsheetProcessor, SpreadsheetProcessor>();
         
-        // Blog storage service for Azure Blob Storage
-        services.AddScoped<IBlogStorageService, BlogStorageService>();
+        // Firebase Storage service
+        services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
 
         services.AddStackExchangeRedisCache(options =>
         {

@@ -27,7 +27,7 @@ public class MapService : IMapService
 {
     private readonly IMapRepository _mapRepository;
     private readonly ICurrentUserService _currentUserService;
-    private readonly ICacheService _cacheService;
+    private readonly IRedisCacheService _cacheService;
     private readonly IMapHistoryService _mapHistoryService;
     private readonly ILayerDataStore _layerDataStore;
     private readonly IWorkspaceRepository _workspaceRepository;
@@ -37,21 +37,21 @@ public class MapService : IMapService
     public MapService(
         IMapRepository mapRepository,
         ICurrentUserService currentUserService,
-        ICacheService cacheService,
         IMapHistoryService mapHistoryService,
         ILayerDataStore layerDataStore,
         IWorkspaceRepository workspaceRepository,
         IOrganizationRepository organizationRepository,
-        IHubContext<MapCollaborationHub> hubContext)
+        IHubContext<MapCollaborationHub> hubContext, 
+        IRedisCacheService cacheService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
-        _cacheService = cacheService;
         _mapHistoryService = mapHistoryService;
         _layerDataStore = layerDataStore;
         _workspaceRepository = workspaceRepository;
         _organizationRepository = organizationRepository;
         _hubContext = hubContext;
+        _cacheService = cacheService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -412,7 +412,7 @@ public class MapService : IMapService
         var cacheKey = "templates:all:response";
 
         // Try get from cache first
-        var cachedResponse = await _cacheService.GetAsync<GetMapTemplatesResponse>(cacheKey);
+        var cachedResponse = await _cacheService.Get<GetMapTemplatesResponse>(cacheKey);
         if (cachedResponse != null)
         {
             return Option.Some<GetMapTemplatesResponse, Error>(cachedResponse);
@@ -449,7 +449,7 @@ public class MapService : IMapService
         };
 
         // Cache for 30 minutes
-        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+        await _cacheService.Set(cacheKey, response, TimeSpan.FromMinutes(30));
 
         return Option.Some<GetMapTemplatesResponse, Error>(response);
     }
@@ -459,7 +459,7 @@ public class MapService : IMapService
         var cacheKey = $"templates:id:response:{templateId}";
 
         // Try get from cache first
-        var cachedResponse = await _cacheService.GetAsync<GetMapTemplateByIdResponse>(cacheKey);
+        var cachedResponse = await _cacheService.Get<GetMapTemplateByIdResponse>(cacheKey);
         if (cachedResponse != null)
         {
             return Option.Some<GetMapTemplateByIdResponse, Error>(cachedResponse);
@@ -510,7 +510,7 @@ public class MapService : IMapService
         };
 
         // Cache for 30 minutes
-        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+        await _cacheService.Set(cacheKey, response, TimeSpan.FromMinutes(30));
 
         return Option.Some<GetMapTemplateByIdResponse, Error>(response);
     }
@@ -520,7 +520,7 @@ public class MapService : IMapService
         var cacheKey = $"templates:details:response:{templateId}";
 
         // Try get from cache first (Service level caching)
-        var cachedResponse = await _cacheService.GetAsync<GetMapTemplateWithDetailsResponse>(cacheKey);
+        var cachedResponse = await _cacheService.Get<GetMapTemplateWithDetailsResponse>(cacheKey);
         if (cachedResponse != null)
         {
             return Option.Some<GetMapTemplateWithDetailsResponse, Error>(cachedResponse);
@@ -598,7 +598,7 @@ public class MapService : IMapService
         };
 
         // Cache the processed response for 30 minutes
-        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromMinutes(30));
+        await _cacheService.Set(cacheKey, response, TimeSpan.FromMinutes(30));
 
         return Option.Some<GetMapTemplateWithDetailsResponse, Error>(response);
     }
