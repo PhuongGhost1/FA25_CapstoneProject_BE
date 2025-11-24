@@ -8,7 +8,7 @@ public static class Routes
     {
         public const string Auth = "auth";
         public const string Organization = "organizations";
-        public const string PointOfInterest = "points-of-interest";
+        public const string Location = "locations";
         public const string StoryMap = "storymaps";
         public const string Animations = "animations";
         public const string Maps = "maps";
@@ -169,19 +169,26 @@ public static class Routes
         public const string ReorderSegments = "{mapId:guid}/segments/reorder";
     }
 
-    public static class PoiEndpoints
+    public static class LocationEndpoints
     {
         // Map-level POIs
-        public const string GetMapPois = "{mapId:guid}";
-        public const string CreateMapPoi = "{mapId:guid}";
+        public const string GetMapLocations = "{mapId:guid}";
+        public const string CreateMapLocation = "{mapId:guid}";
 
         // Segment-level POIs
-        public const string GetSegmentPois = "{mapId:guid}/segments/{segmentId:guid}";
-        public const string CreateSegmentPoi = "{mapId:guid}/segments/{segmentId:guid}";
+        public const string GetSegmentLocations = "{mapId:guid}/segments/{segmentId:guid}";
+        public const string CreateSegmentLocation = "{mapId:guid}/segments/{segmentId:guid}";
 
         // POI management
-        public const string UpdatePoi = "{poiId:guid}";
-        public const string DeletePoi = "{poiId:guid}";
+        public const string UpdateLocation = "{locationId:guid}";
+        public const string DeleteLocation = "{locationId:guid}";
+        public const string UploadLocationAudio = "locations/upload-audio";
+        public const string UpdateLocationDisplayConfig = "{locationId:guid}/display-config";
+        public const string UpdateLocationInteractionConfig = "{locationId:guid}/interaction-config";
+        public const string MoveLocationToSegment = "{mapId:guid}/segments/{fromSegmentId:guid}/locations/{locationId:guid}/move-to/{toSegmentId:guid}";
+        public const string GetZoneLocations = "zones/{zoneId:guid}/locations";
+        public const string GetSegmentLocationsWithoutZone = "segments/{segmentId:guid}/locations/without-zone";
+        
     }
 
     public static class AnimationEndpoints

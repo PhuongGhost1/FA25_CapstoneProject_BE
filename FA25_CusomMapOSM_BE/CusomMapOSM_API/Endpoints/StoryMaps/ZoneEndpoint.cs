@@ -2,7 +2,7 @@ using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using Microsoft.AspNetCore.Mvc;
 
@@ -202,7 +202,7 @@ public class ZoneEndpoint : IEndpoint
             .WithName("SearchLocations")
             .WithDescription("Search locations by name (checks DB first, then OSM)")
             .WithTags(Tags.StoryMaps)
-            .Produces<IEnumerable<PoiDto>>(200)
+            .Produces<IEnumerable<LocationDto>>(200)
             .ProducesProblem(400)
             .ProducesProblem(500);
 

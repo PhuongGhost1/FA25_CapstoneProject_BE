@@ -1,10 +1,10 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
 
-namespace CusomMapOSM_Application.Models.DTOs.Features.POIs;
+namespace CusomMapOSM_Application.Models.DTOs.Features.Locations;
 
-public record PoiDto(
-    Guid PoiId,
+public record LocationDto(
+    Guid LocationId,
     Guid MapId,
     Guid? SegmentId,
     Guid? ZoneId,
@@ -28,7 +28,7 @@ public record PoiDto(
     string? EffectType,
     bool OpenSlideOnClick,
     string? SlideContent,
-    Guid? LinkedPoiId,
+    Guid? LinkedLocationId,
     bool PlayAudioOnClick,
     string? AudioUrl,
     string? ExternalUrl,

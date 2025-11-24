@@ -1,5 +1,5 @@
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
@@ -20,7 +20,7 @@ public record SegmentDto(
     bool RequireUserAction,
     IReadOnlyCollection<SegmentZoneDto> Zones,
     IReadOnlyCollection<SegmentLayerDto> Layers,
-    IReadOnlyCollection<PoiDto> Locations);
+    IReadOnlyCollection<LocationDto> Locations);
 
 public record SegmentZoneDto(
     Guid SegmentZoneId,

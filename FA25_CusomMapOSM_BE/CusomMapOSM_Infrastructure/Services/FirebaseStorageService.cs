@@ -11,6 +11,8 @@ public class FirebaseStorageService : IFirebaseStorageService
 {
     private readonly StorageClient _storageClient;
     private readonly string _bucketName;
+    private static readonly object _firebaseInitLock = new object();
+    private static bool _firebaseInitialized = false;
 
     public FirebaseStorageService(IConfiguration configuration)
     {
@@ -22,43 +24,77 @@ public class FirebaseStorageService : IFirebaseStorageService
         
         GoogleCredential credential = null;
         
-        if (FirebaseApp.DefaultInstance == null)
+        // Thread-safe initialization of FirebaseApp
+        lock (_firebaseInitLock)
         {
-            var credentialsPath = configuration["Firebase:CredentialsPath"] 
-                ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
-
-            // Tự động tìm file nếu không có đường dẫn
-            if (string.IsNullOrEmpty(credentialsPath))
+            if (FirebaseApp.DefaultInstance == null)
             {
-                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
-                var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
-                
-                if (File.Exists(defaultPath))
+                var credentialsPath = configuration["Firebase:CredentialsPath"] 
+                    ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
+
+                // Tự động tìm file nếu không có đường dẫn
+                if (string.IsNullOrEmpty(credentialsPath))
                 {
-                    credentialsPath = defaultPath;
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+                    var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
+                    
+                    if (File.Exists(defaultPath))
+                    {
+                        credentialsPath = defaultPath;
+                    }
                 }
-            }
 
-            if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
-            {
-                credential = GoogleCredential.FromFile(credentialsPath);
-                FirebaseApp.Create(new AppOptions
+                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
                 {
-                    Credential = credential
-                });
+                    credential = GoogleCredential.FromFile(credentialsPath);
+                    FirebaseApp.Create(new AppOptions
+                    {
+                        Credential = credential
+                    });
+                    _firebaseInitialized = true;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place firebase-service-account.json in solution root. " +
+                        $"Searched at: {Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"))}");
+                }
             }
             else
             {
-                throw new InvalidOperationException(
-                    $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place firebase-service-account.json in solution root. " +
-                    $"Searched at: {Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"))}");
+                // FirebaseApp already exists, get credential from file if needed
+                var credentialsPath = configuration["Firebase:CredentialsPath"] 
+                    ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
+                
+                if (string.IsNullOrEmpty(credentialsPath))
+                {
+                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+                    var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
+                    if (File.Exists(defaultPath))
+                    {
+                        credentialsPath = defaultPath;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+                {
+                    credential = GoogleCredential.FromFile(credentialsPath);
+                }
+                else
+                {
+                    // Fallback to default application credentials
+                    try
+                    {
+                        credential = GoogleCredential.GetApplicationDefault();
+                    }
+                    catch
+                    {
+                        throw new InvalidOperationException("Failed to initialize Firebase credentials");
+                    }
+                }
             }
-        }
-        else
-        {
-            // Lấy credential từ FirebaseApp đã tồn tại
-            credential = GoogleCredential.GetApplicationDefault();
         }
 
         // Tạo StorageClient với credentials

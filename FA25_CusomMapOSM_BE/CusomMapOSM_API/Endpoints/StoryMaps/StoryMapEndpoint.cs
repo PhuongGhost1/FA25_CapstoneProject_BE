@@ -3,9 +3,8 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
-using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.StoryMaps;
@@ -371,7 +370,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
-                var result = await service.GetSegmentPoisAsync(mapId, segmentId, ct);
+                var result = await service.GetSegmentLocationsAsync(mapId, segmentId, ct);
                 return result.Match<IResult>(
                     locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
@@ -388,7 +387,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
-                var result = await service.GetMapPoisAsync(mapId, ct);
+                var result = await service.GetMapLocations(mapId, ct);
                 return result.Match<IResult>(
                     locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
@@ -403,15 +402,15 @@ public class StoryMapEndpoint : IEndpoint
         group.MapPost(Routes.StoryMapEndpoints.CreateSegmentLocation, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromBody] CreatePoiRequest request,
+                [FromBody] CreateLocationRequest request,
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 // Override mapId and segmentId from route
                 var requestWithRoute = request with { MapId = mapId, SegmentId = segmentId };
-                var result = await service.CreatePoiAsync(requestWithRoute, ct);
+                var result = await service.CreateLocationAsync(requestWithRoute, ct);
                 return result.Match<IResult>(
-                    location => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/locations/{location.PoiId}", location),
+                    location => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/locations/{location.LocationId}", location),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("CreateStoryMapSegmentLocation")
@@ -425,13 +424,13 @@ public class StoryMapEndpoint : IEndpoint
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromRoute] Guid locationId,
-                [FromBody] UpdatePoiRequest request,
+                [FromBody] UpdateLocationRequest request,
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
                 // Override segmentId from route
                 var requestWithRoute = request with { SegmentId = segmentId };
-                var result = await service.UpdatePoiAsync(locationId, requestWithRoute, ct);
+                var result = await service.UpdateLocationAsync(locationId, requestWithRoute, ct);
                 return result.Match<IResult>(
                     location => Results.Ok(location),
                     err => err.ToProblemDetailsResult());
@@ -450,7 +449,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
-                var result = await service.DeletePoiAsync(locationId, ct);
+                var result = await service.DeleteLocationAsync(locationId, ct);
                 return result.Match<IResult>(
                     success => Results.NoContent(),
                     err => err.ToProblemDetailsResult());

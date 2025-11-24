@@ -3,7 +3,7 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Locations;
@@ -12,9 +12,9 @@ public class LocationEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup(Routes.Prefix.PointOfInterest)
-            .WithTags(Tags.PointsOfInterest)
-            .WithDescription(Tags.PointsOfInterest)
+        var group = app.MapGroup(Routes.Prefix.Location)
+            .WithTags(Tags.Locations)
+            .WithDescription(Tags.Locations)
             .RequireAuthorization();
 
         MapReadEndpoints(group);
@@ -23,150 +23,150 @@ public class LocationEndpoint : IEndpoint
 
     private static void MapReadEndpoints(RouteGroupBuilder group)
     {
-        group.MapGet(Routes.PoiEndpoints.GetMapPois, async (
+        group.MapGet(Routes.LocationEndpoints.GetMapLocations, async (
                 [FromRoute] Guid mapId,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.GetMapPoisAsync(mapId, ct);
+                var result = await locationService.GetMapLocations(mapId, ct);
                 return result.Match<IResult>(
-                    pois => Results.Ok(pois),
+                    locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("GetMapPois")
-            .WithDescription("Retrieve all points of interest for a map");
+            .WithName("GetMapLocations")
+            .WithDescription("Retrieve all locations for a map");
 
-        group.MapGet(Routes.PoiEndpoints.GetSegmentPois, async (
+        group.MapGet(Routes.LocationEndpoints.GetSegmentLocations, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.GetSegmentPoisAsync(mapId, segmentId, ct);
+                var result = await locationService.GetSegmentLocationsAsync(mapId, segmentId, ct);
                 return result.Match<IResult>(
-                    pois => Results.Ok(pois),
+                    locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("GetSegmentPois")
-            .WithDescription("Retrieve points of interest scoped to a segment");
+                .WithName("GetSegmentLocations")
+            .WithDescription("Retrieve locations scoped to a segment");
 
-        group.MapGet("/zones/{zoneId}/pois", async (
+        group.MapGet(Routes.LocationEndpoints.GetZoneLocations, async (
                 [FromRoute] Guid zoneId,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.GetZonePoisAsync(zoneId, ct);
+                var result = await locationService.GetZoneLocationsAsync(zoneId, ct);
                 return result.Match<IResult>(
-                    pois => Results.Ok(pois),
+                    locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("GetZonePois")
-            .WithDescription("Retrieve points of interest in a specific zone");
+            .WithName("GetZoneLocations")
+            .WithDescription("Retrieve locations in a specific zone");
 
-        group.MapGet("/segments/{segmentId}/pois/without-zone", async (
+        group.MapGet(Routes.LocationEndpoints.GetSegmentLocationsWithoutZone, async (
                 [FromRoute] Guid segmentId,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.GetPoisWithoutZoneAsync(segmentId, ct);
+                var result = await locationService.GetLocationsWithoutZoneAsync(segmentId, ct);
                 return result.Match<IResult>(
-                    pois => Results.Ok(pois),
+                    locations => Results.Ok(locations),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("GetPoisWithoutZone")
-            .WithDescription("Retrieve points of interest not assigned to any zone");
+            .WithName("GetLocationsWithoutZone")
+            .WithDescription("Retrieve locations not assigned to any zone");
     }
 
     private static void MapMutationEndpoints(RouteGroupBuilder group)
     {
-        group.MapPost(Routes.PoiEndpoints.CreateMapPoi, async (
+        group.MapPost(Routes.LocationEndpoints.CreateMapLocation, async (
                 [FromRoute] Guid mapId,
-                [FromBody] CreatePoiRequest request,
+                [FromBody] CreateLocationRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
                 var enriched = request with { MapId = mapId };
-                var result = await locationService.CreatePoiAsync(enriched, ct);
+                    var result = await locationService.CreateLocationAsync(enriched, ct);
                 return result.Match<IResult>(
-                    poi => Results.Created($"{Routes.Prefix.PointOfInterest}/{mapId}/{poi.PoiId}", poi),
+                    location => Results.Created($"{Routes.Prefix.Location}/{mapId}", location),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("CreatePoi")
-            .WithDescription("Create a new point of interest for the map");
+            .WithName("CreateLocation")
+            .WithDescription("Create a new location for the map");
 
-        group.MapPost(Routes.PoiEndpoints.CreateSegmentPoi, async (
+        group.MapPost(Routes.LocationEndpoints.CreateSegmentLocation, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromBody] CreatePoiRequest request,
+                [FromBody] CreateLocationRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
                 var enriched = request with { MapId = mapId, SegmentId = segmentId };
-                var result = await locationService.CreatePoiAsync(enriched, ct);
+                var result = await locationService.CreateLocationAsync(enriched, ct);
                 return result.Match<IResult>(
-                    poi => Results.Created($"{Routes.Prefix.PointOfInterest}/{mapId}/segments/{segmentId}/{poi.PoiId}", poi),
+                    location => Results.Created($"{Routes.Prefix.Location}/{mapId}/segments/{segmentId}", location),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("CreateSegmentPoi")
-            .WithDescription("Create a point of interest tied to a segment");
+            .WithName("CreateSegmentLocation")
+            .WithDescription("Create a location tied to a segment");
 
-        group.MapPut(Routes.PoiEndpoints.UpdatePoi, async (
-                [FromRoute] Guid poiId,
-                [FromBody] UpdatePoiRequest request,
+        group.MapPut(Routes.LocationEndpoints.UpdateLocation, async (
+                [FromRoute] Guid locationId,
+                [FromBody] UpdateLocationRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.UpdatePoiAsync(poiId, request, ct);
+                var result = await locationService.UpdateLocationAsync(locationId, request, ct);
                 return result.Match<IResult>(
-                    poi => Results.Ok(poi),
+                    location => Results.Ok(location),
                     err => err.ToProblemDetailsResult());
             })
             .WithName("UpdatePoi")
             .WithDescription("Update a point of interest");
 
-        group.MapDelete(Routes.PoiEndpoints.DeletePoi, async (
-                [FromRoute] Guid poiId,
+        group.MapDelete(Routes.LocationEndpoints.DeleteLocation, async (
+                [FromRoute] Guid locationId,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.DeletePoiAsync(poiId, ct);
+                var result = await locationService.DeleteLocationAsync(locationId, ct);
                 return result.Match<IResult>(
                     _ => Results.NoContent(),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("DeletePoi")
-            .WithDescription("Delete a point of interest");
+            .WithName("DeleteLocation")
+            .WithDescription("Delete a location");
 
-        group.MapPut("/pois/{poiId}/display-config", async (
-                [FromRoute] Guid poiId,
-                [FromBody] UpdatePoiDisplayConfigRequest request,
+        group.MapPut(Routes.LocationEndpoints.UpdateLocationDisplayConfig, async (
+                [FromRoute] Guid locationId,
+                [FromBody] UpdateLocationDisplayConfigRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.UpdatePoiDisplayConfigAsync(poiId, request, ct);
+                var result = await locationService.UpdateLocationDisplayConfigAsync(locationId, request, ct);
                 return result.Match<IResult>(
-                    poi => Results.Ok(poi),
+                    location => Results.Ok(location),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("UpdatePoiDisplayConfig")
-            .WithDescription("Update display configuration of a POI");
+                .WithName("UpdateLocationDisplayConfig")
+            .WithDescription("Update display configuration of a location");
 
-        group.MapPut("/pois/{poiId}/interaction-config", async (
-                [FromRoute] Guid poiId,
-                [FromBody] UpdatePoiInteractionConfigRequest request,
+        group.MapPut(Routes.LocationEndpoints.UpdateLocationInteractionConfig, async (
+                [FromRoute] Guid locationId,
+                [FromBody] UpdateLocationInteractionConfigRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var result = await locationService.UpdatePoiInteractionConfigAsync(poiId, request, ct);
+                var result = await locationService.UpdateLocationInteractionConfigAsync(locationId, request, ct);
                 return result.Match<IResult>(
-                    poi => Results.Ok(poi),
+                    location => Results.Ok(location),
                     err => err.ToProblemDetailsResult());
             })
-            .WithName("UpdatePoiInteractionConfig")
-            .WithDescription("Update interaction configuration of a POI");
+            .WithName("UpdateLocationInteractionConfig")
+            .WithDescription("Update interaction configuration of a location");
 
         // Upload POI Audio
-        group.MapPost("/pois/upload-audio", async (
+        group.MapPost(Routes.LocationEndpoints.UploadLocationAudio, async (
                 IFormFile file,
                 [FromServices] IFirebaseStorageService firebaseStorageService,
                 CancellationToken ct) =>
@@ -186,7 +186,7 @@ public class LocationEndpoint : IEndpoint
                 try
                 {
                     using var stream = file.OpenReadStream();
-                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "poi-audio");
+                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "location-audio");
                     return Results.Ok(new { audioUrl = storageUrl });
                 }
                 catch (Exception ex)
@@ -194,8 +194,8 @@ public class LocationEndpoint : IEndpoint
                     return Results.Problem(detail: ex.Message, statusCode: 500);
                 }
             })
-            .WithName("UploadPoiAudio")
-            .WithDescription("Upload an audio file for POI")
+            .WithName("UploadLocationAudio")
+            .WithDescription("Upload an audio file for location")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Produces(200)
