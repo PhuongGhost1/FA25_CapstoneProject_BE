@@ -74,22 +74,18 @@ public class AuthenticationService : IAuthenticationService
         if (isEmailExists)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
-        var user = new DomainUser.User
-        {
-            Email = req.Email,
-            PasswordHash = _jwtService.HashObject<string>(req.Password),
-            FullName = $"{req.FirstName} {req.LastName}",
-            Phone = req.Phone,
-            Role = UserRoleEnum.RegisteredUser,
-            AccountStatus = AccountStatusEnum.PendingVerification,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        await _authenticationRepository.Register(user);
-
         var otp = new Random().Next(100000, 999999).ToString();
+        var passwordHash = _jwtService.HashObject<string>(req.Password);
 
-        await _redisCacheService.Set(otp, new RegisterVerifyOtpResDto { Email = req.Email, Otp = otp }, TimeSpan.FromMinutes(10));
+        await _redisCacheService.Set(otp, new RegisterVerifyOtpResDto 
+        { 
+            Email = req.Email, 
+            Otp = otp,
+            PasswordHash = passwordHash,
+            FirstName = req.FirstName,
+            LastName = req.LastName,
+            Phone = req.Phone
+        }, TimeSpan.FromMinutes(10));
 
         var mail = new MailRequest
         {
@@ -108,21 +104,35 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrEmpty(req.Otp))
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        var otp = await _redisCacheService.Get<RegisterVerifyOtpResDto>(req.Otp);
-        if (otp is null)
+        var otpData = await _redisCacheService.Get<RegisterVerifyOtpResDto>(req.Otp);
+        if (otpData is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        if (otp.Otp != req.Otp)
+        if (otpData.Otp != req.Otp)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        var user = await _authenticationRepository.GetUserByEmail(otp.Email);
-        if (user is null)
-            return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
+        // Check if user already exists (in case of race condition or duplicate registration attempts)
+        var existingUser = await _authenticationRepository.GetUserByEmail(otpData.Email);
+        if (existingUser is not null)
+            return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
-        user.Role = UserRoleEnum.RegisteredUser;
-        user.AccountStatus = AccountStatusEnum.Active;
-        await _authenticationRepository.UpdateUser(user);
+        // Validate that registration data exists (should not be null for registration flow)
+        if (string.IsNullOrEmpty(otpData.PasswordHash) || string.IsNullOrEmpty(otpData.FirstName) || string.IsNullOrEmpty(otpData.LastName))
+            return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP data", ErrorType.Validation));
 
+        // Create user in database only after OTP verification
+        var user = new DomainUser.User
+        {
+            Email = otpData.Email,
+            PasswordHash = otpData.PasswordHash,
+            FullName = $"{otpData.FirstName} {otpData.LastName}",
+            Phone = otpData.Phone,
+            Role = UserRoleEnum.RegisteredUser,
+            AccountStatus = AccountStatusEnum.Active,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        await _authenticationRepository.Register(user);
 
         await _redisCacheService.Remove(req.Otp);
 
