@@ -23,9 +23,6 @@ internal class QuestionBankConfiguration : IEntityTypeConfiguration<QuestionBank
         builder.Property(qb => qb.WorkspaceId)
             .HasColumnName("workspace_id");
 
-        builder.Property(qb => qb.MapId)
-            .HasColumnName("map_id");
-
         builder.Property(qb => qb.BankName)
             .HasColumnName("bank_name")
             .HasMaxLength(200)
@@ -67,8 +64,7 @@ internal class QuestionBankConfiguration : IEntityTypeConfiguration<QuestionBank
         builder.Property(qb => qb.UpdatedAt)
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
-
-        // Relationships
+        
         builder.HasOne(qb => qb.User)
             .WithMany()
             .HasForeignKey(qb => qb.UserId)
@@ -76,17 +72,6 @@ internal class QuestionBankConfiguration : IEntityTypeConfiguration<QuestionBank
 
         builder.HasOne(qb => qb.Workspace)
             .WithMany()
-            .HasForeignKey(qb => qb.WorkspaceId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasOne(qb => qb.Map)
-            .WithMany()
-            .HasForeignKey(qb => qb.MapId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasMany(qb => qb.Questions)
-            .WithOne(q => q.QuestionBank)
-            .HasForeignKey(q => q.QuestionBankId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(qb => qb.WorkspaceId);
     }
 }

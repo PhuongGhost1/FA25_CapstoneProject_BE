@@ -25,7 +25,6 @@ public class SessionQuestionRepository : ISessionQuestionRepository
         return await _context.SessionQuestions
             .Include(sq => sq.Session)
             .Include(sq => sq.Question)
-                .ThenInclude(q => q!.QuestionOptions!.OrderBy(o => o.DisplayOrder))
             .FirstOrDefaultAsync(sq => sq.SessionQuestionId == sessionQuestionId);
     }
 
@@ -33,7 +32,6 @@ public class SessionQuestionRepository : ISessionQuestionRepository
     {
         return await _context.SessionQuestions
             .Include(sq => sq.Question)
-                .ThenInclude(q => q!.QuestionOptions)
             .Where(sq => sq.SessionId == sessionId)
             .OrderBy(sq => sq.QueueOrder)
             .ToListAsync();
@@ -43,7 +41,6 @@ public class SessionQuestionRepository : ISessionQuestionRepository
     {
         return await _context.SessionQuestions
             .Include(sq => sq.Question)
-                .ThenInclude(q => q!.QuestionOptions!.OrderBy(o => o.DisplayOrder))
             .FirstOrDefaultAsync(sq => sq.SessionId == sessionId && sq.Status == SessionQuestionStatusEnum.ACTIVE);
     }
 
@@ -51,7 +48,6 @@ public class SessionQuestionRepository : ISessionQuestionRepository
     {
         return await _context.SessionQuestions
             .Include(sq => sq.Question)
-                .ThenInclude(q => q!.QuestionOptions)
             .Where(sq => sq.SessionId == sessionId && sq.Status == SessionQuestionStatusEnum.QUEUED)
             .OrderBy(sq => sq.QueueOrder)
             .FirstOrDefaultAsync();

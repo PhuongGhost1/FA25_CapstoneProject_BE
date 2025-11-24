@@ -7,6 +7,7 @@ using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Workspaces;
+using CusomMapOSM_Domain.Entities.QuestionBanks;
 
 namespace CusomMapOSM_Domain.Entities.Maps;
 
@@ -35,4 +36,5 @@ public class Map
     public User? User { get; set; }
     public Workspace? Workspace { get; set; }
     public Map? ParentMap { get; set; }
+    public ICollection<MapQuestionBank> MapQuestionBanks { get; set; } = new List<MapQuestionBank>();
 }

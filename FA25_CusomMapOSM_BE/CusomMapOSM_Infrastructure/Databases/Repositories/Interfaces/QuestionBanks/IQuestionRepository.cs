@@ -8,7 +8,7 @@ public interface IQuestionRepository
     // CRUD Operations
     Task<bool> CreateQuestion(Question question);
     Task<Question?> GetQuestionById(Guid questionId);
-    Task<List<Question>> GetQuestionsByQuestionBankId(Guid questionBankId);
+    Task<List<Question>> GetQuestionsByQuestionBankId(Guid? questionBankId);
     Task<List<Question>> GetQuestionsByType(QuestionTypeEnum questionType);
     Task<List<Question>> GetQuestionsByLocationId(Guid locationId);
     Task<bool> UpdateQuestion(Question question);

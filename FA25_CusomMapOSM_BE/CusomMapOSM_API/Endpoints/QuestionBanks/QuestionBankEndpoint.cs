@@ -11,7 +11,7 @@ public class QuestionBankEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/question-banks")
+        var group = app.MapGroup("/question-banks")
             .WithTags("Question Banks")
             .WithDescription("Question bank and question management endpoints");
 
@@ -74,6 +74,24 @@ public class QuestionBankEndpoint : IEndpoint
             }).WithName("GetPublicQuestionBanks")
             .WithDescription("Get all public question banks")
             .Produces(200);
+
+        group.MapPut("/{questionBankId:guid}", async (
+                [FromRoute] Guid questionBankId,
+                [FromBody] UpdateQuestionBankRequest req,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.UpdateQuestionBank(questionBankId, req);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("UpdateQuestionBank")
+            .WithDescription("Update a question bank")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
 
         // Delete Question Bank
         group.MapDelete("/{questionBankId:guid}", async (
@@ -166,6 +184,27 @@ public class QuestionBankEndpoint : IEndpoint
             }).WithName("GetQuestionsByQuestionBankId")
             .WithDescription("Get all questions in a question bank")
             .Produces(200)
+            .Produces(404);
+
+        // Update Question
+        group.MapPut("/questions/{questionId:guid}", async (
+                [FromRoute] Guid questionId,
+                [FromBody] UpdateQuestionRequest req,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                req.QuestionId = questionId;
+                var result = await questionBankService.UpdateQuestion(req);
+                return result.Match(
+                    success => Results.Ok(new { questionId = success }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("UpdateQuestion")
+            .WithDescription("Update an existing question (supports all 5 question types)")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(403)
             .Produces(404);
 
         // Delete Question

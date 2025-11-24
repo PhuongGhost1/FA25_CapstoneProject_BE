@@ -27,6 +27,7 @@ public class SessionService : ISessionService
     private readonly IQuestionRepository _questionRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHubContext<SessionHub> _sessionHubContext;
+    private readonly IQuestionOptionRepository _questionOptionRepository;
 
     public SessionService(
         ISessionRepository sessionRepository,
@@ -34,6 +35,7 @@ public class SessionService : ISessionService
         ISessionQuestionRepository sessionQuestionRepository,
         IStudentResponseRepository responseRepository,
         IQuestionRepository questionRepository,
+        IQuestionOptionRepository questionOptionRepository,
         ICurrentUserService currentUserService,
         IHubContext<SessionHub> sessionHubContext)
     {
@@ -42,6 +44,7 @@ public class SessionService : ISessionService
         _sessionQuestionRepository = sessionQuestionRepository;
         _responseRepository = responseRepository;
         _questionRepository = questionRepository;
+        _questionOptionRepository = questionOptionRepository;
         _currentUserService = currentUserService;
         _sessionHubContext = sessionHubContext;
     }
@@ -89,25 +92,25 @@ public class SessionService : ISessionService
                 Error.Failure("Session.CreateFailed", "Failed to create session"));
         }
 
-        // Create session questions from question bank
-        var questions = await _questionRepository.GetQuestionsByQuestionBankId(request.QuestionBankId);
-        if (request.ShuffleQuestions)
+        if (request.QuestionBankId != null)
         {
-            questions = questions.OrderBy(_ => Guid.NewGuid()).ToList();
+            var questions = await _questionRepository.GetQuestionsByQuestionBankId(request.QuestionBankId);
+            if (request.ShuffleQuestions)
+            {
+                questions = questions.OrderBy(_ => Guid.NewGuid()).ToList();
+            }
+
+            var sessionQuestions = questions.Select((q, index) => new SessionQuestion
+            {
+                SessionQuestionId = Guid.NewGuid(),
+                SessionId = session.SessionId,
+                QuestionId = q.QuestionId,
+                QueueOrder = index + 1,
+                Status = SessionQuestionStatusEnum.QUEUED,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+            await _sessionQuestionRepository.CreateSessionQuestions(sessionQuestions);
         }
-
-        var sessionQuestions = questions.Select((q, index) => new SessionQuestion
-        {
-            SessionQuestionId = Guid.NewGuid(),
-            SessionId = session.SessionId,
-            QuestionId = q.QuestionId,
-            QueueOrder = index + 1,
-            Status = SessionQuestionStatusEnum.QUEUED,
-            CreatedAt = DateTime.UtcNow
-        }).ToList();
-
-        await _sessionQuestionRepository.CreateSessionQuestions(sessionQuestions);
-
         return Option.Some<CreateSessionResponse, Error>(new CreateSessionResponse
         {
             SessionId = session.SessionId,
@@ -399,7 +402,8 @@ public class SessionService : ISessionService
         // Check if user already joined
         if (currentUserId != null)
         {
-            var alreadyJoined = await _participantRepository.CheckUserAlreadyJoined(session.SessionId, currentUserId.Value);
+            var alreadyJoined =
+                await _participantRepository.CheckUserAlreadyJoined(session.SessionId, currentUserId.Value);
             if (alreadyJoined)
             {
                 return Option.None<JoinSessionResponse, Error>(
@@ -568,6 +572,7 @@ public class SessionService : ISessionService
         if (activatedQuestion?.Question != null)
         {
             var question = activatedQuestion.Question;
+            var optionEntities = await _questionOptionRepository.GetQuestionOptionsByQuestionId(question.QuestionId);
             var totalQuestions = await _sessionQuestionRepository.GetTotalQuestionsInSession(sessionId);
 
             // Broadcast question activated event
@@ -582,7 +587,7 @@ public class SessionService : ISessionService
                     TimeLimit = activatedQuestion.TimeLimitOverride ?? question.TimeLimit,
                     QuestionNumber = activatedQuestion.QueueOrder,
                     TotalQuestions = totalQuestions,
-                    Options = question.QuestionOptions?.Select(o => new QuestionOptionDto
+                    Options = optionEntities.Select(o => new QuestionOptionDto
                     {
                         QuestionOptionId = o.QuestionOptionId,
                         OptionText = o.OptionText
@@ -649,7 +654,8 @@ public class SessionService : ISessionService
         if (additionalSeconds <= 0 || additionalSeconds > 120)
         {
             return Option.None<bool, Error>(
-                Error.ValidationError("Session.InvalidTimeExtension", "Time extension must be between 1 and 120 seconds"));
+                Error.ValidationError("Session.InvalidTimeExtension",
+                    "Time extension must be between 1 and 120 seconds"));
         }
 
         var extended = await _sessionQuestionRepository.ExtendTimeLimit(sessionQuestionId, additionalSeconds);
@@ -678,7 +684,8 @@ public class SessionService : ISessionService
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<SubmitResponseResponse, Error>> SubmitResponse(Guid participantId, SubmitResponseRequest request)
+    public async Task<Option<SubmitResponseResponse, Error>> SubmitResponse(Guid participantId,
+        SubmitResponseRequest request)
     {
         // Get participant
         var participant = await _participantRepository.GetParticipantById(participantId);
@@ -720,6 +727,11 @@ public class SessionService : ISessionService
         }
 
         var question = sessionQuestion.Question!;
+        List<QuestionOption>? questionOptions = null;
+        if (question.QuestionType is QuestionTypeEnum.MULTIPLE_CHOICE or QuestionTypeEnum.TRUE_FALSE)
+        {
+            questionOptions = await _questionOptionRepository.GetQuestionOptionsByQuestionId(question.QuestionId);
+        }
         bool isCorrect = false;
         decimal? distanceError = null;
 
@@ -733,12 +745,14 @@ public class SessionService : ISessionService
                     return Option.None<SubmitResponseResponse, Error>(
                         Error.ValidationError("Response.MissingOption", "Question option is required"));
                 }
-                var option = question.QuestionOptions?.FirstOrDefault(o => o.QuestionOptionId == request.QuestionOptionId);
+
+                var option = questionOptions?.FirstOrDefault(o => o.QuestionOptionId == request.QuestionOptionId);
                 if (option == null)
                 {
                     return Option.None<SubmitResponseResponse, Error>(
                         Error.ValidationError("Response.InvalidOption", "Invalid question option"));
                 }
+
                 isCorrect = option.IsCorrect;
                 break;
 
@@ -748,6 +762,7 @@ public class SessionService : ISessionService
                     return Option.None<SubmitResponseResponse, Error>(
                         Error.ValidationError("Response.MissingText", "Response text is required"));
                 }
+
                 isCorrect = string.Equals(
                     request.ResponseText?.Trim(),
                     question.CorrectAnswerText?.Trim(),
@@ -760,10 +775,12 @@ public class SessionService : ISessionService
                     return Option.None<SubmitResponseResponse, Error>(
                         Error.ValidationError("Response.MissingCoordinates", "Latitude and longitude are required"));
                 }
+
                 if (question.CorrectLatitude == null || question.CorrectLongitude == null)
                 {
                     return Option.None<SubmitResponseResponse, Error>(
-                        Error.ValidationError("Question.NoCorrectLocation", "Question does not have a correct location set"));
+                        Error.ValidationError("Question.NoCorrectLocation",
+                            "Question does not have a correct location set"));
                 }
 
                 // Calculate distance using Haversine formula
@@ -896,6 +913,139 @@ public class SessionService : ISessionService
             Explanation = question.Explanation,
             Message = isCorrect ? "Correct answer!" : "Incorrect answer",
             SubmittedAt = response.SubmittedAt
+        });
+    }
+
+    public async Task<Option<WordCloudDataDto, Error>> GetWordCloudData(Guid sessionQuestionId)
+    {
+        // Validate session question exists
+        var sessionQuestion = await _sessionQuestionRepository.GetSessionQuestionById(sessionQuestionId);
+        if (sessionQuestion == null)
+        {
+            return Option.None<WordCloudDataDto, Error>(
+                Error.NotFound("SessionQuestion.NotFound", "Session question not found"));
+        }
+
+        var question = sessionQuestion.Question!;
+
+        // Check question type is SHORT_ANSWER (WordCloud questions are stored as SHORT_ANSWER type)
+        // Note: If WordCloud becomes a separate enum value, update this check
+        if (question.QuestionType != QuestionTypeEnum.SHORT_ANSWER)
+        {
+            return Option.None<WordCloudDataDto, Error>(
+                Error.ValidationError("Question.InvalidType", "Question is not a Word Cloud question"));
+        }
+
+        // Get all responses for this question
+        var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
+
+        // Aggregate word cloud data
+        var wordCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var response in responses)
+        {
+            if (!string.IsNullOrWhiteSpace(response.ResponseText))
+            {
+                // Split by common delimiters (space, comma, semicolon, etc.)
+                var words = response.ResponseText
+                    .Split(new[] { ' ', ',', ';', '\n', '\r', '\t', '.', '!', '?' },
+                        StringSplitOptions.RemoveEmptyEntries)
+                    .Select(w => w.Trim().ToLowerInvariant())
+                    .Where(w => w.Length > 0 && w.Length < 50) // Filter out very long words
+                    .ToList();
+
+                foreach (var word in words)
+                {
+                    if (wordCount.ContainsKey(word))
+                    {
+                        wordCount[word]++;
+                    }
+                    else
+                    {
+                        wordCount[word] = 1;
+                    }
+                }
+            }
+        }
+
+        // Build response
+        var totalResponses = responses.Count;
+        var entries = wordCount
+            .OrderByDescending(x => x.Value)
+            .Select(x => new WordCloudEntryDto
+            {
+                Word = x.Key,
+                Count = x.Value,
+                Frequency = totalResponses > 0 ? (int)((double)x.Value / totalResponses * 100) : 0
+            })
+            .ToList();
+
+        return Option.Some<WordCloudDataDto, Error>(new WordCloudDataDto
+        {
+            SessionQuestionId = sessionQuestionId,
+            Entries = entries,
+            TotalResponses = totalResponses
+        });
+    }
+
+    public async Task<Option<MapPinsDataDto, Error>> GetMapPinsData(Guid sessionQuestionId)
+    {
+        // Validate session question exists
+        var sessionQuestion = await _sessionQuestionRepository.GetSessionQuestionById(sessionQuestionId);
+        if (sessionQuestion == null)
+        {
+            return Option.None<MapPinsDataDto, Error>(
+                Error.NotFound("SessionQuestion.NotFound", "Session question not found"));
+        }
+
+        var question = sessionQuestion.Question!;
+
+        // Check question type is PIN_ON_MAP
+        if (question.QuestionType != QuestionTypeEnum.PIN_ON_MAP)
+        {
+            return Option.None<MapPinsDataDto, Error>(
+                Error.ValidationError("Question.InvalidType", "Question is not a Pin on Map question"));
+        }
+
+        // Get all responses for this question
+        var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
+
+        // Build map pins data
+        var pins = new List<MapPinEntryDto>();
+
+        foreach (var response in responses)
+        {
+            if (response.ResponseLatitude.HasValue && response.ResponseLongitude.HasValue)
+            {
+                var isCorrect = response.IsCorrect;
+                var distanceFromCorrect = (double)(response.DistanceErrorMeters ?? 0);
+                var pointsEarned = response.PointsEarned;
+
+                // Get participant info
+                var participant = response.SessionParticipant;
+                var displayName = participant?.DisplayName ?? "Unknown";
+
+                pins.Add(new MapPinEntryDto
+                {
+                    ParticipantId = response.SessionParticipantId,
+                    DisplayName = displayName,
+                    Latitude = response.ResponseLatitude.Value,
+                    Longitude = response.ResponseLongitude.Value,
+                    IsCorrect = isCorrect,
+                    DistanceFromCorrect = distanceFromCorrect,
+                    PointsEarned = pointsEarned
+                });
+            }
+        }
+
+        return Option.Some<MapPinsDataDto, Error>(new MapPinsDataDto
+        {
+            SessionQuestionId = sessionQuestionId,
+            Pins = pins,
+            TotalResponses = responses.Count,
+            CorrectLatitude = question.CorrectLatitude,
+            CorrectLongitude = question.CorrectLongitude,
+            AcceptanceRadiusMeters = question.AcceptanceRadiusMeters
         });
     }
 

@@ -32,4 +32,8 @@ public interface ISessionService
 
     // Response Submission
     Task<Option<SubmitResponseResponse, Error>> SubmitResponse(Guid participantId, SubmitResponseRequest request);
+
+    // Analytics
+    Task<Option<WordCloudDataDto, Error>> GetWordCloudData(Guid sessionQuestionId);
+    Task<Option<MapPinsDataDto, Error>> GetMapPinsData(Guid sessionQuestionId);
 }

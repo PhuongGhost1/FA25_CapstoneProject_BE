@@ -9,6 +9,8 @@ using Optional;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CusomMapOSM_Application.Common.Mappers;
+using CusomMapOSM_Domain.Entities.QuestionBanks.Enums;
 
 namespace CusomMapOSM_Infrastructure.Features.QuestionBanks;
 
@@ -16,16 +18,19 @@ public class QuestionBankService : IQuestionBankService
 {
     private readonly IQuestionBankRepository _questionBankRepository;
     private readonly IQuestionRepository _questionRepository;
+    private readonly IQuestionOptionRepository  _questionOptionRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public QuestionBankService(
         IQuestionBankRepository questionBankRepository,
         IQuestionRepository questionRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService, 
+        IQuestionOptionRepository questionOptionRepository)
     {
         _questionBankRepository = questionBankRepository;
         _questionRepository = questionRepository;
         _currentUserService = currentUserService;
+        _questionOptionRepository = questionOptionRepository;
     }
 
     public async Task<Option<QuestionBankDTO, Error>> CreateQuestionBank(CreateQuestionBankRequest request)
@@ -42,7 +47,6 @@ public class QuestionBankService : IQuestionBankService
             QuestionBankId = Guid.NewGuid(),
             UserId = currentUserId.Value,
             WorkspaceId = request.WorkspaceId,
-            MapId = request.MapId,
             BankName = request.BankName,
             Description = request.Description,
             Category = request.Category,
@@ -65,9 +69,7 @@ public class QuestionBankService : IQuestionBankService
         {
             QuestionBankId = questionBank.QuestionBankId,
             UserId = questionBank.UserId,
-            UserName = string.Empty, // Will be populated by mapper
             WorkspaceId = questionBank.WorkspaceId,
-            MapId = questionBank.MapId,
             BankName = questionBank.BankName,
             Description = questionBank.Description,
             Category = questionBank.Category,
@@ -88,8 +90,7 @@ public class QuestionBankService : IQuestionBankService
             return Option.None<QuestionBankDTO, Error>(
                 Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
         }
-
-        return Option.Some<QuestionBankDTO, Error>(MapToQuestionBankDto(questionBank));
+        return Option.Some<QuestionBankDTO, Error>(questionBank.ToDto());
     }
 
     public async Task<Option<List<QuestionBankDTO>, Error>> GetMyQuestionBanks()
@@ -102,19 +103,57 @@ public class QuestionBankService : IQuestionBankService
         }
 
         var questionBanks = await _questionBankRepository.GetQuestionBanksByUserId(currentUserId.Value);
+        var result = questionBanks.Select(qb => qb.ToDto()).ToList();
 
-        var dtos = questionBanks.Select(MapToQuestionBankDto).ToList();
-
-        return Option.Some<List<QuestionBankDTO>, Error>(dtos);
+        return Option.Some<List<QuestionBankDTO>, Error>(result);
     }
 
     public async Task<Option<List<QuestionBankDTO>, Error>> GetPublicQuestionBanks()
     {
         var questionBanks = await _questionBankRepository.GetPublicQuestionBanks();
+        var result = questionBanks.Select(qb => qb.ToDto()).ToList();
 
-        var dtos = questionBanks.Select(MapToQuestionBankDto).ToList();
+        return Option.Some<List<QuestionBankDTO>, Error>(result);
+    }
 
-        return Option.Some<List<QuestionBankDTO>, Error>(dtos);
+    public async Task<Option<QuestionBankDTO, Error>> UpdateQuestionBank(Guid questionBankId, UpdateQuestionBankRequest request)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
+            }
+
+        var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+        if (questionBank == null)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        if (questionBank.UserId != currentUserId.Value)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to modify this question bank"));
+        }
+
+        questionBank.BankName = request.BankName;
+        questionBank.Description = request.Description;
+        questionBank.Category = request.Category;
+        questionBank.Tags = request.Tags;
+        questionBank.IsTemplate = request.IsTemplate;
+        questionBank.IsPublic = request.IsPublic;
+        questionBank.UpdatedAt = DateTime.UtcNow;
+
+        var updated = await _questionBankRepository.UpdateQuestionBank(questionBank);
+        if (!updated)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.Failure("QuestionBank.UpdateFailed", "Failed to update question bank"));
+        }
+
+        return Option.Some<QuestionBankDTO, Error>(questionBank.ToDto());
     }
 
     public async Task<Option<bool, Error>> DeleteQuestionBank(Guid questionBankId)
@@ -126,102 +165,29 @@ public class QuestionBankService : IQuestionBankService
                 Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
         }
 
-        var owns = await _questionBankRepository.CheckUserOwnsQuestionBank(questionBankId, currentUserId.Value);
-        if (!owns)
-        {
-            return Option.None<bool, Error>(
-                Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to delete this question bank"));
-        }
-
-        var deleted = await _questionBankRepository.DeleteQuestionBank(questionBankId);
-        return deleted
-            ? Option.Some<bool, Error>(true)
-            : Option.None<bool, Error>(Error.Failure("QuestionBank.DeleteFailed", "Failed to delete question bank"));
-    }
-
-    public async Task<Option<Guid, Error>> CreateQuestion(CreateQuestionRequest request)
-    {
-        var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId == null)
-        {
-            return Option.None<Guid, Error>(
-                Error.Unauthorized("Question.Unauthorized", "User not authenticated"));
-        }
-
-        // Check if user owns the question bank
-        var owns = await _questionBankRepository.CheckUserOwnsQuestionBank(request.QuestionBankId, currentUserId.Value);
-        if (!owns)
-        {
-            return Option.None<Guid, Error>(
-                Error.Forbidden("Question.NotOwner", "You don't have permission to add questions to this bank"));
-        }
-
-        var question = new Question
-        {
-            QuestionId = Guid.NewGuid(),
-            QuestionBankId = request.QuestionBankId,
-            LocationId = request.LocationId,
-            QuestionType = request.QuestionType,
-            QuestionText = request.QuestionText,
-            QuestionImageUrl = request.QuestionImageUrl,
-            QuestionAudioUrl = request.QuestionAudioUrl,
-            Points = request.Points,
-            TimeLimit = request.TimeLimit,
-            CorrectAnswerText = request.CorrectAnswerText,
-            CorrectLatitude = request.CorrectLatitude,
-            CorrectLongitude = request.CorrectLongitude,
-            AcceptanceRadiusMeters = request.AcceptanceRadiusMeters,
-            HintText = request.HintText,
-            Explanation = request.Explanation,
-            DisplayOrder = request.DisplayOrder,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        // Create options if provided and assign to question before saving
-        if (request.Options != null && request.Options.Any())
-        {
-            var options = request.Options.Select(o => new QuestionOption
-            {
-                QuestionOptionId = Guid.NewGuid(),
-                QuestionId = question.QuestionId,
-                OptionText = o.OptionText,
-                OptionImageUrl = o.OptionImageUrl,
-                IsCorrect = o.IsCorrect,
-                DisplayOrder = o.DisplayOrder,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
-
-            question.QuestionOptions = options;
-        }
-
-        var created = await _questionRepository.CreateQuestion(question);
-        if (!created)
-        {
-            return Option.None<Guid, Error>(
-                Error.Failure("Question.CreateFailed", "Failed to create question"));
-        }
-
-        // Update question count
-        await _questionBankRepository.UpdateQuestionCount(request.QuestionBankId);
-
-        return Option.Some<Guid, Error>(question.QuestionId);
-    }
-
-    public async Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId)
-    {
-        // Check if question bank exists
         var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
         if (questionBank == null)
         {
-            return Option.None<List<QuestionDTO>, Error>(
+            return Option.None<bool, Error>(
                 Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
         }
 
-        var questions = await _questionRepository.GetQuestionsWithOptions(questionBankId);
-        var dtos = questions.Select(MapToQuestionDto).ToList();
+        if (questionBank.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to modify this question bank"));
+        }
 
-        return Option.Some<List<QuestionDTO>, Error>(dtos);
+        await _questionRepository.DeleteQuestionsByBankId(questionBankId);
+
+        var deleted = await _questionBankRepository.DeleteQuestionBank(questionBankId);
+        if (!deleted)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("QuestionBank.DeleteFailed", "Failed to delete question bank"));
+        }
+
+        return Option.Some<bool, Error>(true);
     }
 
     public async Task<Option<QuestionBankDTO, Error>> AddQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request)
@@ -246,26 +212,15 @@ public class QuestionBankService : IQuestionBankService
                 Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to modify this question bank"));
         }
 
-        var normalizedTags = NormalizeTags(request.Tags);
-        if (!normalizedTags.Any())
-        {
-            return Option.Some<QuestionBankDTO, Error>(MapToQuestionBankDto(questionBank));
-        }
-
         var existingTags = ParseTags(questionBank.Tags);
-        var added = false;
-        foreach (var tag in normalizedTags)
+        var incomingTags = NormalizeTags(request.Tags);
+
+        foreach (var tag in incomingTags)
         {
             if (!existingTags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)))
             {
                 existingTags.Add(tag);
-                added = true;
             }
-        }
-
-        if (!added)
-        {
-            return Option.Some<QuestionBankDTO, Error>(MapToQuestionBankDto(questionBank));
         }
 
         var serialized = SerializeTags(existingTags);
@@ -283,7 +238,7 @@ public class QuestionBankService : IQuestionBankService
                 Error.Failure("QuestionBank.UpdateFailed", "Failed to update tags"));
         }
 
-        return Option.Some<QuestionBankDTO, Error>(MapToQuestionBankDto(questionBank));
+        return Option.Some<QuestionBankDTO, Error>(questionBank.ToDto());
     }
 
     public async Task<Option<QuestionBankDTO, Error>> ReplaceQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request)
@@ -325,7 +280,240 @@ public class QuestionBankService : IQuestionBankService
                 Error.Failure("QuestionBank.UpdateFailed", "Failed to update tags"));
         }
 
-        return Option.Some<QuestionBankDTO, Error>(MapToQuestionBankDto(questionBank));
+        return Option.Some<QuestionBankDTO, Error>(questionBank.ToDto());
+    }
+
+    public async Task<Option<Guid, Error>> CreateQuestion(CreateQuestionRequest request)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null)
+        {
+            return Option.None<Guid, Error>(
+                Error.Unauthorized("Question.Unauthorized", "User not authenticated"));
+        }
+
+        var questionBank = await _questionBankRepository.GetQuestionBankById(request.QuestionBankId);
+        if (questionBank == null)
+        {
+            return Option.None<Guid, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        if (questionBank.UserId != currentUserId.Value)
+        {
+            return Option.None<Guid, Error>(
+                Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to modify this question bank"));
+        }
+
+        if (request.QuestionType is QuestionTypeEnum.MULTIPLE_CHOICE or QuestionTypeEnum.TRUE_FALSE)
+        {
+            if (request.Options == null || !request.Options.Any())
+            {
+                return Option.None<Guid, Error>(
+                    Error.ValidationError("Question.OptionsRequired", "Options are required for this question type"));
+            }
+
+            if (!request.Options.Any(o => o.IsCorrect))
+            {
+                return Option.None<Guid, Error>(
+                    Error.ValidationError("Question.NoCorrectOption", "At least one option must be marked correct"));
+            }
+        }
+
+        if (request.QuestionType == QuestionTypeEnum.SHORT_ANSWER &&
+            string.IsNullOrWhiteSpace(request.CorrectAnswerText))
+        {
+            return Option.None<Guid, Error>(
+                Error.ValidationError("Question.InvalidAnswer", "Short answer questions require a correct answer"));
+        }
+
+        if (request.QuestionType == QuestionTypeEnum.PIN_ON_MAP &&
+            (request.CorrectLatitude == null || request.CorrectLongitude == null || request.AcceptanceRadiusMeters == null))
+        {
+            return Option.None<Guid, Error>(
+                Error.ValidationError("Question.InvalidCoordinates", "Pin on map questions require coordinates and a radius"));
+        }
+
+        var questionId = Guid.NewGuid();
+        var question = new Question
+        {
+            QuestionId = questionId,
+            QuestionBankId = request.QuestionBankId,
+            LocationId = request.LocationId,
+            QuestionType = request.QuestionType,
+            QuestionText = request.QuestionText,
+            QuestionImageUrl = request.QuestionImageUrl,
+            QuestionAudioUrl = request.QuestionAudioUrl,
+            Points = request.Points,
+            TimeLimit = request.TimeLimit,
+            HintText = request.HintText,
+            Explanation = request.Explanation,
+            DisplayOrder = request.DisplayOrder,
+            CorrectAnswerText = request.QuestionType == QuestionTypeEnum.SHORT_ANSWER ? request.CorrectAnswerText : null,
+            CorrectLatitude = request.QuestionType == QuestionTypeEnum.PIN_ON_MAP ? request.CorrectLatitude : null,
+            CorrectLongitude = request.QuestionType == QuestionTypeEnum.PIN_ON_MAP ? request.CorrectLongitude : null,
+            AcceptanceRadiusMeters = request.QuestionType == QuestionTypeEnum.PIN_ON_MAP ? request.AcceptanceRadiusMeters : null,
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        var created = await _questionRepository.CreateQuestion(question);
+        if (!created)
+        {
+            return Option.None<Guid, Error>(
+                Error.Failure("Question.CreateFailed", "Failed to create question"));
+        }
+
+        if (request.QuestionType is QuestionTypeEnum.MULTIPLE_CHOICE or QuestionTypeEnum.TRUE_FALSE)
+        {
+            var options = request.Options!
+                .Select(o => new QuestionOption
+                {
+                    QuestionOptionId = Guid.NewGuid(),
+                    QuestionId = questionId,
+                    OptionText = o.OptionText,
+                    OptionImageUrl = o.OptionImageUrl,
+                    IsCorrect = o.IsCorrect,
+                    DisplayOrder = o.DisplayOrder,
+                    CreatedAt = DateTime.UtcNow
+                })
+                .ToList();
+
+            var createdOptions = await _questionOptionRepository.CreateQuestionOptions(options);
+            if (!createdOptions)
+            {
+                return Option.None<Guid, Error>(
+                    Error.Failure("QuestionOption.CreateFailed", "Failed to create question options"));
+            }
+        }
+
+        await _questionBankRepository.UpdateQuestionCount(request.QuestionBankId);
+
+        return Option.Some<Guid, Error>(questionId);
+    }
+
+    public async Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId)
+    {
+        var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+        if (questionBank == null)
+        {
+            return Option.None<List<QuestionDTO>, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        var questions = await _questionRepository.GetQuestionsByQuestionBankId(questionBankId);
+        var result = new List<QuestionDTO>();
+
+        foreach (var question in questions)
+        {
+            var options = await _questionOptionRepository.GetQuestionOptionsByQuestionId(question.QuestionId);
+            result.Add(question.ToDto(options));
+        }
+
+        return Option.Some<List<QuestionDTO>, Error>(result);
+    }
+
+    public async Task<Option<Guid, Error>> UpdateQuestion(UpdateQuestionRequest request)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null)
+        {
+            return Option.None<Guid, Error>(
+                Error.Unauthorized("Question.Unauthorized", "User not authenticated"));
+        }
+
+        var question = await _questionRepository.GetQuestionById(request.QuestionId);
+        if (question == null)
+        {
+            return Option.None<Guid, Error>(
+                Error.NotFound("Question.NotFound", "Question not found"));
+        }
+
+        var owns = await _questionBankRepository.CheckUserOwnsQuestionBank(question.QuestionBankId, currentUserId.Value);
+        if (!owns)
+        {
+            return Option.None<Guid, Error>(
+                Error.Forbidden("Question.NotOwner", "You don't have permission to update this question"));
+        }
+
+        if (request.QuestionType is QuestionTypeEnum.MULTIPLE_CHOICE or QuestionTypeEnum.TRUE_FALSE)
+        {
+            if (request.Options == null || !request.Options.Any())
+            {
+                return Option.None<Guid, Error>(
+                    Error.ValidationError("Question.OptionsRequired", "Options are required for this question type"));
+            }
+
+            if (!request.Options.Any(o => o.IsCorrect))
+            {
+                return Option.None<Guid, Error>(
+                    Error.ValidationError("Question.NoCorrectOption", "At least one option must be marked correct"));
+            }
+        }
+
+        if (request.QuestionType == QuestionTypeEnum.SHORT_ANSWER &&
+            string.IsNullOrWhiteSpace(request.CorrectAnswerText))
+        {
+            return Option.None<Guid, Error>(
+                Error.ValidationError("Question.InvalidAnswer", "Short answer questions require a correct answer"));
+        }
+
+        if (request.QuestionType == QuestionTypeEnum.PIN_ON_MAP &&
+            (request.CorrectLatitude == null || request.CorrectLongitude == null || request.AcceptanceRadiusMeters == null))
+        {
+            return Option.None<Guid, Error>(
+                Error.ValidationError("Question.InvalidCoordinates", "Pin on map questions require coordinates and a radius"));
+        }
+
+        question.QuestionText = request.QuestionText;
+        question.QuestionType = request.QuestionType;
+        question.LocationId = request.LocationId;
+        question.Points = request.Points;
+        question.TimeLimit = request.TimeLimit ?? question.TimeLimit;
+        question.QuestionImageUrl = request.QuestionImageUrl;
+        question.QuestionAudioUrl = request.QuestionAudioUrl;
+        question.HintText = request.HintText;
+        question.Explanation = request.Explanation;
+        question.DisplayOrder = request.DisplayOrder;
+
+        switch (request.QuestionType)
+        {
+            case QuestionTypeEnum.MULTIPLE_CHOICE:
+            case QuestionTypeEnum.TRUE_FALSE:
+                question.CorrectAnswerText = null;
+                question.CorrectLatitude = null;
+                question.CorrectLongitude = null;
+                question.AcceptanceRadiusMeters = null;
+                break;
+            case QuestionTypeEnum.SHORT_ANSWER:
+                question.CorrectAnswerText = request.CorrectAnswerText;
+                question.CorrectLatitude = null;
+                question.CorrectLongitude = null;
+                question.AcceptanceRadiusMeters = null;
+                break;
+            case QuestionTypeEnum.PIN_ON_MAP:
+                question.CorrectLatitude = request.CorrectLatitude;
+                question.CorrectLongitude = request.CorrectLongitude;
+                question.AcceptanceRadiusMeters = request.AcceptanceRadiusMeters;
+                question.CorrectAnswerText = null;
+                break;
+        }
+
+        var updated = await _questionRepository.UpdateQuestion(question);
+        if (!updated)
+        {
+            return Option.None<Guid, Error>(
+                Error.Failure("Question.UpdateFailed", "Failed to update question"));
+        }
+
+        var optionsSynced = await SyncQuestionOptionsForUpdate(question.QuestionId, request.QuestionType, request.Options);
+        if (!optionsSynced)
+        {
+            return Option.None<Guid, Error>(
+                Error.Failure("QuestionOption.UpdateFailed", "Failed to update question options"));
+        }
+
+        return Option.Some<Guid, Error>(request.QuestionId);
     }
 
     public async Task<Option<bool, Error>> DeleteQuestion(Guid questionId)
@@ -363,6 +551,86 @@ public class QuestionBankService : IQuestionBankService
         await _questionBankRepository.UpdateQuestionCount(question.QuestionBankId);
 
         return Option.Some<bool, Error>(true);
+    }
+
+    private async Task<bool> SyncQuestionOptionsForUpdate(
+        Guid questionId,
+        QuestionTypeEnum questionType,
+        List<UpdateQuestionOptionRequest>? requestedOptions)
+    {
+        var existingOptions = await _questionOptionRepository.GetQuestionOptionsByQuestionId(questionId);
+
+        if (questionType is QuestionTypeEnum.MULTIPLE_CHOICE or QuestionTypeEnum.TRUE_FALSE)
+        {
+            var incomingIds = requestedOptions?
+                .Where(o => o.QuestionOptionId.HasValue)
+                .Select(o => o.QuestionOptionId!.Value)
+                .ToHashSet() ?? new HashSet<Guid>();
+
+            foreach (var option in existingOptions)
+            {
+                if (!incomingIds.Contains(option.QuestionOptionId))
+                {
+                    var deleted = await _questionOptionRepository.DeleteQuestionOption(option.QuestionOptionId);
+                    if (!deleted)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            foreach (var option in requestedOptions!)
+            {
+                if (option.QuestionOptionId.HasValue)
+                {
+                    var updated = await _questionOptionRepository.UpdateQuestionOption(new QuestionOption
+                    {
+                        QuestionOptionId = option.QuestionOptionId.Value,
+                        QuestionId = questionId,
+                        OptionText = option.OptionText,
+                        OptionImageUrl = option.OptionImageUrl,
+                        IsCorrect = option.IsCorrect,
+                        DisplayOrder = option.DisplayOrder
+                    });
+
+                    if (!updated)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    var created = await _questionOptionRepository.CreateQuestionOption(new QuestionOption
+                    {
+                        QuestionOptionId = Guid.NewGuid(),
+                        QuestionId = questionId,
+                        OptionText = option.OptionText,
+                        OptionImageUrl = option.OptionImageUrl,
+                        IsCorrect = option.IsCorrect,
+                        DisplayOrder = option.DisplayOrder,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    if (!created)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        foreach (var option in existingOptions)
+        {
+            var deleted = await _questionOptionRepository.DeleteQuestionOption(option.QuestionOptionId);
+            if (!deleted)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static List<string> NormalizeTags(IEnumerable<string> tags)
@@ -426,61 +694,5 @@ public class QuestionBankService : IQuestionBankService
         var serialized = string.Join(",", tags);
         return serialized.Length == 0 ? null : serialized;
     }
-
-    private static QuestionBankDTO MapToQuestionBankDto(QuestionBank questionBank)
-    {
-        return new QuestionBankDTO
-        {
-            QuestionBankId = questionBank.QuestionBankId,
-            UserId = questionBank.UserId,
-            UserName = questionBank.User?.FullName ?? string.Empty,
-            WorkspaceId = questionBank.WorkspaceId,
-            WorkspaceName = questionBank.Workspace?.WorkspaceName,
-            MapId = questionBank.MapId,
-            MapName = questionBank.Map?.MapName,
-            BankName = questionBank.BankName,
-            Description = questionBank.Description,
-            Category = questionBank.Category,
-            Tags = questionBank.Tags,
-            TotalQuestions = questionBank.TotalQuestions,
-            IsTemplate = questionBank.IsTemplate,
-            IsPublic = questionBank.IsPublic,
-            CreatedAt = questionBank.CreatedAt,
-            UpdatedAt = questionBank.UpdatedAt
-        };
-    }
-
-    private static QuestionDTO MapToQuestionDto(Question question)
-    {
-        return new QuestionDTO
-        {
-            QuestionId = question.QuestionId,
-            QuestionBankId = question.QuestionBankId,
-            LocationId = question.LocationId,
-            QuestionType = question.QuestionType.ToString(),
-            QuestionText = question.QuestionText,
-            QuestionImageUrl = question.QuestionImageUrl,
-            QuestionAudioUrl = question.QuestionAudioUrl,
-            Points = question.Points,
-            TimeLimit = question.TimeLimit,
-            CorrectAnswerText = question.CorrectAnswerText,
-            CorrectLatitude = question.CorrectLatitude,
-            CorrectLongitude = question.CorrectLongitude,
-            AcceptanceRadiusMeters = question.AcceptanceRadiusMeters,
-            HintText = question.HintText,
-            Explanation = question.Explanation,
-            DisplayOrder = question.DisplayOrder,
-            CreatedAt = question.CreatedAt,
-            UpdatedAt = question.UpdatedAt,
-            Options = question.QuestionOptions?.Select(o => new QuestionOptionDTO
-            {
-                QuestionOptionId = o.QuestionOptionId,
-                QuestionId = o.QuestionId,
-                OptionText = o.OptionText,
-                OptionImageUrl = o.OptionImageUrl,
-                IsCorrect = o.IsCorrect,
-                DisplayOrder = o.DisplayOrder
-            }).OrderBy(o => o.DisplayOrder).ToList()
-        };
-    }
+    
 }

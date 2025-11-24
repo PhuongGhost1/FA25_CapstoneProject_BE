@@ -9,7 +9,7 @@ public class Session
 {
     public Guid SessionId { get; set; }
     public Guid MapId { get; set; }
-    public Guid QuestionBankId { get; set; }
+    public Guid? QuestionBankId { get; set; }
     public Guid HostUserId { get; set; }
     public string SessionCode { get; set; } = string.Empty;
     public string SessionName { get; set; } = string.Empty;

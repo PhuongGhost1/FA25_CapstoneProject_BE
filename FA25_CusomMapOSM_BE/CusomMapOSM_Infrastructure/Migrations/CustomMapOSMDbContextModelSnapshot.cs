@@ -1981,6 +1981,29 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("organization_members", (string)null);
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.MapQuestionBank", b =>
+                {
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
+
+                    b.Property<Guid>("QuestionBankId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("question_bank_id");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("assigned_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("MapId", "QuestionBankId");
+
+                    b.HasIndex("QuestionBankId");
+
+                    b.ToTable("map_question_banks", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
                 {
                     b.Property<Guid>("QuestionId")
@@ -2129,10 +2152,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_template");
 
-                    b.Property<Guid?>("MapId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("map_id");
-
                     b.Property<string>("Tags")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)")
@@ -2152,13 +2171,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("user_id");
 
-                    b.Property<Guid?>("WorkspaceId")
+                    b.Property<Guid>("WorkspaceId")
                         .HasColumnType("char(36)")
                         .HasColumnName("workspace_id");
 
                     b.HasKey("QuestionBankId");
-
-                    b.HasIndex("MapId");
 
                     b.HasIndex("UserId");
 
@@ -2606,7 +2623,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("points_for_speed");
 
-                    b.Property<Guid>("QuestionBankId")
+                    b.Property<Guid?>("QuestionBankId")
                         .HasColumnType("char(36)")
                         .HasColumnName("question_bank_id");
 
@@ -2629,7 +2646,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int>("SessionType")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(1)
+                        .HasDefaultValue(0)
                         .HasColumnName("session_type");
 
                     b.Property<bool>("ShowCorrectAnswers")
@@ -2659,7 +2676,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(1)
+                        .HasDefaultValue(0)
                         .HasColumnName("status");
 
                     b.Property<int>("TotalParticipants")
@@ -2868,7 +2885,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(1)
+                        .HasDefaultValue(0)
                         .HasColumnName("status");
 
                     b.Property<int>("TimeLimitExtensions")
@@ -4117,6 +4134,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.MapQuestionBank", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                        .WithMany("MapQuestionBanks")
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Map");
+
+                    b.Navigation("QuestionBank");
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Locations.Location", "Location")
@@ -4125,7 +4161,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
-                        .WithMany("Questions")
+                        .WithMany()
                         .HasForeignKey("QuestionBankId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4137,11 +4173,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", b =>
                 {
-                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -4151,9 +4182,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasOne("CusomMapOSM_Domain.Entities.Workspaces.Workspace", "Workspace")
                         .WithMany()
                         .HasForeignKey("WorkspaceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Map");
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
 
@@ -4245,8 +4275,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
                         .WithMany()
                         .HasForeignKey("QuestionBankId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("HostUser");
 
@@ -4258,7 +4287,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionParticipant", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Sessions.Session", "Session")
-                        .WithMany("SessionParticipants")
+                        .WithMany()
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4282,7 +4311,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Sessions.Session", "Session")
-                        .WithMany("SessionQuestions")
+                        .WithMany()
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4300,7 +4329,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CusomMapOSM_Domain.Entities.Sessions.SessionParticipant", "SessionParticipant")
-                        .WithMany("StudentResponses")
+                        .WithMany()
                         .HasForeignKey("SessionParticipantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4439,26 +4468,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("ParentZone");
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>
+                {
+                    b.Navigation("MapQuestionBanks");
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
                 {
                     b.Navigation("QuestionOptions");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", b =>
-                {
-                    b.Navigation("Questions");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.Session", b =>
-                {
-                    b.Navigation("SessionParticipants");
-
-                    b.Navigation("SessionQuestions");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionParticipant", b =>
-                {
-                    b.Navigation("StudentResponses");
                 });
 #pragma warning restore 612, 618
         }

@@ -2,6 +2,7 @@
 using CusomMapOSM_Domain.Entities.QuestionBanks.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using Microsoft.EntityFrameworkCore;
+using QuestionOption = CusomMapOSM_Domain.Entities.QuestionBanks.QuestionOption;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
 
@@ -17,15 +18,6 @@ public class QuestionRepository : IQuestionRepository
     public async Task<bool> CreateQuestion(Question question)
     {
         _context.Questions.Add(question);
-        
-        if (question.QuestionOptions != null && question.QuestionOptions.Any())
-        {
-            foreach (var option in question.QuestionOptions)
-            {
-                _context.Entry(option).State = EntityState.Added;
-            }
-        }
-        
         return await _context.SaveChangesAsync() > 0;
     }
 
@@ -37,7 +29,7 @@ public class QuestionRepository : IQuestionRepository
             .FirstOrDefaultAsync(q => q.QuestionId == questionId && q.IsActive);
     }
 
-    public async Task<List<Question>> GetQuestionsByQuestionBankId(Guid questionBankId)
+    public async Task<List<Question>> GetQuestionsByQuestionBankId(Guid? questionBankId)
     {
         return await _context.Questions
             .Include(q => q.Location)
@@ -68,7 +60,32 @@ public class QuestionRepository : IQuestionRepository
     public async Task<bool> UpdateQuestion(Question question)
     {
         question.UpdatedAt = DateTime.UtcNow;
-        _context.Questions.Update(question);
+        
+        // Load existing question with options to handle option updates
+        var existingQuestion = await _context.Questions
+            .FirstOrDefaultAsync(q => q.QuestionId == question.QuestionId);
+
+        if (existingQuestion == null)
+            return false;
+
+        // Update question properties
+        existingQuestion.QuestionText = question.QuestionText;
+        existingQuestion.QuestionType = question.QuestionType;
+        existingQuestion.LocationId = question.LocationId;
+        existingQuestion.Points = question.Points;
+        existingQuestion.TimeLimit = question.TimeLimit;
+        existingQuestion.QuestionImageUrl = question.QuestionImageUrl;
+        existingQuestion.QuestionAudioUrl = question.QuestionAudioUrl;
+        existingQuestion.CorrectAnswerText = question.CorrectAnswerText;
+        existingQuestion.CorrectLatitude = question.CorrectLatitude;
+        existingQuestion.CorrectLongitude = question.CorrectLongitude;
+        existingQuestion.AcceptanceRadiusMeters = question.AcceptanceRadiusMeters;
+        existingQuestion.HintText = question.HintText;
+        existingQuestion.Explanation = question.Explanation;
+        existingQuestion.DisplayOrder = question.DisplayOrder;
+        existingQuestion.UpdatedAt = DateTime.UtcNow;
+        
+
         return await _context.SaveChangesAsync() > 0;
     }
 
@@ -87,7 +104,6 @@ public class QuestionRepository : IQuestionRepository
         return await _context.Questions
             .Include(q => q.QuestionBank)
             .Include(q => q.Location)
-            .Include(q => q.QuestionOptions!.OrderBy(o => o.DisplayOrder))
             .FirstOrDefaultAsync(q => q.QuestionId == questionId && q.IsActive);
     }
 
@@ -95,7 +111,6 @@ public class QuestionRepository : IQuestionRepository
     {
         return await _context.Questions
             .Include(q => q.Location)
-            .Include(q => q.QuestionOptions!.OrderBy(o => o.DisplayOrder))
             .Where(q => q.QuestionBankId == questionBankId && q.IsActive)
             .OrderBy(q => q.DisplayOrder)
             .ThenBy(q => q.CreatedAt)
