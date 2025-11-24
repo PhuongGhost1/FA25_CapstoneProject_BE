@@ -4,7 +4,6 @@ using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
-using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Authentication.Response;
 using CusomMapOSM_Application.Models.DTOs.Services;
@@ -19,6 +18,10 @@ using Moq;
 using Optional;
 using Xunit;
 using Optional.Unsafe;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Hangfire;
+using Hangfire.MemoryStorage;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Authentication;
 
@@ -27,27 +30,38 @@ public class AuthenticationServiceTests
     private readonly Mock<IAuthenticationRepository> _mockAuthenticationRepository;
     private readonly Mock<ITypeRepository> _mockTypeRepository;
     private readonly Mock<IJwtService> _mockJwtService;
-    private readonly Mock<IMailService> _mockMailService;
     private readonly Mock<IRedisCacheService> _mockRedisCacheService;
-    private readonly Mock<HangfireEmailService> _mockHangfireEmailService;
+    private readonly HangfireEmailService _hangfireEmailService;
     private readonly AuthenticationService _authenticationService;
     private readonly Faker _faker;
 
+    static AuthenticationServiceTests()
+    {
+        // Initialize Hangfire with in-memory storage for tests (only once, before any test runs)
+        var storage = new MemoryStorage();
+        GlobalConfiguration.Configuration.UseStorage(storage);
+        JobStorage.Current = storage;
+    }
+
     public AuthenticationServiceTests()
     {
+
         _mockAuthenticationRepository = new Mock<IAuthenticationRepository>();
         _mockTypeRepository = new Mock<ITypeRepository>();
         _mockJwtService = new Mock<IJwtService>();
-        _mockMailService = new Mock<IMailService>();
         _mockRedisCacheService = new Mock<IRedisCacheService>();
-        _mockHangfireEmailService = new Mock<HangfireEmailService>();
+        
+        // Create real HangfireEmailService instance with mocked dependencies
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var mockLogger = new Mock<ILogger<HangfireEmailService>>();
+        _hangfireEmailService = new HangfireEmailService(mockServiceProvider.Object, mockLogger.Object);
 
         _authenticationService = new AuthenticationService(
             _mockAuthenticationRepository.Object,
             _mockJwtService.Object,
             _mockRedisCacheService.Object,
             _mockTypeRepository.Object,
-            _mockHangfireEmailService.Object
+            _hangfireEmailService
             );
 
         _faker = new Faker();
@@ -262,12 +276,6 @@ public class AuthenticationServiceTests
         _mockRedisCacheService.Setup(x => x.Set(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<TimeSpan>()))
             .Returns(Task.CompletedTask);
 
-        _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
-            .Returns(Task.CompletedTask);
-
-        _mockHangfireEmailService.Setup(x => x.EnqueueEmail(It.IsAny<MailRequest>()))
-            .Returns("job-id");
-
         // Act
         var result = await _authenticationService.VerifyEmail(request);
 
@@ -452,13 +460,7 @@ public class AuthenticationServiceTests
 
         _mockRedisCacheService.Setup(x => x.Set(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<TimeSpan>()))
             .Returns(Task.CompletedTask);
-
-        _mockMailService.Setup(x => x.SendEmailAsync(It.IsAny<MailRequest>()))
-            .Returns(Task.CompletedTask);
-
-        _mockHangfireEmailService.Setup(x => x.EnqueueEmail(It.IsAny<MailRequest>()))
-            .Returns("job-id");
-
+        
         // Act
         var result = await _authenticationService.ResetPasswordVerify(request);
 

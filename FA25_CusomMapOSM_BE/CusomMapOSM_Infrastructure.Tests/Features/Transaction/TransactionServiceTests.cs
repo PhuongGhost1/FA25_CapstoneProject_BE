@@ -21,7 +21,9 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Optional;
 using Xunit;
-using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
+using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
+using Hangfire;
+using Hangfire.MemoryStorage;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Transaction;
 
@@ -40,6 +42,14 @@ public class TransactionServiceTests
     private readonly Mock<ILogger<TransactionService>> _mockLogger;
     private readonly TransactionService _transactionService;
     private readonly Faker _faker;
+
+    static TransactionServiceTests()
+    {
+        // Initialize Hangfire with in-memory storage for tests (only once, before any test runs)
+        var storage = new MemoryStorage();
+        GlobalConfiguration.Configuration.UseStorage(storage);
+        JobStorage.Current = storage;
+    }
 
     public TransactionServiceTests()
     {
@@ -105,14 +115,25 @@ public class TransactionServiceTests
             OrderCode = "ORDER_123"
         };
 
-        _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentGateway { GatewayId = gatewayId });
+        // GetPaymentGatewayId now uses internal constants, not repository
+        // The service uses GetPaymentGatewayId which returns a constant GUID
 
         _mockTransactionRepository.Setup(x => x.CreateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(pendingTransaction);
 
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(pendingTransaction.TransactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pendingTransaction);
+
+        _mockTransactionRepository.Setup(x => x.UpdateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pendingTransaction);
+
+        // Setup service provider to return payment service
+        var paymentServices = new List<IPaymentService> { _mockPaymentService.Object };
+        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
+            .Returns(paymentServices);
+
         _mockPaymentService.Setup(x => x.CreateCheckoutAsync(
-                request.Total,
+                request,
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
@@ -127,7 +148,7 @@ public class TransactionServiceTests
     }
 
     [Fact]
-    public async Task ProcessPaymentAsync_WithInvalidGateway_ShouldReturnError()
+    public async Task ProcessPaymentAsync_WithTransactionCreationFailure_ShouldReturnError()
     {
         // Arrange
         var request = new ProcessPaymentReq
@@ -141,8 +162,8 @@ public class TransactionServiceTests
             AutoRenew = true
         };
 
-        _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((PaymentGateway?)null);
+        _mockTransactionRepository.Setup(x => x.CreateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Database error"));
 
         // Act
         var result = await _transactionService.ProcessPaymentAsync(request, CancellationToken.None);
@@ -151,7 +172,7 @@ public class TransactionServiceTests
         result.HasValue.Should().BeFalse();
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
-            none: error => error.Code.Should().Be("Payment.Gateway.NotFound")
+            none: error => error.Code.Should().Be("Transaction.Create.Failed")
         );
     }
 
@@ -176,9 +197,13 @@ public class TransactionServiceTests
         var existingTransaction = new Faker<Transactions>()
             .RuleFor(t => t.TransactionId, transactionId)
             .RuleFor(t => t.Status, "pending")
+            .RuleFor(t => t.Purpose, "membership|{\"UserId\":\"" + request.UserId + "\",\"OrgId\":\"" + request.OrgId + "\",\"PlanId\":" + request.PlanId + ",\"AutoRenew\":true}")
             .Generate();
 
         _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingTransaction);
+
+        _mockTransactionRepository.Setup(x => x.UpdateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingTransaction);
 
         var confirmPaymentResponse = new ConfirmPaymentResponse
@@ -189,13 +214,30 @@ public class TransactionServiceTests
             Signature = "signature_123"
         };
 
+        // Setup service provider to return payment service
+        var paymentServices = new List<IPaymentService> { _mockPaymentService.Object };
+        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
+            .Returns(paymentServices);
+
         _mockPaymentService.Setup(x =>
                 x.ConfirmPaymentAsync(It.IsAny<ConfirmPaymentReq>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<ConfirmPaymentResponse, Error>(confirmPaymentResponse));
 
-        var membership = new Faker<DomainMembership>()
+        var plan = new Faker<DomainMembership.Plan>()
+            .RuleFor(p => p.PlanId, f => f.Random.Int())
+            .RuleFor(p => p.PlanName, "Test Plan")
+            .Generate();
+
+        var membership = new Faker<DomainMembership.Membership>()
             .RuleFor(m => m.MembershipId, Guid.NewGuid())
             .RuleFor(m => m.EndDate, DateTime.UtcNow.AddMonths(1))
+            .RuleFor(m => m.Plan, plan)
+            .Generate();
+
+        var user = new Faker<CusomMapOSM_Domain.Entities.Users.User>()
+            .RuleFor(u => u.UserId, request.UserId!.Value)
+            .RuleFor(u => u.Email, "test@example.com")
+            .RuleFor(u => u.FullName, "Test User")
             .Generate();
 
         _mockMembershipService.Setup(x => x.CreateOrRenewMembershipAsync(
@@ -204,7 +246,17 @@ public class TransactionServiceTests
                 request.PlanId!.Value,
                 true,
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.Some<DomainMembership, Error>(membership));
+            .ReturnsAsync(Option.Some<DomainMembership.Membership, Error>(membership));
+
+        _mockMembershipPlanRepository.Setup(x => x.GetPlanByIdAsync(request.PlanId!.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(plan);
+
+        _mockUserRepository.Setup(x => x.GetUserByIdAsync(request.UserId!.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        _mockEmailNotificationService.Setup(x => x.SendTransactionCompletedNotificationAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
 
 
         // Act
@@ -253,15 +305,21 @@ public class TransactionServiceTests
             Guid.NewGuid() // TransactionId
         );
 
-        var gatewayId = Guid.NewGuid();
-
-        _mockPaymentGatewayRepository.Setup(x => x.GetByIdAsync(request.PaymentGateway, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentGateway { GatewayId = gatewayId });
+        // Setup service provider to return payment service
+        var paymentServices = new List<IPaymentService> { _mockPaymentService.Object };
+        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
+            .Returns(paymentServices);
 
         var cancelResponse = new CancelPaymentResponse("cancelled", PaymentGatewayEnum.PayOS.ToString());
 
         _mockPaymentService.Setup(x => x.CancelPaymentAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<CancelPaymentResponse, Error>(cancelResponse));
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(request.TransactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Transactions { TransactionId = request.TransactionId, PaymentGatewayId = Guid.NewGuid(), Amount = 99.99m, Purpose = "membership" });
+
+        _mockTransactionRepository.Setup(x => x.UpdateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Transactions { TransactionId = request.TransactionId, PaymentGatewayId = Guid.NewGuid(), Amount = 99.99m, Purpose = "membership", Status = "cancelled" });
 
         // Act
         var result = await _transactionService.CancelPaymentWithContextAsync(request, CancellationToken.None);
@@ -273,24 +331,266 @@ public class TransactionServiceTests
     }
 
     [Fact]
-    public void GetPaymentService_WithPayOSGateway_ShouldReturnPaymentService()
+    public void GetPaymentService_WithPayOSGateway_ShouldReturnPayOSPaymentService()
     {
+        // Arrange
+        // Create a mock PayOSPaymentService by creating a concrete instance
+        // Since PayOSPaymentService requires HttpClient, we'll use a mock
+        var httpClient = new HttpClient();
+        var payOSService = new PayOSPaymentService(httpClient);
+        var paymentServices = new List<IPaymentService> { payOSService };
+        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
+            .Returns(paymentServices);
+
         // Act
         var result = _transactionService.GetPaymentService(PaymentGatewayEnum.PayOS);
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().Be(_mockPaymentService.Object);
+        result.Should().BeOfType<PayOSPaymentService>();
     }
 
     [Fact]
-    public void GetPaymentService_WithInvalidGateway_ShouldThrowArgumentException()
+    public void GetPaymentService_WithUnsupportedGateway_ShouldThrowArgumentException()
     {
         // Arrange
-        var invalidGateway = PaymentGatewayEnum.PayPal; // Using PayPal as invalid since we only support PayOS
+        var paymentServices = new List<IPaymentService>();
+        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
+            .Returns(paymentServices);
 
         // Act & Assert
-        var action = () => _transactionService.GetPaymentService(invalidGateway);
-        action.Should().Throw<ArgumentException>().WithMessage("Invalid payment gateway");
+        var action = () => _transactionService.GetPaymentService(PaymentGatewayEnum.PayPal);
+        action.Should().Throw<ArgumentException>();
     }
+
+    #region CreateTransactionRecordAsync Tests
+
+    [Fact]
+    public async Task CreateTransactionRecordAsync_WithValidData_ShouldCreateTransaction()
+    {
+        // Arrange
+        var gatewayId = Guid.NewGuid();
+        var amount = 99.99m;
+        var purpose = "membership";
+        var membershipId = Guid.NewGuid();
+        var status = "pending";
+
+        var transaction = new Faker<Transactions>()
+            .RuleFor(t => t.TransactionId, Guid.NewGuid())
+            .RuleFor(t => t.PaymentGatewayId, gatewayId)
+            .RuleFor(t => t.Amount, amount)
+            .RuleFor(t => t.Purpose, purpose)
+            .RuleFor(t => t.MembershipId, membershipId)
+            .RuleFor(t => t.Status, status)
+            .Generate();
+
+        _mockTransactionRepository.Setup(x => x.CreateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
+
+        // Act
+        var result = await _transactionService.CreateTransactionRecordAsync(gatewayId, amount, purpose, membershipId, null, status, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Transactions)).Amount.Should().Be(amount);
+        result.ValueOr(default(Transactions)).Purpose.Should().Be(purpose);
+        _mockTransactionRepository.Verify(x => x.CreateAsync(It.Is<Transactions>(t =>
+            t.PaymentGatewayId == gatewayId &&
+            t.Amount == amount &&
+            t.Purpose == purpose), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    #endregion
+
+    #region UpdateTransactionStatusAsync Tests
+
+    [Fact]
+    public async Task UpdateTransactionStatusAsync_WithValidTransaction_ShouldUpdateStatus()
+    {
+        // Arrange
+        var transactionId = Guid.NewGuid();
+        var newStatus = "success";
+
+        var transaction = new Faker<Transactions>()
+            .RuleFor(t => t.TransactionId, transactionId)
+            .RuleFor(t => t.Status, "pending")
+            .Generate();
+
+        var updatedTransaction = new Faker<Transactions>()
+            .RuleFor(t => t.TransactionId, transactionId)
+            .RuleFor(t => t.Status, newStatus)
+            .Generate();
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
+
+        _mockTransactionRepository.Setup(x => x.UpdateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(updatedTransaction);
+
+        // Act
+        var result = await _transactionService.UpdateTransactionStatusAsync(transactionId, newStatus, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Transactions)).Status.Should().Be(newStatus);
+        transaction.Status.Should().Be(newStatus);
+    }
+
+    [Fact]
+    public async Task UpdateTransactionStatusAsync_WithNonExistentTransaction_ShouldReturnError()
+    {
+        // Arrange
+        var transactionId = Guid.NewGuid();
+        var newStatus = "success";
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transactions?)null);
+
+        // Act
+        var result = await _transactionService.UpdateTransactionStatusAsync(transactionId, newStatus, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeFalse();
+        result.Match(
+            some: _ => Assert.Fail("Should not have succeeded"),
+            none: error => error.Type.Should().Be(ErrorType.NotFound)
+        );
+    }
+
+    #endregion
+
+    #region UpdateTransactionGatewayInfoAsync Tests
+
+    [Fact]
+    public async Task UpdateTransactionGatewayInfoAsync_WithValidTransaction_ShouldUpdateGatewayReference()
+    {
+        // Arrange
+        var transactionId = Guid.NewGuid();
+        var gatewayReference = "session_12345";
+
+        var transaction = new Faker<Transactions>()
+            .RuleFor(t => t.TransactionId, transactionId)
+            .RuleFor(t => t.TransactionReference, "old_reference")
+            .Generate();
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
+
+        _mockTransactionRepository.Setup(x => x.UpdateAsync(It.IsAny<Transactions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction);
+
+        // Act
+        var result = await _transactionService.UpdateTransactionGatewayInfoAsync(transactionId, gatewayReference, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        transaction.TransactionReference.Should().Be(gatewayReference);
+        _mockTransactionRepository.Verify(x => x.UpdateAsync(transaction, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateTransactionGatewayInfoAsync_WithNonExistentTransaction_ShouldReturnError()
+    {
+        // Arrange
+        var transactionId = Guid.NewGuid();
+        var gatewayReference = "session_12345";
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transactions?)null);
+
+        // Act
+        var result = await _transactionService.UpdateTransactionGatewayInfoAsync(transactionId, gatewayReference, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeFalse();
+        result.Match(
+            some: _ => Assert.Fail("Should not have succeeded"),
+            none: error => error.Type.Should().Be(ErrorType.NotFound)
+        );
+    }
+
+    #endregion
+
+    #region GetPaymentGatewayId Tests
+
+    [Fact]
+    public void GetPaymentGatewayId_WithPayOS_ShouldReturnGuid()
+    {
+        // Act
+        var result = _transactionService.GetPaymentGatewayId(PaymentGatewayEnum.PayOS);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Guid)).Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void GetPaymentGatewayId_WithVNPay_ShouldReturnGuid()
+    {
+        // Act
+        var result = _transactionService.GetPaymentGatewayId(PaymentGatewayEnum.VNPay);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Guid)).Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void GetPaymentGatewayId_WithStripe_ShouldReturnGuid()
+    {
+        // Act
+        var result = _transactionService.GetPaymentGatewayId(PaymentGatewayEnum.Stripe);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Guid)).Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void GetPaymentGatewayId_WithPayPal_ShouldReturnGuid()
+    {
+        // Act
+        var result = _transactionService.GetPaymentGatewayId(PaymentGatewayEnum.PayPal);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Guid)).Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public void GetPaymentGatewayId_WithBankTransfer_ShouldReturnGuid()
+    {
+        // Act
+        var result = _transactionService.GetPaymentGatewayId(PaymentGatewayEnum.BankTransfer);
+
+        // Assert
+        result.HasValue.Should().BeTrue();
+        result.ValueOr(default(Guid)).Should().NotBe(Guid.Empty);
+    }
+
+    #endregion
+
+    #region GetTransactionAsync Tests
+
+    [Fact]
+    public async Task GetTransactionAsync_WithNonExistentId_ShouldReturnError()
+    {
+        // Arrange
+        var transactionId = Guid.NewGuid();
+
+        _mockTransactionRepository.Setup(x => x.GetByIdAsync(transactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Transactions?)null);
+
+        // Act
+        var result = await _transactionService.GetTransactionAsync(transactionId, CancellationToken.None);
+
+        // Assert
+        result.HasValue.Should().BeFalse();
+        result.Match(
+            some: _ => Assert.Fail("Should not have succeeded"),
+            none: error => error.Type.Should().Be(ErrorType.NotFound)
+        );
+    }
+
+    #endregion
 }
