@@ -2,7 +2,7 @@
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 
-public class CreateQuestionBankRequest
+public class UpdateQuestionBankRequest
 {
     [Required]
     [StringLength(200)]

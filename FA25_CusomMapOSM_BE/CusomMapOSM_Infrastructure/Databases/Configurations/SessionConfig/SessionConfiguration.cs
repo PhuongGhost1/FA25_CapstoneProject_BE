@@ -23,7 +23,7 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
 
         builder.Property(s => s.QuestionBankId)
             .HasColumnName("question_bank_id")
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(s => s.HostUserId)
             .HasColumnName("host_user_id")
@@ -123,7 +123,8 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.HasOne(s => s.QuestionBank)
             .WithMany()
             .HasForeignKey(s => s.QuestionBankId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
 
         builder.HasOne(s => s.HostUser)
             .WithMany()

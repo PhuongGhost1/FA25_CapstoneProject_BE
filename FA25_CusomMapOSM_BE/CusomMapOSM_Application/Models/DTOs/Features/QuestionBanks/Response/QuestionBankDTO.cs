@@ -4,11 +4,7 @@ public class QuestionBankDTO
 {
     public Guid QuestionBankId { get; set; }
     public Guid UserId { get; set; }
-    public string UserName { get; set; } = string.Empty;
     public Guid? WorkspaceId { get; set; }
-    public string? WorkspaceName { get; set; }
-    public Guid? MapId { get; set; }
-    public string? MapName { get; set; }
     public string BankName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Category { get; set; }

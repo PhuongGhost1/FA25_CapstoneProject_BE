@@ -8,8 +8,7 @@ public class CreateSessionRequest
     [Required]
     public Guid MapId { get; set; }
 
-    [Required]
-    public Guid QuestionBankId { get; set; }
+    public Guid? QuestionBankId { get; set; }
 
     [Required]
     [StringLength(200)]

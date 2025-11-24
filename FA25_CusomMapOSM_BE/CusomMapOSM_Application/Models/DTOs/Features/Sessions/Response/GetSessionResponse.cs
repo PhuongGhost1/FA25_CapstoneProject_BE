@@ -14,7 +14,7 @@ public class GetSessionResponse
     public Guid MapId { get; set; }
     public string MapName { get; set; } = string.Empty;
 
-    public Guid QuestionBankId { get; set; }
+    public Guid? QuestionBankId { get; set; }
     public string QuestionBankName { get; set; } = string.Empty;
 
     public Guid HostUserId { get; set; }

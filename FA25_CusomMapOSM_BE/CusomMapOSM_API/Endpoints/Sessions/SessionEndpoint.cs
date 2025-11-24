@@ -10,7 +10,7 @@ public class SessionEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/sessions")
+        var group = app.MapGroup("/sessions")
             .WithTags("Sessions")
             .WithDescription("Session management endpoints for interactive learning");
 
@@ -283,5 +283,35 @@ public class SessionEndpoint : IEndpoint
             .Produces(400)
             .Produces(404)
             .Produces(409);
+
+        // Get Word Cloud Data (for Word Cloud questions)
+        group.MapGet("/questions/{sessionQuestionId:guid}/word-cloud", async (
+                [FromRoute] Guid sessionQuestionId,
+                [FromServices] ISessionService sessionService) =>
+            {
+                var result = await sessionService.GetWordCloudData(sessionQuestionId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetWordCloudData")
+            .WithDescription("Get word cloud analytics for a Word Cloud question")
+            .Produces(200)
+            .Produces(404);
+
+        // Get Map Pins Data (for Pin on Map questions)
+        group.MapGet("/questions/{sessionQuestionId:guid}/map-pins", async (
+                [FromRoute] Guid sessionQuestionId,
+                [FromServices] ISessionService sessionService) =>
+            {
+                var result = await sessionService.GetMapPinsData(sessionQuestionId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMapPinsData")
+            .WithDescription("Get map pins analytics for a Pin on Map question")
+            .Produces(200)
+            .Produces(404);
     }
 }

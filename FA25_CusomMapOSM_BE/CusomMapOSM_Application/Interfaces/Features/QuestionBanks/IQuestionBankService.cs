@@ -12,6 +12,7 @@ public interface IQuestionBankService
     Task<Option<QuestionBankDTO, Error>> GetQuestionBankById(Guid questionBankId);
     Task<Option<List<QuestionBankDTO>, Error>> GetMyQuestionBanks();
     Task<Option<List<QuestionBankDTO>, Error>> GetPublicQuestionBanks();
+    Task<Option<QuestionBankDTO, Error>> UpdateQuestionBank(Guid questionBankId, UpdateQuestionBankRequest request);
     Task<Option<bool, Error>> DeleteQuestionBank(Guid questionBankId);
     Task<Option<QuestionBankDTO, Error>> AddQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request);
     Task<Option<QuestionBankDTO, Error>> ReplaceQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request);
@@ -19,5 +20,6 @@ public interface IQuestionBankService
     // Question CRUD
     Task<Option<Guid, Error>> CreateQuestion(CreateQuestionRequest request);
     Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId);
+    Task<Option<Guid, Error>> UpdateQuestion(UpdateQuestionRequest request);
     Task<Option<bool, Error>> DeleteQuestion(Guid questionId);
 }

@@ -91,7 +91,7 @@ internal class QuestionConfiguration : IEntityTypeConfiguration<Question>
 
         // Relationships
         builder.HasOne(q => q.QuestionBank)
-            .WithMany(qb => qb.Questions)
+            .WithMany()
             .HasForeignKey(q => q.QuestionBankId)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -99,11 +99,5 @@ internal class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .WithMany()
             .HasForeignKey(q => q.LocationId)
             .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasMany(q => q.QuestionOptions)
-            .WithOne(qo => qo.Question)
-            .HasForeignKey(qo => qo.QuestionId)
-            .OnDelete(DeleteBehavior.Cascade);
-
     }
 }
