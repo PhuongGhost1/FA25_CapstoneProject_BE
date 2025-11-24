@@ -42,9 +42,8 @@ internal class QuestionOptionConfiguration : IEntityTypeConfiguration<QuestionOp
             .HasColumnType("datetime")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-        // Relationships
         builder.HasOne(qo => qo.Question)
-            .WithMany(q => q.QuestionOptions)
+            .WithMany()
             .HasForeignKey(qo => qo.QuestionId)
             .OnDelete(DeleteBehavior.Cascade);
 

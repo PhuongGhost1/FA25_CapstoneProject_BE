@@ -24,9 +24,6 @@ public class Question
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-
-    // Navigation properties
     public QuestionBank? QuestionBank { get; set; }
     public Location? Location { get; set; }
-    public ICollection<QuestionOption>? QuestionOptions { get; set; }
 }

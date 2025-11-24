@@ -67,6 +67,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<QuestionBank> QuestionBanks { get; set; }
+    public DbSet<QuestionOption> QuestionOptions { get; set; }
     public DbSet<Question> Questions { get; set; }
     public DbSet<Session> Sessions { get; set; }
     public DbSet<SessionParticipant> SessionParticipants { get; set; }

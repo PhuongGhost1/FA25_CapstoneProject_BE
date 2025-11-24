@@ -24,7 +24,6 @@ public class QuestionBankRepository : IQuestionBankRepository
         return await _context.QuestionBanks
             .Include(qb => qb.User)
             .Include(qb => qb.Workspace)
-            .Include(qb => qb.Map)
             .FirstOrDefaultAsync(qb => qb.QuestionBankId == questionBankId && qb.IsActive);
     }
 
@@ -32,7 +31,6 @@ public class QuestionBankRepository : IQuestionBankRepository
     {
         return await _context.QuestionBanks
             .Include(qb => qb.Workspace)
-            .Include(qb => qb.Map)
             .Where(qb => qb.UserId == userId && qb.IsActive)
             .OrderByDescending(qb => qb.CreatedAt)
             .ToListAsync();
@@ -42,8 +40,6 @@ public class QuestionBankRepository : IQuestionBankRepository
     {
         return await _context.QuestionBanks
             .Include(qb => qb.User)
-            .Include(qb => qb.Map)
-            .Where(qb => qb.WorkspaceId == workspaceId && qb.IsActive)
             .OrderByDescending(qb => qb.CreatedAt)
             .ToListAsync();
     }
@@ -98,8 +94,6 @@ public class QuestionBankRepository : IQuestionBankRepository
     {
         return await _context.QuestionBanks
             .Include(qb => qb.User)
-            .Include(qb => qb.Questions)!
-                .ThenInclude(q => q.QuestionOptions)
             .FirstOrDefaultAsync(qb => qb.QuestionBankId == templateId && qb.IsTemplate && qb.IsActive);
     }
 

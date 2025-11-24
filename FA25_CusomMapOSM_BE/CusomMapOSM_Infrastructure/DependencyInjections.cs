@@ -153,6 +153,7 @@ public static class DependencyInjections
         services.AddScoped<IPaymentGatewayRepository, PaymentGatewayRepository>();
         services.AddScoped<IQuestionBankRepository, QuestionBankRepository>();
         services.AddScoped<IQuestionRepository, QuestionRepository>();
+        services.AddScoped<IQuestionOptionRepository, QuestionOptionRepository>();
         services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddScoped<ISessionParticipantRepository, SessionParticipantRepository>();
         services.AddScoped<ISessionQuestionRepository, SessionQuestionRepository>();
