@@ -127,6 +127,27 @@ public class RouteAnimationEndpoint : IEndpoint
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
+
+        // POST move route animation to another segment
+        group.MapPost(Routes.StoryMapEndpoints.MoveRouteToSegment, async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid fromSegmentId,
+                [FromRoute] Guid routeAnimationId,
+                [FromRoute] Guid toSegmentId,
+                [FromServices] IStoryMapService service,
+                CancellationToken ct) =>
+            {
+                var result = await service.MoveRouteToSegmentAsync(routeAnimationId, fromSegmentId, toSegmentId, ct);
+                return result.Match<IResult>(
+                    success => Results.Ok(new { success = true, message = "Route animation moved successfully" }),
+                    err => err.ToProblemDetailsResult());
+            })
+            .WithName("MoveRouteAnimationToSegment")
+            .WithDescription("Move a route animation from one segment to another")
+            .WithTags(Tags.StoryMaps)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 }
 

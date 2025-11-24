@@ -23,8 +23,16 @@ public class RouteAnimation
     public double ToLng { get; set; }
     public string? ToName { get; set; }
     
+    // Link to Location at destination point (for showing info after route completes)
+    public Guid? ToLocationId { get; set; }
+    
     // Route path as GeoJSON LineString
     public string RoutePath { get; set; } = string.Empty; // GeoJSON LineString
+    
+    // Waypoints for multi-point routes (JSON array of {locationId, lat, lng, name, segmentId})
+    // Format: [{"locationId":"guid","lat":0.0,"lng":0.0,"name":"Location Name","segmentId":"guid"},...]
+    // If null or empty, uses From/To locations (backward compatible)
+    public string? Waypoints { get; set; }
     
     // Icon configuration
     public string IconType { get; set; } = "car"; // car, walking, bike, plane, custom
@@ -52,6 +60,16 @@ public class RouteAnimation
     // Timing relative to segment (optional)
     public int? StartTimeMs { get; set; } // When to start in segment timeline
     public int? EndTimeMs { get; set; } // When to end in segment timeline
+    
+    // Camera state transitions (JSON stringified CameraState)
+    // CameraStateBefore: Camera state before route starts (e.g., zoom out to show overview)
+    public string? CameraStateBefore { get; set; }
+    // CameraStateAfter: Camera state after route completes (e.g., zoom in to destination)
+    public string? CameraStateAfter { get; set; }
+    
+    // Location info display settings
+    public bool ShowLocationInfoOnArrival { get; set; } = true; // Auto-show location popup when route completes
+    public int? LocationInfoDisplayDurationMs { get; set; } // Duration to show location info popup (null = until user closes)
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

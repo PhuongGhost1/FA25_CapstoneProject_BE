@@ -17,7 +17,9 @@ public static class RouteAnimationMappings
             ToLat: routeAnimation.ToLat,
             ToLng: routeAnimation.ToLng,
             ToName: routeAnimation.ToName,
+            ToLocationId: routeAnimation.ToLocationId,
             RoutePath: routeAnimation.RoutePath,
+            Waypoints: routeAnimation.Waypoints,
             IconType: routeAnimation.IconType,
             IconUrl: routeAnimation.IconUrl,
             IconWidth: routeAnimation.IconWidth,
@@ -35,6 +37,10 @@ public static class RouteAnimationMappings
             DisplayOrder: routeAnimation.DisplayOrder,
             StartTimeMs: routeAnimation.StartTimeMs,
             EndTimeMs: routeAnimation.EndTimeMs,
+            CameraStateBefore: routeAnimation.CameraStateBefore,
+            CameraStateAfter: routeAnimation.CameraStateAfter,
+            ShowLocationInfoOnArrival: routeAnimation.ShowLocationInfoOnArrival,
+            LocationInfoDisplayDurationMs: routeAnimation.LocationInfoDisplayDurationMs,
             CreatedAt: routeAnimation.CreatedAt,
             UpdatedAt: routeAnimation.UpdatedAt
         );

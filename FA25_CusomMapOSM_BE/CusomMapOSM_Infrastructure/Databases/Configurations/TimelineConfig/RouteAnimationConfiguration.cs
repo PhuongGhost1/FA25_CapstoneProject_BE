@@ -49,11 +49,19 @@ public class RouteAnimationConfiguration : IEntityTypeConfiguration<RouteAnimati
             .HasColumnName("to_name")
             .HasMaxLength(255);
 
+        builder.Property(ra => ra.ToLocationId)
+            .HasColumnName("to_location_id");
+
         // Route path (GeoJSON LineString)
         builder.Property(ra => ra.RoutePath)
             .HasColumnName("route_path")
             .HasColumnType("TEXT")
             .IsRequired();
+
+        // Waypoints for multi-point routes
+        builder.Property(ra => ra.Waypoints)
+            .HasColumnName("waypoints")
+            .HasColumnType("TEXT");
 
         // Icon configuration
         builder.Property(ra => ra.IconType)
@@ -142,6 +150,24 @@ public class RouteAnimationConfiguration : IEntityTypeConfiguration<RouteAnimati
         builder.Property(ra => ra.EndTimeMs)
             .HasColumnName("end_time_ms");
 
+        // Camera state transitions
+        builder.Property(ra => ra.CameraStateBefore)
+            .HasColumnName("camera_state_before")
+            .HasColumnType("TEXT");
+
+        builder.Property(ra => ra.CameraStateAfter)
+            .HasColumnName("camera_state_after")
+            .HasColumnType("TEXT");
+
+        // Location info display settings
+        builder.Property(ra => ra.ShowLocationInfoOnArrival)
+            .HasColumnName("show_location_info_on_arrival")
+            .IsRequired()
+            .HasDefaultValue(true);
+
+        builder.Property(ra => ra.LocationInfoDisplayDurationMs)
+            .HasColumnName("location_info_display_duration_ms");
+
         // Timestamps
         builder.Property(ra => ra.CreatedAt)
             .HasColumnName("created_at")
@@ -161,10 +187,10 @@ public class RouteAnimationConfiguration : IEntityTypeConfiguration<RouteAnimati
             .HasForeignKey(ra => ra.SegmentId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Indexes
-        builder.HasIndex(ra => ra.SegmentId);
-        builder.HasIndex(ra => ra.MapId);
-        builder.HasIndex(ra => new { ra.SegmentId, ra.DisplayOrder });
-    }
+        // Optional relationship to Location at destination
+        // Note: Location is in different namespace, so we configure via foreign key only
+        builder.HasIndex(ra => ra.ToLocationId)
+            .HasDatabaseName("IX_route_animations_to_location_id");
+     }
 }
 

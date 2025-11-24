@@ -218,7 +218,9 @@ public record CreateRouteAnimationRequest(
     double ToLat,
     double ToLng,
     string? ToName,
+    Guid? ToLocationId, // Link to Location at destination point
     string RoutePath, // GeoJSON LineString
+    string? Waypoints, // JSON array of waypoints for multi-point routes
     string IconType, // car, walking, bike, plane, custom
     string? IconUrl,
     int? IconWidth,
@@ -235,7 +237,11 @@ public record CreateRouteAnimationRequest(
     int? ZIndex,
     int? DisplayOrder,
     int? StartTimeMs,
-    int? EndTimeMs);
+    int? EndTimeMs,
+    string? CameraStateBefore, // Camera state before route starts (JSON)
+    string? CameraStateAfter, // Camera state after route completes (JSON)
+    bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
+    int? LocationInfoDisplayDurationMs); // Duration to show location info popup
 
 public record UpdateRouteAnimationRequest(
     double? FromLat,
@@ -244,7 +250,9 @@ public record UpdateRouteAnimationRequest(
     double? ToLat,
     double? ToLng,
     string? ToName,
+    Guid? ToLocationId, // Link to Location at destination point
     string? RoutePath,
+    string? Waypoints,
     string? IconType,
     string? IconUrl,
     int? IconWidth,
@@ -261,7 +269,11 @@ public record UpdateRouteAnimationRequest(
     int? ZIndex,
     int? DisplayOrder,
     int? StartTimeMs,
-    int? EndTimeMs);
+    int? EndTimeMs,
+    string? CameraStateBefore, // Camera state before route starts (JSON)
+    string? CameraStateAfter, // Camera state after route completes (JSON)
+    bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
+    int? LocationInfoDisplayDurationMs); // Duration to show location info popup
 
 // ================== ANIMATED LAYER ==================
 public record CreateAnimatedLayerRequest(

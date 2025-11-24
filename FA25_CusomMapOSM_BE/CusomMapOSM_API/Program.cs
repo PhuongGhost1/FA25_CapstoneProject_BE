@@ -16,6 +16,7 @@ using CusomMapOSM_Infrastructure.Hubs;
 using CusomMapOSM_Infrastructure.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Databases;
 
 namespace CusomMapOSM_API;
 
@@ -90,10 +91,7 @@ public class Program
             options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
             options.InstanceName = "IMOS:";
         });
-
-        builder.Services.AddSingleton<TemplateCacheManager>();
-        builder.Services.AddHostedService<TemplateCacheHostedService>();
-
+        
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("FrontendCors", policy =>
@@ -116,6 +114,7 @@ public class Program
         
         var app = builder.Build();
 
+        app.UseInitializeDatabase();
         app.UseSwaggerServices();
         app.UseHttpsRedirection();
 
@@ -142,7 +141,8 @@ public class Program
         api.MapHub<MapCollaborationHub>("/hubs/mapCollaboration")
             .RequireCors("FrontendCors")
             .RequireAuthorization();
-
+        api.MapHub<SessionHub>("/hubs/session")
+            .RequireCors("FrontendCors");
         app.Run();
     }
 }

@@ -17,8 +17,6 @@ public class LocationRepository : ILocationRepository
     {
         return await _context.MapLocations
             .AsNoTracking()
-            .Include(l => l.Segment)
-            .Include(l => l.Zone)
             .FirstOrDefaultAsync(l => l.LocationId == locationId, ct);
     }
 
@@ -26,9 +24,9 @@ public class LocationRepository : ILocationRepository
     {
         return await _context.MapLocations
             .AsNoTracking()
-            .Include(l => l.Segment)
             .Where(l => l.MapId == mapId)
             .OrderBy(l => l.DisplayOrder)
+            .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
     }
 
@@ -38,6 +36,23 @@ public class LocationRepository : ILocationRepository
             .AsNoTracking()
             .Where(l => l.SegmentId == segmentId)
             .OrderBy(l => l.DisplayOrder)
+            .ThenBy(l => l.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyCollection<Location>> GetBySegmentIdsAsync(List<Guid> segmentIds, CancellationToken ct = default)
+    {
+        if (segmentIds == null || segmentIds.Count == 0)
+        {
+            return Array.Empty<Location>();
+        }
+
+        return await _context.MapLocations
+            .AsNoTracking()
+            .Where(l => l.SegmentId.HasValue && segmentIds.Contains(l.SegmentId.Value))
+            .OrderBy(l => l.SegmentId)
+            .ThenBy(l => l.DisplayOrder)
+            .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
     }
 
@@ -48,6 +63,7 @@ public class LocationRepository : ILocationRepository
             .Include(l => l.Zone)
             .Where(l => l.ZoneId == zoneId)
             .OrderBy(l => l.DisplayOrder)
+            .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
     }
 
@@ -57,6 +73,7 @@ public class LocationRepository : ILocationRepository
             .AsNoTracking()
             .Where(l => l.SegmentId == segmentId && l.ZoneId == null)
             .OrderBy(l => l.DisplayOrder)
+            .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
     }
 
@@ -96,6 +113,23 @@ public class LocationRepository : ILocationRepository
         await _context.SaveChangesAsync(ct);
 
         return existing;
+    }
+
+    public async Task<bool> UpdateSegmentIdAsync(Guid locationId, Guid newSegmentId, CancellationToken ct = default)
+    {
+        var location = await _context.MapLocations
+            .FirstOrDefaultAsync(l => l.LocationId == locationId, ct);
+
+        if (location == null)
+        {
+            return false;
+        }
+
+        location.SegmentId = newSegmentId;
+        location.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid locationId, CancellationToken ct = default)

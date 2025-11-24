@@ -17,6 +17,9 @@ using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Zones;
 using CusomMapOSM_Domain.Entities.Animations;
+using CusomMapOSM_Domain.Entities.QuestionBanks;
+using CusomMapOSM_Domain.Entities.Sessions;
+using CusomMapOSM_Domain.Entities.Groups;
 using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases;
@@ -63,6 +66,15 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<Transactions> Transactions { get; set; }
     public DbSet<PaymentGateway> PaymentGateways { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<QuestionBank> QuestionBanks { get; set; }
+    public DbSet<Question> Questions { get; set; }
+    public DbSet<Session> Sessions { get; set; }
+    public DbSet<SessionParticipant> SessionParticipants { get; set; }
+    public DbSet<StudentResponse> StudentResponses { get; set; }
+    public DbSet<SessionQuestion> SessionQuestions { get; set; }
+    public DbSet<SessionGroup> SessionGroups { get; set; }
+    public DbSet<SessionGroupMember> SessionGroupMembers { get; set; }
+    public DbSet<GroupSubmission> GroupSubmissions { get; set; }
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

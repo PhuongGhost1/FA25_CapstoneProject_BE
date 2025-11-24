@@ -156,7 +156,9 @@ public record RouteAnimationDto(
     double ToLat,
     double ToLng,
     string? ToName,
+    Guid? ToLocationId, // Link to Location at destination point
     string RoutePath, // GeoJSON LineString
+    string? Waypoints, // JSON array of waypoints for multi-point routes
     string IconType,
     string? IconUrl,
     int IconWidth,
@@ -174,6 +176,10 @@ public record RouteAnimationDto(
     int DisplayOrder,
     int? StartTimeMs,
     int? EndTimeMs,
+    string? CameraStateBefore, // Camera state before route starts (JSON)
+    string? CameraStateAfter, // Camera state after route completes (JSON)
+    bool ShowLocationInfoOnArrival, // Auto-show location popup when route completes
+    int? LocationInfoDisplayDurationMs, // Duration to show location info popup
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 

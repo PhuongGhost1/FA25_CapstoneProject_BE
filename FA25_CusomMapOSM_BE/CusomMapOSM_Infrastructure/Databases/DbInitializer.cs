@@ -15,7 +15,9 @@ public static class DbInitializer
         {
             Console.WriteLine("Applying  Migrations...");
             dbContext.Database.Migrate();
+            Console.WriteLine("Migrations applied successfully.");
         }
-        throw new Exception("Pending Migrations");
+        
+        return application;
     }
 }

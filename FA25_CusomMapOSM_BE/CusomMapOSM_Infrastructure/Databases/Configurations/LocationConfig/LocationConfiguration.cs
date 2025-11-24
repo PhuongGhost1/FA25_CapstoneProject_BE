@@ -198,5 +198,19 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.HasOne(l => l.LinkedLocation)
             .WithMany()
             .HasForeignKey(l => l.LinkedLocationId);
+
+        // Indexes for performance optimization
+        builder.HasIndex(l => l.MapId)
+            .HasDatabaseName("IX_map_locations_map_id");
+
+        builder.HasIndex(l => l.SegmentId)
+            .HasDatabaseName("IX_map_locations_segment_id");
+
+        builder.HasIndex(l => new { l.MapId, l.DisplayOrder })
+            .HasDatabaseName("IX_map_locations_map_id_display_order");
+        
+        // Composite index for batch queries (used in GetBySegmentIdsAsync)
+        builder.HasIndex(l => new { l.SegmentId, l.DisplayOrder })
+            .HasDatabaseName("IX_map_locations_segment_id_display_order");
     }
 }
