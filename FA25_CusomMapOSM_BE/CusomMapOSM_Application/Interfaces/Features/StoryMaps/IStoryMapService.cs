@@ -1,5 +1,5 @@
 using CusomMapOSM_Application.Common.Errors;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using Optional;
 
@@ -77,7 +77,7 @@ public interface IStoryMapService
     Task<Option<AnimatedLayerDto, Error>> CreateAnimatedLayerFromPresetAsync(Guid presetId, Guid? layerId, Guid? segmentId, CancellationToken ct = default);
 
     // ================== SEARCH ==================
-    Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm, CancellationToken ct = default);
+    Task<Option<IReadOnlyCollection<LocationDto>, Error>> SearchLocationsAsync(string searchTerm, CancellationToken ct = default);
     Task<Option<IReadOnlyCollection<ZoneDto>, Error>> SearchRoutesAsync(string from, string to, CancellationToken ct = default);
     Task<Option<string, Error>> SearchRouteBetweenLocationsAsync(Guid fromLocationId, Guid toLocationId, string routeType = "road", CancellationToken ct = default);
     Task<Option<string, Error>> SearchRouteWithMultipleLocationsAsync(List<Guid> locationIds, string routeType = "road", CancellationToken ct = default);

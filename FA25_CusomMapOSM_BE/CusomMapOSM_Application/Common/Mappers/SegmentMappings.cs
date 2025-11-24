@@ -1,4 +1,4 @@
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Segments;
 
@@ -10,7 +10,7 @@ public static class SegmentMappings
         this Segment segment,
         IReadOnlyCollection<SegmentZoneDto> zones,
         IReadOnlyCollection<SegmentLayerDto> layers,
-        IReadOnlyCollection<PoiDto> locations)
+        IReadOnlyCollection<LocationDto> locations)
         => new SegmentDto(
             segment.SegmentId,
             segment.MapId,
@@ -30,6 +30,6 @@ public static class SegmentMappings
         => segment.ToSegmentDto(
             Array.Empty<SegmentZoneDto>(),
             Array.Empty<SegmentLayerDto>(),
-            Array.Empty<PoiDto>());
+            Array.Empty<LocationDto>());
 }
 

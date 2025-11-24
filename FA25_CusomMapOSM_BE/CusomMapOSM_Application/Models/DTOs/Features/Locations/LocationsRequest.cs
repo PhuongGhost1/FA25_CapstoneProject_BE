@@ -1,9 +1,9 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
 
-namespace CusomMapOSM_Application.Models.DTOs.Features.POIs;
+namespace CusomMapOSM_Application.Models.DTOs.Features.Locations;
 
-public record CreatePoiRequest(
+public record CreateLocationRequest(
     Guid MapId,
     Guid? SegmentId,
     Guid? ZoneId,
@@ -20,7 +20,7 @@ public record CreatePoiRequest(
     string? EffectType = null,
     bool OpenSlideOnClick = false,
     string? SlideContent = null,
-    Guid? LinkedPoiId = null,
+    Guid? LinkedLocationId = null,
     bool PlayAudioOnClick = false,
     string? AudioUrl = null,
     string? ExternalUrl = null,
@@ -30,7 +30,7 @@ public record CreatePoiRequest(
     bool IsVisible = true,
     int ZIndex = 0);
 
-public record UpdatePoiRequest(
+public record UpdateLocationRequest(
     Guid? SegmentId,
     Guid? ZoneId,
     string Title,
@@ -46,7 +46,7 @@ public record UpdatePoiRequest(
     string? EffectType = null,
     bool OpenSlideOnClick = false,
     string? SlideContent = null,
-    Guid? LinkedPoiId = null,
+    Guid? LinkedLocationId = null,
     bool PlayAudioOnClick = false,
     string? AudioUrl = null,
     string? ExternalUrl = null,
@@ -56,13 +56,13 @@ public record UpdatePoiRequest(
     bool? IsVisible = null,
     int? ZIndex = null);
 
-public record UpdatePoiDisplayConfigRequest(
+public record UpdateLocationDisplayConfigRequest(
     bool? IsVisible,
     int? ZIndex,
     bool? ShowTooltip,
     string? TooltipContent);
 
-public record UpdatePoiInteractionConfigRequest(
+public record UpdateLocationInteractionConfigRequest(
     bool? OpenSlideOnClick,
     bool? PlayAudioOnClick,
     string? AudioUrl,

@@ -1,6 +1,5 @@
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using System.Diagnostics;
 

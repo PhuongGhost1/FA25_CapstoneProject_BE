@@ -4,9 +4,8 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
-using CusomMapOSM_Application.Models.DTOs.Services.OSM;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
@@ -64,14 +63,14 @@ public class StoryMapService : IStoryMapService
         
         var zonesBySegment = allZones.GroupBy(sz => sz.SegmentId).ToDictionary(g => g.Key, g => g.Select(sz => sz.ToDto()).ToList());
         var layersBySegment = allLayers.GroupBy(sl => sl.SegmentId).ToDictionary(g => g.Key, g => g.Select(sl => sl.ToDto()).ToList());
-        var locationsBySegment = allLocations.GroupBy(l => l.SegmentId).ToDictionary(g => g.Key, g => g.Select(loc => loc.ToPoiDto()).ToList());
+        var locationsBySegment = allLocations.GroupBy(l => l.SegmentId).ToDictionary(g => g.Key, g => g.Select(loc => loc.ToDto()).ToList());
 
         var segmentDtos = new List<SegmentDto>(segments.Count);
         foreach (var segment in segments)
         {
             var zones = zonesBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentZoneDto>();
             var layers = layersBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentLayerDto>();
-            var locations = locationsBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<PoiDto>();
+            var locations = locationsBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<LocationDto>();
 
             var dto = segment.ToSegmentDto(zones, layers, locations);
             segmentDtos.Add(dto);
@@ -94,7 +93,7 @@ public class StoryMapService : IStoryMapService
 
         var zones = segmentZones.Select(sz => sz.ToDto()).ToList();
         var layers = segmentLayers.Select(sl => sl.ToDto()).ToList();
-        var pois = locations.Select(l => l.ToPoiDto()).ToList();
+        var pois = locations.Select(l => l.ToDto()).ToList();
 
         return Option.Some<SegmentDto, Error>(segment.ToSegmentDto(zones, layers, pois));
     }
@@ -222,7 +221,7 @@ public class StoryMapService : IStoryMapService
         var layerDtos = segmentLayers.Select(sl => sl.ToDto()).ToList();
 
         var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
-        var poiDtos = locations.Select(loc => loc.ToPoiDto()).ToList();
+        var poiDtos = locations.Select(loc => loc.ToDto()).ToList();
 
         return Option.Some<SegmentDto, Error>(segment.ToSegmentDto(zoneDtos, layerDtos, poiDtos));
     }
@@ -1731,26 +1730,24 @@ public class StoryMapService : IStoryMapService
         return degrees * Math.PI / 180;
     }
 
-    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> SearchLocationsAsync(string searchTerm,
+    public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> SearchLocationsAsync(string searchTerm,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(new List<PoiDto>());
+            return Option.Some<IReadOnlyCollection<LocationDto>, Error>(new List<LocationDto>());
         }
-
-        // Search OSM for locations (since locations are typically map-specific, 
-        // we search OSM to provide general location search)
+        
         try
         {
             var osmResults = await _osmService.SearchByNameAsync(searchTerm, null, null, null, 10);
-            var osmPoiDtos = new List<PoiDto>();
+            var osmPoiDtos = new List<LocationDto>();
 
             foreach (var osmResult in osmResults)
             {
                 // Convert OSM result to PoiDto format
-                var poiDto = new PoiDto(
-                    PoiId: Guid.Empty, // Not in DB yet
+                var poiDto = new LocationDto(
+                    LocationId: Guid.Empty, // Not in DB yet
                     MapId: Guid.Empty,
                     SegmentId: null,
                     ZoneId: null,
@@ -1777,7 +1774,7 @@ public class StoryMapService : IStoryMapService
                     EffectType: null,
                     OpenSlideOnClick: false,
                     SlideContent: null,
-                    LinkedPoiId: null,
+                    LinkedLocationId: null,
                     PlayAudioOnClick: false,
                     AudioUrl: null,
                     ExternalUrl: null,
@@ -1799,12 +1796,12 @@ public class StoryMapService : IStoryMapService
                 osmPoiDtos.Add(poiDto);
             }
 
-            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(osmPoiDtos);
+            return Option.Some<IReadOnlyCollection<LocationDto>, Error>(osmPoiDtos);
         }
         catch (Exception ex)
         {
             // If OSM search fails, return empty list
-            return Option.Some<IReadOnlyCollection<PoiDto>, Error>(new List<PoiDto>());
+            return Option.Some<IReadOnlyCollection<LocationDto>, Error>(new List<LocationDto>());
         }
     }
 

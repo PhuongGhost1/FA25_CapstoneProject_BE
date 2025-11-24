@@ -1,8 +1,8 @@
 using CusomMapOSM_Application.Common.Errors;
-using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
 using CusomMapOSM_Application.Common.Mappers;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
@@ -30,66 +30,66 @@ public class LocationService : ILocationService
         _htmlImageProcessor = htmlImageProcessor;
     }
 
-    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetMapPoisAsync(Guid mapId,
+    public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetMapLocations(Guid mapId,
         CancellationToken ct = default)
     {
         var map = await _storyMapRepository.GetMapAsync(mapId, ct);
         if (map is null)
         {
-            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
+            return Option.None<IReadOnlyCollection<LocationDto>, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
         }
 
         var locations = await _locationRepository.GetByMapIdAsync(mapId, ct);
-        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
-        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+        var LocationDtos = locations.Select(l => l.ToDto()).ToList();
+        return Option.Some<IReadOnlyCollection<LocationDto>, Error>(LocationDtos);
     }
 
-    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetSegmentPoisAsync(Guid mapId, Guid segmentId,
+    public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetSegmentLocationsAsync(Guid mapId, Guid segmentId,
         CancellationToken ct = default)
     {
         var segment = await _storyMapRepository.GetSegmentAsync(segmentId, ct);
         if (segment is null || segment.MapId != mapId)
         {
-            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Segment.NotFound",
+            return Option.None<IReadOnlyCollection<LocationDto>, Error>(Error.NotFound("Poi.Segment.NotFound",
                 "Segment not found"));
         }
 
         var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
-        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
-        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+        var LocationDtos = locations.Select(l => l.ToDto()).ToList();
+        return Option.Some<IReadOnlyCollection<LocationDto>, Error>(LocationDtos);
     }
 
-    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetZonePoisAsync(Guid zoneId,
+    public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetZoneLocationsAsync(Guid zoneId,
         CancellationToken ct = default)
     {
         var zone = await _storyMapRepository.GetZoneAsync(zoneId, ct);
         if (zone is null)
         {
-            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Zone.NotFound",
+            return Option.None<IReadOnlyCollection<LocationDto>, Error>(Error.NotFound("Poi.Zone.NotFound",
                 "Zone not found"));
         }
 
         var locations = await _locationRepository.GetByZoneIdAsync(zoneId, ct);
-        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
-        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+        var LocationDtos = locations.Select(l => l.ToDto()).ToList();
+        return Option.Some<IReadOnlyCollection<LocationDto>, Error>(LocationDtos);
     }
 
-    public async Task<Option<IReadOnlyCollection<PoiDto>, Error>> GetPoisWithoutZoneAsync(Guid segmentId,
+    public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetLocationsWithoutZoneAsync(Guid segmentId,
         CancellationToken ct = default)
     {
         var segment = await _storyMapRepository.GetSegmentAsync(segmentId, ct);
         if (segment is null)
         {
-            return Option.None<IReadOnlyCollection<PoiDto>, Error>(Error.NotFound("Poi.Segment.NotFound",
+            return Option.None<IReadOnlyCollection<LocationDto>, Error>(Error.NotFound("Poi.Segment.NotFound",
                 "Segment not found"));
         }
 
         var locations = await _locationRepository.GetWithoutZoneAsync(segmentId, ct);
-        var poiDtos = locations.Select(l => l.ToPoiDto()).ToList();
-        return Option.Some<IReadOnlyCollection<PoiDto>, Error>(poiDtos);
+        var LocationDtos = locations.Select(l => l.ToDto()).ToList();
+        return Option.Some<IReadOnlyCollection<LocationDto>, Error>(LocationDtos);
     }
 
-    public async Task<Option<PoiDto, Error>> CreatePoiAsync(CreatePoiRequest request, CancellationToken ct = default)
+    public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default)
     {
         var currentUserId = _currentUserService.GetUserId();
 
@@ -101,12 +101,12 @@ public class LocationService : ILocationService
         var map = await _storyMapRepository.GetMapAsync(request.MapId, ct);
         if (map is null)
         {
-            return Option.None<PoiDto, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
         }
 
         Guid? segmentId = NormalizeGuid(request.SegmentId);
         Guid? zoneId = NormalizeGuid(request.ZoneId);
-        Guid? linkedPoiId = NormalizeGuid(request.LinkedPoiId);
+        Guid? linkedPoiId = NormalizeGuid(request.LinkedLocationId);
         
         // Validate SegmentId if provided
         if (segmentId.HasValue)
@@ -114,7 +114,7 @@ public class LocationService : ILocationService
             var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
             if (segment is null || segment.MapId != request.MapId)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
             }
         }
         
@@ -124,7 +124,7 @@ public class LocationService : ILocationService
             var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
         }
 
@@ -133,7 +133,7 @@ public class LocationService : ILocationService
             var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != request.MapId)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound",
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Linked.NotFound",
                     "Linked POI not found in this map"));
             }
         }
@@ -177,18 +177,18 @@ public class LocationService : ILocationService
 
         location = await _locationRepository.CreateAsync(location, ct);
 
-        var poiDto = location.ToPoiDto();
+        var LocationDto = location.ToDto();
 
-        return Option.Some<PoiDto, Error>(poiDto);
+        return Option.Some<LocationDto, Error>(LocationDto);
     }
 
-    public async Task<Option<PoiDto, Error>> UpdatePoiAsync(Guid poiId, UpdatePoiRequest request,
+    public async Task<Option<LocationDto, Error>> UpdateLocationAsync(Guid poiId, UpdateLocationRequest request,
         CancellationToken ct = default)
     {
         var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
-            return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
         // Use MapId directly from location
@@ -200,7 +200,7 @@ public class LocationService : ILocationService
             var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
             if (segment is null || segment.MapId != mapId)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Segment.NotFound",
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Segment.NotFound",
                     "Segment not found for this map"));
             }
         }
@@ -211,25 +211,25 @@ public class LocationService : ILocationService
             var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
             if (zone is null)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
             }
         }
 
-        Guid? linkedPoiId = request.LinkedPoiId.HasValue
-            ? NormalizeGuid(request.LinkedPoiId)
+        Guid? linkedPoiId = request.LinkedLocationId.HasValue
+            ? NormalizeGuid(request.LinkedLocationId)
             : location.LinkedLocationId;
         if (linkedPoiId.HasValue)
         {
             if (linkedPoiId.Value == poiId)
             {
-                return Option.None<PoiDto, Error>(Error.ValidationError("Poi.Linked.Self",
+                return Option.None<LocationDto, Error>(Error.ValidationError("Poi.Linked.Self",
                     "A POI cannot link to itself"));
             }
 
             var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
             if (linked is null || linked.MapId != mapId)
             {
-                return Option.None<PoiDto, Error>(Error.NotFound("Poi.Linked.NotFound",
+                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Linked.NotFound",
                     "Linked POI not found in this map"));
             }
         }
@@ -296,10 +296,10 @@ public class LocationService : ILocationService
             location = updated;
         }
 
-        return Option.Some<PoiDto, Error>(location.ToPoiDto());
+        return Option.Some<LocationDto, Error>(location.ToDto());
     }
 
-    public async Task<Option<bool, Error>> DeletePoiAsync(Guid poiId, CancellationToken ct = default)
+    public async Task<Option<bool, Error>> DeleteLocationAsync(Guid poiId, CancellationToken ct = default)
     {
         var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
@@ -312,13 +312,13 @@ public class LocationService : ILocationService
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<PoiDto, Error>> UpdatePoiDisplayConfigAsync(Guid poiId,
-        UpdatePoiDisplayConfigRequest request, CancellationToken ct = default)
+    public async Task<Option<LocationDto, Error>> UpdateLocationDisplayConfigAsync(Guid poiId,
+        UpdateLocationDisplayConfigRequest request, CancellationToken ct = default)
     {
         var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
-            return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
         if (request.IsVisible.HasValue)
@@ -347,18 +347,18 @@ public class LocationService : ILocationService
         location.UpdatedAt = DateTime.UtcNow;
         var updated = await _locationRepository.UpdateAsync(location, ct) ?? location;
 
-        var dto = updated.ToPoiDto();
+        var dto = updated.ToDto();
 
-        return Option.Some<PoiDto, Error>(dto);
+        return Option.Some<LocationDto, Error>(dto);
     }
 
-    public async Task<Option<PoiDto, Error>> UpdatePoiInteractionConfigAsync(Guid poiId,
-        UpdatePoiInteractionConfigRequest request, CancellationToken ct = default)
+    public async Task<Option<LocationDto, Error>> UpdateLocationInteractionConfigAsync(Guid poiId,
+        UpdateLocationInteractionConfigRequest request, CancellationToken ct = default)
     {
         var location = await _locationRepository.GetByIdAsync(poiId, ct);
         if (location is null)
         {
-            return Option.None<PoiDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
 
         if (request.OpenSlideOnClick.HasValue)
@@ -384,9 +384,9 @@ public class LocationService : ILocationService
         location.UpdatedAt = DateTime.UtcNow;
         var updated = await _locationRepository.UpdateAsync(location, ct) ?? location;
 
-        var dto = updated.ToPoiDto();
+        var dto = updated.ToDto();
 
-        return Option.Some<PoiDto, Error>(dto);
+        return Option.Some<LocationDto, Error>(dto);
     }
 
     public async Task<Option<bool, Error>> MoveLocationToSegmentAsync(

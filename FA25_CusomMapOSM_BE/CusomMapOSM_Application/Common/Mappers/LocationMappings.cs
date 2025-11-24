@@ -1,12 +1,12 @@
-using CusomMapOSM_Application.Models.DTOs.Features.POIs;
+using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Domain.Entities.Locations;
 
 namespace CusomMapOSM_Application.Common.Mappers;
 
 public static class LocationMappings
 {
-    public static PoiDto ToPoiDto(this Location l)
-        => new PoiDto(
+    public static LocationDto ToDto(this Location l)
+        => new LocationDto(
             l.LocationId,
             l.MapId, // Use MapId directly instead of l.Segment?.MapId for better performance
             l.SegmentId,
