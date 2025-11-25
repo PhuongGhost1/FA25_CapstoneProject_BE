@@ -1,5 +1,3 @@
-using CusomMapOSM_Domain.Entities.Animations;
-
 namespace CusomMapOSM_Application.Models.DTOs.Features.Animations;
 
 public record LayerAnimationDto(

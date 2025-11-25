@@ -1,7 +1,7 @@
 using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
-using CusomMapOSM_Application.Interfaces.Features.Workspace;
+using CusomMapOSM_Application.Interfaces.Features.Workspaces;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Response;
 using Microsoft.AspNetCore.Mvc;

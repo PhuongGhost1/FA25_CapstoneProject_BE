@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
@@ -19,7 +20,7 @@ public class LayerAnimationService : ILayerAnimationService
     public async Task<Option<IReadOnlyCollection<LayerAnimationDto>, Error>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct = default)
     {
         var items = await _repository.GetAnimationsByLayerAsync(layerId, ct);
-        var dtos = items.Select(ToDto).ToList();
+        var dtos = items.Select(a => a.ToLayerAnimationDto()).ToList();
         return Option.Some<IReadOnlyCollection<LayerAnimationDto>, Error>(dtos);
     }
 
@@ -30,7 +31,7 @@ public class LayerAnimationService : ILayerAnimationService
         {
             return Option.None<LayerAnimationDto, Error>(Error.NotFound("Animation.NotFound", "Animation not found"));
         }
-        return Option.Some<LayerAnimationDto, Error>(ToDto(item));
+        return Option.Some<LayerAnimationDto, Error>(item.ToLayerAnimationDto());
     }
 
     public async Task<Option<LayerAnimationDto, Error>> CreateAnimationAsync(CreateLayerAnimationRequest request, CancellationToken ct = default)
@@ -52,7 +53,7 @@ public class LayerAnimationService : ILayerAnimationService
 
         await _repository.AddAnimationAsync(entity, ct);
         await _repository.SaveChangesAsync(ct);
-        return Option.Some<LayerAnimationDto, Error>(ToDto(entity));
+        return Option.Some<LayerAnimationDto, Error>(entity.ToLayerAnimationDto());
     }
 
     public async Task<Option<LayerAnimationDto, Error>> UpdateAnimationAsync(Guid animationId, UpdateLayerAnimationRequest request, CancellationToken ct = default)
@@ -74,7 +75,7 @@ public class LayerAnimationService : ILayerAnimationService
 
         _repository.UpdateAnimation(entity);
         await _repository.SaveChangesAsync(ct);
-        return Option.Some<LayerAnimationDto, Error>(ToDto(entity));
+        return Option.Some<LayerAnimationDto, Error>(entity.ToLayerAnimationDto());
     }
 
     public async Task<Option<bool, Error>> DeleteAnimationAsync(Guid animationId, CancellationToken ct = default)
@@ -92,25 +93,10 @@ public class LayerAnimationService : ILayerAnimationService
     public async Task<Option<IReadOnlyCollection<LayerAnimationDto>, Error>> GetActiveAnimationsAsync(CancellationToken ct = default)
     {
         var items = await _repository.GetActiveAnimationsAsync(ct);
-        var dtos = items.Select(ToDto).ToList();
+        var dtos = items.Select(a => a.ToLayerAnimationDto()).ToList();
         return Option.Some<IReadOnlyCollection<LayerAnimationDto>, Error>(dtos);
     }
 
-    private static LayerAnimationDto ToDto(AnimatedLayer a)
-    {
-        return new LayerAnimationDto(
-            a.AnimatedLayerId,
-            a.LayerId ?? Guid.Empty,
-            a.Name,
-            a.SourceUrl,
-            a.Coordinates,
-            a.RotationDeg,
-            a.Scale,
-            a.ZIndex,
-            a.CreatedAt,
-            a.UpdatedAt,
-            a.IsVisible
-        );
-    }
+
 }
 

@@ -104,9 +104,9 @@ public class LocationService : ILocationService
             return Option.None<LocationDto, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
         }
 
-        Guid? segmentId = NormalizeGuid(request.SegmentId);
-        Guid? zoneId = NormalizeGuid(request.ZoneId);
-        Guid? linkedPoiId = NormalizeGuid(request.LinkedLocationId);
+        Guid? segmentId = (request.SegmentId);
+        Guid? zoneId = (request.ZoneId);
+        Guid? linkedPoiId = (request.LinkedLocationId);
         
         // Validate SegmentId if provided
         if (segmentId.HasValue)
@@ -194,7 +194,7 @@ public class LocationService : ILocationService
         // Use MapId directly from location
         var mapId = location.MapId;
 
-        Guid? segmentId = request.SegmentId.HasValue ? NormalizeGuid(request.SegmentId) : location.SegmentId;
+        Guid? segmentId = (request.SegmentId);
         if (segmentId.HasValue)
         {
             var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
@@ -205,7 +205,7 @@ public class LocationService : ILocationService
             }
         }
 
-        Guid? zoneId = request.ZoneId.HasValue ? NormalizeGuid(request.ZoneId) : location.ZoneId;
+        Guid? zoneId = (request.ZoneId);
         if (zoneId.HasValue)
         {
             var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
@@ -215,9 +215,7 @@ public class LocationService : ILocationService
             }
         }
 
-        Guid? linkedPoiId = request.LinkedLocationId.HasValue
-            ? NormalizeGuid(request.LinkedLocationId)
-            : location.LinkedLocationId;
+        Guid? linkedPoiId = (request.LinkedLocationId);
         if (linkedPoiId.HasValue)
         {
             if (linkedPoiId.Value == poiId)
@@ -422,7 +420,4 @@ public class LocationService : ILocationService
 
         return Option.Some<bool, Error>(true);
     }
-
-    private static Guid? NormalizeGuid(Guid? value) =>
-        value.HasValue && value.Value == Guid.Empty ? null : value;
 }
