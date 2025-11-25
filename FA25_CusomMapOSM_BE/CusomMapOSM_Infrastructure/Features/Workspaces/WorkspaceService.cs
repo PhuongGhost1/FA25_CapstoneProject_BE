@@ -1,17 +1,19 @@
 using CusomMapOSM_Application.Common.Errors;
-using CusomMapOSM_Application.Interfaces.Features.Workspace;
+using CusomMapOSM_Application.Common.Mappers;
+using CusomMapOSM_Application.Interfaces.Features.Workspaces;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Response;
 using CusomMapOSM_Domain.Entities.Organizations.ErrorMessages;
-using DommainWorkspaces = CusomMapOSM_Domain.Entities.Workspaces;
+using CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.ErrorMessages;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using Optional;
 
-namespace CusomMapOSM_Infrastructure.Features.Workspace;
+namespace CusomMapOSM_Infrastructure.Features.Workspaces;
 
 public class WorkspaceService : IWorkspaceService
 {
@@ -42,7 +44,7 @@ public class WorkspaceService : IWorkspaceService
             return Option.None<WorkspaceResDto, Error>(Error.NotFound("Organization.NotFound", OrganizationErrors.OrganizationNotFound));
         }
 
-        var workspace = new DommainWorkspaces.Workspace
+        var workspace = new Workspace
         {
             WorkspaceId = Guid.NewGuid(),
             OrgId = req.OrgId,
@@ -67,12 +69,14 @@ public class WorkspaceService : IWorkspaceService
 
     public async Task<Option<GetAllWorkspacesResDto, Error>> GetAll()
     {
-        var workspaces = await _workspaceRepository.GetAllAsync();
-        var workspaceDtos = new List<WorkspaceDetailDto>();
+        var currentUser = _currentUserService.GetUserId();
+        var workspaces = await _workspaceRepository.GetByUserIdAsync(currentUser.Value);
         
+        var workspaceDtos = new List<WorkspaceDetailDto>();
         foreach (var workspace in workspaces)
         {
-            workspaceDtos.Add(await MapToWorkspaceDetailDto(workspace, _mapRepository));
+            var mapCount = await _workspaceRepository.GetMapCountAsync(workspace.WorkspaceId);
+            workspaceDtos.Add(workspace.ToDto(mapCount));
         }
 
         return Option.Some<GetAllWorkspacesResDto, Error>(new GetAllWorkspacesResDto
@@ -89,7 +93,8 @@ public class WorkspaceService : IWorkspaceService
             return Option.None<GetWorkspaceByIdResDto, Error>(Error.NotFound(WorkspaceErrors.WorkspaceNotFound, WorkspaceErrors.WorkspaceNotFound));
         }
 
-        var workspaceDto = await MapToWorkspaceDetailDto(workspace, _mapRepository);
+        var mapCount = await _workspaceRepository.GetMapCountAsync(workspace.WorkspaceId);
+        var workspaceDto = workspace.ToDto(mapCount);
 
         return Option.Some<GetWorkspaceByIdResDto, Error>(new GetWorkspaceByIdResDto
         {
@@ -138,11 +143,12 @@ public class WorkspaceService : IWorkspaceService
     public async Task<Option<GetWorkspacesByOrganizationResDto, Error>> GetByOrganization(Guid orgId)
     {
         var workspaces = await _workspaceRepository.GetByOrganizationIdAsync(orgId);
-        var workspaceDtos = new List<WorkspaceDetailDto>();
         
+        var workspaceDtos = new List<WorkspaceDetailDto>();
         foreach (var workspace in workspaces)
         {
-            workspaceDtos.Add(await MapToWorkspaceDetailDto(workspace, _mapRepository));
+            var mapCount = await _workspaceRepository.GetMapCountAsync(workspace.WorkspaceId);
+            workspaceDtos.Add(workspace.ToDto(mapCount));
         }
 
         return Option.Some<GetWorkspacesByOrganizationResDto, Error>(new GetWorkspacesByOrganizationResDto
@@ -155,11 +161,12 @@ public class WorkspaceService : IWorkspaceService
     {
         var currentUserId = _currentUserService.GetUserId()!.Value;
         var workspaces = await _workspaceRepository.GetByUserIdAsync(currentUserId);
-        var workspaceDtos = new List<WorkspaceDetailDto>();
         
+        var workspaceDtos = new List<WorkspaceDetailDto>();
         foreach (var workspace in workspaces)
         {
-            workspaceDtos.Add(await MapToWorkspaceDetailDto(workspace, _mapRepository));
+            var mapCount = await _workspaceRepository.GetMapCountAsync(workspace.WorkspaceId);
+            workspaceDtos.Add(workspace.ToDto(mapCount));
         }
 
         return Option.Some<GetMyWorkspacesResDto, Error>(new GetMyWorkspacesResDto
@@ -176,7 +183,6 @@ public class WorkspaceService : IWorkspaceService
             return Option.None<GetWorkspaceMapsResDto, Error>(Error.NotFound("Workspace.NotFound", WorkspaceErrors.WorkspaceNotFound));
         }
 
-        // Get maps from MapRepository instead of using collection
         var maps = await _mapRepository.GetByWorkspaceIdAsync(workspaceId);
         var mapDtos = maps.Select(m => new MapInWorkspaceDto
         {
@@ -240,27 +246,5 @@ public class WorkspaceService : IWorkspaceService
         {
             Result = "Map removed from workspace successfully"
         });
-    }
-
-    private static async Task<WorkspaceDetailDto> MapToWorkspaceDetailDto(DommainWorkspaces.Workspace workspace, IMapRepository mapRepository)
-    {
-        var mapCount = await mapRepository.GetByWorkspaceIdAsync(workspace.WorkspaceId);
-        
-        return new WorkspaceDetailDto
-        {
-            WorkspaceId = workspace.WorkspaceId,
-            OrgId = workspace.OrgId,
-            OrgName = workspace.Organization?.OrgName ?? "",
-            CreatedBy = workspace.CreatedBy,
-            CreatorName = workspace.Creator?.FullName ?? "",
-            WorkspaceName = workspace.WorkspaceName,
-            Description = workspace.Description,
-            Icon = workspace.Icon,
-            Access = workspace.Access,
-            IsActive = workspace.IsActive,
-            CreatedAt = workspace.CreatedAt,
-            UpdatedAt = workspace.UpdatedAt,
-            MapCount = mapCount.Count
-        };
     }
 }

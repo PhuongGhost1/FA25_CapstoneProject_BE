@@ -1,5 +1,5 @@
 using CusomMapOSM_Domain.Entities.Workspaces;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Workspace;

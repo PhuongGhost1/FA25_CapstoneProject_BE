@@ -3,7 +3,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Response;
 using Optional;
 
-namespace CusomMapOSM_Application.Interfaces.Features.Workspace;
+namespace CusomMapOSM_Application.Interfaces.Features.Workspaces;
 
 public interface IWorkspaceService
 {

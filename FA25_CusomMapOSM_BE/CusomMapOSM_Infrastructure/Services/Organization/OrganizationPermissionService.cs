@@ -4,7 +4,7 @@ using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 
 namespace CusomMapOSM_Infrastructure.Services.Organization;
 
