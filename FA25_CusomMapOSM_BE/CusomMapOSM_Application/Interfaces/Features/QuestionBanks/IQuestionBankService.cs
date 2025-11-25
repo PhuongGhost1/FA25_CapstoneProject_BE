@@ -22,4 +22,9 @@ public interface IQuestionBankService
     Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId);
     Task<Option<Guid, Error>> UpdateQuestion(UpdateQuestionRequest request);
     Task<Option<bool, Error>> DeleteQuestion(Guid questionId);
+
+    // Map Question Bank
+    Task<Option<bool, Error>> AttachQuestionBankToMap(Guid questionBankId, AttachQuestionBankToMapRequest request);
+    Task<Option<bool, Error>> DetachQuestionBankFromMap(Guid mapId);
+    Task<Option<List<QuestionDTO>, Error>>  GetQuestionBanksByMapId(Guid mapId);
 }
