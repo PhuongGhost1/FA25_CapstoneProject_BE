@@ -24,6 +24,7 @@ using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Application.Interfaces.Services.Maps;
+using CusomMapOSM_Application.Interfaces.Services.Organization;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.StoryMaps;
 using System.Net.Http;
@@ -80,6 +81,7 @@ using CusomMapOSM_Infrastructure.Features.SupportTicket;
 using CusomMapOSM_Infrastructure.Features.SystemAdmin;
 using CusomMapOSM_Infrastructure.Services.FileProcessors;
 using CusomMapOSM_Infrastructure.Services.LayerData.Relational;
+using CusomMapOSM_Infrastructure.Services.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Organization;
@@ -164,6 +166,7 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
+        services.AddScoped<IMapQuestionBankRepository, MapQuestionBankRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
@@ -255,6 +258,7 @@ public static class DependencyInjections
         services.AddScoped<IMapService, MapService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
         services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
+        services.AddScoped<IOrganizationPermissionService, OrganizationPermissionService>();
         
         // Home service for aggregated statistics
         services.AddScoped<IHomeService, HomeService>();

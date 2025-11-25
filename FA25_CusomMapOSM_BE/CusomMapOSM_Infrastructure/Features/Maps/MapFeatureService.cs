@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Optional;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CusomMapOSM_Application.Interfaces.Services.Organization;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
 
@@ -26,6 +27,7 @@ public class MapFeatureService : IMapFeatureService
     private readonly IMapHistoryService _mapHistoryService;
     private readonly IHubContext<MapCollaborationHub> _hubContext;
     private readonly ILogger<MapFeatureService> _logger;
+    private readonly IOrganizationPermissionService _organizationPermissionService;
 
     public MapFeatureService(
         IMapFeatureRepository repository,
@@ -33,7 +35,8 @@ public class MapFeatureService : IMapFeatureService
         ICurrentUserService currentUserService,
         IMapHistoryService mapHistoryService,
         IHubContext<MapCollaborationHub> hubContext,
-        ILogger<MapFeatureService> logger)
+        ILogger<MapFeatureService> logger, 
+        IOrganizationPermissionService organizationPermissionService)
     {
         _repository = repository;
         _mongoStore = mongoStore;
@@ -41,6 +44,7 @@ public class MapFeatureService : IMapFeatureService
         _mapHistoryService = mapHistoryService;
         _hubContext = hubContext;
         _logger = logger;
+        _organizationPermissionService = organizationPermissionService;
     }
 
     public async Task<Option<MapFeatureResponse, Error>> Create(CreateMapFeatureRequest req)
@@ -369,6 +373,12 @@ public class MapFeatureService : IMapFeatureService
             if (currentUser == null)
             {
                 return Option.None<bool, Error>(Error.Unauthorized("Feature.Unauthorized", "Unauthorized"));
+            }
+            var canEditMap = await _organizationPermissionService.CanEditMap(mapId, currentUser.Value);
+            if (!canEditMap)
+            {
+                return Option.None<bool, Error>(
+                    Error.Forbidden("History.Forbidden", "You don't have permission to modify this map"));
             }
 
             var features = JsonSerializer.Deserialize<List<MapFeature>>(snapshotJson);

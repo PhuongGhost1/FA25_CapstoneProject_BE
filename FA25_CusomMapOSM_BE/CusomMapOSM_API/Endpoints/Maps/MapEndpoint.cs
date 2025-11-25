@@ -382,10 +382,6 @@ public class MapEndpoints : IEndpoint
                 [FromServices] ICurrentUserService currentUserService,
                 CancellationToken ct) =>
             {
-                // Check edit permission
-                if (!await mapService.HasEditPermission(mapId))
-                    return Results.Forbid();
-
                 if (file == null || file.Length == 0)
                 {
                     return Results.BadRequest(new
@@ -511,8 +507,6 @@ public class MapEndpoints : IEndpoint
                 [FromServices] IMapHistoryService historyService,
                 [FromServices] IMapService mapService) =>
             {
-                var canEdit = await mapService.HasEditPermission(mapId);
-                if (!canEdit) return Results.Forbid();
                 var result = await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
                 return result.Match(
                     success => Results.Ok(new MapSnapshotResponse { Snapshot = success }),
@@ -531,8 +525,6 @@ public class MapEndpoints : IEndpoint
                 [FromServices] IMapFeatureService featureService,
                 [FromServices] IMapService mapService) =>
             {
-                var canEdit = await mapService.HasEditPermission(mapId);
-                if (!canEdit) return Results.Forbid();
                 var result = await featureService.ApplySnapshot(mapId, snapshot);
                 return result.Match(
                     success => Results.Ok(new ApplySnapshotResponse { Applied = success }),
@@ -657,17 +649,6 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Update layer's GeoJSON data")
             .RequireAuthorization()
             .Produces<UpdateLayerDataResponse>(200);
-        
-        group.MapGet("/{mapId:guid}/can-edit", async (
-                [FromRoute] Guid mapId,
-                [FromServices] IMapService mapService) =>
-            {
-                var can = await mapService.HasEditPermission(mapId);
-                return Results.Ok(new CanEditResponse { CanEdit = can });
-            })
-            .WithName("Map_CanEdit")
-            .WithDescription("Check if current user can edit this map")
-            .RequireAuthorization();
     }
 
     private static async Task<IResult> CreateTemplateHandler(

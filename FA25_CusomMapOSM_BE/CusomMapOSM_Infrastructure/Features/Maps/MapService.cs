@@ -8,6 +8,7 @@ using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Layers.Enums;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
+using CusomMapOSM_Application.Interfaces.Services.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
 using Optional;
@@ -17,7 +18,6 @@ using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
-using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -33,6 +33,7 @@ public class MapService : IMapService
     private readonly IWorkspaceRepository _workspaceRepository;
     private readonly IOrganizationRepository _organizationRepository;
     private readonly IHubContext<MapCollaborationHub> _hubContext;
+    private readonly IOrganizationPermissionService _organizationPermissionService;
 
     public MapService(
         IMapRepository mapRepository,
@@ -42,7 +43,8 @@ public class MapService : IMapService
         IWorkspaceRepository workspaceRepository,
         IOrganizationRepository organizationRepository,
         IHubContext<MapCollaborationHub> hubContext, 
-        IRedisCacheService cacheService)
+        IRedisCacheService cacheService,
+        IOrganizationPermissionService organizationPermissionService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
@@ -52,6 +54,7 @@ public class MapService : IMapService
         _organizationRepository = organizationRepository;
         _hubContext = hubContext;
         _cacheService = cacheService;
+        _organizationPermissionService = organizationPermissionService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -211,7 +214,7 @@ public class MapService : IMapService
 
         if (!hasAccess && currentUserId.HasValue)
         {
-            hasAccess = await HasOrganizationAccess(currentUserId.Value, map.UserId);
+            hasAccess = await _organizationPermissionService.HasOrganizationAccess(currentUserId.Value, map.UserId);
         }
 
         if (!hasAccess)
@@ -1141,7 +1144,7 @@ public class MapService : IMapService
             var hasAccess = map.UserId == currentUserId.Value;
             if (!hasAccess)
             {
-                hasAccess = await HasOrganizationAccess(currentUserId.Value, map.UserId);
+                hasAccess = await _organizationPermissionService.HasOrganizationAccess(currentUserId.Value, map.UserId);
             }
             
             if (!hasAccess)
@@ -1170,61 +1173,7 @@ public class MapService : IMapService
                 Error.Failure("Map.GetLayersException", $"Failed to get map layers: {ex.Message}"));
         }
     }
-
-    public async Task<bool> HasEditPermission(Guid mapId)
-    {
-        var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId is null) return false;
-        var map = await _mapRepository.GetMapById(mapId);
-        if (map is null) return false;
-        
-        // Owner can always edit
-        if (map.UserId == currentUserId.Value)
-        {
-            return true;
-        }
-        
-        // Check if user is in same organization as map owner with permission higher than Viewer
-        return await HasOrganizationAccess(currentUserId.Value, map.UserId);
-    }
-
-    /// <summary>
-    /// Checks if the current user has access to maps owned by another user through shared organization membership
-    /// with permission level higher than Viewer (Owner, Admin, or Member)
-    /// </summary>
-    private async Task<bool> HasOrganizationAccess(Guid currentUserId, Guid mapOwnerId)
-    {
-        // Get all organizations for map owner
-        var ownerOrganizations = await _organizationRepository.GetUserOrganizations(mapOwnerId);
-        if (ownerOrganizations.Count == 0)
-        {
-            return false;
-        }
-
-        // Get all organizations for current user
-        var userOrganizations = await _organizationRepository.GetUserOrganizations(currentUserId);
-        if (userOrganizations.Count == 0)
-        {
-            return false;
-        }
-
-        // Find common organizations
-        var ownerOrgIds = ownerOrganizations.Select(o => o.OrgId).ToHashSet();
-        var commonOrganizations = userOrganizations
-            .Where(uo => ownerOrgIds.Contains(uo.OrgId))
-            .ToList();
-
-        if (commonOrganizations.Count == 0)
-        {
-            return false;
-        }
-
-        // Check if user has permission higher than Viewer in any common organization
-        // OrganizationMemberTypeEnum: Owner=1, Admin=2, Member=3, Viewer=4
-        // Higher permission means lower enum value
-        return commonOrganizations.Any(member => 
-            member.Role < OrganizationMemberTypeEnum.Viewer);
-    }
+    
 
     #region Zone/Feature Operations
 
@@ -1242,7 +1191,7 @@ public class MapService : IMapService
                     Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
             }
 
-            // Get map and verify ownership
+            // Get map and verify workspace edit permission
             var map = await _mapRepository.GetMapById(mapId);
             if (map is null)
             {
@@ -1250,7 +1199,8 @@ public class MapService : IMapService
                     Error.NotFound("Map.NotFound", "Map not found"));
             }
 
-            if (map.UserId != currentUserId)
+            var canEditMap = await _organizationPermissionService.CanEditMap(map, currentUserId.Value);
+            if (!canEditMap)
             {
                 return Option.None<CopyFeatureToLayerResponse, Error>(
                     Error.Forbidden("Map.Forbidden", "You don't have permission to modify this map"));

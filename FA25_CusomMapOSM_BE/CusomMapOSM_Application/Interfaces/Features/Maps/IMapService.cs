@@ -41,9 +41,6 @@ public interface IMapService
     
     // Layer Operations
     Task<Option<List<LayerInfoResponse>, Error>> GetMapLayers(Guid mapId);
-
-    // Permissions
-    Task<bool> HasEditPermission(Guid mapId);
     
     // Map Publishing Operations
     Task<Option<bool, Error>> PublishMap(Guid mapId);

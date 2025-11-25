@@ -44,6 +44,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<MapHistory> MapHistories { get; set; }
     public DbSet<MapFeature> MapFeatures { get; set; }
     public DbSet<MapImage> MapImages { get; set; }
+    public DbSet<MapQuestionBank> MapQuestionBanks { get; set; }
     public DbSet<Segment> MapSegments { get; set; }
     public DbSet<SegmentLayer> SegmentLayers { get; set; }
     public DbSet<SegmentZone> SegmentZones { get; set; }

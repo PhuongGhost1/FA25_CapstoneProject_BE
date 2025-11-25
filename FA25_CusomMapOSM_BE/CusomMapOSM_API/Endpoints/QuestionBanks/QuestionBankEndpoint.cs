@@ -224,6 +224,58 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(401)
             .Produces(403)
             .Produces(404);
+        
+        // Attach Question Bank to Map
+        group.MapPost("/{questionBankId:guid}/maps", async (
+                [FromRoute] Guid questionBankId,
+                [FromBody] AttachQuestionBankToMapRequest req,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.AttachQuestionBankToMap(questionBankId, req);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("AttachQuestionBankToMap")
+            .WithDescription("Attach a question bank to a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        // Detach Question Bank from Map
+        group.MapDelete("/{questionBankId:guid}/maps", async (
+                [FromRoute] Guid questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.DetachQuestionBankFromMap(questionBankId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("DetachQuestionBankFromMap")
+            .WithDescription("Detach a question bank from a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        // Get Question Banks by Map ID
+        group.MapGet("/maps/{mapId:guid}/question-banks", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetQuestionBanksByMapId(mapId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetQuestionBanksByMapId")
+            .WithDescription("Get all question banks attached to a map")
+            .Produces(200)
+            .Produces(404);
 
         // Upload Question Image
         group.MapPost("/questions/upload-image", async (
