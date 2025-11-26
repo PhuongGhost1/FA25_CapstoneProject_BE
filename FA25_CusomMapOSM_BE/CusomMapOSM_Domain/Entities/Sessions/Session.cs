@@ -15,7 +15,7 @@ public class Session
     public string SessionName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public SessionTypeEnum SessionType { get; set; } = SessionTypeEnum.LIVE;
-    public SessionStatusEnum Status { get; set; } = SessionStatusEnum.DRAFT;
+    public SessionStatusEnum Status { get; set; } = SessionStatusEnum.WAITING;
     public int MaxParticipants { get; set; } = 0;
     public bool AllowLateJoin { get; set; } = true;
     public bool ShowLeaderboard { get; set; } = true;

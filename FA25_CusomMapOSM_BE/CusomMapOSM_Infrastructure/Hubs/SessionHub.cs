@@ -73,6 +73,7 @@ public class SessionHub : Hub
 
             // Send initial state to caller
             var mapState = await _redisCacheService.Get<MapStateSyncEvent>(GetMapStateCacheKey(sessionId));
+            var segmentState = await _redisCacheService.Get<SegmentSyncEvent>(GetSegmentStateCacheKey(sessionId));
 
             await Clients.Caller.SendAsync("JoinedSession", new
             {
@@ -80,12 +81,18 @@ public class SessionHub : Hub
                 SessionCode = session.SessionCode,
                 Status = session.Status.ToString(),
                 Message = $"Successfully joined session {session.SessionCode}",
-                MapState = mapState
+                MapState = mapState,
+                SegmentState = segmentState
             });
 
             if (mapState != null)
             {
                 await Clients.Caller.SendAsync("MapStateSync", mapState);
+            }
+            
+            if (segmentState != null)
+            {
+                await Clients.Caller.SendAsync("SegmentSync", segmentState);
             }
         }
         catch (Exception ex)
@@ -174,6 +181,138 @@ public class SessionHub : Hub
         {
             _logger.LogError(ex, "[SessionHub] Error syncing map state for session {SessionId}", sessionId);
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync map state" });
+        }
+    }
+
+    /// <summary>
+    /// Teacher syncs current segment (for storymap playback)
+    /// </summary>
+    public async Task SyncSegment(Guid sessionId, SegmentSyncRequest request)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserId();
+
+            // Validate user is the session host
+            var session = await _sessionRepository.GetSessionById(sessionId);
+            if (session == null || session.HostUserId != userId)
+            {
+                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync segment" });
+                return;
+            }
+
+            var syncEvent = new SegmentSyncEvent
+            {
+                SessionId = sessionId,
+                SegmentIndex = request.SegmentIndex,
+                SegmentId = request.SegmentId,
+                SegmentName = request.SegmentName,
+                IsPlaying = request.IsPlaying,
+                SyncedAt = DateTime.UtcNow
+            };
+
+            // Cache current segment state
+            var cacheKey = GetSegmentStateCacheKey(sessionId);
+            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+
+            // Broadcast to all participants except the caller
+            await Clients.OthersInGroup(GetSessionGroupName(sessionId))
+                .SendAsync("SegmentSync", syncEvent);
+
+            _logger.LogInformation(
+                "[SessionHub] Host synced segment {SegmentIndex} for session {SessionId}",
+                request.SegmentIndex, sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error syncing segment for session {SessionId}", sessionId);
+            await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync segment" });
+        }
+    }
+
+    /// <summary>
+    /// Teacher broadcasts a question to all students
+    /// </summary>
+    public async Task BroadcastQuestionToStudents(Guid sessionId, QuestionBroadcastRequest request)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserId();
+
+            // Validate user is the session host
+            var session = await _sessionRepository.GetSessionById(sessionId);
+            if (session == null || session.HostUserId != userId)
+            {
+                await Clients.Caller.SendAsync("Error", new { Message = "Only host can broadcast question" });
+                return;
+            }
+
+            var broadcastEvent = new QuestionBroadcastEvent
+            {
+                SessionId = sessionId,
+                QuestionId = request.QuestionId,
+                QuestionText = request.QuestionText,
+                QuestionType = request.QuestionType,
+                QuestionImageUrl = request.QuestionImageUrl,
+                Options = request.Options,
+                Points = request.Points,
+                TimeLimit = request.TimeLimit,
+                BroadcastedAt = DateTime.UtcNow
+            };
+
+            // Broadcast to all participants
+            await Clients.Group(GetSessionGroupName(sessionId))
+                .SendAsync("QuestionBroadcast", broadcastEvent);
+
+            _logger.LogInformation(
+                "[SessionHub] Host broadcasted question {QuestionId} for session {SessionId}",
+                request.QuestionId, sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error broadcasting question for session {SessionId}", sessionId);
+            await Clients.Caller.SendAsync("Error", new { Message = "Failed to broadcast question" });
+        }
+    }
+
+    /// <summary>
+    /// Teacher shows question results to all students
+    /// </summary>
+    public async Task ShowQuestionResults(Guid sessionId, QuestionResultsRequest request)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserId();
+
+            // Validate user is the session host
+            var session = await _sessionRepository.GetSessionById(sessionId);
+            if (session == null || session.HostUserId != userId)
+            {
+                await Clients.Caller.SendAsync("Error", new { Message = "Only host can show results" });
+                return;
+            }
+
+            var resultsEvent = new QuestionResultsEvent
+            {
+                SessionId = sessionId,
+                QuestionId = request.QuestionId,
+                Results = request.Results,
+                CorrectAnswer = request.CorrectAnswer,
+                ShowedAt = DateTime.UtcNow
+            };
+
+            // Broadcast to all participants
+            await Clients.Group(GetSessionGroupName(sessionId))
+                .SendAsync("QuestionResults", resultsEvent);
+
+            _logger.LogInformation(
+                "[SessionHub] Host showed results for question {QuestionId} in session {SessionId}",
+                request.QuestionId, sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error showing results for session {SessionId}", sessionId);
+            await Clients.Caller.SendAsync("Error", new { Message = "Failed to show results" });
         }
     }
 
@@ -460,6 +599,7 @@ public class SessionHub : Hub
 
     private static string GetSessionGroupName(Guid sessionId) => $"session:{sessionId}";
     private static string GetMapStateCacheKey(Guid sessionId) => $"session:{sessionId}:map-state";
+    private static string GetSegmentStateCacheKey(Guid sessionId) => $"session:{sessionId}:segment-state";
 
     #endregion
 }
@@ -471,4 +611,79 @@ public class MapStateSyncRequest
     public int ZoomLevel { get; set; }
     public decimal? Bearing { get; set; }
     public decimal? Pitch { get; set; }
+}
+
+public class SegmentSyncRequest
+{
+    public int SegmentIndex { get; set; }
+    public string? SegmentId { get; set; }
+    public string? SegmentName { get; set; }
+    public bool IsPlaying { get; set; }
+}
+
+public class SegmentSyncEvent
+{
+    public Guid SessionId { get; set; }
+    public int SegmentIndex { get; set; }
+    public string? SegmentId { get; set; }
+    public string? SegmentName { get; set; }
+    public bool IsPlaying { get; set; }
+    public DateTime SyncedAt { get; set; }
+}
+
+public class QuestionBroadcastRequest
+{
+    public string QuestionId { get; set; } = string.Empty;
+    public string QuestionText { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public string? QuestionImageUrl { get; set; }
+    public List<QuestionOptionData>? Options { get; set; }
+    public int Points { get; set; }
+    public int TimeLimit { get; set; }
+}
+
+public class QuestionOptionData
+{
+    public string Id { get; set; } = string.Empty;
+    public string OptionText { get; set; } = string.Empty;
+    public string? OptionImageUrl { get; set; }
+    public int DisplayOrder { get; set; }
+}
+
+public class QuestionBroadcastEvent
+{
+    public Guid SessionId { get; set; }
+    public string QuestionId { get; set; } = string.Empty;
+    public string QuestionText { get; set; } = string.Empty;
+    public string QuestionType { get; set; } = string.Empty;
+    public string? QuestionImageUrl { get; set; }
+    public List<QuestionOptionData>? Options { get; set; }
+    public int Points { get; set; }
+    public int TimeLimit { get; set; }
+    public DateTime BroadcastedAt { get; set; }
+}
+
+public class QuestionResultsRequest
+{
+    public string QuestionId { get; set; } = string.Empty;
+    public List<StudentResultData>? Results { get; set; }
+    public string? CorrectAnswer { get; set; }
+}
+
+public class StudentResultData
+{
+    public string ParticipantId { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Answer { get; set; }
+    public bool IsCorrect { get; set; }
+    public int PointsEarned { get; set; }
+}
+
+public class QuestionResultsEvent
+{
+    public Guid SessionId { get; set; }
+    public string QuestionId { get; set; } = string.Empty;
+    public List<StudentResultData>? Results { get; set; }
+    public string? CorrectAnswer { get; set; }
+    public DateTime ShowedAt { get; set; }
 }

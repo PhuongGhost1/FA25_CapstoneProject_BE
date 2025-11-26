@@ -51,7 +51,7 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(s => s.Status)
             .HasColumnName("status")
             .HasConversion<int>()
-            .HasDefaultValue(SessionStatusEnum.DRAFT);
+            .HasDefaultValue(SessionStatusEnum.WAITING);
 
         builder.Property(s => s.MaxParticipants)
             .HasColumnName("max_participants")

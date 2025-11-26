@@ -167,6 +167,14 @@ public class RouteAnimationConfiguration : IEntityTypeConfiguration<RouteAnimati
 
         builder.Property(ra => ra.LocationInfoDisplayDurationMs)
             .HasColumnName("location_info_display_duration_ms");
+        
+        builder.Property(ra => ra.FollowCamera)
+            .HasColumnName("follow_camera")
+            .HasColumnType("TEXT");
+        
+        builder.Property(ra => ra.FollowCameraZoom)
+            .HasColumnName("follow_camera_zoom")
+            .HasColumnType("TEXT");
 
         // Timestamps
         builder.Property(ra => ra.CreatedAt)

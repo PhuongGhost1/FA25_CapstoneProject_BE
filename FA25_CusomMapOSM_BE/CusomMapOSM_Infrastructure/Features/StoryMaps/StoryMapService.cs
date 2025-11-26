@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
@@ -1037,9 +1038,200 @@ public class StoryMapService : IStoryMapService
     public async Task<Option<int, Error>> SyncZonesFromOSMAsync(SyncZonesFromOSMRequest request,
         CancellationToken ct = default)
     {
-        // TODO: Implement Overpass API integration
-        await Task.CompletedTask;
-        return Option.None<int, Error>(Error.Problem("Zone.SyncNotImplemented", "OSM sync not yet implemented"));
+        try
+        {
+            if (!int.TryParse(request.AdminLevel, out var adminLevel))
+            {
+                return Option.None<int, Error>(
+                    Error.ValidationError("Zone.InvalidAdminLevel", "Admin level must be a valid integer"));
+            }
+
+            var overpassQuery = new StringBuilder();
+            overpassQuery.AppendLine("[out:json][timeout:300];");
+            overpassQuery.AppendLine("(");
+            
+            if (!string.IsNullOrWhiteSpace(request.CountryCode))
+            {
+                var countryCode = request.CountryCode.ToUpperInvariant();
+                overpassQuery.AppendLine($"  relation[\"boundary\"=\"administrative\"][\"admin_level\"=\"{adminLevel}\"][\"ISO3166-1\"=\"{countryCode}\"];");
+                overpassQuery.AppendLine($"  relation[\"boundary\"=\"administrative\"][\"admin_level\"=\"{adminLevel}\"][\"ISO3166-1:alpha2\"=\"{countryCode}\"];");
+            }
+            else
+            {
+                overpassQuery.AppendLine($"  relation[\"boundary\"=\"administrative\"][\"admin_level\"=\"{adminLevel}\"];");
+            }
+            
+            overpassQuery.AppendLine(");");
+            overpassQuery.AppendLine("out body;");
+            overpassQuery.AppendLine(">;");
+            overpassQuery.AppendLine("out skel qt;");
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "CustomMapOSM_Application/1.0");
+            httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+            var content = new StringContent(overpassQuery.ToString(), Encoding.UTF8, "text/plain");
+            var response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", content, ct);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                return Option.None<int, Error>(
+                    Error.Failure("Zone.OverpassApiError", 
+                        $"Overpass API returned status code: {response.StatusCode}"));
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync(ct);
+            var overpassResult = JsonSerializer.Deserialize<JsonDocument>(responseContent);
+
+            if (overpassResult == null || !overpassResult.RootElement.TryGetProperty("elements", out var elements))
+            {
+                return Option.Some<int, Error>(0);
+            }
+
+            var syncedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var element in elements.EnumerateArray())
+            {
+                try
+                {
+                    if (!element.TryGetProperty("type", out var typeElement) || 
+                        !element.TryGetProperty("id", out var idElement))
+                    {
+                        continue;
+                    }
+
+                    var osmType = typeElement.GetString();
+                    var osmId = idElement.GetInt64();
+
+                    if (string.IsNullOrWhiteSpace(osmType) || osmId <= 0)
+                    {
+                        continue;
+                    }
+
+                    var externalId = $"osm:{osmType}:{osmId}";
+                    var existingZone = await _repository.GetZoneByExternalIdAsync(externalId, ct);
+
+                    if (existingZone != null)
+                    {
+                        if (request.UpdateExisting)
+                        {
+                            existingZone.LastSyncedAt = DateTime.UtcNow;
+                            _repository.UpdateZone(existingZone);
+                            syncedCount++;
+                        }
+                        continue;
+                    }
+
+                    if (!element.TryGetProperty("tags", out var tagsElement))
+                    {
+                        continue;
+                    }
+
+                    var tags = tagsElement;
+                    var name = tags.TryGetProperty("name", out var nameElement) 
+                        ? nameElement.GetString() 
+                        : tags.TryGetProperty("name:en", out var nameEnElement)
+                            ? nameEnElement.GetString()
+                            : null;
+
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+
+                    double? lat = null;
+                    double? lon = null;
+                    if (element.TryGetProperty("lat", out var latElement))
+                    {
+                        lat = latElement.GetDouble();
+                    }
+                    if (element.TryGetProperty("lon", out var lonElement))
+                    {
+                        lon = lonElement.GetDouble();
+                    }
+
+                    if (!lat.HasValue || !lon.HasValue)
+                    {
+                        if (element.TryGetProperty("bounds", out var boundsElement))
+                        {
+                            if (boundsElement.TryGetProperty("minlat", out var minLat) &&
+                                boundsElement.TryGetProperty("maxlat", out var maxLat) &&
+                                boundsElement.TryGetProperty("minlon", out var minLon) &&
+                                boundsElement.TryGetProperty("maxlon", out var maxLon))
+                            {
+                                lat = (minLat.GetDouble() + maxLat.GetDouble()) / 2;
+                                lon = (minLon.GetDouble() + maxLon.GetDouble()) / 2;
+                            }
+                        }
+                    }
+
+                    if (!lat.HasValue || !lon.HasValue)
+                    {
+                        continue;
+                    }
+
+                    var category = tags.TryGetProperty("boundary", out var boundaryElement)
+                        ? boundaryElement.GetString()
+                        : null;
+                    var type = tags.TryGetProperty("admin_level", out var adminLevelElement)
+                        ? adminLevelElement.GetString()
+                        : null;
+
+                    var createRequest = new CreateZoneFromOsmRequest(
+                        OsmType: osmType,
+                        OsmId: osmId,
+                        DisplayName: name,
+                        Lat: lat.Value,
+                        Lon: lon.Value,
+                        GeoJson: null,
+                        Category: category ?? "boundary",
+                        Type: type ?? "administrative",
+                        AdminLevel: adminLevel,
+                        ParentZoneId: null,
+                        BoundingBox: null
+                    );
+
+                    var createResult = await CreateZoneFromOsmAsync(createRequest, ct);
+                    if (createResult.Match(some: _ => true, none: _ => false))
+                    {
+                        syncedCount++;
+                    }
+                    else
+                    {
+                        createResult.Match(
+                            some: _ => { },
+                            none: err => errors.Add($"Failed to create zone {name}")
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Error processing OSM element: {ex.Message}");
+                }
+            }
+
+            await _repository.SaveChangesAsync(ct);
+
+            if (errors.Count > 0 && syncedCount == 0)
+            {
+                return Option.None<int, Error>(
+                    Error.Failure("Zone.SyncPartialFailure", 
+                        $"Failed to sync zones. Errors: {string.Join("; ", errors.Take(5))}"));
+            }
+
+            return Option.Some<int, Error>(syncedCount);
+        }
+        catch (TaskCanceledException)
+        {
+            return Option.None<int, Error>(
+                Error.Failure("Zone.SyncTimeout", "Sync operation timed out"));
+        }
+        catch (Exception ex)
+        {
+            return Option.None<int, Error>(
+                Error.Failure("Zone.SyncError", $"Failed to sync zones from OSM: {ex.Message}"));
+        }
     }
     
     public async Task<Option<IReadOnlyCollection<TimelineTransitionDto>, Error>> GetTimelineTransitionsAsync(
@@ -2092,6 +2284,8 @@ public class StoryMapService : IStoryMapService
             CameraStateAfter = request.CameraStateAfter,
             ShowLocationInfoOnArrival = request.ShowLocationInfoOnArrival ?? true,
             LocationInfoDisplayDurationMs = request.LocationInfoDisplayDurationMs,
+            FollowCamera = request.FollowCamera ?? true,
+            FollowCameraZoom = request.FollowCameraZoom,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -2141,6 +2335,8 @@ public class StoryMapService : IStoryMapService
         if (request.CameraStateAfter is not null) routeAnimation.CameraStateAfter = request.CameraStateAfter;
         if (request.ShowLocationInfoOnArrival.HasValue) routeAnimation.ShowLocationInfoOnArrival = request.ShowLocationInfoOnArrival.Value;
         if (request.LocationInfoDisplayDurationMs.HasValue) routeAnimation.LocationInfoDisplayDurationMs = request.LocationInfoDisplayDurationMs;
+        if (request.FollowCamera.HasValue) routeAnimation.FollowCamera = request.FollowCamera.Value;
+        if (request.FollowCameraZoom.HasValue) routeAnimation.FollowCameraZoom = request.FollowCameraZoom;
 
         routeAnimation.UpdatedAt = DateTime.UtcNow;
 

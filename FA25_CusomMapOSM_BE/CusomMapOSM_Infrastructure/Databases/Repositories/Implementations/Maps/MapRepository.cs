@@ -14,12 +14,6 @@ public class MapRepository : IMapRepository
     {
         _context = context;
     }
-    
-    // Check if a user exists in the database
-    public async Task<bool> CheckUserExists(Guid userId)
-    {
-        return await _context.Users.AnyAsync(u => u.UserId == userId);
-    }
 
     // Map CRUD operations
     public async Task<bool> CreateMap(Map map)
@@ -252,28 +246,7 @@ public class MapRepository : IMapRepository
             .ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
-
-    // Collaboration operations
-    public async Task<bool> ShareMap(Guid mapId, Guid userId, string permission)
-    {
-        // TODO: Implement collaboration logic when Collaboration entity is ready
-        // For now, return true to indicate success
-        return true;
-    }
-
-    public async Task<bool> UnshareMap(Guid mapId, Guid userId)
-    {
-        // TODO: Implement unshare logic when Collaboration entity is ready
-        // For now, return true to indicate success
-        return true;
-    }
-
-    public async Task<List<Map>> GetSharedMaps(Guid userId)
-    {
-        // TODO: Implement shared maps logic when Collaboration entity is ready
-        // For now, return empty list
-        return new List<Map>();
-    }
+    
 
     public async Task<int> GetTotalMapsCount()
     {

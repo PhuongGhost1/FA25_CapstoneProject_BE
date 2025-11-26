@@ -180,6 +180,8 @@ public record RouteAnimationDto(
     string? CameraStateAfter, // Camera state after route completes (JSON)
     bool ShowLocationInfoOnArrival, // Auto-show location popup when route completes
     int? LocationInfoDisplayDurationMs, // Duration to show location info popup
+    bool FollowCamera, // Whether camera should follow the moving icon
+    int? FollowCameraZoom, // Zoom level when following (null = keep current zoom)
     DateTime CreatedAt,
     DateTime? UpdatedAt);
 

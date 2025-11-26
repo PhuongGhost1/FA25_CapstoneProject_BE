@@ -71,6 +71,10 @@ public class RouteAnimation
     public bool ShowLocationInfoOnArrival { get; set; } = true; // Auto-show location popup when route completes
     public int? LocationInfoDisplayDurationMs { get; set; } // Duration to show location info popup (null = until user closes)
     
+    // Camera follow settings
+    public bool FollowCamera { get; set; } = true; // Whether camera should follow the moving icon
+    public int? FollowCameraZoom { get; set; } // Zoom level when following (null = keep current zoom)
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     

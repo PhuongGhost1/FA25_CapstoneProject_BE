@@ -6,9 +6,6 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 
 public interface IMapRepository
 {
-    // User validation
-    Task<bool> CheckUserExists(Guid userId);
-    
     // Map CRUD operations
     Task<bool> CreateMap(Map map);
     Task<Map?> GetMapById(Guid mapId);
@@ -39,11 +36,6 @@ public interface IMapRepository
     Task<Layer?> GetMapLayer(Guid mapId, Guid layerId);
     Task<List<Layer>> GetMapLayers(Guid mapId);
     Task<List<MapFeature>> GetMapFeatures(Guid mapId);
-
-    // Collaboration operations
-    Task<bool> ShareMap(Guid mapId, Guid userId, string permission);
-    Task<bool> UnshareMap(Guid mapId, Guid userId);
-    Task<List<Map>> GetSharedMaps(Guid userId);
     
     // Statistics operations
     Task<int> GetTotalMapsCount();

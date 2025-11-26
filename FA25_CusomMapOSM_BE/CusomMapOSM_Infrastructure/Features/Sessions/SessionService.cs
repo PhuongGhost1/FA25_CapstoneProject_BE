@@ -72,7 +72,7 @@ public class SessionService : ISessionService
             SessionName = request.SessionName,
             Description = request.Description,
             SessionType = request.SessionType,
-            Status = SessionStatusEnum.DRAFT,
+            Status = SessionStatusEnum.WAITING,
             MaxParticipants = request.MaxParticipants,
             AllowLateJoin = request.AllowLateJoin,
             ShowLeaderboard = request.ShowLeaderboard,
