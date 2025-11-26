@@ -4,6 +4,8 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
 {
     public class UpdateMapLayerRequest
     {
+        public string? LayerName { get; set; }
+
         public bool? IsVisible { get; set; }
 
         [Range(0, 1000)]

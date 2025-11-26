@@ -32,6 +32,7 @@ public class TimelineTransitionEndpoint : IEndpoint
                     transitions => Results.Ok(transitions),
                     err => err.ToProblemDetailsResult());
             })
+            .AllowAnonymous()
             .WithName("GetTimelineTransitions")
             .WithDescription("Retrieve all timeline transitions for a map")
             .WithTags(Tags.StoryMaps)

@@ -41,6 +41,8 @@ public static class RouteAnimationMappings
             CameraStateAfter: routeAnimation.CameraStateAfter,
             ShowLocationInfoOnArrival: routeAnimation.ShowLocationInfoOnArrival,
             LocationInfoDisplayDurationMs: routeAnimation.LocationInfoDisplayDurationMs,
+            FollowCamera: routeAnimation.FollowCamera,
+            FollowCameraZoom: routeAnimation.FollowCameraZoom,
             CreatedAt: routeAnimation.CreatedAt,
             UpdatedAt: routeAnimation.UpdatedAt
         );

@@ -1,6 +1,7 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
@@ -11,10 +12,12 @@ namespace CusomMapOSM_Infrastructure.Features.Animations;
 public class LayerAnimationService : ILayerAnimationService
 {
     private readonly ILayerAnimationRepository _repository;
+    private readonly ICurrentUserService _currentUserService;
 
-    public LayerAnimationService(ILayerAnimationRepository repository)
+    public LayerAnimationService(ILayerAnimationRepository repository, ICurrentUserService currentUserService)
     {
         _repository = repository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<Option<IReadOnlyCollection<LayerAnimationDto>, Error>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct = default)
@@ -36,11 +39,16 @@ public class LayerAnimationService : ILayerAnimationService
 
     public async Task<Option<LayerAnimationDto, Error>> CreateAnimationAsync(CreateLayerAnimationRequest request, CancellationToken ct = default)
     {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<LayerAnimationDto, Error>(Error.Unauthorized("Animation.Unauthorized", "User not authenticated"));
+        }
         var entity = new AnimatedLayer
         {
             AnimatedLayerId = Guid.NewGuid(),
             LayerId = request.LayerId,
-            CreatedBy = Guid.Empty, // TODO: Get from current user context
+            CreatedBy = currentUserId.Value,
             Name = request.Name,
             SourceUrl = request.SourceUrl,
             Coordinates = request.Coordinates,

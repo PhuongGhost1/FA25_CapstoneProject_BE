@@ -62,7 +62,6 @@ public class AnimatedLayerPresetEndpoint : IEndpoint
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
-                // Use searchTerm if name is provided, otherwise use category
                 var searchTerm = name ?? category ?? string.Empty;
                 var result = await service.SearchAnimatedLayerPresetsAsync(searchTerm, ct);
                 return result.Match<IResult>(
@@ -133,9 +132,6 @@ public class AnimatedLayerPresetEndpoint : IEndpoint
             .Produces(204)
             .ProducesProblem(404)
             .ProducesProblem(500);
-
-        // POST duplicate animated layer preset - removed because DuplicateAnimatedLayerPresetAsync doesn't exist in interface
-        // TODO: Implement DuplicateAnimatedLayerPresetAsync in IStoryMapService if needed
 
         // POST create animated layer from preset
         group.MapPost(Routes.StoryMapEndpoints.CreateAnimatedLayerFromPreset, async (

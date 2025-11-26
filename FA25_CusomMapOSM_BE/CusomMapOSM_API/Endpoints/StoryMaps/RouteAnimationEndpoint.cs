@@ -33,6 +33,7 @@ public class RouteAnimationEndpoint : IEndpoint
                     animations => Results.Ok(animations),
                     err => err.ToProblemDetailsResult());
             })
+            .AllowAnonymous()
             .WithName("GetRouteAnimations")
             .WithDescription("Get all route animations for a segment")
             .WithTags(Tags.StoryMaps)

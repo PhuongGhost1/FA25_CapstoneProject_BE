@@ -11,6 +11,8 @@ using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Application.Interfaces.Services.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
+using System;
+using System.Linq;
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
@@ -68,7 +70,7 @@ public class MapService : IMapService
 
         // Get template with all content
         var template = await _mapRepository.GetMapTemplateById(req.TemplateId);
-        if (template is null || !template.IsActive)
+        if (template is null)
         {
             return Option.None<CreateMapFromTemplateResponse, Error>(
                 Error.NotFound("Map.TemplateNotFound", "Map template not found"));
@@ -90,8 +92,7 @@ public class MapService : IMapService
                     ViewState = template.ViewState,
                     BaseLayer = template.BaseLayer,
                     ParentMapId = template.MapId,
-                    CreatedAt = DateTime.UtcNow,
-                    IsActive = true
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 if (req.CustomInitialLatitude.HasValue && req.CustomInitialLongitude.HasValue)
@@ -153,8 +154,7 @@ public class MapService : IMapService
                     DefaultBounds = req.DefaultBounds,
                     ViewState = req.ViewState,
                     BaseLayer = req.BaseMapProvider ?? "osm",
-                    CreatedAt = DateTime.UtcNow,
-                    IsActive = true
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 var createResult = await _mapRepository.CreateMap(newMap);
@@ -293,7 +293,19 @@ public class MapService : IMapService
                 Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
         }
 
-        // TODO: Check if user is member of the organization
+        var organization = await _organizationRepository.GetOrganizationById(orgId);
+        if (organization is null)
+        {
+            return Option.None<GetOrganizationMapsResponse, Error>(
+                Error.NotFound("Organization.NotFound", "Organization not found"));
+        }
+
+        var member = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, orgId);
+        if (member is null)
+        {
+            return Option.None<GetOrganizationMapsResponse, Error>(
+                Error.Forbidden("Organization.NotMember", "User is not a member of this organization"));
+        }
 
         var maps = await _mapRepository.GetOrganizationMaps(orgId);
         var mapDtos = new List<MapListItemDTO>();
@@ -322,7 +334,7 @@ public class MapService : IMapService
         {
             Maps = mapDtos,
             TotalCount = mapDtos.Count,
-            OrganizationName = "Organization Name" // TODO: Get from organization service
+            OrganizationName = organization.OrgName
         });
     }
 
@@ -787,8 +799,11 @@ public class MapService : IMapService
             return Option.None<UpdateMapLayerResponse, Error>(
                 Error.NotFound("Map.LayerNotFound", "Layer not found in map"));
         }
-
-
+        
+        if (!string.IsNullOrWhiteSpace(req.LayerName))
+        {
+            mapLayer.LayerName = req.LayerName.Trim();
+        }
         mapLayer.UpdatedAt = DateTime.UtcNow;
 
         var result = await _mapRepository.UpdateLayer(mapLayer);
@@ -805,65 +820,7 @@ public class MapService : IMapService
 
         return Option.Some<UpdateMapLayerResponse, Error>(new UpdateMapLayerResponse());
     }
-
-    // Collaboration methods
-    public async Task<Option<ShareMapResponse, Error>> ShareMap(ShareMapRequest req)
-    {
-        var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId is null)
-        {
-            return Option.None<ShareMapResponse, Error>(
-                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
-        }
-
-        var map = await _mapRepository.GetMapById(req.MapId);
-        if (map is null || !map.IsActive)
-        {
-            return Option.None<ShareMapResponse, Error>(
-                Error.NotFound("Map.NotFound", "Map not found"));
-        }
-
-        if (map.UserId != currentUserId.Value)
-        {
-            return Option.None<ShareMapResponse, Error>(
-                Error.Forbidden("Map.NotOwner", "Only the map owner can share it"));
-        }
-
-        // TODO: Implement collaboration logic
-        // For now, return success
-        return Option.Some<ShareMapResponse, Error>(new ShareMapResponse
-        {
-            Permission = req.Permission
-        });
-    }
-
-    public async Task<Option<UnshareMapResponse, Error>> UnshareMap(UnshareMapRequest req)
-    {
-        var currentUserId = _currentUserService.GetUserId();
-        if (currentUserId is null)
-        {
-            return Option.None<UnshareMapResponse, Error>(
-                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
-        }
-
-        var map = await _mapRepository.GetMapById(req.MapId);
-        if (map is null || !map.IsActive)
-        {
-            return Option.None<UnshareMapResponse, Error>(
-                Error.NotFound("Map.NotFound", "Map not found"));
-        }
-
-        if (map.UserId != currentUserId.Value)
-        {
-            return Option.None<UnshareMapResponse, Error>(
-                Error.Forbidden("Map.NotOwner", "Only the map owner can unshare it"));
-        }
-
-        // TODO: Implement unshare logic
-        // For now, return success
-        return Option.Some<UnshareMapResponse, Error>(new UnshareMapResponse());
-    }
-
+    
     private async Task<Option<Guid, Error>> ResolveWorkspaceIdAsync(Guid userId, Guid? requestedWorkspaceId)
     {
         var sanitizedWorkspaceId = requestedWorkspaceId.HasValue && requestedWorkspaceId != Guid.Empty
@@ -993,13 +950,6 @@ public class MapService : IMapService
 
         try
         {
-            var userExists = await _mapRepository.CheckUserExists(currentUserId.Value);
-            if (!userExists)
-            {
-                return Option.None<CreateMapTemplateFromGeoJsonResponse, Error>(
-                    Error.Failure("Map.InvalidUser", "User does not exist in database"));
-            }
-
             var mapTemplate = new Map
             {
                 MapName = req.TemplateName,
@@ -1008,7 +958,6 @@ public class MapService : IMapService
                 DefaultBounds = req.DataBounds,
                 BaseLayer = "OSM",
                 IsPublic = req.IsPublic,
-                IsActive = true,
                 IsTemplate = true,
                 IsFeatured = false,
                 UsageCount = 0,
@@ -1680,7 +1629,7 @@ public class MapService : IMapService
         }
 
         var map = await _mapRepository.GetMapById(mapId);
-        if (map is null || !map.IsActive)
+        if (map is null)
         {
             return Option.None<bool, Error>(
                 Error.NotFound("Map.NotFound", "Map not found"));
@@ -1693,7 +1642,6 @@ public class MapService : IMapService
         }
 
         map.Status = MapStatusEnum.Archived;
-        map.IsActive = false;
         map.UpdatedAt = DateTime.UtcNow;
 
         var updateResult = await _mapRepository.UpdateMap(map);
@@ -1737,7 +1685,6 @@ public class MapService : IMapService
         }
 
         map.Status = MapStatusEnum.Draft;
-        map.IsActive = true;
         map.UpdatedAt = DateTime.UtcNow;
 
         var updateResult = await _mapRepository.UpdateMap(map);

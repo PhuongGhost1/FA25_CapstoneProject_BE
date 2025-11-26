@@ -333,37 +333,7 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Get all layers for a map")
             .RequireAuthorization()
             .Produces<List<LayerInfoResponse>>(200);
-
-        group.MapPost("/{mapId:guid}/share", async (
-                [FromRoute] Guid mapId,
-                [FromBody] ShareMapRequest req,
-                [FromServices] IMapService mapService) =>
-            {
-                var result = await mapService.ShareMap(req);
-                return result.Match(
-                    success => Results.Ok(success),
-                    error => error.ToProblemDetailsResult()
-                );
-            }).WithName("ShareMap")
-            .WithDescription("Share a map with another user")
-            .RequireAuthorization()
-            .Produces<ShareMapResponse>(200);
-
-        group.MapDelete("/{mapId:guid}/share", async (
-                [FromRoute] Guid mapId,
-                [FromBody] UnshareMapRequest req,
-                [FromServices] IMapService mapService) =>
-            {
-                var result = await mapService.UnshareMap(req);
-                return result.Match(
-                    success => Results.Ok(success),
-                    error => error.ToProblemDetailsResult()
-                );
-            }).WithName("UnshareMap")
-            .WithDescription("Remove sharing access for a map")
-            .RequireAuthorization()
-            .Produces<UnshareMapResponse>(200);
-
+        
         group.MapPost("/template", CreateTemplateHandler)
             .WithName("CreateMapTemplateFromGeoJson")
             .WithDescription("Create MapTemplate from uploaded GeoJSON file")

@@ -241,7 +241,9 @@ public record CreateRouteAnimationRequest(
     string? CameraStateBefore, // Camera state before route starts (JSON)
     string? CameraStateAfter, // Camera state after route completes (JSON)
     bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
-    int? LocationInfoDisplayDurationMs); // Duration to show location info popup
+    int? LocationInfoDisplayDurationMs, // Duration to show location info popup
+    bool? FollowCamera, // Whether camera should follow the moving icon
+    int? FollowCameraZoom); // Zoom level when following (null = keep current zoom)
 
 public record UpdateRouteAnimationRequest(
     double? FromLat,
@@ -273,7 +275,9 @@ public record UpdateRouteAnimationRequest(
     string? CameraStateBefore, // Camera state before route starts (JSON)
     string? CameraStateAfter, // Camera state after route completes (JSON)
     bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
-    int? LocationInfoDisplayDurationMs); // Duration to show location info popup
+    int? LocationInfoDisplayDurationMs, // Duration to show location info popup
+    bool? FollowCamera, // Whether camera should follow the moving icon
+    int? FollowCameraZoom); // Zoom level when following (null = keep current zoom)
 
 // ================== ANIMATED LAYER ==================
 public record CreateAnimatedLayerRequest(

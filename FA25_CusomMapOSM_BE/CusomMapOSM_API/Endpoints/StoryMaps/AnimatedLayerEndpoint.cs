@@ -124,8 +124,5 @@ public class AnimatedLayerEndpoint : IEndpoint
             .ProducesProblem(404)
             .ProducesProblem(500);
 
-        // POST attach animated layer to segment - removed because AttachAnimatedLayerToSegmentAsync doesn't exist in interface
-        // TODO: Implement AttachAnimatedLayerToSegmentAsync in IStoryMapService if needed
-        // Or use UpdateAnimatedLayerAsync to change SegmentId
     }
 }

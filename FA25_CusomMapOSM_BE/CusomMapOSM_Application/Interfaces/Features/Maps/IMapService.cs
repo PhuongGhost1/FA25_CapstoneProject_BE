@@ -25,10 +25,6 @@ public interface IMapService
     Task<Option<AddLayerToMapResponse, Error>> AddLayerToMap(Guid mapId, AddLayerToMapRequest req);
     Task<Option<RemoveLayerFromMapResponse, Error>> RemoveLayerFromMap(Guid mapId, Guid layerId);
     Task<Option<UpdateMapLayerResponse, Error>> UpdateMapLayer(Guid mapId, Guid layerId, UpdateMapLayerRequest req);
-
-    // Map Collaboration
-    Task<Option<ShareMapResponse, Error>> ShareMap(ShareMapRequest req);
-    Task<Option<UnshareMapResponse, Error>> UnshareMap(UnshareMapRequest req);
     
     // Map Template Creation from GeoJSON
     Task<Option<CreateMapTemplateFromGeoJsonResponse, Error>> CreateMapTemplateFromGeoJson(CreateMapTemplateFromGeoJsonRequest req);
