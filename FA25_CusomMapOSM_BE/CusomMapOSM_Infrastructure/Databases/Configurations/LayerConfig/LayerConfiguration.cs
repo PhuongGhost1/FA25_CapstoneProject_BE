@@ -61,9 +61,9 @@ internal class LayerConfiguration : IEntityTypeConfiguration<Layer>
         builder.Property(l => l.LayerStyle)
             .HasColumnName("layer_style")
             .HasColumnType("TEXT");
-
-        builder.Property(l => l.IsPublic)
-            .HasColumnName("is_public")
+        
+        builder.Property(l => l.IsVisible)
+            .HasColumnName("is_visible")
             .IsRequired()
             .HasDefaultValue(false);
 

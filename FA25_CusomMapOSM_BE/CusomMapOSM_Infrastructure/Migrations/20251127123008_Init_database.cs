@@ -604,6 +604,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     question_bank_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    workspace_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     bank_name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     description = table.Column<string>(type: "text", nullable: true)
@@ -617,8 +618,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true),
-                    WorkspaceId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci")
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -630,8 +630,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         principalColumn: "user_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_question_banks_workspaces_WorkspaceId",
-                        column: x => x.WorkspaceId,
+                        name: "FK_question_banks_workspaces_workspace_id",
+                        column: x => x.workspace_id,
                         principalTable: "workspaces",
                         principalColumn: "workspace_id");
                 })
@@ -733,7 +733,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     layer_style = table.Column<string>(type: "TEXT", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     feature_count = table.Column<int>(type: "int", nullable: true),
                     data_size_kb = table.Column<decimal>(type: "decimal(15,2)", nullable: true),
                     data_bounds = table.Column<string>(type: "TEXT", nullable: true)
@@ -1291,6 +1291,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     show_location_info_on_arrival = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     location_info_display_duration_ms = table.Column<int>(type: "int", nullable: true),
+                    follow_camera = table.Column<string>(type: "TEXT", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    follow_camera_zoom = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
@@ -2028,9 +2032,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "user_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_question_banks_WorkspaceId",
+                name: "IX_question_banks_workspace_id",
                 table: "question_banks",
-                column: "WorkspaceId");
+                column: "workspace_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_question_options_question_id",

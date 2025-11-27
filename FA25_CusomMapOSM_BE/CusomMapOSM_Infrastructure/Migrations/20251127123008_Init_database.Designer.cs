@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    [Migration("20251124091712_Init_database")]
+    [Migration("20251127123008_Init_database")]
     partial class Init_database
     {
         /// <inheritdoc />
@@ -833,11 +833,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(500)")
                         .HasColumnName("file_path");
 
-                    b.Property<bool>("IsPublic")
+                    b.Property<bool>("IsVisible")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
-                        .HasColumnName("is_public");
+                        .HasColumnName("is_visible");
 
                     b.Property<string>("LayerData")
                         .HasColumnType("TEXT")
@@ -2175,7 +2175,8 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnName("user_id");
 
                     b.Property<Guid?>("WorkspaceId")
-                        .HasColumnType("char(36)");
+                        .HasColumnType("char(36)")
+                        .HasColumnName("workspace_id");
 
                     b.HasKey("QuestionBankId");
 
@@ -3164,6 +3165,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int?>("EndTimeMs")
                         .HasColumnType("int")
                         .HasColumnName("end_time_ms");
+
+                    b.Property<string>("FollowCamera")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("follow_camera");
+
+                    b.Property<string>("FollowCameraZoom")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("follow_camera_zoom");
 
                     b.Property<double>("FromLat")
                         .HasColumnType("double")
@@ -4193,7 +4203,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionOption", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.Question", "Question")
-                        .WithMany("QuestionOptions")
+                        .WithMany()
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -4471,11 +4481,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Maps.Map", b =>
                 {
                     b.Navigation("MapQuestionBanks");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
-                {
-                    b.Navigation("QuestionOptions");
                 });
 #pragma warning restore 612, 618
         }

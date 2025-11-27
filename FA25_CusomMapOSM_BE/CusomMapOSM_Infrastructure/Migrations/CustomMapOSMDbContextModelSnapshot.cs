@@ -830,11 +830,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(500)")
                         .HasColumnName("file_path");
 
-                    b.Property<bool>("IsPublic")
+                    b.Property<bool>("IsVisible")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
-                        .HasColumnName("is_public");
+                        .HasColumnName("is_visible");
 
                     b.Property<string>("LayerData")
                         .HasColumnType("TEXT")

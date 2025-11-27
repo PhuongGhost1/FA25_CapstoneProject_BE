@@ -174,7 +174,6 @@ public class MapService : IMapService
                     LayerType = LayerType.GEOJSON,
                     SourceType = LayerSource.UserUploaded,
                     LayerStyle = JsonSerializer.Serialize(new { color = "#2563eb", weight = 2, fillColor = "#3b82f6", fillOpacity = 0.2 }),
-                    IsPublic = false,
                     FeatureCount = 0,
                     DataSizeKB = 0,
                     CreatedAt = DateTime.UtcNow
@@ -655,6 +654,7 @@ public class MapService : IMapService
             }
 
             layer.MapId = mapId;
+            layer.LayerData = req.LayerData;
             layer.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _mapRepository.UpdateLayer(layer);
@@ -704,7 +704,6 @@ public class MapService : IMapService
                 LayerStyle = req.LayerStyle ?? string.Empty,
                 SourceType = LayerSource.UserUploaded,
                 FilePath = string.Empty,
-                IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 UserId = currentUserId.Value,
@@ -804,6 +803,8 @@ public class MapService : IMapService
         {
             mapLayer.LayerName = req.LayerName.Trim();
         }
+
+        mapLayer.IsVisible = req.IsVisible;
         mapLayer.UpdatedAt = DateTime.UtcNow;
 
         var result = await _mapRepository.UpdateLayer(mapLayer);
@@ -887,7 +888,6 @@ public class MapService : IMapService
                 LayerType = templateLayer.LayerType,
                 SourceType = templateLayer.SourceType,
                 LayerStyle = templateLayer.LayerStyle,
-                IsPublic = false,
                 FeatureCount = templateLayer.FeatureCount,
                 DataSizeKB = templateLayer.DataSizeKB,
                 DataBounds = templateLayer.DataBounds,
@@ -989,7 +989,6 @@ public class MapService : IMapService
                 LayerType = LayerType.GEOJSON,
                 SourceType = LayerSource.UserUploaded,
                 LayerStyle = req.LayerStyle,
-                IsPublic = req.IsPublic,
                 FeatureCount = req.FeatureCount,
                 DataSizeKB = req.DataSizeKB,
                 DataBounds = req.DataBounds,
@@ -1198,7 +1197,6 @@ public class MapService : IMapService
                     SourceType = LayerSource.UserUploaded,
                     LayerStyle = JsonSerializer.Serialize(new
                         { color = "#3388ff", weight = 2, fillColor = "#3388ff", fillOpacity = 0.2 }),
-                    IsPublic = false,
                     FeatureCount = 0,
                     DataSizeKB = 0,
                     CreatedAt = DateTime.UtcNow
