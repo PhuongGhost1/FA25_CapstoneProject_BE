@@ -1,6 +1,7 @@
 ﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Interfaces.Features.Faqs;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.Layers;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Features.Usage;
@@ -32,6 +33,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Layers;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Type;
@@ -44,6 +46,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Workspac
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Layers;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
@@ -55,6 +58,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
 using CusomMapOSM_Infrastructure.Features.Authentication;
 using CusomMapOSM_Infrastructure.Features.Faqs;
 using CusomMapOSM_Infrastructure.Features.Maps;
+using CusomMapOSM_Infrastructure.Features.Layers;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Infrastructure.Features.User;
@@ -175,6 +179,7 @@ public static class DependencyInjections
         services.AddScoped<IStoryMapRepository, StoryMapRepository>();
         services.AddScoped<ILayerAnimationRepository, LayerAnimationRepository>();
         services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
+        services.AddScoped<ILayerRepository, LayerRepository>();
         
         services.AddSingleton<IMongoClient>(_ => new MongoClient(MongoDatabaseConstant.ConnectionString));
         services.AddScoped(sp =>
@@ -202,6 +207,7 @@ public static class DependencyInjections
         services.AddScoped<IFaqService, FaqService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IUsageService, UsageService>();
+        services.AddScoped<ILayerService, LayerService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<HtmlContentImageProcessor>();

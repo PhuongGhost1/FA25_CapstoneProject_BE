@@ -19,8 +19,7 @@ public class Layer
     public string? DataStoreKey { get; set; }
     public string? LayerData { get; set; }
     public string? LayerStyle { get; set; }
-    
-    public bool IsPublic { get; set; } = false;
+    public bool IsVisible { get; set; } = true;
     public int? FeatureCount { get; set; }
     public double? DataSizeKB { get; set; }
     public string? DataBounds { get; set; }

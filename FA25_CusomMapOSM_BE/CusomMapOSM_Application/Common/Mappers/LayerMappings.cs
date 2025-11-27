@@ -34,7 +34,6 @@ namespace CusomMapOSM_Application.Common.Mappers
                 FilePath = layer.FilePath ?? string.Empty,
                 LayerData = layerDataDoc,
                 LayerStyle = layerStyleDoc,
-                IsPublic = layer.IsPublic,
                 FeatureCount = layer.FeatureCount ?? 0,
                 DataSizeKB = layer.DataSizeKB ?? 0,
                 DataBounds = layer.DataBounds ?? string.Empty,
