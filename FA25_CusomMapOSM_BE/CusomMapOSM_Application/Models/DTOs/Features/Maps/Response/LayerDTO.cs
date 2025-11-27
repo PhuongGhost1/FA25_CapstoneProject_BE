@@ -13,6 +13,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
         public string? FilePath { get; set; }
         public JsonDocument? LayerData { get; set; }
         public JsonDocument? LayerStyle { get; set; }
+        public bool IsVisible { get; set; }
         public int? FeatureCount { get; set; }
         public double? DataSizeKB { get; set; }
         public string? DataBounds { get; set; }

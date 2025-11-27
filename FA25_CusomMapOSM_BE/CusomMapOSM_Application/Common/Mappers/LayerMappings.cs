@@ -33,6 +33,7 @@ namespace CusomMapOSM_Application.Common.Mappers
                 SourceType = layer.SourceType,
                 FilePath = layer.FilePath ?? string.Empty,
                 LayerData = layerDataDoc,
+                IsVisible = layer.IsVisible,
                 LayerStyle = layerStyleDoc,
                 FeatureCount = layer.FeatureCount ?? 0,
                 DataSizeKB = layer.DataSizeKB ?? 0,

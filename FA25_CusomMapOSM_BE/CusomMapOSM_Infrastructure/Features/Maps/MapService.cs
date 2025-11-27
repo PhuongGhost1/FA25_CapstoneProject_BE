@@ -654,6 +654,7 @@ public class MapService : IMapService
             }
 
             layer.MapId = mapId;
+            layer.LayerData = req.LayerData;
             layer.UpdatedAt = DateTime.UtcNow;
 
             var updateResult = await _mapRepository.UpdateLayer(layer);
