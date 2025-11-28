@@ -1,5 +1,6 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common;
+using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
@@ -14,7 +15,6 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Optional;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using CusomMapOSM_Application.Interfaces.Services.Organization;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
@@ -122,7 +122,7 @@ public class MapFeatureService : IMapFeatureService
         }
         
         var mongoData = await _mongoStore.GetAsync(featureId);
-        var response = ToResponse(created, mongoData);
+        var response = created.ToResponse(mongoData);
         
         // Notify other users via SignalR
         try
@@ -203,7 +203,7 @@ public class MapFeatureService : IMapFeatureService
         var mongoData = await _mongoStore.GetAsync(featureId);
         if (ok)
         {
-            var response = ToResponse(existed, mongoData);
+            var response = existed.ToResponse(mongoData);
             
             // Notify other users via SignalR
             try
@@ -267,7 +267,7 @@ public class MapFeatureService : IMapFeatureService
         }
 
         var mongoData = await _mongoStore.GetAsync(featureId);
-        var response = ToResponse(existed, mongoData);
+        var response = existed.ToResponse(mongoData);
         
         return Option.Some<MapFeatureResponse, Error>(response);
     }
@@ -282,7 +282,7 @@ public class MapFeatureService : IMapFeatureService
         var result = metadataList.Select(metadata =>
         {
             mongoDataDict.TryGetValue(metadata.FeatureId, out var mongoData);
-            return ToResponse(metadata, mongoData);
+            return metadata.ToResponse(mongoData);
         }).ToList();
         
         return Option.Some<List<MapFeatureResponse>, Error>(result);
@@ -291,78 +291,13 @@ public class MapFeatureService : IMapFeatureService
     public async Task<Option<List<MapFeatureResponse>, Error>> GetByMapAndCategory(Guid mapId, FeatureCategoryEnum category)
     {
         var list = await _repository.GetByMapAndCategory(mapId, category);
-        return Option.Some<List<MapFeatureResponse>, Error>(list.Select(f => ToResponse(f, null)).ToList());
+        return Option.Some<List<MapFeatureResponse>, Error>(list.Select(f => f.ToResponse(null)).ToList());
     }
 
     public async Task<Option<List<MapFeatureResponse>, Error>> GetByMapAndLayer(Guid mapId, Guid layerId)
     {
         var list = await _repository.GetByMapAndLayer(mapId, layerId);
-        return Option.Some<List<MapFeatureResponse>, Error>(list.Select(f => ToResponse(f, null)).ToList());
-    }
-
-    private static MapFeatureResponse ToResponse(MapFeature f, MapFeatureDocument? mongoData = null)
-    {
-        var coordinates = mongoData?.Geometry?.ToString() ?? string.Empty;
-        
-        // Special handling for Rectangle: extract bounds from Polygon geometry
-        if (f.GeometryType == GeometryTypeEnum.Rectangle && mongoData?.Geometry != null)
-        {
-            try
-            {
-                var geometryJson = JsonSerializer.Deserialize<JsonNode>(mongoData.Geometry.ToString() ?? "{}");
-                if (geometryJson != null && geometryJson["bounds"] != null)
-                {
-                    // Return original bounds [minLng, minLat, maxLng, maxLat]
-                    coordinates = geometryJson["bounds"]?.ToString() ?? coordinates;
-                }
-                else if (geometryJson != null && geometryJson["type"]?.GetValue<string>() == "Polygon")
-                {
-                    // Fallback: extract bounds from Polygon coordinates
-                    var polygonCoords = geometryJson["coordinates"]?[0]?.AsArray();
-                    if (polygonCoords != null && polygonCoords.Count >= 4)
-                    {
-                        var minLng = polygonCoords[0]?[0]?.GetValue<double>() ?? 0;
-                        var minLat = polygonCoords[0]?[1]?.GetValue<double>() ?? 0;
-                        var maxLng = polygonCoords[2]?[0]?.GetValue<double>() ?? 0;
-                        var maxLat = polygonCoords[2]?[1]?.GetValue<double>() ?? 0;
-                        
-                        coordinates = $"[{minLng},{minLat},{maxLng},{maxLat}]";
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // If bounds extraction fails, return as-is
-                Console.WriteLine($"Failed to extract Rectangle bounds: {ex.Message}");
-            }
-        }
-        
-        var properties = mongoData?.Properties != null 
-            ? JsonSerializer.Serialize(mongoData.Properties) 
-            : null;
-        var style = mongoData?.Style != null 
-            ? JsonSerializer.Serialize(mongoData.Style) 
-            : null;
-            
-        return new MapFeatureResponse
-        {
-            FeatureId = f.FeatureId,
-            MapId = f.MapId,
-            LayerId = f.LayerId,
-            Name = f.Name,
-            Description = f.Description,
-            FeatureCategory = f.FeatureCategory,
-            AnnotationType = f.AnnotationType,
-            GeometryType = f.GeometryType,
-            Coordinates = coordinates,
-            Properties = properties,
-            Style = style,
-            IsVisible = f.IsVisible,
-            ZIndex = f.ZIndex,
-            CreatedBy = f.CreatedBy,
-            CreatedAt = f.CreatedAt,
-            UpdatedAt = f.UpdatedAt
-        };
+        return Option.Some<List<MapFeatureResponse>, Error>(list.Select(f => f.ToResponse(null)).ToList());
     }
 
     public async Task<Option<bool, Error>> ApplySnapshot(Guid mapId, string snapshotJson)

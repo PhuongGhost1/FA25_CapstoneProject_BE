@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
+using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
@@ -66,7 +67,9 @@ public record SegmentLayerDto(
     string? ExitEffect,
     string? StyleOverride,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    LayerDTO? Layer,
+    IReadOnlyCollection<MapFeatureResponse> MapFeatures);
 
 public record TimelineStepDto(
     Guid TimelineStepId,

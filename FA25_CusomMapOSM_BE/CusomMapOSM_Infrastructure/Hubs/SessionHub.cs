@@ -74,6 +74,7 @@ public class SessionHub : Hub
             // Send initial state to caller
             var mapState = await _redisCacheService.Get<MapStateSyncEvent>(GetMapStateCacheKey(sessionId));
             var segmentState = await _redisCacheService.Get<SegmentSyncEvent>(GetSegmentStateCacheKey(sessionId));
+            var mapLockState = await _redisCacheService.Get<MapLockStateSyncEvent>(GetMapLockStateCacheKey(sessionId));
 
             await Clients.Caller.SendAsync("JoinedSession", new
             {
@@ -82,7 +83,8 @@ public class SessionHub : Hub
                 Status = session.Status.ToString(),
                 Message = $"Successfully joined session {session.SessionCode}",
                 MapState = mapState,
-                SegmentState = segmentState
+                SegmentState = segmentState,
+                MapLockState = mapLockState
             });
 
             if (mapState != null)
@@ -93,6 +95,11 @@ public class SessionHub : Hub
             if (segmentState != null)
             {
                 await Clients.Caller.SendAsync("SegmentSync", segmentState);
+            }
+
+            if (mapLockState != null)
+            {
+                await Clients.Caller.SendAsync("MapLockStateSync", mapLockState);
             }
         }
         catch (Exception ex)
@@ -227,6 +234,49 @@ public class SessionHub : Hub
         {
             _logger.LogError(ex, "[SessionHub] Error syncing segment for session {SessionId}", sessionId);
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync segment" });
+        }
+    }
+
+    /// <summary>
+    /// Teacher syncs map lock state (for locking/unlocking student map interaction)
+    /// </summary>
+    public async Task SyncMapLockState(Guid sessionId, MapLockStateSyncRequest request)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserId();
+
+            // Validate user is the session host
+            var session = await _sessionRepository.GetSessionById(sessionId);
+            if (session == null || session.HostUserId != userId)
+            {
+                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync map lock state" });
+                return;
+            }
+
+            var syncEvent = new MapLockStateSyncEvent
+            {
+                SessionId = sessionId,
+                IsLocked = request.IsLocked,
+                SyncedAt = DateTime.UtcNow
+            };
+
+            // Cache current map lock state
+            var cacheKey = GetMapLockStateCacheKey(sessionId);
+            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+
+            // Broadcast to all participants except the caller
+            await Clients.OthersInGroup(GetSessionGroupName(sessionId))
+                .SendAsync("MapLockStateSync", syncEvent);
+
+            _logger.LogInformation(
+                "[SessionHub] Host synced map lock state {IsLocked} for session {SessionId}",
+                request.IsLocked, sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error syncing map lock state for session {SessionId}", sessionId);
+            await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync map lock state" });
         }
     }
 
@@ -600,6 +650,7 @@ public class SessionHub : Hub
     private static string GetSessionGroupName(Guid sessionId) => $"session:{sessionId}";
     private static string GetMapStateCacheKey(Guid sessionId) => $"session:{sessionId}:map-state";
     private static string GetSegmentStateCacheKey(Guid sessionId) => $"session:{sessionId}:segment-state";
+    private static string GetMapLockStateCacheKey(Guid sessionId) => $"session:{sessionId}:map-lock-state";
 
     #endregion
 }
@@ -686,4 +737,16 @@ public class QuestionResultsEvent
     public List<StudentResultData>? Results { get; set; }
     public string? CorrectAnswer { get; set; }
     public DateTime ShowedAt { get; set; }
+}
+
+public class MapLockStateSyncRequest
+{
+    public bool IsLocked { get; set; }
+}
+
+public class MapLockStateSyncEvent
+{
+    public Guid SessionId { get; set; }
+    public bool IsLocked { get; set; }
+    public DateTime SyncedAt { get; set; }
 }

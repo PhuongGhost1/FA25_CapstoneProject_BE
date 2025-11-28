@@ -36,5 +36,4 @@ public class Map
     public User? User { get; set; }
     public Workspace? Workspace { get; set; }
     public Map? ParentMap { get; set; }
-    public ICollection<MapQuestionBank> MapQuestionBanks { get; set; } = new List<MapQuestionBank>();
 }

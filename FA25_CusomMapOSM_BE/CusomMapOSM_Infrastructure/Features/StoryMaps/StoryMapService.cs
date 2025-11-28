@@ -1,12 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
+using CusomMapOSM_Application.Interfaces.Services.LayerData;
+using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Models.Documents;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
+using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
@@ -28,15 +36,22 @@ public class StoryMapService : IStoryMapService
     private readonly ILocationRepository _locationRepository;
     private readonly IMapRepository _mapRepository;
     private readonly IOsmService _osmService;
+    private readonly ILayerDataStore _layerDataStore;
+    private readonly IMapFeatureRepository _mapFeatureRepository;
+    private readonly IMapFeatureStore _mapFeatureStore;
 
     public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService,
-        ILocationRepository locationRepository, IMapRepository mapRepository, IOsmService osmService)
+        ILocationRepository locationRepository, IMapRepository mapRepository, IOsmService osmService,
+        ILayerDataStore layerDataStore, IMapFeatureRepository mapFeatureRepository, IMapFeatureStore mapFeatureStore)
     {
         _repository = repository;
         _currentUserService = currentUserService;
         _locationRepository = locationRepository;
         _mapRepository = mapRepository;
         _osmService = osmService;
+        _layerDataStore = layerDataStore;
+        _mapFeatureRepository = mapFeatureRepository;
+        _mapFeatureStore = mapFeatureStore;
     }
 
 
@@ -62,15 +77,22 @@ public class StoryMapService : IStoryMapService
         var allLayers = await _repository.GetSegmentLayersBySegmentsAsync(segmentIds, ct);
         var allLocations = await _locationRepository.GetBySegmentIdsAsync(segmentIds, ct);
         
-        var zonesBySegment = allZones.GroupBy(sz => sz.SegmentId).ToDictionary(g => g.Key, g => g.Select(sz => sz.ToDto()).ToList());
-        var layersBySegment = allLayers.GroupBy(sl => sl.SegmentId).ToDictionary(g => g.Key, g => g.Select(sl => sl.ToDto()).ToList());
-        var locationsBySegment = allLocations.GroupBy(l => l.SegmentId).ToDictionary(g => g.Key, g => g.Select(loc => loc.ToDto()).ToList());
+        var zonesBySegment = allZones
+            .GroupBy(sz => sz.SegmentId)
+            .ToDictionary(g => g.Key, g => g.Select(sz => sz.ToDto()).ToList());
+        var enrichedLayers = await BuildSegmentLayerDtosAsync(mapId, allLayers, ct);
+        var layersBySegment = enrichedLayers
+            .GroupBy(sl => sl.SegmentId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<SegmentLayerDto>)g.ToList());
+        var locationsBySegment = allLocations
+            .GroupBy(l => l.SegmentId)
+            .ToDictionary(g => g.Key, g => g.Select(loc => loc.ToDto()).ToList());
 
         var segmentDtos = new List<SegmentDto>(segments.Count);
         foreach (var segment in segments)
         {
             var zones = zonesBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentZoneDto>();
-            var layers = layersBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<SegmentLayerDto>();
+            var layers = layersBySegment.GetValueOrDefault(segment.SegmentId) ?? Array.Empty<SegmentLayerDto>();
             var locations = locationsBySegment.GetValueOrDefault(segment.SegmentId) ?? new List<LocationDto>();
 
             var dto = segment.ToSegmentDto(zones, layers, locations);
@@ -93,7 +115,7 @@ public class StoryMapService : IStoryMapService
         var locations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
 
         var zones = segmentZones.Select(sz => sz.ToDto()).ToList();
-        var layers = segmentLayers.Select(sl => sl.ToDto()).ToList();
+        var layers = await BuildSegmentLayerDtosAsync(segment.MapId, segmentLayers, ct);
         var pois = locations.Select(l => l.ToDto()).ToList();
 
         return Option.Some<SegmentDto, Error>(segment.ToSegmentDto(zones, layers, pois));
@@ -273,7 +295,6 @@ public class StoryMapService : IStoryMapService
 
         await _repository.AddSegmentAsync(newSegment, ct);
 
-        // Duplicate segment zones
         var originalZones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         foreach (var originalZone in originalZones)
         {
@@ -307,7 +328,6 @@ public class StoryMapService : IStoryMapService
             await _repository.AddSegmentZoneAsync(newZone, ct);
         }
 
-        // Duplicate segment layers
         var originalLayers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
         foreach (var originalLayer in originalLayers)
         {
@@ -332,7 +352,6 @@ public class StoryMapService : IStoryMapService
             await _repository.AddSegmentLayerAsync(newLayer, ct);
         }
 
-        // Duplicate locations
         var originalLocations = await _locationRepository.GetBySegmentIdAsync(segmentId, ct);
         foreach (var originalLocation in originalLocations)
         {
@@ -373,7 +392,6 @@ public class StoryMapService : IStoryMapService
             await _locationRepository.CreateAsync(newLocation, ct);
         }
 
-        // Duplicate animated layers (only those belonging to the segment, not layer-only)
         var originalAnimatedLayers = await _repository.GetAnimatedLayersBySegmentAsync(segmentId, ct);
         foreach (var originalAnimatedLayer in originalAnimatedLayers)
         {
@@ -430,9 +448,8 @@ public class StoryMapService : IStoryMapService
             return Option.None<bool, Error>(Error.NotFound("Map.NotFound", "Map not found"));
         }
 
-        var segments = await _repository.GetSegmentsByMapAsync(mapId, ct);
-
-        var existingIds = segments.Select(s => s.SegmentId).ToHashSet();
+        var allSegments = await _repository.GetSegmentsByMapAsync(mapId, ct);
+        var existingIds = allSegments.Select(s => s.SegmentId).ToHashSet();
         var invalidIds = segmentIds.Where(id => !existingIds.Contains(id)).ToList();
         if (invalidIds.Any())
         {
@@ -442,7 +459,14 @@ public class StoryMapService : IStoryMapService
 
         for (int i = 0; i < segmentIds.Count; i++)
         {
-            var segment = segments.First(s => s.SegmentId == segmentIds[i]);
+            var segmentId = segmentIds[i];
+            var segment = await _repository.GetSegmentForUpdateAsync(segmentId, ct);
+            if (segment is null)
+            {
+                return Option.None<bool, Error>(Error.NotFound("Segment.NotFound", 
+                    $"Segment {segmentId} not found"));
+            }
+
             segment.DisplayOrder = i;
             segment.UpdatedAt = DateTime.UtcNow;
             _repository.UpdateSegment(segment);
@@ -582,7 +606,7 @@ public class StoryMapService : IStoryMapService
         }
 
         var segmentLayers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
-        var layerDtos = segmentLayers.Select(sl => sl.ToDto()).ToList();
+        var layerDtos = await BuildSegmentLayerDtosAsync(segment.MapId, segmentLayers, ct);
         return Option.Some<IReadOnlyCollection<SegmentLayerDto>, Error>(layerDtos);
     }
 
@@ -620,11 +644,13 @@ public class StoryMapService : IStoryMapService
             StyleOverride = request.StyleOverride,
             CreatedAt = DateTime.UtcNow
         };
+        segmentLayer.Layer = layer;
 
         await _repository.AddSegmentLayerAsync(segmentLayer, ct);
         await _repository.SaveChangesAsync(ct);
 
-        return Option.Some<SegmentLayerDto, Error>(segmentLayer.ToDto());
+        var dto = await BuildSegmentLayerDtosAsync(segment.MapId, new List<SegmentLayer> { segmentLayer }, ct);
+        return Option.Some<SegmentLayerDto, Error>(dto.First());
     }
 
     public async Task<Option<SegmentLayerDto, Error>> UpdateSegmentLayerAsync(Guid segmentLayerId,
@@ -653,7 +679,9 @@ public class StoryMapService : IStoryMapService
         _repository.UpdateSegmentLayer(segmentLayer);
         await _repository.SaveChangesAsync(ct);
 
-        return Option.Some<SegmentLayerDto, Error>(segmentLayer.ToDto());
+        var mapId = segmentLayer.Segment?.MapId ?? segmentLayer.Layer?.MapId ?? Guid.Empty;
+        var dto = await BuildSegmentLayerDtosAsync(mapId, new List<SegmentLayer> { segmentLayer }, ct);
+        return Option.Some<SegmentLayerDto, Error>(dto.First());
     }
 
     public async Task<Option<bool, Error>> DeleteSegmentLayerAsync(Guid segmentLayerId, CancellationToken ct = default)
@@ -668,6 +696,125 @@ public class StoryMapService : IStoryMapService
         await _repository.SaveChangesAsync(ct);
 
         return Option.Some<bool, Error>(true);
+    }
+
+    private async Task<List<SegmentLayerDto>> BuildSegmentLayerDtosAsync(Guid mapId, List<SegmentLayer> segmentLayers, CancellationToken ct)
+    {
+        if (segmentLayers == null || segmentLayers.Count == 0)
+        {
+            return new List<SegmentLayerDto>();
+        }
+
+        var layerDataMap = await LoadLayerDataAsync(segmentLayers, ct);
+        var layerDtoMap = BuildLayerDtoMap(segmentLayers, layerDataMap);
+        var featuresByLayer = await LoadLayerFeaturesAsync(mapId, segmentLayers, ct);
+
+        var result = new List<SegmentLayerDto>(segmentLayers.Count);
+        foreach (var segmentLayer in segmentLayers)
+        {
+            var layerDto = layerDtoMap.GetValueOrDefault(segmentLayer.LayerId);
+            var features = featuresByLayer.GetValueOrDefault(segmentLayer.LayerId) ?? Array.Empty<MapFeatureResponse>();
+            result.Add(segmentLayer.ToDto(layerDto, features));
+        }
+
+        return result;
+    }
+
+    private async Task<Dictionary<Guid, string>> LoadLayerDataAsync(IEnumerable<SegmentLayer> segmentLayers, CancellationToken ct)
+    {
+        var result = new Dictionary<Guid, string>();
+        var uniqueLayers = segmentLayers
+            .Select(sl => sl.Layer)
+            .OfType<Layer>()
+            .GroupBy(layer => layer.LayerId)
+            .Select(group => group.First());
+
+        foreach (var layer in uniqueLayers)
+        {
+            var data = await _layerDataStore.GetDataAsync(layer, ct);
+            if (!string.IsNullOrEmpty(data))
+            {
+                result[layer.LayerId] = data;
+            }
+        }
+
+        return result;
+    }
+
+    private static Dictionary<Guid, LayerDTO> BuildLayerDtoMap(IEnumerable<SegmentLayer> segmentLayers, Dictionary<Guid, string> layerDataMap)
+    {
+        var result = new Dictionary<Guid, LayerDTO>();
+        foreach (var layer in segmentLayers.Select(sl => sl.Layer).OfType<Layer>())
+        {
+            if (result.ContainsKey(layer.LayerId))
+            {
+                continue;
+            }
+
+            var layerData = layerDataMap.GetValueOrDefault(layer.LayerId);
+            result[layer.LayerId] = layer.ToLayerDto(layerData);
+        }
+
+        return result;
+    }
+
+    private async Task<Dictionary<Guid, IReadOnlyCollection<MapFeatureResponse>>> LoadLayerFeaturesAsync(Guid mapId,
+        IEnumerable<SegmentLayer> segmentLayers, CancellationToken ct)
+    {
+        var layerIds = segmentLayers
+            .Select(sl => sl.LayerId)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        var result = new Dictionary<Guid, IReadOnlyCollection<MapFeatureResponse>>();
+        if (layerIds.Count == 0 || mapId == Guid.Empty)
+        {
+            return result;
+        }
+
+        var featureMetadata = await _mapFeatureRepository.GetByMap(mapId);
+        var relevantMetadata = featureMetadata
+            .Where(f => f.LayerId.HasValue && layerIds.Contains(f.LayerId.Value))
+            .ToList();
+
+        if (relevantMetadata.Count == 0)
+        {
+            return result;
+        }
+
+        var documents = await _mapFeatureStore.GetByMapAsync(mapId, ct);
+        var documentMap = new Dictionary<Guid, MapFeatureDocument>();
+        foreach (var document in documents)
+        {
+            if (Guid.TryParse(document.Id, out var featureId))
+            {
+                documentMap[featureId] = document;
+            }
+        }
+
+        var temp = new Dictionary<Guid, List<MapFeatureResponse>>();
+        foreach (var feature in relevantMetadata)
+        {
+            var layerId = feature.LayerId!.Value;
+            documentMap.TryGetValue(feature.FeatureId, out var document);
+            var response = feature.ToResponse(document);
+
+            if (!temp.TryGetValue(layerId, out var list))
+            {
+                list = new List<MapFeatureResponse>();
+                temp[layerId] = list;
+            }
+
+            list.Add(response);
+        }
+
+        foreach (var (key, value) in temp)
+        {
+            result[key] = value;
+        }
+
+        return result;
     }
 
 

@@ -28,11 +28,15 @@ public class StoryMapRepository : IStoryMapRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.SegmentId == segmentId, ct);
 
+    public Task<Segment?> GetSegmentForUpdateAsync(Guid segmentId, CancellationToken ct) =>
+        _context.MapSegments
+            .FirstOrDefaultAsync(s => s.SegmentId == segmentId, ct);
+
     public Task<List<Segment>> GetSegmentsByMapAsync(Guid mapId, CancellationToken ct) =>
         _context.MapSegments
             .AsNoTracking()
             .Where(s => s.MapId == mapId)
-            .OrderBy(s => s.CreatedAt)
+            .OrderBy(s => s.CreatedAt).ThenBy(s => s.DisplayOrder)
             .ToListAsync(ct);
 
     public Task AddSegmentAsync(Segment segment, CancellationToken ct) =>
@@ -55,7 +59,7 @@ public class StoryMapRepository : IStoryMapRepository
             .AsNoTracking()
             .Include(sz => sz.Zone)
             .Where(sz => sz.SegmentId == segmentId)
-            .OrderBy(sz => sz.DisplayOrder)
+            .OrderBy(sz => sz.CreatedAt).ThenBy(sz => sz.DisplayOrder)
             .ThenBy(sz => sz.CreatedAt)
             .ToListAsync(ct);
 
@@ -71,7 +75,7 @@ public class StoryMapRepository : IStoryMapRepository
             .Include(sz => sz.Zone)
             .Where(sz => segmentIds.Contains(sz.SegmentId))
             .OrderBy(sz => sz.SegmentId)
-            .ThenBy(sz => sz.DisplayOrder)
+            .ThenBy(sz => sz.CreatedAt).ThenBy(sz => sz.DisplayOrder)
             .ThenBy(sz => sz.CreatedAt)
             .ToListAsync(ct);
     }
@@ -96,7 +100,7 @@ public class StoryMapRepository : IStoryMapRepository
             .AsNoTracking()
             .Include(sl => sl.Layer)
             .Where(sl => sl.SegmentId == segmentId)
-            .OrderBy(sl => sl.DisplayOrder)
+            .OrderBy(sl => sl.CreatedAt).ThenBy(sl => sl.DisplayOrder)
             .ThenBy(sl => sl.CreatedAt)
             .ToListAsync(ct);
 
@@ -112,7 +116,7 @@ public class StoryMapRepository : IStoryMapRepository
             .Include(sl => sl.Layer)
             .Where(sl => segmentIds.Contains(sl.SegmentId))
             .OrderBy(sl => sl.SegmentId)
-            .ThenBy(sl => sl.DisplayOrder)
+            .ThenBy(sl => sl.CreatedAt).ThenBy(sl => sl.DisplayOrder)
             .ThenBy(sl => sl.CreatedAt)
             .ToListAsync(ct);
     }
@@ -184,7 +188,7 @@ public class StoryMapRepository : IStoryMapRepository
         _context.MapLocations
             .AsNoTracking() // Added for performance
             .Where(l => l.MapId == mapId) // Use MapId directly instead of joining with Segment
-            .OrderBy(l => l.DisplayOrder)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.DisplayOrder)
             .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
 
@@ -192,7 +196,7 @@ public class StoryMapRepository : IStoryMapRepository
         _context.MapLocations
             .AsNoTracking()
             .Where(l => l.SegmentId == segmentId)
-            .OrderBy(l => l.DisplayOrder)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.DisplayOrder)
             .ThenBy(l => l.CreatedAt)
             .ToListAsync(ct);
 
@@ -239,14 +243,14 @@ public class StoryMapRepository : IStoryMapRepository
     public Task<List<RouteAnimation>> GetRouteAnimationsBySegmentAsync(Guid segmentId, CancellationToken ct) =>
         _context.RouteAnimations
             .Where(ra => ra.SegmentId == segmentId)
-            .OrderBy(ra => ra.DisplayOrder)
+            .OrderBy(ra => ra.CreatedAt).ThenBy(ra => ra.DisplayOrder)
             .ThenBy(ra => ra.CreatedAt)
             .ToListAsync(ct);
 
     public Task<List<RouteAnimation>> GetRouteAnimationsByMapAsync(Guid mapId, CancellationToken ct) =>
         _context.RouteAnimations
             .Where(ra => ra.MapId == mapId)
-            .OrderBy(ra => ra.DisplayOrder)
+            .OrderBy(ra => ra.CreatedAt).ThenBy(ra => ra.DisplayOrder)
             .ThenBy(ra => ra.CreatedAt)
             .ToListAsync(ct);
 
@@ -268,14 +272,14 @@ public class StoryMapRepository : IStoryMapRepository
     public Task<List<AnimatedLayer>> GetAnimatedLayersByLayerAsync(Guid layerId, CancellationToken ct) =>
         _context.AnimatedLayers
             .Where(al => al.LayerId == layerId && al.IsVisible)
-            .OrderBy(al => al.DisplayOrder)
+            .OrderBy(al => al.CreatedAt).ThenBy(al => al.LayerId).ThenBy(al => al.DisplayOrder)
             .ThenBy(al => al.CreatedAt)
             .ToListAsync(ct);
 
     public Task<List<AnimatedLayer>> GetAnimatedLayersBySegmentAsync(Guid segmentId, CancellationToken ct) =>
         _context.AnimatedLayers
             .Where(al => al.SegmentId == segmentId && al.IsVisible)
-            .OrderBy(al => al.DisplayOrder)
+            .OrderBy(al => al.CreatedAt).ThenBy(al => al.SegmentId).ThenBy(al => al.DisplayOrder)
             .ThenBy(al => al.CreatedAt)
             .ToListAsync(ct);
 
@@ -283,7 +287,7 @@ public class StoryMapRepository : IStoryMapRepository
         _context.AnimatedLayers
             .Include(al => al.Segment)
             .Where(al => al.Segment != null && al.Segment.MapId == mapId && al.IsVisible)
-            .OrderBy(al => al.DisplayOrder)
+            .OrderBy(al => al.CreatedAt).ThenBy(al => al.SegmentId).ThenBy(al => al.DisplayOrder)
             .ThenBy(al => al.CreatedAt)
             .ToListAsync(ct);
 

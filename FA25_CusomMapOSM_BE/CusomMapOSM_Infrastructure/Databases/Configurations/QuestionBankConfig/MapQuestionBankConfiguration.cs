@@ -26,7 +26,7 @@ internal class MapQuestionBankConfiguration : IEntityTypeConfiguration<MapQuesti
 
         // Relationships
         builder.HasOne(mqb => mqb.Map)
-            .WithMany(m => m.MapQuestionBanks)
+            .WithMany()
             .HasForeignKey(mqb => mqb.MapId)
             .OnDelete(DeleteBehavior.Cascade);
 
