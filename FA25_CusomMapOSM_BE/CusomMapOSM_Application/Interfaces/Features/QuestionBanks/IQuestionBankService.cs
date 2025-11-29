@@ -27,4 +27,5 @@ public interface IQuestionBankService
     Task<Option<bool, Error>> AttachQuestionBankToMap(Guid questionBankId, AttachQuestionBankToMapRequest request);
     Task<Option<bool, Error>> DetachQuestionBankFromMap(Guid mapId);
     Task<Option<List<QuestionDTO>, Error>>  GetQuestionBanksByMapId(Guid mapId);
+    Task<Option<List<MapQuestionBankResponse>, Error>> GetMapsByQuestionBankId(Guid questionBankId);
 }

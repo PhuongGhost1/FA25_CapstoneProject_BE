@@ -690,6 +690,34 @@ public class QuestionBankService : IQuestionBankService
         return Option.Some<List<QuestionDTO>, Error>(questions);
     }
 
+    public async Task<Option<List<MapQuestionBankResponse>, Error>> GetMapsByQuestionBankId(Guid questionBankId)
+    {
+        var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+        if (questionBank == null)
+        {
+            return Option.None<List<MapQuestionBankResponse>, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        var assignments = await _mapQuestionBankRepository.GetMaps(questionBankId);
+        if (assignments.Count == 0)
+        {
+            return Option.Some<List<MapQuestionBankResponse>, Error>(new List<MapQuestionBankResponse>());
+        }
+
+        var maps = assignments
+            .Where(x => x.Map != null)
+            .Select(x => new MapQuestionBankResponse
+            {
+                MapId = x.MapId,
+                MapName = x.Map.MapName,
+                AssignedAt = x.AssignedAt
+            })
+            .ToList();
+
+        return Option.Some<List<MapQuestionBankResponse>, Error>(maps);
+    }
+
     private async Task<bool> SyncQuestionOptionsForUpdate(
         Guid questionId,
         QuestionTypeEnum questionType,
