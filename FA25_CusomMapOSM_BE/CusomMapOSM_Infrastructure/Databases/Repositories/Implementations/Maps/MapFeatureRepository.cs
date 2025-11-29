@@ -25,8 +25,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -35,8 +34,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId && f.FeatureCategory == category)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -45,8 +43,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId && f.LayerId == layerId)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 

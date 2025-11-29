@@ -14,6 +14,7 @@ public interface IStoryMapRepository
 
     // ================== SEGMENT (Slides) ==================
     Task<Segment?> GetSegmentAsync(Guid segmentId, CancellationToken ct);
+    Task<Segment?> GetSegmentForUpdateAsync(Guid segmentId, CancellationToken ct);
     Task<List<Segment>> GetSegmentsByMapAsync(Guid mapId, CancellationToken ct);
     Task AddSegmentAsync(Segment segment, CancellationToken ct);
     void UpdateSegment(Segment segment);

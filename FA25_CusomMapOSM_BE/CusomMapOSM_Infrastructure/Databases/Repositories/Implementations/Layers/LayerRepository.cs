@@ -24,7 +24,7 @@ public class LayerRepository : ILayerRepository
         return _dbContext.Layers
             .Include(l => l.Map)
             .Where(l => l.UserId == userId || (l.Map != null && l.Map.IsPublic))
-            .OrderByDescending(l => l.CreatedAt)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.LayerId)
             .ToListAsync(ct);
     }
 
@@ -41,7 +41,7 @@ public class LayerRepository : ILayerRepository
         return _dbContext.Layers
             .Include(l => l.Map)
             .Where(l => l.MapId == mapId && (l.UserId == userId || (l.Map != null && l.Map.IsPublic)))
-            .OrderByDescending(l => l.CreatedAt)
+            .OrderBy(l => l.CreatedAt).ThenBy(l => l.LayerId)
             .ToListAsync(ct);
     }
 }
