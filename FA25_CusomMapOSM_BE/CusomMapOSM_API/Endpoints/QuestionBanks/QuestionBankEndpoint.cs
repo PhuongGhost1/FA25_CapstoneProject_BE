@@ -277,6 +277,21 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(200)
             .Produces(404);
 
+        // Get Maps by Question Bank ID
+        group.MapGet("/{questionBankId:guid}/maps", async (
+                [FromRoute] Guid questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetMapsByQuestionBankId(questionBankId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMapsByQuestionBankId")
+            .WithDescription("Get all maps attached to a question bank")
+            .Produces(200)
+            .Produces(404);
+
         // Upload Question Image
         group.MapPost("/questions/upload-image", async (
                 IFormFile file,

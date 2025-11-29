@@ -41,4 +41,12 @@ public class MapQuestionBankRepository : IMapQuestionBankRepository
     {
         return await _context.MapQuestionBanks.Where(x => x.MapId == mapId).ToListAsync(ct);
     }
+
+    public async Task<List<MapQuestionBank>> GetMaps(Guid questionBankId, CancellationToken ct = default)
+    {
+        return await _context.MapQuestionBanks
+            .Where(x => x.QuestionBankId == questionBankId)
+            .Include(x => x.Map)
+            .ToListAsync(ct);
+    }
 }
