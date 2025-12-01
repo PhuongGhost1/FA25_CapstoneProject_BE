@@ -299,6 +299,7 @@ public class SessionHub : Hub
 
             var broadcastEvent = new QuestionBroadcastEvent
             {
+                SessionQuestionId = request.SessionQuestionId,
                 SessionId = sessionId,
                 QuestionId = request.QuestionId,
                 QuestionText = request.QuestionText,
@@ -684,6 +685,7 @@ public class SegmentSyncEvent
 
 public class QuestionBroadcastRequest
 {
+    public Guid SessionQuestionId { get; set; }
     public string QuestionId { get; set; } = string.Empty;
     public string QuestionText { get; set; } = string.Empty;
     public string QuestionType { get; set; } = string.Empty;
@@ -703,6 +705,7 @@ public class QuestionOptionData
 
 public class QuestionBroadcastEvent
 {
+    public Guid SessionQuestionId { get; set; }
     public Guid SessionId { get; set; }
     public string QuestionId { get; set; } = string.Empty;
     public string QuestionText { get; set; } = string.Empty;
