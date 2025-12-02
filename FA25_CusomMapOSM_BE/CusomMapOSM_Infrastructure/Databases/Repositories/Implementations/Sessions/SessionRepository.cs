@@ -24,7 +24,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
@@ -33,7 +32,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .FirstOrDefaultAsync(s => s.SessionCode == sessionCode);
     }
@@ -42,7 +40,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Where(s => s.HostUserId == hostUserId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
@@ -52,7 +49,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.HostUser)
-            .Include(s => s.QuestionBank)
             .Where(s => s.MapId == mapId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
@@ -62,7 +58,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .Where(s => s.Status == status)
             .OrderByDescending(s => s.ActualStartTime ?? s.ScheduledStartTime ?? s.CreatedAt)
@@ -89,7 +84,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
@@ -98,7 +92,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }
@@ -107,7 +100,6 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
-            .Include(s => s.QuestionBank)
             .Include(s => s.HostUser)
             .FirstOrDefaultAsync(s => s.SessionId == sessionId);
     }

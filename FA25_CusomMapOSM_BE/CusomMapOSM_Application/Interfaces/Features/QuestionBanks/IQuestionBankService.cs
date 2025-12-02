@@ -23,9 +23,9 @@ public interface IQuestionBankService
     Task<Option<Guid, Error>> UpdateQuestion(UpdateQuestionRequest request);
     Task<Option<bool, Error>> DeleteQuestion(Guid questionId);
 
-    // Map Question Bank
-    Task<Option<bool, Error>> AttachQuestionBankToMap(Guid questionBankId, AttachQuestionBankToMapRequest request);
-    Task<Option<bool, Error>> DetachQuestionBankFromMap(Guid mapId);
-    Task<Option<List<QuestionDTO>, Error>>  GetQuestionBanksByMapId(Guid mapId);
-    Task<Option<List<MapQuestionBankResponse>, Error>> GetMapsByQuestionBankId(Guid questionBankId);
+    // Session Question Bank
+    Task<Option<bool, Error>> AttachQuestionBankToSession(Guid questionBankId, AttachQuestionBankToSessionRequest request);
+    Task<Option<bool, Error>> DetachQuestionBankFromSession(Guid sessionId);
+    Task<Option<List<QuestionDTO>, Error>> GetQuestionBanksBySessionId(Guid sessionId);
+    Task<Option<List<SessionQuestionBankResponse>, Error>> GetSessionsByQuestionBankId(Guid questionBankId);
 }

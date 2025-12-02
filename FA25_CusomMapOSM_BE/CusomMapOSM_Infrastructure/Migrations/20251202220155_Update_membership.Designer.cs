@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251202220155_Update_membership")]
+    partial class Update_membership
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1985,6 +1988,29 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("organization_members", (string)null);
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.MapQuestionBank", b =>
+                {
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
+
+                    b.Property<Guid>("QuestionBankId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("question_bank_id");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("assigned_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("MapId", "QuestionBankId");
+
+                    b.HasIndex("QuestionBankId");
+
+                    b.ToTable("map_question_banks", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
                 {
                     b.Property<Guid>("QuestionId")
@@ -2604,6 +2630,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("points_for_speed");
 
+                    b.Property<Guid?>("QuestionBankId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("question_bank_id");
+
                     b.Property<DateTime?>("ScheduledStartTime")
                         .HasColumnType("datetime")
                         .HasColumnName("scheduled_start_time");
@@ -2679,6 +2709,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
                     b.HasIndex("MapId")
                         .HasDatabaseName("IX_Session_MapId");
+
+                    b.HasIndex("QuestionBankId")
+                        .HasDatabaseName("IX_Session_QuestionBankId");
 
                     b.HasIndex("SessionCode")
                         .IsUnique()
@@ -2898,36 +2931,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasDatabaseName("UX_SessionQuestion_SessionId_QueueOrder");
 
                     b.ToTable("session_questions", (string)null);
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionQuestionBank", b =>
-                {
-                    b.Property<Guid>("SessionQuestionBankId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("session_question_bank_id");
-
-                    b.Property<DateTime>("AttachedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasColumnName("attached_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("QuestionBankId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("question_bank_id");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("session_id");
-
-                    b.HasKey("SessionQuestionBankId");
-
-                    b.HasIndex("QuestionBankId");
-
-                    b.HasIndex("SessionId");
-
-                    b.ToTable("session_question_banks", (string)null);
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.StudentResponse", b =>
@@ -4166,6 +4169,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.MapQuestionBank", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                        .WithMany()
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Map");
+
+                    b.Navigation("QuestionBank");
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.QuestionBanks.Question", b =>
                 {
                     b.HasOne("CusomMapOSM_Domain.Entities.Locations.Location", "Location")
@@ -4283,9 +4305,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
+                        .WithMany()
+                        .HasForeignKey("QuestionBankId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("HostUser");
 
                     b.Navigation("Map");
+
+                    b.Navigation("QuestionBank");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionParticipant", b =>
@@ -4321,25 +4350,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Question");
-
-                    b.Navigation("Session");
-                });
-
-            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionQuestionBank", b =>
-                {
-                    b.HasOne("CusomMapOSM_Domain.Entities.QuestionBanks.QuestionBank", "QuestionBank")
-                        .WithMany()
-                        .HasForeignKey("QuestionBankId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CusomMapOSM_Domain.Entities.Sessions.Session", "Session")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("QuestionBank");
 
                     b.Navigation("Session");
                 });
