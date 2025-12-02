@@ -104,14 +104,14 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 Description = "Basic features for individual users",
                 PriceMonthly = 0.00m,
                 DurationMonths = 1,
-                MaxOrganizations = 1,
-                MaxLocationsPerOrg = 1,
-                MaxMapsPerMonth = 5,
-                MaxUsersPerOrg = 1,
+                MaxOrganizations = 5,
+                MaxLocationsPerOrg = 5,
+                MaxMapsPerMonth = 10,
+                MaxUsersPerOrg = 5,
                 MapQuota = 10,
-                ExportQuota = 5,
+                ExportQuota = 10,
                 MaxCustomLayers = 3,
-                MonthlyTokens = 5000,
+                MonthlyTokens = 10000,
                 PrioritySupport = false,
                 Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
                 IsActive = true,
@@ -134,26 +134,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 MonthlyTokens = 50000,
                 PrioritySupport = true,
                 Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
-                IsActive = true,
-                CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
-            },
-            new Plan
-            {
-                PlanId = 3,
-                PlanName = MembershipPlanTypeEnum.Enterprise.ToString(),
-                Description = "Full-featured solution for large organizations",
-                PriceMonthly = 99.99m,
-                DurationMonths = 1,
-                MaxOrganizations = -1, // Unlimited
-                MaxLocationsPerOrg = -1, // Unlimited
-                MaxMapsPerMonth = -1, // Unlimited
-                MaxUsersPerOrg = -1, // Unlimited
-                MapQuota = -1, // Unlimited
-                ExportQuota = -1, // Unlimited
-                MaxCustomLayers = -1, // Unlimited
-                MonthlyTokens = 200000,
-                PrioritySupport = true,
-                Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
                 IsActive = true,
                 CreatedAt = new DateTime(2025, 08, 06, 1, 0, 0, DateTimeKind.Utc)
             }
