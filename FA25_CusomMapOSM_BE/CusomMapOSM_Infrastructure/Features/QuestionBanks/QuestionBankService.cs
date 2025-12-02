@@ -4,8 +4,10 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Response;
 using CusomMapOSM_Domain.Entities.QuestionBanks;
+using CusomMapOSM_Domain.Entities.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using Optional;
 using System;
 using System.Collections.Generic;
@@ -21,7 +23,8 @@ public class QuestionBankService : IQuestionBankService
     private readonly IQuestionRepository _questionRepository;
     private readonly IQuestionOptionRepository  _questionOptionRepository;
     private readonly IMapRepository _mapRepository;
-    private readonly IMapQuestionBankRepository _mapQuestionBankRepository;
+    private readonly ISessionRepository _sessionRepository;
+    private readonly ISessionQuestionBankRepository _sessionQuestionBankRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public QuestionBankService(
@@ -30,14 +33,16 @@ public class QuestionBankService : IQuestionBankService
         ICurrentUserService currentUserService, 
         IQuestionOptionRepository questionOptionRepository,
         IMapRepository mapRepository,
-        IMapQuestionBankRepository mapQuestionBankRepository)
+        ISessionRepository sessionRepository,
+        ISessionQuestionBankRepository sessionQuestionBankRepository)
     {
         _questionBankRepository = questionBankRepository;
         _questionRepository = questionRepository;
         _currentUserService = currentUserService;
         _questionOptionRepository = questionOptionRepository;
         _mapRepository = mapRepository;
-        _mapQuestionBankRepository = mapQuestionBankRepository;
+        _sessionRepository = sessionRepository;
+        _sessionQuestionBankRepository = sessionQuestionBankRepository;
     }
 
     public async Task<Option<QuestionBankDTO, Error>> CreateQuestionBank(CreateQuestionBankRequest request)
@@ -560,7 +565,7 @@ public class QuestionBankService : IQuestionBankService
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<bool, Error>> AttachQuestionBankToMap(Guid questionBankId, AttachQuestionBankToMapRequest request)
+    public async Task<Option<bool, Error>> AttachQuestionBankToSession(Guid questionBankId, AttachQuestionBankToSessionRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId == null)
@@ -569,17 +574,17 @@ public class QuestionBankService : IQuestionBankService
                 Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
         }
 
-        var map = await _mapRepository.GetMapById(request.MapId);
-        if (map == null)
+        var session = await _sessionRepository.GetSessionById(request.SessionId);
+        if (session == null)
         {
             return Option.None<bool, Error>(
-                Error.NotFound("Map.NotFound", "Map not found"));
+                Error.NotFound("Session.NotFound", "Session not found"));
         }
 
-        if (map.UserId != currentUserId.Value)
+        if (session.HostUserId != currentUserId.Value)
         {
             return Option.None<bool, Error>(
-                Error.Forbidden("Map.NotOwner", "You don't have permission to modify this map"));
+                Error.Forbidden("Session.NotHost", "You don't have permission to modify this session"));
         }
 
         var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
@@ -595,30 +600,31 @@ public class QuestionBankService : IQuestionBankService
                 Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to attach this question bank"));
         }
 
-        var existingAssignments = await _mapQuestionBankRepository.GetQuestionBanks(request.MapId);
-        if (existingAssignments.Any(assignment => assignment.QuestionBankId == questionBankId))
+        var alreadyAttached = await _sessionQuestionBankRepository.CheckQuestionBankAttached(request.SessionId, questionBankId);
+        if (alreadyAttached)
         {
             return Option.Some<bool, Error>(true);
         }
 
-        var mapQuestionBank = new MapQuestionBank
+        var sessionQuestionBank = new SessionQuestionBank
         {
-            MapId = request.MapId,
+            SessionQuestionBankId = Guid.NewGuid(),
+            SessionId = request.SessionId,
             QuestionBankId = questionBankId,
-            AssignedAt = DateTime.UtcNow
+            AttachedAt = DateTime.UtcNow
         };
 
-        var attached = await _mapQuestionBankRepository.AddQuestionBank(mapQuestionBank);
+        var attached = await _sessionQuestionBankRepository.AddQuestionBank(sessionQuestionBank);
         if (!attached)
         {
             return Option.None<bool, Error>(
-                Error.Failure("MapQuestionBank.AttachFailed", "Failed to attach question bank to map"));
+                Error.Failure("SessionQuestionBank.AttachFailed", "Failed to attach question bank to session"));
         }
 
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<bool, Error>> DetachQuestionBankFromMap(Guid mapId)
+    public async Task<Option<bool, Error>> DetachQuestionBankFromSession(Guid sessionId)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId == null)
@@ -627,49 +633,49 @@ public class QuestionBankService : IQuestionBankService
                 Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
         }
 
-        var map = await _mapRepository.GetMapById(mapId);
-        if (map == null)
+        var session = await _sessionRepository.GetSessionById(sessionId);
+        if (session == null)
         {
             return Option.None<bool, Error>(
-                Error.NotFound("Map.NotFound", "Map not found"));
+                Error.NotFound("Session.NotFound", "Session not found"));
         }
 
-        if (map.UserId != currentUserId.Value)
+        if (session.HostUserId != currentUserId.Value)
         {
             return Option.None<bool, Error>(
-                Error.Forbidden("Map.NotOwner", "You don't have permission to modify this map"));
+                Error.Forbidden("Session.NotHost", "You don't have permission to modify this session"));
         }
 
-        var assignments = await _mapQuestionBankRepository.GetQuestionBanks(mapId);
+        var assignments = await _sessionQuestionBankRepository.GetQuestionBanks(sessionId);
         if (assignments.Count == 0)
         {
             return Option.None<bool, Error>(
-                Error.NotFound("MapQuestionBank.NotFound", "No question banks attached to this map"));
+                Error.NotFound("SessionQuestionBank.NotFound", "No question banks attached to this session"));
         }
 
         foreach (var assignment in assignments)
         {
-            var removed = await _mapQuestionBankRepository.RemoveQuestionBank(assignment);
+            var removed = await _sessionQuestionBankRepository.RemoveQuestionBank(assignment);
             if (!removed)
             {
                 return Option.None<bool, Error>(
-                    Error.Failure("MapQuestionBank.DetachFailed", "Failed to detach question bank from map"));
+                    Error.Failure("SessionQuestionBank.DetachFailed", "Failed to detach question bank from session"));
             }
         }
 
         return Option.Some<bool, Error>(true);
     }
 
-    public async Task<Option<List<QuestionDTO>, Error>> GetQuestionBanksByMapId(Guid mapId)
+    public async Task<Option<List<QuestionDTO>, Error>> GetQuestionBanksBySessionId(Guid sessionId)
     {
-        var map = await _mapRepository.GetMapById(mapId);
-        if (map == null)
+        var session = await _sessionRepository.GetSessionById(sessionId);
+        if (session == null)
         {
             return Option.None<List<QuestionDTO>, Error>(
-                Error.NotFound("Map.NotFound", "Map not found"));
+                Error.NotFound("Session.NotFound", "Session not found"));
         }
 
-        var assignments = await _mapQuestionBankRepository.GetQuestionBanks(mapId);
+        var assignments = await _sessionQuestionBankRepository.GetQuestionBanks(sessionId);
         if (assignments.Count == 0)
         {
             return Option.Some<List<QuestionDTO>, Error>(new List<QuestionDTO>());
@@ -690,32 +696,33 @@ public class QuestionBankService : IQuestionBankService
         return Option.Some<List<QuestionDTO>, Error>(questions);
     }
 
-    public async Task<Option<List<MapQuestionBankResponse>, Error>> GetMapsByQuestionBankId(Guid questionBankId)
+    public async Task<Option<List<SessionQuestionBankResponse>, Error>> GetSessionsByQuestionBankId(Guid questionBankId)
     {
         var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
         if (questionBank == null)
         {
-            return Option.None<List<MapQuestionBankResponse>, Error>(
+            return Option.None<List<SessionQuestionBankResponse>, Error>(
                 Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
         }
 
-        var assignments = await _mapQuestionBankRepository.GetMaps(questionBankId);
+        var assignments = await _sessionQuestionBankRepository.GetSessions(questionBankId);
         if (assignments.Count == 0)
         {
-            return Option.Some<List<MapQuestionBankResponse>, Error>(new List<MapQuestionBankResponse>());
+            return Option.Some<List<SessionQuestionBankResponse>, Error>(new List<SessionQuestionBankResponse>());
         }
 
-        var maps = assignments
-            .Where(x => x.Map != null)
-            .Select(x => new MapQuestionBankResponse
+        var sessions = assignments
+            .Where(x => x.Session != null)
+            .Select(x => new SessionQuestionBankResponse
             {
-                MapId = x.MapId,
-                MapName = x.Map.MapName,
-                AssignedAt = x.AssignedAt
+                SessionId = x.SessionId,
+                SessionName = x.Session.SessionName,
+                SessionCode = x.Session.SessionCode,
+                AttachedAt = x.AttachedAt
             })
             .ToList();
 
-        return Option.Some<List<MapQuestionBankResponse>, Error>(maps);
+        return Option.Some<List<SessionQuestionBankResponse>, Error>(sessions);
     }
 
     private async Task<bool> SyncQuestionOptionsForUpdate(

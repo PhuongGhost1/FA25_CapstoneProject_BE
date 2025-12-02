@@ -225,70 +225,71 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(403)
             .Produces(404);
         
-        // Attach Question Bank to Map
-        group.MapPost("/{questionBankId:guid}/maps", async (
+        // Attach Question Bank to Session
+        group.MapPost("/{questionBankId:guid}/sessions", async (
                 [FromRoute] Guid questionBankId,
-                [FromBody] AttachQuestionBankToMapRequest req,
+                [FromBody] AttachQuestionBankToSessionRequest req,
                 [FromServices] IQuestionBankService questionBankService) =>
             {
-                var result = await questionBankService.AttachQuestionBankToMap(questionBankId, req);
+                var result = await questionBankService.AttachQuestionBankToSession(questionBankId, req);
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
-            }).WithName("AttachQuestionBankToMap")
-            .WithDescription("Attach a question bank to a map")
+            }).WithName("AttachQuestionBankToSession")
+            .WithDescription("Attach a question bank to a session")
             .RequireAuthorization()
             .Produces(200)
             .Produces(401)
             .Produces(403)
             .Produces(404);
 
-        // Detach Question Bank from Map
-        group.MapDelete("/{questionBankId:guid}/maps", async (
+        // Detach Question Bank from Session
+        group.MapDelete("/{questionBankId:guid}/sessions/{sessionId:guid}", async (
                 [FromRoute] Guid questionBankId,
+                [FromRoute] Guid sessionId,
                 [FromServices] IQuestionBankService questionBankService) =>
             {
-                var result = await questionBankService.DetachQuestionBankFromMap(questionBankId);
+                var result = await questionBankService.DetachQuestionBankFromSession(sessionId);
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
-            }).WithName("DetachQuestionBankFromMap")
-            .WithDescription("Detach a question bank from a map")
+            }).WithName("DetachQuestionBankFromSession")
+            .WithDescription("Detach a question bank from a session")
             .RequireAuthorization()
             .Produces(200)
             .Produces(401)
             .Produces(403)
             .Produces(404);
 
-        // Get Question Banks by Map ID
-        group.MapGet("/maps/{mapId:guid}/question-banks", async (
-                [FromRoute] Guid mapId,
+        // Get Question Banks by Session ID
+        group.MapGet("/sessions/{sessionId:guid}/question-banks", async (
+                [FromRoute] Guid sessionId,
                 [FromServices] IQuestionBankService questionBankService) =>
             {
-                var result = await questionBankService.GetQuestionBanksByMapId(mapId);
+                var result = await questionBankService.GetQuestionBanksBySessionId(sessionId);
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
-            }).WithName("GetQuestionBanksByMapId")
-            .WithDescription("Get all question banks attached to a map")
+            }).WithName("GetQuestionBanksBySessionId")
+            .WithDescription("Get all question banks attached to a session")
             .Produces(200)
             .Produces(404);
 
-        // Get Maps by Question Bank ID
-        group.MapGet("/{questionBankId:guid}/maps", async (
+        // Get Sessions by Question Bank ID
+        group.MapGet("/{questionBankId:guid}/sessions", async (
                 [FromRoute] Guid questionBankId,
                 [FromServices] IQuestionBankService questionBankService) =>
             {
-                var result = await questionBankService.GetMapsByQuestionBankId(questionBankId);
+                var result = await questionBankService.GetSessionsByQuestionBankId(questionBankId);
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
-            }).WithName("GetMapsByQuestionBankId")
-            .WithDescription("Get all maps attached to a question bank")
+            }).WithName("GetSessionsByQuestionBankId")
+            .WithDescription("Get all sessions attached to a question bank")
             .Produces(200)
             .Produces(404);
 

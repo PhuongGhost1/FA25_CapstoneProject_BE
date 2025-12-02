@@ -2,8 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 
-public class AttachQuestionBankToMapRequest
+public class AttachQuestionBankToSessionRequest
 {
     [Required]
-    public Guid MapId { get; set; }
+    public Guid SessionId { get; set; }
 }
+

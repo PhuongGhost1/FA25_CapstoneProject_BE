@@ -8,6 +8,7 @@ using CusomMapOSM_Domain.Entities.QuestionBanks;
 using CusomMapOSM_Domain.Entities.QuestionBanks.Enums;
 using CusomMapOSM_Domain.Entities.Sessions;
 using CusomMapOSM_Domain.Entities.Sessions.Enums;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Hubs;
@@ -25,6 +26,7 @@ public class SessionService : ISessionService
     private readonly ISessionQuestionRepository _sessionQuestionRepository;
     private readonly IStudentResponseRepository _responseRepository;
     private readonly IQuestionRepository _questionRepository;
+    private readonly ISessionQuestionBankRepository _sessionQuestionBankRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IHubContext<SessionHub> _sessionHubContext;
     private readonly IQuestionOptionRepository _questionOptionRepository;
@@ -36,6 +38,7 @@ public class SessionService : ISessionService
         IStudentResponseRepository responseRepository,
         IQuestionRepository questionRepository,
         IQuestionOptionRepository questionOptionRepository,
+        ISessionQuestionBankRepository sessionQuestionBankRepository,
         ICurrentUserService currentUserService,
         IHubContext<SessionHub> sessionHubContext)
     {
@@ -45,6 +48,7 @@ public class SessionService : ISessionService
         _responseRepository = responseRepository;
         _questionRepository = questionRepository;
         _questionOptionRepository = questionOptionRepository;
+        _sessionQuestionBankRepository = sessionQuestionBankRepository;
         _currentUserService = currentUserService;
         _sessionHubContext = sessionHubContext;
     }
@@ -66,7 +70,6 @@ public class SessionService : ISessionService
         {
             SessionId = Guid.NewGuid(),
             MapId = request.MapId,
-            QuestionBankId = request.QuestionBankId,
             HostUserId = currentUserId.Value,
             SessionCode = sessionCode,
             SessionName = request.SessionName,
@@ -92,9 +95,20 @@ public class SessionService : ISessionService
                 Error.Failure("Session.CreateFailed", "Failed to create session"));
         }
 
+        // Attach question bank if provided
         if (request.QuestionBankId != null)
         {
-            var questions = await _questionRepository.GetQuestionsByQuestionBankId(request.QuestionBankId);
+            var sessionQuestionBank = new SessionQuestionBank
+            {
+                SessionQuestionBankId = Guid.NewGuid(),
+                SessionId = session.SessionId,
+                QuestionBankId = request.QuestionBankId.Value,
+                AttachedAt = DateTime.UtcNow
+            };
+            await _sessionQuestionBankRepository.AddQuestionBank(sessionQuestionBank);
+
+            // Create SessionQuestions from the attached question bank
+            var questions = await _questionRepository.GetQuestionsByQuestionBankId(request.QuestionBankId.Value);
             if (request.ShuffleQuestions)
             {
                 questions = questions.OrderBy(_ => Guid.NewGuid()).ToList();
@@ -130,6 +144,10 @@ public class SessionService : ISessionService
                 Error.NotFound("Session.NotFound", "Session not found"));
         }
 
+        // Get first question bank attached to this session (if any)
+        var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(session.SessionId);
+        var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+
         return Option.Some<GetSessionResponse, Error>(new GetSessionResponse
         {
             SessionId = session.SessionId,
@@ -140,8 +158,8 @@ public class SessionService : ISessionService
             Status = session.Status,
             MapId = session.MapId,
             MapName = session.Map?.MapName ?? string.Empty,
-            QuestionBankId = session.QuestionBankId,
-            QuestionBankName = session.QuestionBank?.BankName ?? string.Empty,
+            QuestionBankId = firstQuestionBank?.QuestionBankId,
+            QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
             HostUserId = session.HostUserId,
             HostUserName = session.HostUser?.FullName ?? string.Empty,
             MaxParticipants = session.MaxParticipants,
@@ -180,24 +198,32 @@ public class SessionService : ISessionService
 
         var sessions = await _sessionRepository.GetSessionsByHostUserId(currentUserId.Value);
 
-        var response = sessions.Select(s => new GetSessionResponse
+        var response = new List<GetSessionResponse>();
+        foreach (var s in sessions)
         {
-            SessionId = s.SessionId,
-            SessionCode = s.SessionCode,
-            SessionName = s.SessionName,
-            Description = s.Description,
-            SessionType = s.SessionType,
-            Status = s.Status,
-            MapId = s.MapId,
-            MapName = s.Map?.MapName ?? string.Empty,
-            QuestionBankId = s.QuestionBankId,
-            QuestionBankName = s.QuestionBank?.BankName ?? string.Empty,
-            HostUserId = s.HostUserId,
-            HostUserName = s.HostUser?.FullName ?? string.Empty,
-            TotalParticipants = s.TotalParticipants,
-            TotalResponses = s.TotalResponses,
-            CreatedAt = s.CreatedAt
-        }).ToList();
+            // Get first question bank attached to this session (if any)
+            var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(s.SessionId);
+            var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+
+            response.Add(new GetSessionResponse
+            {
+                SessionId = s.SessionId,
+                SessionCode = s.SessionCode,
+                SessionName = s.SessionName,
+                Description = s.Description,
+                SessionType = s.SessionType,
+                Status = s.Status,
+                MapId = s.MapId,
+                MapName = s.Map?.MapName ?? string.Empty,
+                QuestionBankId = firstQuestionBank?.QuestionBankId,
+                QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
+                HostUserId = s.HostUserId,
+                HostUserName = s.HostUser?.FullName ?? string.Empty,
+                TotalParticipants = s.TotalParticipants,
+                TotalResponses = s.TotalResponses,
+                CreatedAt = s.CreatedAt
+            });
+        }
 
         return Option.Some<List<GetSessionResponse>, Error>(response);
     }
