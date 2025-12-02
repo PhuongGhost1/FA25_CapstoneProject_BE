@@ -14,6 +14,7 @@ public class SessionHub : Hub
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionParticipantRepository _participantRepository;
+    private readonly ISessionQuestionRepository _sessionQuestionRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly IQuickPollService _quickPollService;
@@ -27,6 +28,7 @@ public class SessionHub : Hub
     public SessionHub(
         ISessionRepository sessionRepository,
         ISessionParticipantRepository participantRepository,
+        ISessionQuestionRepository sessionQuestionRepository,
         ICurrentUserService currentUserService,
         IRedisCacheService redisCacheService,
         IQuickPollService quickPollService,
@@ -34,6 +36,7 @@ public class SessionHub : Hub
     {
         _sessionRepository = sessionRepository;
         _participantRepository = participantRepository;
+        _sessionQuestionRepository = sessionQuestionRepository;
         _currentUserService = currentUserService;
         _redisCacheService = redisCacheService;
         _quickPollService = quickPollService;
@@ -297,9 +300,12 @@ public class SessionHub : Hub
                 return;
             }
 
+            // Try to resolve the SessionQuestionId from the active question in this session
+            var activeQuestion = await _sessionQuestionRepository.GetActiveQuestion(sessionId);
+
             var broadcastEvent = new QuestionBroadcastEvent
             {
-                SessionQuestionId = request.SessionQuestionId,
+                SessionQuestionId = activeQuestion?.SessionQuestionId ?? request.SessionQuestionId,
                 SessionId = sessionId,
                 QuestionId = request.QuestionId,
                 QuestionText = request.QuestionText,
