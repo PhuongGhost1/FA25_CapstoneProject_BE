@@ -4,10 +4,10 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.QuickPolls;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Events;
 using CusomMapOSM_Application.Models.DTOs.Features.QuickPolls.Request;
+using CusomMapOSM_Application.Interfaces.Features.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
-
 namespace CusomMapOSM_Infrastructure.Hubs;
 
 public class SessionHub : Hub
@@ -15,6 +15,7 @@ public class SessionHub : Hub
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionParticipantRepository _participantRepository;
     private readonly ISessionQuestionRepository _sessionQuestionRepository;
+    private readonly ISessionService _sessionService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly IQuickPollService _quickPollService;
@@ -29,6 +30,7 @@ public class SessionHub : Hub
         ISessionRepository sessionRepository,
         ISessionParticipantRepository participantRepository,
         ISessionQuestionRepository sessionQuestionRepository,
+        ISessionService sessionService,
         ICurrentUserService currentUserService,
         IRedisCacheService redisCacheService,
         IQuickPollService quickPollService,
@@ -37,6 +39,7 @@ public class SessionHub : Hub
         _sessionRepository = sessionRepository;
         _participantRepository = participantRepository;
         _sessionQuestionRepository = sessionQuestionRepository;
+        _sessionService = sessionService;
         _currentUserService = currentUserService;
         _redisCacheService = redisCacheService;
         _quickPollService = quickPollService;
@@ -300,12 +303,12 @@ public class SessionHub : Hub
                 return;
             }
 
-            // Try to resolve the SessionQuestionId from the active question in this session
-            var activeQuestion = await _sessionQuestionRepository.GetActiveQuestion(sessionId);
+            var resolvedSessionQuestionId =
+                await _sessionService.ResolveAndActivateSessionQuestion(sessionId, request.QuestionId);
 
             var broadcastEvent = new QuestionBroadcastEvent
             {
-                SessionQuestionId = activeQuestion?.SessionQuestionId ?? request.SessionQuestionId,
+                SessionQuestionId = resolvedSessionQuestionId ?? request.SessionQuestionId,
                 SessionId = sessionId,
                 QuestionId = request.QuestionId,
                 QuestionText = request.QuestionText,
