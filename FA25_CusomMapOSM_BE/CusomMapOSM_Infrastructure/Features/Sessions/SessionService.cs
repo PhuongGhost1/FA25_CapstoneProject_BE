@@ -684,6 +684,21 @@ public class SessionService : ISessionService
         return Option.Some<bool, Error>(true);
     }
 
+    public async Task<Guid?> ResolveAndActivateSessionQuestion(Guid sessionId, string questionId)
+    {
+        var sessionQuestions = await _sessionQuestionRepository.GetQuestionsBySessionId(sessionId);
+        var sessionQuestion = sessionQuestions
+            .FirstOrDefault(q => q.QuestionId.ToString() == questionId);
+
+        if (sessionQuestion == null)
+        {
+            return null;
+        }
+
+        await _sessionQuestionRepository.ActivateQuestion(sessionQuestion.SessionQuestionId);
+        return sessionQuestion.SessionQuestionId;
+    }
+
     public async Task<Option<SubmitResponseResponse, Error>> SubmitResponse(Guid participantId,
         SubmitResponseRequest request)
     {
