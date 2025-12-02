@@ -29,6 +29,7 @@ public interface ISessionService
     Task<Option<bool, Error>> ActivateNextQuestion(Guid sessionId);
     Task<Option<bool, Error>> SkipCurrentQuestion(Guid sessionId);
     Task<Option<bool, Error>> ExtendTime(Guid sessionQuestionId, int additionalSeconds);
+    Task<Guid?> ResolveAndActivateSessionQuestion(Guid sessionId, string questionId);
 
     // Response Submission
     Task<Option<SubmitResponseResponse, Error>> SubmitResponse(Guid participantId, SubmitResponseRequest request);
