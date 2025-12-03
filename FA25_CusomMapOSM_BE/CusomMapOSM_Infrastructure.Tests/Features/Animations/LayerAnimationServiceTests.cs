@@ -1,6 +1,7 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
@@ -17,12 +18,17 @@ public class LayerAnimationServiceTests
 {
     private readonly Mock<ILayerAnimationRepository> _mockRepository;
     private readonly LayerAnimationService _layerAnimationService;
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Faker _faker;
 
     public LayerAnimationServiceTests()
     {
         _mockRepository = new Mock<ILayerAnimationRepository>();
-        _layerAnimationService = new LayerAnimationService(_mockRepository.Object);
+        _mockCurrentUserService = new Mock<ICurrentUserService>();
+        _layerAnimationService = new LayerAnimationService(
+            _mockRepository.Object,
+            _mockCurrentUserService.Object
+            );
         _faker = new Faker();
     }
 
