@@ -11,7 +11,6 @@ namespace CusomMapOSM_API.Endpoints.Authentication;
 
 public class AuthenticationEndpoint : IEndpoint
 {
-    private const string API_PREFIX = Routes.Prefix.Auth;
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         var group = app.MapGroup(Routes.Prefix.Auth)         
