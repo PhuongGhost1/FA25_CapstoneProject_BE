@@ -1,5 +1,6 @@
 using CusomMapOSM_Application.Interfaces.Services.Mail;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using CusomMapOSM_Application.Models.Templates.Email;
 using CusomMapOSM_Infrastructure.Databases;
 using CusomMapOSM_Infrastructure.Services;
 using Hangfire;
@@ -139,7 +140,7 @@ public class MembershipPurchaseNotificationJob
     {
         try
         {
-            var subject = "Membership Purchase Confirmation - Welcome to Custom Map OSM!";
+            var subject = "Membership Purchase Confirmation - Welcome to IMOS!";
             var body = GetPurchaseConfirmationEmailBody(membership, transaction);
 
             var mailRequest = new MailRequest
@@ -174,73 +175,24 @@ public class MembershipPurchaseNotificationJob
         var endDate = membership.EndDate?.ToString("MMMM dd, yyyy") ?? "Ongoing";
         var autoRenewal = membership.AutoRenew ? "Enabled" : "Disabled";
 
-        return $@"
-            <div class=""notification success"">
-                <h2>🎉 Welcome to Custom Map OSM!</h2>
-                <p>Dear {membership.User!.FullName ?? membership.User.Email},</p>
-                
-                <p>Thank you for your purchase! Your <strong>{membership.Plan!.PlanName}</strong> membership 
-                has been successfully activated for organization <strong>{membership.Organization!.OrgName}</strong>.</p>
-                
-                <div class=""purchase-details"">
-                    <h3>Purchase Details:</h3>
-                    <ul>
-                        <li><strong>Transaction ID:</strong> {transaction.TransactionId}</li>
-                        <li><strong>Plan:</strong> {membership.Plan.PlanName}</li>
-                        <li><strong>Amount:</strong> ${transaction.Amount:F2}</li>
-                        <li><strong>Payment Method:</strong> {transaction.PaymentGateway.Name}</li>
-                        <li><strong>Purchase Date:</strong> {transaction.CreatedAt:MMMM dd, yyyy 'at' h:mm tt}</li>
-                    </ul>
-                </div>
-                
-                <div class=""membership-details"">
-                    <h3>Membership Details:</h3>
-                    <ul>
-                        <li><strong>Organization:</strong> {membership.Organization.OrgName}</li>
-                        <li><strong>Start Date:</strong> {startDate}</li>
-                        <li><strong>End Date:</strong> {endDate}</li>
-                        <li><strong>Auto-renewal:</strong> {autoRenewal}</li>
-                        <li><strong>Status:</strong> {membership.Status}</li>
-                    </ul>
-                </div>
-                
-                <div class=""plan-features"">
-                    <h3>Your Plan Includes:</h3>
-                    <ul>
-                        <li>✅ Up to {membership.Plan.MaxMapsPerMonth} maps per month</li>
-                        <li>✅ Up to {membership.Plan.ExportQuota} exports per month</li>
-                        <li>✅ Up to {membership.Plan.MaxCustomLayers} custom layers</li>
-                        <li>✅ Up to {membership.Plan.MaxUsersPerOrg} users per organization</li>
-                        <li>✅ {(membership.Plan.PrioritySupport ? "Priority" : "Standard")} support</li>
-                    </ul>
-                </div>
-                
-                <div class=""action-buttons"">
-                    <a href=""https://yourdomain.com/dashboard"" class=""btn btn-primary"">
-                        Go to Dashboard
-                    </a>
-                    <a href=""https://yourdomain.com/maps/create"" class=""btn btn-secondary"">
-                        Create Your First Map
-                    </a>
-                </div>
-                
-                <div class=""getting-started"">
-                    <h3>Getting Started:</h3>
-                    <ol>
-                        <li>Log in to your dashboard</li>
-                        <li>Create your first custom map</li>
-                        <li>Invite team members to collaborate</li>
-                        <li>Upload your custom layers</li>
-                        <li>Export your maps in various formats</li>
-                    </ol>
-                </div>
-                
-                <p>If you have any questions or need assistance getting started, our support team is here to help!</p>
-                
-                <p>Welcome aboard and happy mapping!</p>
-                
-                <p><strong>The Custom Map OSM Team</strong></p>
-            </div>";
+        return EmailTemplates.Membership.GetPurchaseConfirmationTemplate(
+            userName: membership.User!.FullName ?? membership.User.Email,
+            planName: membership.Plan!.PlanName,
+            organizationName: membership.Organization!.OrgName,
+            transactionId: transaction.TransactionId,
+            amount: transaction.Amount,
+            paymentMethod: transaction.PaymentGateway.Name,
+            purchaseDate: transaction.CreatedAt,
+            startDate: startDate,
+            endDate: endDate,
+            autoRenewal: autoRenewal,
+            status: membership.Status.ToString(),
+            maxMapsPerMonth: membership.Plan.MaxMapsPerMonth == -1 ? int.MaxValue : membership.Plan.MaxMapsPerMonth,
+            exportQuota: membership.Plan.ExportQuota == -1 ? int.MaxValue : membership.Plan.ExportQuota,
+            maxCustomLayers: membership.Plan.MaxCustomLayers == -1 ? int.MaxValue : membership.Plan.MaxCustomLayers,
+            maxUsersPerOrg: membership.Plan.MaxUsersPerOrg == -1 ? int.MaxValue : membership.Plan.MaxUsersPerOrg,
+            prioritySupport: membership.Plan.PrioritySupport
+        );
     }
 
     private async Task<bool> WasConfirmationSentAsync(Guid transactionId, CustomMapOSMDbContext dbContext)
@@ -346,39 +298,14 @@ public class MembershipPurchaseNotificationJob
     {
         var newEndDate = membership.EndDate?.ToString("MMMM dd, yyyy") ?? "Ongoing";
 
-        return $@"
-            <div class=""notification success"">
-                <h2>✅ Membership Renewed Successfully!</h2>
-                <p>Dear {membership.User!.FullName ?? membership.User.Email},</p>
-                
-                <p>Great news! Your <strong>{membership.Plan!.PlanName}</strong> membership 
-                for organization <strong>{membership.Organization!.OrgName}</strong> has been 
-                automatically renewed.</p>
-                
-                <div class=""renewal-details"">
-                    <h3>Renewal Details:</h3>
-                    <ul>
-                        <li><strong>Transaction ID:</strong> {transaction.TransactionId}</li>
-                        <li><strong>Plan:</strong> {membership.Plan.PlanName}</li>
-                        <li><strong>Amount:</strong> ${transaction.Amount:F2}</li>
-                        <li><strong>Renewal Date:</strong> {transaction.CreatedAt:MMMM dd, yyyy}</li>
-                        <li><strong>New End Date:</strong> {newEndDate}</li>
-                    </ul>
-                </div>
-                
-                <p>Your membership continues uninterrupted, and you can keep enjoying all the features 
-                of your current plan.</p>
-                
-                <div class=""action-buttons"">
-                    <a href=""https://yourdomain.com/dashboard"" class=""btn btn-primary"">
-                        Go to Dashboard
-                    </a>
-                    <a href=""https://yourdomain.com/membership"" class=""btn btn-secondary"">
-                        Manage Membership
-                    </a>
-                </div>
-                
-                <p>Thank you for your continued trust in Custom Map OSM!</p>
-            </div>";
+        return EmailTemplates.Membership.GetRenewalConfirmationTemplate(
+            userName: membership.User!.FullName ?? membership.User.Email,
+            planName: membership.Plan!.PlanName,
+            organizationName: membership.Organization!.OrgName,
+            transactionId: transaction.TransactionId,
+            amount: transaction.Amount,
+            renewalDate: transaction.CreatedAt,
+            newEndDate: newEndDate
+        );
     }
 }
