@@ -1,6 +1,5 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
-using CusomMapOSM_Application.Interfaces.Features.Workspace;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Response;
@@ -11,8 +10,8 @@ using DomainWorkspace = CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
-using CusomMapOSM_Infrastructure.Features.Workspace;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Features.Workspaces;
 using FluentAssertions;
 using Moq;
 using Optional;

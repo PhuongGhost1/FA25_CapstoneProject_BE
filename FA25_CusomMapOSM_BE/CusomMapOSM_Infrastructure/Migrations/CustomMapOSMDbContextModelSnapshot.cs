@@ -2753,6 +2753,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("left_at");
 
+                    b.Property<string>("ParticipantKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("participant_key");
+
                     b.Property<int>("Rank")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -2785,10 +2791,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("user_id");
-
                     b.HasKey("SessionParticipantId");
 
                     b.HasIndex("IsActive")
@@ -2797,16 +2799,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("SessionId")
                         .HasDatabaseName("IX_SessionParticipant_SessionId");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_SessionParticipant_UserId");
+                    b.HasIndex("SessionId", "ParticipantKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SessionParticipant_SessionId_ParticipantKey");
 
                     b.HasIndex("SessionId", "TotalScore")
                         .HasDatabaseName("IX_SessionParticipant_SessionId_TotalScore");
-
-                    b.HasIndex("SessionId", "UserId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_SessionParticipant_SessionId_UserId")
-                        .HasFilter("user_id IS NOT NULL");
 
                     b.ToTable("session_participants", (string)null);
                 });
@@ -4296,14 +4294,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Session");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionQuestion", b =>

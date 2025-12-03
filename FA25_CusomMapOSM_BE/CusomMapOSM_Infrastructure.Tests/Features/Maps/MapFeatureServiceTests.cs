@@ -16,6 +16,7 @@ using Optional;
 using Xunit;
 using Optional.Unsafe;
 using System.Text.Json;
+using CusomMapOSM_Application.Interfaces.Services.Organization;
 using CusomMapOSM_Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,7 @@ public class MapFeatureServiceTests
     private readonly Faker _faker;
     private readonly Mock<IHubContext<MapCollaborationHub>> _mockHubContext;
     private readonly Mock<ILogger<MapFeatureService>> _mockLogger;
+    private readonly Mock<IOrganizationPermissionService> _mockOrganizationPermissionService;
 
     public MapFeatureServiceTests()
     {
@@ -41,13 +43,15 @@ public class MapFeatureServiceTests
         _mockMapHistoryService = new Mock<IMapHistoryService>();
         _mockHubContext = new Mock<IHubContext<MapCollaborationHub>>();
         _mockLogger = new Mock<ILogger<MapFeatureService>>();
+        _mockOrganizationPermissionService = new Mock<IOrganizationPermissionService>();
         _mapFeatureService = new MapFeatureService(
             _mockRepository.Object,
             _mockMongoStore.Object,
             _mockCurrentUserService.Object,
             _mockMapHistoryService.Object,
             _mockHubContext.Object,
-            _mockLogger.Object
+            _mockLogger.Object,
+            _mockOrganizationPermissionService.Object
         );
         _faker = new Faker();
     }

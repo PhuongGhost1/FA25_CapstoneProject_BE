@@ -425,24 +425,11 @@ public class SessionService : ISessionService
 
         var currentUserId = _currentUserService.GetUserId();
 
-        // Check if user already joined
-        if (currentUserId != null)
-        {
-            var alreadyJoined =
-                await _participantRepository.CheckUserAlreadyJoined(session.SessionId, currentUserId.Value);
-            if (alreadyJoined)
-            {
-                return Option.None<JoinSessionResponse, Error>(
-                    Error.Conflict("Session.AlreadyJoined", "You have already joined this session"));
-            }
-        }
-
         // Create participant
         var participant = new SessionParticipant
         {
             SessionParticipantId = Guid.NewGuid(),
             SessionId = session.SessionId,
-            UserId = currentUserId,
             DisplayName = request.DisplayName,
             IsGuest = currentUserId == null,
             DeviceInfo = request.DeviceInfo,
@@ -544,7 +531,8 @@ public class SessionService : ISessionService
             TotalCorrect = p.TotalCorrect,
             TotalAnswered = p.TotalAnswered,
             AverageResponseTime = p.AverageResponseTime,
-            IsCurrentUser = currentUserId != null && p.UserId == currentUserId.Value
+            // With anonymous participants (no UserId), we can't reliably mark "current user" here.
+            IsCurrentUser = false
         }).ToList();
 
         return Option.Some<LeaderboardResponse, Error>(new LeaderboardResponse

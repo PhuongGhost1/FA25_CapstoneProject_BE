@@ -20,8 +20,10 @@ internal class SessionParticipantConfiguration : IEntityTypeConfiguration<Sessio
             .HasColumnName("session_id")
             .IsRequired();
 
-        builder.Property(sp => sp.UserId)
-            .HasColumnName("user_id");
+        builder.Property(sp => sp.ParticipantKey)
+            .HasColumnName("participant_key")
+            .HasMaxLength(64)
+            .IsRequired();
 
         builder.Property(sp => sp.DisplayName)
             .HasColumnName("display_name")
@@ -89,27 +91,18 @@ internal class SessionParticipantConfiguration : IEntityTypeConfiguration<Sessio
             .HasForeignKey(sp => sp.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(sp => sp.User)
-            .WithMany()
-            .HasForeignKey(sp => sp.UserId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         // Indexes
         builder.HasIndex(sp => sp.SessionId)
             .HasDatabaseName("IX_SessionParticipant_SessionId");
-
-        builder.HasIndex(sp => sp.UserId)
-            .HasDatabaseName("IX_SessionParticipant_UserId");
 
         // Composite index for leaderboard queries
         builder.HasIndex(sp => new { sp.SessionId, sp.TotalScore })
             .HasDatabaseName("IX_SessionParticipant_SessionId_TotalScore");
 
-        // Ensure one user can only join a session once
-        builder.HasIndex(sp => new { sp.SessionId, sp.UserId })
+        // Ensure one anonymous participant key per session
+        builder.HasIndex(sp => new { sp.SessionId, sp.ParticipantKey })
             .IsUnique()
-            .HasFilter("user_id IS NOT NULL")
-            .HasDatabaseName("UX_SessionParticipant_SessionId_UserId");
+            .HasDatabaseName("UX_SessionParticipant_SessionId_ParticipantKey");
 
         builder.HasIndex(sp => sp.IsActive)
             .HasDatabaseName("IX_SessionParticipant_IsActive");
