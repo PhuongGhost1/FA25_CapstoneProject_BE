@@ -137,6 +137,18 @@ public class SessionParticipantRepository : ISessionParticipantRepository
             .AnyAsync(sp => sp.SessionParticipantId == participantId && sp.SessionId == sessionId);
     }
 
+    public async Task<bool> CheckParticipantKeyExistsInSession(Guid sessionId, string participantKey)
+    {
+        return await _context.SessionParticipants
+            .AnyAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey && sp.IsActive);
+    }
+
+    public async Task<SessionParticipant?> GetParticipantBySessionAndParticipantKey(Guid sessionId, string participantKey)
+    {
+        return await _context.SessionParticipants
+            .FirstOrDefaultAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey);
+    }
+
     public async Task<bool> MarkParticipantAsLeft(Guid participantId)
     {
         var participant = await _context.SessionParticipants.FindAsync(participantId);

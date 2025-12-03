@@ -24,6 +24,8 @@ public interface ISessionParticipantRepository
     // Validation
     Task<bool> CheckParticipantExists(Guid participantId);
     Task<bool> CheckParticipantBelongsToSession(Guid participantId, Guid sessionId);
+    Task<bool> CheckParticipantKeyExistsInSession(Guid sessionId, string participantKey);
+    Task<SessionParticipant?> GetParticipantBySessionAndParticipantKey(Guid sessionId, string participantKey);
 
     // Session Management
     Task<bool> MarkParticipantAsLeft(Guid participantId);
