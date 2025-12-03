@@ -1,4 +1,5 @@
 using System;
+using CusomMapOSM_Domain.Entities.Organizations;
 
 namespace CusomMapOSM_Domain.Entities.Memberships;
 
@@ -18,6 +19,9 @@ public class MembershipUsage
     public DateTime CycleEndDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    
+    public Organization? Organizations { get; set; }
+    public Membership? Membership { get; set; }
 }
 
 

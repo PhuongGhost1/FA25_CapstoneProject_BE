@@ -1,5 +1,4 @@
 ﻿using CusomMapOSM_Domain.Entities.Maps;
-using CusomMapOSM_Domain.Entities.QuestionBanks;
 using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using CusomMapOSM_Domain.Entities.Users;
 
@@ -9,7 +8,6 @@ public class Session
 {
     public Guid SessionId { get; set; }
     public Guid MapId { get; set; }
-    public Guid? QuestionBankId { get; set; }
     public Guid HostUserId { get; set; }
     public string SessionCode { get; set; } = string.Empty;
     public string SessionName { get; set; } = string.Empty;
@@ -32,8 +30,7 @@ public class Session
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    // Navigation properties
+
     public Map? Map { get; set; }
-    public QuestionBank? QuestionBank { get; set; }
     public User? HostUser { get; set; }
 }

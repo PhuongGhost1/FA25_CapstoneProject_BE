@@ -21,10 +21,6 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasColumnName("map_id")
             .IsRequired();
 
-        builder.Property(s => s.QuestionBankId)
-            .HasColumnName("question_bank_id")
-            .IsRequired(false);
-
         builder.Property(s => s.HostUserId)
             .HasColumnName("host_user_id")
             .IsRequired();
@@ -120,12 +116,6 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
             .HasForeignKey(s => s.MapId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(s => s.QuestionBank)
-            .WithMany()
-            .HasForeignKey(s => s.QuestionBankId)
-            .OnDelete(DeleteBehavior.Restrict)
-            .IsRequired(false);
-
         builder.HasOne(s => s.HostUser)
             .WithMany()
             .HasForeignKey(s => s.HostUserId)
@@ -138,9 +128,6 @@ internal class SessionConfiguration : IEntityTypeConfiguration<Session>
 
         builder.HasIndex(s => s.MapId)
             .HasDatabaseName("IX_Session_MapId");
-
-        builder.HasIndex(s => s.QuestionBankId)
-            .HasDatabaseName("IX_Session_QuestionBankId");
 
         builder.HasIndex(s => s.HostUserId)
             .HasDatabaseName("IX_Session_HostUserId");

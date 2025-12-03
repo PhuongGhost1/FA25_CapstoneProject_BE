@@ -59,6 +59,16 @@ internal class MembershipUsageConfiguration : IEntityTypeConfiguration<Membershi
         builder.Property(u => u.UpdatedAt)
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
+        
+        builder.HasOne(u => u.Organizations)
+            .WithMany()
+            .HasForeignKey(m => m.OrgId)
+            .OnDelete(DeleteBehavior.Restrict);
+        
+        builder.HasOne(u => u.Membership)
+            .WithMany()
+            .HasForeignKey(m => m.MembershipId)
+            .OnDelete(DeleteBehavior.Restrict);
 
     }
 }

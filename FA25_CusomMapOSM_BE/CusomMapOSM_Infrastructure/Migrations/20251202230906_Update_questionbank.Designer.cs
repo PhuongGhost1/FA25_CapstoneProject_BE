@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251202230906_Update_questionbank")]
+    partial class Update_questionbank
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1649,7 +1652,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                             Description = "Basic features for individual users",
                             DurationMonths = 1,
-                            ExportQuota = 10,
+                            ExportQuota = 5,
                             Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
                             IsActive = true,
                             MapQuota = 10,
@@ -1657,13 +1660,13 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             MaxConnectionsPerMap = 100,
                             MaxCustomLayers = 3,
                             MaxInteractionsPerMap = 50,
-                            MaxLocationsPerOrg = 5,
-                            MaxMapsPerMonth = 10,
+                            MaxLocationsPerOrg = 1,
+                            MaxMapsPerMonth = 5,
                             MaxMediaFileSizeBytes = 10485760L,
-                            MaxOrganizations = 5,
-                            MaxUsersPerOrg = 5,
+                            MaxOrganizations = 1,
+                            MaxUsersPerOrg = 1,
                             MaxVideoFileSizeBytes = 104857600L,
-                            MonthlyTokens = 10000,
+                            MonthlyTokens = 5000,
                             PlanName = "Free",
                             PriceMonthly = 0.00m,
                             PrioritySupport = false
@@ -1695,6 +1698,35 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             MonthlyTokens = 50000,
                             PlanName = "Pro",
                             PriceMonthly = 29.99m,
+                            PrioritySupport = true
+                        },
+                        new
+                        {
+                            PlanId = 3,
+                            Allow3DEffects = false,
+                            AllowAnimatedConnections = true,
+                            AllowAudioContent = true,
+                            AllowVideoContent = true,
+                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Full-featured solution for large organizations",
+                            DurationMonths = 1,
+                            ExportQuota = -1,
+                            Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}",
+                            IsActive = true,
+                            MapQuota = -1,
+                            MaxAudioFileSizeBytes = 20971520L,
+                            MaxConnectionsPerMap = 100,
+                            MaxCustomLayers = -1,
+                            MaxInteractionsPerMap = 50,
+                            MaxLocationsPerOrg = -1,
+                            MaxMapsPerMonth = -1,
+                            MaxMediaFileSizeBytes = 10485760L,
+                            MaxOrganizations = -1,
+                            MaxUsersPerOrg = -1,
+                            MaxVideoFileSizeBytes = 104857600L,
+                            MonthlyTokens = 200000,
+                            PlanName = "Enterprise",
+                            PriceMonthly = 99.99m,
                             PrioritySupport = true
                         });
                 });

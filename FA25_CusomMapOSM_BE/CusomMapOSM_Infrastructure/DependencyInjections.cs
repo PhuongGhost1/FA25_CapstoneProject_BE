@@ -163,6 +163,7 @@ public static class DependencyInjections
         services.AddScoped<ISessionRepository, SessionRepository>();
         services.AddScoped<ISessionParticipantRepository, SessionParticipantRepository>();
         services.AddScoped<ISessionQuestionRepository, SessionQuestionRepository>();
+        services.AddScoped<ISessionQuestionBankRepository, SessionQuestionBankRepository>();
         services.AddScoped<IStudentResponseRepository, StudentResponseRepository>();
         services.AddScoped<ISessionGroupRepository, SessionGroupRepository>();
         services.AddScoped<IGroupMemberRepository, GroupMemberRepository>();
@@ -170,7 +171,6 @@ public static class DependencyInjections
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
         services.AddScoped<IMapRepository, MapRepository>();
-        services.AddScoped<IMapQuestionBankRepository, MapQuestionBankRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
         services.AddScoped<ILocationRepository, LocationRepository>();
