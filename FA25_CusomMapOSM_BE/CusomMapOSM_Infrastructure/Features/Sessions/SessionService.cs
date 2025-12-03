@@ -425,12 +425,28 @@ public class SessionService : ISessionService
 
         var currentUserId = _currentUserService.GetUserId();
 
-        // Create participant
+        string participantKey;
+        if (currentUserId != null)
+        {
+            participantKey = GenerateParticipantKeyForUser(currentUserId.Value, session.SessionId);
+            var alreadyJoined = await _participantRepository.CheckParticipantKeyExistsInSession(session.SessionId, participantKey);
+            if (alreadyJoined)
+            {
+                return Option.None<JoinSessionResponse, Error>(
+                    Error.Conflict("Session.AlreadyJoined", "You have already joined this session"));
+            }
+        }
+        else
+        {
+            participantKey = GenerateGuestParticipantKey();
+        }
+
         var participant = new SessionParticipant
         {
             SessionParticipantId = Guid.NewGuid(),
             SessionId = session.SessionId,
             DisplayName = request.DisplayName,
+            ParticipantKey = participantKey,
             IsGuest = currentUserId == null,
             DeviceInfo = request.DeviceInfo,
             JoinedAt = DateTime.UtcNow,
@@ -522,6 +538,14 @@ public class SessionService : ISessionService
         var participants = await _participantRepository.GetLeaderboard(sessionId, limit);
         var currentUserId = _currentUserService.GetUserId();
 
+        // Find current user's participant in this session if authenticated
+        string? currentUserParticipantKey = null;
+        if (currentUserId != null)
+        {
+            // Generate the same key used when joining
+            currentUserParticipantKey = GenerateParticipantKeyForUser(currentUserId.Value, sessionId);
+        }
+
         var leaderboard = participants.Select((p, index) => new ResponseLeaderboardEntry
         {
             Rank = index + 1,
@@ -531,8 +555,8 @@ public class SessionService : ISessionService
             TotalCorrect = p.TotalCorrect,
             TotalAnswered = p.TotalAnswered,
             AverageResponseTime = p.AverageResponseTime,
-            // With anonymous participants (no UserId), we can't reliably mark "current user" here.
-            IsCurrentUser = false
+            // Mark as current user if ParticipantKey matches
+            IsCurrentUser = currentUserParticipantKey != null && p.ParticipantKey == currentUserParticipantKey
         }).ToList();
 
         return Option.Some<LeaderboardResponse, Error>(new LeaderboardResponse
@@ -1098,5 +1122,26 @@ public class SessionService : ISessionService
     private double ToRadians(double degrees)
     {
         return degrees * Math.PI / 180;
+    }
+
+    /// <summary>
+    /// Generates a consistent ParticipantKey for authenticated users based on UserId and SessionId.
+    /// This ensures the same user always gets the same key for the same session, preventing duplicate joins.
+    /// </summary>
+    private string GenerateParticipantKeyForUser(Guid userId, Guid sessionId)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var keyBytes = System.Text.Encoding.UTF8.GetBytes($"{userId}:{sessionId}");
+        var hashBytes = sha256.ComputeHash(keyBytes);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Generates a random ParticipantKey for guest users.
+    /// Guests can join multiple times with different display names.
+    /// </summary>
+    private string GenerateGuestParticipantKey()
+    {
+        return Guid.NewGuid().ToString("N");
     }
 }

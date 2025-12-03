@@ -5,7 +5,7 @@ public class SessionParticipant
     public Guid SessionParticipantId { get; set; }
     public Guid SessionId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
-    public string ParticipantKey { get; set; } = Guid.NewGuid().ToString("N");
+    public string ParticipantKey { get; set; } = string.Empty;
     public bool IsGuest { get; set; } = false;
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LeftAt { get; set; }
