@@ -140,7 +140,7 @@ public class SessionParticipantRepository : ISessionParticipantRepository
     public async Task<bool> CheckParticipantKeyExistsInSession(Guid sessionId, string participantKey)
     {
         return await _context.SessionParticipants
-            .AnyAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey && sp.IsActive);
+            .AnyAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey);
     }
 
     public async Task<SessionParticipant?> GetParticipantBySessionAndParticipantKey(Guid sessionId, string participantKey)

@@ -1,0 +1,41 @@
+using System;
+using System.Collections.Generic;
+using CusomMapOSM_Domain.Entities.Maps.Enums;
+
+namespace CusomMapOSM_Application.Models.Documents;
+
+public class MapGalleryDocument
+{
+    public string Id { get; set; } = string.Empty;
+    public Guid MapId { get; set; }
+    public Guid UserId { get; set; }
+    public string MapName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? PreviewImage { get; set; }
+    public MapTemplateCategoryEnum? Category { get; set; }
+    public List<string> Tags { get; set; } = new();
+    public string? AuthorName { get; set; }
+    public string? AuthorEmail { get; set; }
+    
+    // Approval workflow
+    public MapGalleryStatusEnum Status { get; set; } = MapGalleryStatusEnum.Pending;
+    public Guid? ReviewedBy { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    public string? RejectionReason { get; set; }
+    
+    // Display metadata
+    public bool IsFeatured { get; set; } = false;
+    public int ViewCount { get; set; } = 0;
+    public int LikeCount { get; set; } = 0;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public DateTime? PublishedAt { get; set; }
+}
+
+public enum MapGalleryStatusEnum
+{
+    Pending = 0,
+    Approved = 1,
+    Rejected = 2
+}
+

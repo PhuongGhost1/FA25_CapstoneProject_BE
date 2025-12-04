@@ -144,9 +144,20 @@ public class SessionService : ISessionService
                 Error.NotFound("Session.NotFound", "Session not found"));
         }
 
-        // Get first question bank attached to this session (if any)
+        // Get all question banks attached to this session
         var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(session.SessionId);
-        var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+        var questionBanks = sessionQuestionBanks
+            .Where(sqb => sqb.QuestionBank != null)
+            .Select(sqb => new QuestionBankInfo
+            {
+                QuestionBankId = sqb.QuestionBank!.QuestionBankId,
+                QuestionBankName = sqb.QuestionBank.BankName,
+                Description = sqb.QuestionBank.Description,
+                Category = sqb.QuestionBank.Category,
+                TotalQuestions = sqb.QuestionBank.TotalQuestions,
+                AttachedAt = sqb.AttachedAt
+            })
+            .ToList();
 
         return Option.Some<GetSessionResponse, Error>(new GetSessionResponse
         {
@@ -158,8 +169,7 @@ public class SessionService : ISessionService
             Status = session.Status,
             MapId = session.MapId,
             MapName = session.Map?.MapName ?? string.Empty,
-            QuestionBankId = firstQuestionBank?.QuestionBankId,
-            QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
+            QuestionBanks = questionBanks,
             HostUserId = session.HostUserId,
             HostUserName = session.HostUser?.FullName ?? string.Empty,
             MaxParticipants = session.MaxParticipants,
@@ -201,9 +211,19 @@ public class SessionService : ISessionService
         var response = new List<GetSessionResponse>();
         foreach (var s in sessions)
         {
-            // Get first question bank attached to this session (if any)
             var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(s.SessionId);
-            var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+            var questionBanks = sessionQuestionBanks
+                .Where(sqb => sqb.QuestionBank != null)
+                .Select(sqb => new QuestionBankInfo
+                {
+                    QuestionBankId = sqb.QuestionBank!.QuestionBankId,
+                    QuestionBankName = sqb.QuestionBank.BankName,
+                    Description = sqb.QuestionBank.Description,
+                    Category = sqb.QuestionBank.Category,
+                    TotalQuestions = sqb.QuestionBank.TotalQuestions,
+                    AttachedAt = sqb.AttachedAt
+                })
+                .ToList();
 
             response.Add(new GetSessionResponse
             {
@@ -215,8 +235,7 @@ public class SessionService : ISessionService
                 Status = s.Status,
                 MapId = s.MapId,
                 MapName = s.Map?.MapName ?? string.Empty,
-                QuestionBankId = firstQuestionBank?.QuestionBankId,
-                QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
+                QuestionBanks = questionBanks,
                 HostUserId = s.HostUserId,
                 HostUserName = s.HostUser?.FullName ?? string.Empty,
                 TotalParticipants = s.TotalParticipants,

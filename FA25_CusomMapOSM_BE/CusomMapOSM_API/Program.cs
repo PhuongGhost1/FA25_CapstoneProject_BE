@@ -113,8 +113,8 @@ public class Program
         });
         
         var app = builder.Build();
-
-        app.UseInitializeDatabase();
+        
+      // app.UseInitializeDatabase();
         app.UseSwaggerServices();
         app.UseHttpsRedirection();
 

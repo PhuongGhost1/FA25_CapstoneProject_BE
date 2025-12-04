@@ -14,8 +14,7 @@ public class GetSessionResponse
     public Guid MapId { get; set; }
     public string MapName { get; set; } = string.Empty;
 
-    public Guid? QuestionBankId { get; set; }
-    public string QuestionBankName { get; set; } = string.Empty;
+    public List<QuestionBankInfo> QuestionBanks { get; set; } = new();
 
     public Guid HostUserId { get; set; }
     public string HostUserName { get; set; } = string.Empty;
@@ -32,4 +31,14 @@ public class GetSessionResponse
     public DateTime? ActualStartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class QuestionBankInfo
+{
+    public Guid QuestionBankId { get; set; }
+    public string QuestionBankName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Category { get; set; }
+    public int TotalQuestions { get; set; }
+    public DateTime AttachedAt { get; set; }
 }
