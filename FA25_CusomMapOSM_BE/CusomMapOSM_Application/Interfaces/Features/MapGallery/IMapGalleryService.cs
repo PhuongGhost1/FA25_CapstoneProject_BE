@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Models.Documents;
 using CusomMapOSM_Application.Models.DTOs.Features.MapGallery;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using Optional;

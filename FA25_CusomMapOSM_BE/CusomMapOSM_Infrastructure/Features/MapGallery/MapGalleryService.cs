@@ -7,10 +7,13 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.MapGallery;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.Documents;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Application.Models.DTOs.Features.MapGallery;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using MongoDB.Driver;
 using Optional;
 
@@ -21,15 +24,20 @@ public class MapGalleryService : IMapGalleryService
     private readonly IMongoCollection<MapGalleryDocument> _collection;
     private readonly IMapService _mapService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
+    private readonly IMapRepository _mapRepository;
 
     public MapGalleryService(
         IMongoDatabase database,
         IMapService mapService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IMapRepository mapRepository, IUserRepository userRepository)
     {
         _collection = database.GetCollection<MapGalleryDocument>("map_gallery");
         _mapService = mapService;
         _currentUserService = currentUserService;
+        _mapRepository = mapRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<List<MapGallerySummaryResponse>> GetPublishedMapsAsync(
@@ -114,14 +122,13 @@ public class MapGalleryService : IMapGalleryService
         CancellationToken ct = default)
     {
         // Check if map exists and belongs to user
-        var mapResult = await _mapService.GetById(request.MapId);
-        if (!mapResult.HasValue)
+        var map = await _mapRepository.GetMapById(request.MapId);
+        if (map == null || !map.IsActive)
         {
             return Option.None<MapGalleryDetailResponse, Error>(
                 Error.NotFound("Map.NotFound", "Bản đồ không tồn tại"));
         }
 
-        var map = mapResult.Value;
         if (map.UserId != userId)
         {
             return Option.None<MapGalleryDetailResponse, Error>(
@@ -138,11 +145,8 @@ public class MapGalleryService : IMapGalleryService
             return Option.None<MapGalleryDetailResponse, Error>(
                 Error.Conflict("MapGallery.AlreadySubmitted", "Bản đồ này đã được submit"));
         }
-
-        // Get user info
-        var user = _currentUserService.GetUser();
-        var authorName = user?.FullName ?? "Unknown";
-        var authorEmail = user?.Email;
+        
+        var userSubmit = await _userRepository.GetUserByIdAsync(userId, ct);
 
         var doc = new MapGalleryDocument
         {
@@ -153,9 +157,9 @@ public class MapGalleryService : IMapGalleryService
             Description = request.Description,
             PreviewImage = request.PreviewImage,
             Category = request.Category,
-            Tags = request.Tags ?? new List<string>(),
-            AuthorName = authorName,
-            AuthorEmail = authorEmail,
+            Tags = request.Tags,
+            AuthorName = userSubmit.FullName,
+            AuthorEmail = userSubmit.Email,
             Status = MapGalleryStatusEnum.Pending,
             CreatedAt = DateTime.UtcNow
         };
@@ -204,7 +208,7 @@ public class MapGalleryService : IMapGalleryService
         if (doc.Status != MapGalleryStatusEnum.Pending)
         {
             return Option.None<MapGalleryDetailResponse, Error>(
-                Error.BadRequest("MapGallery.CannotUpdate", "Chỉ có thể chỉnh sửa submission đang ở trạng thái Pending"));
+                Error.Failure("MapGallery.CannotUpdate", "Chỉ có thể chỉnh sửa submission đang ở trạng thái Pending"));
         }
 
         if (request.MapName != null) doc.MapName = request.MapName;
