@@ -653,6 +653,23 @@ public class SessionHub : Hub
         }
     }
 
+    public async Task BroadcastQuestionResponsesUpdate(Guid sessionId, QuestionResponsesUpdateEvent eventData)
+    {
+        try
+        {
+            await Clients.Group(GetSessionGroupName(sessionId))
+                .SendAsync("QuestionResponsesUpdate", eventData);
+
+            _logger.LogInformation(
+                "[SessionHub] Broadcast QuestionResponsesUpdate for session {SessionId}, question {SessionQuestionId}, total responses: {TotalResponses}",
+                sessionId, eventData.SessionQuestionId, eventData.TotalResponses);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error broadcasting QuestionResponsesUpdate");
+        }
+    }
+
     #endregion
 
     #region Private Helpers

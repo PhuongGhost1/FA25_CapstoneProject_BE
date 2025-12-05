@@ -1,6 +1,7 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Domain.Entities.Locations;
@@ -17,17 +18,20 @@ public class LocationService : ILocationService
     private readonly ILocationRepository _locationRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly HtmlContentImageProcessor _htmlImageProcessor;
+    private readonly IFirebaseStorageService _firebaseStorageService;
 
     public LocationService(
         IStoryMapRepository storyMapRepository, 
         ILocationRepository locationRepository,
         ICurrentUserService currentUserService,
-        HtmlContentImageProcessor htmlImageProcessor)
+        HtmlContentImageProcessor htmlImageProcessor,
+        IFirebaseStorageService firebaseStorageService)
     {
         _storyMapRepository = storyMapRepository;
         _locationRepository = locationRepository;
         _currentUserService = currentUserService;
         _htmlImageProcessor = htmlImageProcessor;
+        _firebaseStorageService = firebaseStorageService;
     }
 
     public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetMapLocations(Guid mapId,
@@ -138,6 +142,13 @@ public class LocationService : ILocationService
             }
         }
         
+        string? iconUrl = null;
+        if (request.IconFile != null && request.IconFile.Length > 0)
+        {
+            using var stream = request.IconFile.OpenReadStream();
+            iconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, stream, "poi-icons");
+        }
+        
         // Process HTML content to upload base64 images to Firebase Storage
         var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
             request.TooltipContent, 
@@ -159,6 +170,7 @@ public class LocationService : ILocationService
             Subtitle = request.Subtitle,
             LocationType = request.LocationType,
             MarkerGeometry = request.MarkerGeometry ?? string.Empty,
+            IconUrl = iconUrl,
             ShowTooltip = request.ShowTooltip,
             TooltipContent = processedTooltipContent,
             OpenPopupOnClick = request.OpenSlideOnClick,

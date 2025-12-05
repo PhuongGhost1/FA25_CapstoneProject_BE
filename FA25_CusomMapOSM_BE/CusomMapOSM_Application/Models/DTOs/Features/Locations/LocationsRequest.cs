@@ -1,5 +1,6 @@
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Domain.Entities.Locations.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.Locations;
 
@@ -28,7 +29,8 @@ public record CreateLocationRequest(
     Guid? AnimationPresetId = null,
     string? AnimationOverrides = null,
     bool IsVisible = true,
-    int ZIndex = 0);
+    int ZIndex = 0,
+    IFormFile? IconFile = null);
 
 public record UpdateLocationRequest(
     Guid? SegmentId,

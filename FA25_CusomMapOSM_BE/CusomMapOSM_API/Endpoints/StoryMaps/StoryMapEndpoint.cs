@@ -5,10 +5,13 @@ using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Json;
 
 namespace CusomMapOSM_API.Endpoints.StoryMaps;
 
@@ -429,23 +432,24 @@ public class StoryMapEndpoint : IEndpoint
             .ProducesProblem(500);
 
         group.MapPost(Routes.StoryMapEndpoints.CreateSegmentLocation, async (
+                [FromForm] CreateLocationRequest request,
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromBody] CreateLocationRequest request,
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
-                // Override mapId and segmentId from route
-                var requestWithRoute = request with { MapId = mapId, SegmentId = segmentId };
-                var result = await service.CreateLocationAsync(requestWithRoute, ct);
+                var result = await service.CreateLocationAsync(request, ct);
                 return result.Match<IResult>(
                     location => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/locations/{location.LocationId}", location),
                     err => err.ToProblemDetailsResult());
             })
             .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
             .WithName("CreateStoryMapSegmentLocation")
-            .WithDescription("Create a new location (POI) for a segment")
+            .WithDescription("Create a new location (POI) for a segment with optional icon upload")
             .WithTags(Tags.StoryMaps)
+            .Produces(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(500);
