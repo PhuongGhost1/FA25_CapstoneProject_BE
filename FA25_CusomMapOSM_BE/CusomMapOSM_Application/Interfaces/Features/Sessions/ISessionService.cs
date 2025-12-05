@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Response;
 using Optional;
@@ -37,4 +37,7 @@ public interface ISessionService
     // Analytics
     Task<Option<WordCloudDataDto, Error>> GetWordCloudData(Guid sessionQuestionId);
     Task<Option<MapPinsDataDto, Error>> GetMapPinsData(Guid sessionQuestionId);
+    
+    // Get all responses for a question (Teacher can see who answered what)
+    Task<Option<QuestionResponsesResponse, Error>> GetQuestionResponses(Guid sessionQuestionId);
 }

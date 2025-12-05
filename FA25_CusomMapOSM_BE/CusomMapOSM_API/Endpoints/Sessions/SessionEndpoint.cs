@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_API.Extensions;
+using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Sessions;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Request;
@@ -311,6 +311,21 @@ public class SessionEndpoint : IEndpoint
                 );
             }).WithName("GetMapPinsData")
             .WithDescription("Get map pins analytics for a Pin on Map question")
+            .Produces(200)
+            .Produces(404);
+
+        group.MapGet("/questions/{sessionQuestionId:guid}/responses", async (
+                [FromRoute] Guid sessionQuestionId,
+                [FromServices] ISessionService sessionService) =>
+            {
+                var result = await sessionService.GetQuestionResponses(sessionQuestionId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetQuestionResponses")
+            .WithDescription("Get all student responses for a question with detailed answer content (who answered what)")
+            .RequireAuthorization()
             .Produces(200)
             .Produces(404);
     }

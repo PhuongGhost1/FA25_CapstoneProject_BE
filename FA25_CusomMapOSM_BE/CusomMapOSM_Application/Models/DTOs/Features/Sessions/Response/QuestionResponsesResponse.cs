@@ -1,14 +1,20 @@
-namespace CusomMapOSM_Application.Models.DTOs.Features.Sessions.Events;
+namespace CusomMapOSM_Application.Models.DTOs.Features.Sessions.Response;
 
-public class ResponseSubmittedEvent
+public class QuestionResponsesResponse
 {
     public Guid SessionQuestionId { get; set; }
+    public int TotalResponses { get; set; }
+    public List<StudentAnswerDetailDto> Answers { get; set; } = new();
+}
+
+public class StudentAnswerDetailDto
+{
+    public Guid StudentResponseId { get; set; }
     public Guid ParticipantId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public bool IsCorrect { get; set; }
     public int PointsEarned { get; set; }
     public decimal ResponseTimeSeconds { get; set; }
-    public int TotalResponses { get; set; }
     public DateTime SubmittedAt { get; set; }
     public Guid? QuestionOptionId { get; set; }
     public string? OptionText { get; set; }
