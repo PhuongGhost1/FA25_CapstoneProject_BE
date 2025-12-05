@@ -153,10 +153,16 @@ public class MapGalleryEndpoint : IEndpoint
 
         adminGroup.MapGet("/submissions", async (
                 [FromServices] IMapGalleryService service,
-                [FromQuery] MapGalleryStatusEnum? status,
+                [FromQuery] string? status,
                 CancellationToken ct) =>
             {
-                var result = await service.AdminGetAllSubmissionsAsync(status, ct);
+                MapGalleryStatusEnum? statusEnum = null;
+                if (!string.IsNullOrEmpty(status) && Enum.TryParse<MapGalleryStatusEnum>(status, true, out var parsed))
+                {
+                    statusEnum = parsed;
+                }
+
+                var result = await service.AdminGetAllSubmissionsAsync(statusEnum, ct);
                 return Results.Ok(result);
             })
             .WithName("AdminGetAllSubmissions")

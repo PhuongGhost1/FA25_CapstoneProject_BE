@@ -70,11 +70,13 @@ public class MapGalleryService : IMapGalleryService
 
         var docs = await _collection
             .Find(filter)
-            .SortByDescending(x => x.IsFeatured)
-            .ThenByDescending(x => x.PublishedAt ?? x.CreatedAt)
             .ToListAsync(ct);
 
-        return docs.Select(doc => doc.ToSummary()).ToList();
+        return docs
+            .OrderByDescending(x => x.IsFeatured)
+            .ThenByDescending(x => x.PublishedAt ?? x.CreatedAt)
+            .Select(doc => doc.ToSummary())
+            .ToList();
     }
 
     public async Task<Option<MapGalleryDetailResponse, Error>> GetPublishedMapByIdAsync(

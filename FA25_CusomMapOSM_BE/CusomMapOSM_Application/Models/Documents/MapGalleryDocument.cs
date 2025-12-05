@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 
+using System.Text.Json.Serialization;
+
 namespace CusomMapOSM_Application.Models.Documents;
 
 public class MapGalleryDocument
@@ -32,6 +34,7 @@ public class MapGalleryDocument
     public DateTime? PublishedAt { get; set; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum MapGalleryStatusEnum
 {
     Pending = 0,
