@@ -14,13 +14,16 @@ using CusomMapOSM_Application.Models.Documents;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
+using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Locations;
+using CusomMapOSM_Domain.Entities.Locations.Enums;
 using CusomMapOSM_Domain.Entities.Maps.ErrorMessages;
 using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
+using CusomMapOSM_Domain.Entities.Zones;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
@@ -298,7 +301,7 @@ public class StoryMapService : IStoryMapService
         var originalZones = await _repository.GetSegmentZonesBySegmentAsync(segmentId, ct);
         foreach (var originalZone in originalZones)
         {
-            var newZone = new CusomMapOSM_Domain.Entities.Segments.SegmentZone
+            var newZone = new SegmentZone
             {
                 SegmentZoneId = Guid.NewGuid(),
                 SegmentId = newSegment.SegmentId,
@@ -331,7 +334,7 @@ public class StoryMapService : IStoryMapService
         var originalLayers = await _repository.GetSegmentLayersBySegmentAsync(segmentId, ct);
         foreach (var originalLayer in originalLayers)
         {
-            var newLayer = new CusomMapOSM_Domain.Entities.Segments.SegmentLayer
+            var newLayer = new SegmentLayer
             {
                 SegmentLayerId = Guid.NewGuid(),
                 SegmentId = newSegment.SegmentId,
@@ -395,7 +398,7 @@ public class StoryMapService : IStoryMapService
         var originalAnimatedLayers = await _repository.GetAnimatedLayersBySegmentAsync(segmentId, ct);
         foreach (var originalAnimatedLayer in originalAnimatedLayers)
         {
-            var newAnimatedLayer = new CusomMapOSM_Domain.Entities.Animations.AnimatedLayer
+            var newAnimatedLayer = new AnimatedLayer
             {
                 AnimatedLayerId = Guid.NewGuid(),
                 CreatedBy = userId.Value,
@@ -414,20 +417,6 @@ public class StoryMapService : IStoryMapService
                 Scale = originalAnimatedLayer.Scale,
                 Opacity = originalAnimatedLayer.Opacity,
                 ZIndex = originalAnimatedLayer.ZIndex,
-                CssFilter = originalAnimatedLayer.CssFilter,
-                AutoPlay = originalAnimatedLayer.AutoPlay,
-                Loop = originalAnimatedLayer.Loop,
-                PlaybackSpeed = originalAnimatedLayer.PlaybackSpeed,
-                StartTimeMs = originalAnimatedLayer.StartTimeMs,
-                EndTimeMs = originalAnimatedLayer.EndTimeMs,
-                EntryDelayMs = originalAnimatedLayer.EntryDelayMs,
-                EntryDurationMs = originalAnimatedLayer.EntryDurationMs,
-                EntryEffect = originalAnimatedLayer.EntryEffect,
-                ExitDelayMs = originalAnimatedLayer.ExitDelayMs,
-                ExitDurationMs = originalAnimatedLayer.ExitDurationMs,
-                ExitEffect = originalAnimatedLayer.ExitEffect,
-                EnableClick = originalAnimatedLayer.EnableClick,
-                OnClickAction = originalAnimatedLayer.OnClickAction,
                 IsVisible = originalAnimatedLayer.IsVisible,
                 CreatedAt = DateTime.UtcNow
             };
@@ -508,7 +497,7 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentZoneDto, Error>(Error.NotFound("Zone.NotFound", "Zone not found"));
         }
 
-        var segmentZone = new CusomMapOSM_Domain.Entities.Segments.SegmentZone
+        var segmentZone = new SegmentZone
         {
             SegmentZoneId = Guid.NewGuid(),
             SegmentId = request.SegmentId,
@@ -626,7 +615,7 @@ public class StoryMapService : IStoryMapService
             return Option.None<SegmentLayerDto, Error>(Error.NotFound("Layer.NotFound", "Layer not found"));
         }
 
-        var segmentLayer = new CusomMapOSM_Domain.Entities.Segments.SegmentLayer
+        var segmentLayer = new SegmentLayer
         {
             SegmentLayerId = Guid.NewGuid(),
             SegmentId = request.SegmentId,
@@ -940,7 +929,7 @@ public class StoryMapService : IStoryMapService
             }
         }
 
-        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
+        var zone = new Zone
         {
             ZoneId = Guid.NewGuid(),
             ExternalId = request.ExternalId,
@@ -1079,7 +1068,7 @@ public class StoryMapService : IStoryMapService
             });
         }
 
-        var zone = new CusomMapOSM_Domain.Entities.Zones.Zone
+        var zone = new Zone
         {
             ZoneId = Guid.NewGuid(),
             ExternalId = externalId,
@@ -1441,7 +1430,7 @@ public class StoryMapService : IStoryMapService
                 "Transition between these segments already exists"));
         }
 
-        var transition = new CusomMapOSM_Domain.Entities.Timeline.TimelineTransition
+        var transition = new TimelineTransition
         {
             TimelineTransitionId = Guid.NewGuid(),
             MapId = request.MapId,
@@ -1657,7 +1646,7 @@ public class StoryMapService : IStoryMapService
             }
         }
 
-        var animatedLayer = new CusomMapOSM_Domain.Entities.Animations.AnimatedLayer
+        var animatedLayer = new AnimatedLayer
         {
             AnimatedLayerId = Guid.NewGuid(),
             CreatedBy = userId,
@@ -1676,20 +1665,6 @@ public class StoryMapService : IStoryMapService
             Scale = request.Scale,
             Opacity = request.Opacity,
             ZIndex = request.ZIndex,
-            CssFilter = request.CssFilter,
-            AutoPlay = request.AutoPlay,
-            Loop = request.Loop,
-            PlaybackSpeed = request.PlaybackSpeed,
-            StartTimeMs = request.StartTimeMs,
-            EndTimeMs = request.EndTimeMs,
-            EntryDelayMs = request.EntryDelayMs,
-            EntryDurationMs = request.EntryDurationMs,
-            EntryEffect = request.EntryEffect,
-            ExitDelayMs = request.ExitDelayMs,
-            ExitDurationMs = request.ExitDurationMs,
-            ExitEffect = request.ExitEffect,
-            EnableClick = request.EnableClick,
-            OnClickAction = request.OnClickAction,
             IsVisible = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -1720,20 +1695,6 @@ public class StoryMapService : IStoryMapService
         animatedLayer.Scale = request.Scale;
         animatedLayer.Opacity = request.Opacity;
         animatedLayer.ZIndex = request.ZIndex;
-        animatedLayer.CssFilter = request.CssFilter;
-        animatedLayer.AutoPlay = request.AutoPlay;
-        animatedLayer.Loop = request.Loop;
-        animatedLayer.PlaybackSpeed = request.PlaybackSpeed;
-        animatedLayer.StartTimeMs = request.StartTimeMs;
-        animatedLayer.EndTimeMs = request.EndTimeMs;
-        animatedLayer.EntryDelayMs = request.EntryDelayMs;
-        animatedLayer.EntryDurationMs = request.EntryDurationMs;
-        animatedLayer.EntryEffect = request.EntryEffect;
-        animatedLayer.ExitDelayMs = request.ExitDelayMs;
-        animatedLayer.ExitDurationMs = request.ExitDurationMs;
-        animatedLayer.ExitEffect = request.ExitEffect;
-        animatedLayer.EnableClick = request.EnableClick;
-        animatedLayer.OnClickAction = request.OnClickAction;
         animatedLayer.IsVisible = request.IsVisible;
         animatedLayer.UpdatedAt = DateTime.UtcNow;
 
@@ -1813,7 +1774,7 @@ public class StoryMapService : IStoryMapService
         CreateAnimatedLayerPresetRequest request, Guid? userId,
         CancellationToken ct = default)
     {
-        var preset = new CusomMapOSM_Domain.Entities.Animations.AnimatedLayerPreset
+        var preset = new AnimatedLayerPreset
         {
             AnimatedLayerPresetId = Guid.NewGuid(),
             CreatedBy = userId,
@@ -1932,7 +1893,7 @@ public class StoryMapService : IStoryMapService
         }
 
         // Create AnimatedLayer from preset settings
-        var animatedLayer = new CusomMapOSM_Domain.Entities.Animations.AnimatedLayer
+        var animatedLayer = new AnimatedLayer
         {
             AnimatedLayerId = Guid.NewGuid(),
             CreatedBy = userId.Value,
@@ -1951,17 +1912,6 @@ public class StoryMapService : IStoryMapService
             Scale = preset.DefaultScale,
             Opacity = preset.DefaultOpacity,
             ZIndex = 1000,
-            AutoPlay = preset.DefaultAutoPlay,
-            Loop = preset.DefaultLoop,
-            PlaybackSpeed = 100,
-            StartTimeMs = 0,
-            EntryDelayMs = 0,
-            EntryDurationMs = 400,
-            EntryEffect = "fade",
-            ExitDelayMs = 0,
-            ExitDurationMs = 400,
-            ExitEffect = "fade",
-            EnableClick = false,
             IsVisible = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -2094,7 +2044,7 @@ public class StoryMapService : IStoryMapService
                     Subtitle: osmResult.AddressDetails != null
                         ? $"{osmResult.AddressDetails.City}, {osmResult.AddressDetails.Country}"
                         : null,
-                    LocationType: CusomMapOSM_Domain.Entities.Locations.Enums.LocationType.PointOfInterest,
+                    LocationType: LocationType.PointOfInterest,
                     MarkerGeometry: osmResult.GeoJson ?? JsonSerializer.Serialize(new
                     {
                         type = "Point",

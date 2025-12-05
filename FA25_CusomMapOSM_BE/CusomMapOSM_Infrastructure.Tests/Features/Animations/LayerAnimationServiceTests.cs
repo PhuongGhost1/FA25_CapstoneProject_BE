@@ -1,6 +1,7 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
@@ -19,15 +20,18 @@ public class LayerAnimationServiceTests
     private readonly Mock<ILayerAnimationRepository> _mockRepository;
     private readonly LayerAnimationService _layerAnimationService;
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+    private readonly Mock<IFirebaseStorageService> _mockFirebaseStorageService;
     private readonly Faker _faker;
 
-    public LayerAnimationServiceTests()
+    public LayerAnimationServiceTests(Mock<IFirebaseStorageService> mockFirebaseStorageService)
     {
+        _mockFirebaseStorageService = mockFirebaseStorageService;
         _mockRepository = new Mock<ILayerAnimationRepository>();
         _mockCurrentUserService = new Mock<ICurrentUserService>();
         _layerAnimationService = new LayerAnimationService(
             _mockRepository.Object,
-            _mockCurrentUserService.Object
+            _mockCurrentUserService.Object,
+            _mockFirebaseStorageService.Object
             );
         _faker = new Faker();
     }
@@ -152,7 +156,7 @@ public class LayerAnimationServiceTests
         var request = new CreateLayerAnimationRequest(
             layerId,
             "New Animation",
-            "https://example.com/animation.gif",
+            null,
             "[100.0, 50.0]",
             45.0,
             1.5,
@@ -188,7 +192,7 @@ public class LayerAnimationServiceTests
         var request = new CreateLayerAnimationRequest(
             layerId,
             "Animation",
-            "https://example.com/animation.gif",
+            null,
             null,
             0.0,
             1.0,
@@ -234,7 +238,7 @@ public class LayerAnimationServiceTests
 
         var request = new UpdateLayerAnimationRequest(
             "New Name",
-            "https://example.com/new.gif",
+            null,
             "[200.0, 100.0]",
             90.0,
             2.0,
@@ -270,7 +274,7 @@ public class LayerAnimationServiceTests
         var animationId = Guid.NewGuid();
         var request = new UpdateLayerAnimationRequest(
             "New Name",
-            "https://example.com/new.gif",
+            null,
             null,
             0.0,
             1.0,

@@ -66,7 +66,7 @@ public class LayerAnimationEndpoint : IEndpoint
             .ProducesProblem(500);
 
         group.MapPost("/", async (
-                [FromBody] CreateLayerAnimationRequest request,
+                [FromForm] CreateLayerAnimationRequest request,
                 [FromServices] ILayerAnimationService layerAnimationService) =>
             {
                 var result = await layerAnimationService.CreateAnimationAsync(request);
@@ -82,7 +82,7 @@ public class LayerAnimationEndpoint : IEndpoint
             .WithName("CreateAnimation")
             .WithDescription("Create a new animation")
             .WithTags(Tags.Animations)
-            .Accepts<CreateLayerAnimationRequest>("application/json")
+            .Accepts<IFormFile>("multipart/form-data")
             .Produces<LayerAnimationDto>(201)
             .ProducesProblem(400)
             .ProducesProblem(500);
