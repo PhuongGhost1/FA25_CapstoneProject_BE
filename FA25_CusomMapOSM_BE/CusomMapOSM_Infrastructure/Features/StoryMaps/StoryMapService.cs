@@ -260,6 +260,37 @@ public class StoryMapService : IStoryMapService
             return Option.None<bool, Error>(Error.NotFound("StoryMap.Segment.NotFound", "Segment not found"));
         }
 
+        // Check if segment is used in timeline transitions
+        var transitions = await _repository.GetTimelineTransitionsByMapAsync(segment.MapId, ct);
+        var transitionsUsingSegment = transitions
+            .Where(t => t.FromSegmentId == segmentId || t.ToSegmentId == segmentId)
+            .ToList();
+        
+        if (transitionsUsingSegment.Any())
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Segment.HasTransitions", 
+                    "Cannot delete segment while it is being used in timeline transitions. Please delete related transitions first."));
+        }
+
+        // Check if segment has route animations
+        var routeAnimations = await _repository.GetRouteAnimationsBySegmentAsync(segmentId, ct);
+        if (routeAnimations.Any())
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Segment.HasRouteAnimations", 
+                    "Cannot delete segment while it has route animations. Please delete route animations first."));
+        }
+
+        // Check if segment has animated layers
+        var animatedLayers = await _repository.GetAnimatedLayersBySegmentAsync(segmentId, ct);
+        if (animatedLayers.Any())
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Segment.HasAnimatedLayers", 
+                    "Cannot delete segment while it has animated layers. Please delete animated layers first."));
+        }
+
         _repository.RemoveSegment(segment);
         await _repository.SaveChangesAsync(ct);
         return Option.Some<bool, Error>(true);

@@ -4,12 +4,14 @@ using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Workspace.Response;
 using CusomMapOSM_Domain.Entities.Maps;
+using CusomMapOSM_Domain.Entities.QuestionBanks;
 using DomainOrganization = CusomMapOSM_Domain.Entities.Organizations;
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
 using DomainWorkspace = CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using CusomMapOSM_Infrastructure.Features.Workspaces;
 using FluentAssertions;
@@ -26,6 +28,7 @@ public class WorkspaceServiceTests
     private readonly Mock<IOrganizationRepository> _mockOrganizationRepository;
     private readonly Mock<IMapRepository> _mockMapRepository;
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+    private readonly Mock<IQuestionBankRepository> _mockQuestionBankRepository;
     private readonly WorkspaceService _workspaceService;
     private readonly Faker _faker;
 
@@ -35,10 +38,12 @@ public class WorkspaceServiceTests
         _mockOrganizationRepository = new Mock<IOrganizationRepository>();
         _mockMapRepository = new Mock<IMapRepository>();
         _mockCurrentUserService = new Mock<ICurrentUserService>();
+        _mockQuestionBankRepository = new Mock<IQuestionBankRepository>();
         _workspaceService = new WorkspaceService(
             _mockWorkspaceRepository.Object,
             _mockOrganizationRepository.Object,
             _mockMapRepository.Object,
+            _mockQuestionBankRepository.Object,
             _mockCurrentUserService.Object
         );
         _faker = new Faker();
@@ -281,6 +286,8 @@ public class WorkspaceServiceTests
         var workspaceId = Guid.NewGuid();
 
         _mockWorkspaceRepository.Setup(x => x.ExistsAsync(workspaceId)).ReturnsAsync(true);
+        _mockMapRepository.Setup(x => x.GetByWorkspaceIdAsync(workspaceId)).ReturnsAsync(new List<Map>());
+        _mockQuestionBankRepository.Setup(x => x.GetQuestionBanksByWorkspaceId(workspaceId)).ReturnsAsync(new List<QuestionBank>());
         _mockWorkspaceRepository.Setup(x => x.DeleteAsync(workspaceId)).ReturnsAsync(true);
 
         // Act
@@ -309,6 +316,63 @@ public class WorkspaceServiceTests
         result.Match(
             some: _ => Assert.Fail("Should not have succeeded"),
             none: error => error.Type.Should().Be(ErrorType.NotFound)
+        );
+    }
+
+    [Fact]
+    public async Task Delete_WithActiveMaps_ShouldReturnError()
+    {
+        // Arrange
+        var workspaceId = Guid.NewGuid();
+        var activeMap = new Faker<Map>()
+            .RuleFor(m => m.MapId, Guid.NewGuid())
+            .RuleFor(m => m.IsActive, true)
+            .Generate();
+
+        _mockWorkspaceRepository.Setup(x => x.ExistsAsync(workspaceId)).ReturnsAsync(true);
+        _mockMapRepository.Setup(x => x.GetByWorkspaceIdAsync(workspaceId)).ReturnsAsync(new List<Map> { activeMap });
+
+        // Act
+        var result = await _workspaceService.Delete(workspaceId);
+
+        // Assert
+        result.HasValue.Should().BeFalse();
+        result.Match(
+            some: _ => Assert.Fail("Should not have succeeded"),
+            none: error =>
+            {
+                error.Type.Should().Be(ErrorType.Validation);
+                error.Code.Should().Be("Workspace.HasActiveMaps");
+            }
+        );
+    }
+
+    [Fact]
+    public async Task Delete_WithActiveQuestionBanks_ShouldReturnError()
+    {
+        // Arrange
+        var workspaceId = Guid.NewGuid();
+        var activeQuestionBank = new Faker<QuestionBank>()
+            .RuleFor(qb => qb.QuestionBankId, Guid.NewGuid())
+            .RuleFor(qb => qb.IsActive, true)
+            .Generate();
+
+        _mockWorkspaceRepository.Setup(x => x.ExistsAsync(workspaceId)).ReturnsAsync(true);
+        _mockMapRepository.Setup(x => x.GetByWorkspaceIdAsync(workspaceId)).ReturnsAsync(new List<Map>());
+        _mockQuestionBankRepository.Setup(x => x.GetQuestionBanksByWorkspaceId(workspaceId)).ReturnsAsync(new List<QuestionBank> { activeQuestionBank });
+
+        // Act
+        var result = await _workspaceService.Delete(workspaceId);
+
+        // Assert
+        result.HasValue.Should().BeFalse();
+        result.Match(
+            some: _ => Assert.Fail("Should not have succeeded"),
+            none: error =>
+            {
+                error.Type.Should().Be(ErrorType.Validation);
+                error.Code.Should().Be("Workspace.HasQuestionBanks");
+            }
         );
     }
 

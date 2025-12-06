@@ -275,6 +275,16 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.NotFound", "Organization not found"));
         }
 
+        // Check if organization has workspaces
+        var workspaces = await _workspaceRepository.GetByOrganizationIdAsync(id);
+        var activeWorkspaces = workspaces.Where(w => w.IsActive).ToList();
+        if (activeWorkspaces.Any())
+        {
+            return Option.None<DeleteOrganizationResDto, Error>(
+                Error.ValidationError("Organization.HasWorkspaces", 
+                    "Cannot delete organization while it contains active workspaces. Please delete or move all workspaces first."));
+        }
+
         var deleteResult = await _organizationRepository.DeleteOrganization(id);
         if (!deleteResult)
         {

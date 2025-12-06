@@ -9,6 +9,7 @@ public interface ISessionQuestionRepository
     Task<bool> CreateSessionQuestion(SessionQuestion sessionQuestion);
     Task<SessionQuestion?> GetSessionQuestionById(Guid sessionQuestionId);
     Task<List<SessionQuestion>> GetQuestionsBySessionId(Guid sessionId);
+    Task<List<SessionQuestion>> GetQuestionsByQuestionId(Guid questionId);
     Task<SessionQuestion?> GetActiveQuestion(Guid sessionId);
     Task<SessionQuestion?> GetNextQueuedQuestion(Guid sessionId);
     Task<bool> UpdateSessionQuestion(SessionQuestion sessionQuestion);

@@ -5,6 +5,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Response;
 using CusomMapOSM_Domain.Entities.QuestionBanks;
 using CusomMapOSM_Domain.Entities.Sessions;
+using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
@@ -25,6 +26,7 @@ public class QuestionBankService : IQuestionBankService
     private readonly IMapRepository _mapRepository;
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionQuestionBankRepository _sessionQuestionBankRepository;
+    private readonly ISessionQuestionRepository _sessionQuestionRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public QuestionBankService(
@@ -34,7 +36,8 @@ public class QuestionBankService : IQuestionBankService
         IQuestionOptionRepository questionOptionRepository,
         IMapRepository mapRepository,
         ISessionRepository sessionRepository,
-        ISessionQuestionBankRepository sessionQuestionBankRepository)
+        ISessionQuestionBankRepository sessionQuestionBankRepository,
+        ISessionQuestionRepository sessionQuestionRepository)
     {
         _questionBankRepository = questionBankRepository;
         _questionRepository = questionRepository;
@@ -43,6 +46,7 @@ public class QuestionBankService : IQuestionBankService
         _mapRepository = mapRepository;
         _sessionRepository = sessionRepository;
         _sessionQuestionBankRepository = sessionQuestionBankRepository;
+        _sessionQuestionRepository = sessionQuestionRepository;
     }
 
     public async Task<Option<QuestionBankDTO, Error>> CreateQuestionBank(CreateQuestionBankRequest request)
@@ -188,6 +192,22 @@ public class QuestionBankService : IQuestionBankService
         {
             return Option.None<bool, Error>(
                 Error.Forbidden("QuestionBank.NotOwner", "You don't have permission to modify this question bank"));
+        }
+
+        // Check if question bank is being used in active sessions
+        var sessionsUsingBank = await _sessionQuestionBankRepository.GetSessions(questionBankId);
+        var activeSessions = sessionsUsingBank
+            .Where(sqb => sqb.Session != null && 
+                (sqb.Session.Status == SessionStatusEnum.WAITING || 
+                 sqb.Session.Status == SessionStatusEnum.IN_PROGRESS || 
+                 sqb.Session.Status == SessionStatusEnum.PAUSED))
+            .ToList();
+        
+        if (activeSessions.Any())
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("QuestionBank.HasActiveSessions", 
+                    "Cannot delete question bank while it is being used in active sessions. Please end or cancel all active sessions first."));
         }
 
         await _questionRepository.DeleteQuestionsByBankId(questionBankId);
@@ -550,6 +570,22 @@ public class QuestionBankService : IQuestionBankService
         {
             return Option.None<bool, Error>(
                 Error.Forbidden("Question.NotOwner", "You don't have permission to delete this question"));
+        }
+
+        // Check if question is being used in active sessions
+        var sessionQuestions = await _sessionQuestionRepository.GetQuestionsByQuestionId(questionId);
+        var activeSessions = sessionQuestions
+            .Where(sq => sq.Session != null && 
+                (sq.Session.Status == SessionStatusEnum.WAITING || 
+                 sq.Session.Status == SessionStatusEnum.IN_PROGRESS || 
+                 sq.Session.Status == SessionStatusEnum.PAUSED))
+            .ToList();
+        
+        if (activeSessions.Any())
+        {
+            return Option.None<bool, Error>(
+                Error.ValidationError("Question.HasActiveSessions", 
+                    "Cannot delete question while it is being used in active sessions. Please end or cancel all active sessions first."));
         }
 
         var deleted = await _questionRepository.DeleteQuestion(questionId);

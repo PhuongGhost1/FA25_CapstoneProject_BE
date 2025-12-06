@@ -37,6 +37,15 @@ public class SessionQuestionRepository : ISessionQuestionRepository
             .ToListAsync();
     }
 
+    public async Task<List<SessionQuestion>> GetQuestionsByQuestionId(Guid questionId)
+    {
+        return await _context.SessionQuestions
+            .Include(sq => sq.Session)
+            .Include(sq => sq.Question)
+            .Where(sq => sq.QuestionId == questionId)
+            .ToListAsync();
+    }
+
     public async Task<SessionQuestion?> GetActiveQuestion(Guid sessionId)
     {
         return await _context.SessionQuestions

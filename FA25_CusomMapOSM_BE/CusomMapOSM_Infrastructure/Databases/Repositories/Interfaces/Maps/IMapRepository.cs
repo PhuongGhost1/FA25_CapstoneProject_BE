@@ -36,6 +36,7 @@ public interface IMapRepository
     Task<Layer?> GetMapLayer(Guid mapId, Guid layerId);
     Task<List<Layer>> GetMapLayers(Guid mapId);
     Task<List<MapFeature>> GetMapFeatures(Guid mapId);
+    Task<bool> CreateMapImage(MapImage image);
     
     // Statistics operations
     Task<int> GetTotalMapsCount();

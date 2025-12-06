@@ -10,6 +10,8 @@ using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Application.Interfaces.Services.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
+using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using Optional;
 using System;
 using System.Linq;
@@ -36,6 +38,7 @@ public class MapService : IMapService
     private readonly IOrganizationRepository _organizationRepository;
     private readonly IHubContext<MapCollaborationHub> _hubContext;
     private readonly IOrganizationPermissionService _organizationPermissionService;
+    private readonly ISessionRepository _sessionRepository;
 
     public MapService(
         IMapRepository mapRepository,
@@ -46,7 +49,8 @@ public class MapService : IMapService
         IOrganizationRepository organizationRepository,
         IHubContext<MapCollaborationHub> hubContext, 
         IRedisCacheService cacheService,
-        IOrganizationPermissionService organizationPermissionService)
+        IOrganizationPermissionService organizationPermissionService,
+        ISessionRepository sessionRepository)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
@@ -57,6 +61,7 @@ public class MapService : IMapService
         _hubContext = hubContext;
         _cacheService = cacheService;
         _organizationPermissionService = organizationPermissionService;
+        _sessionRepository = sessionRepository;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -409,6 +414,20 @@ public class MapService : IMapService
         {
             return Option.None<DeleteMapResponse, Error>(
                 Error.Forbidden("Map.NotOwner", "Only the map owner can delete it"));
+        }
+
+        // Check if map has active sessions (WAITING, IN_PROGRESS, PAUSED)
+        var activeSessions = await _sessionRepository.GetSessionsByMapId(mapId);
+        var hasActiveSessions = activeSessions.Any(s => 
+            s.Status == SessionStatusEnum.WAITING || 
+            s.Status == SessionStatusEnum.IN_PROGRESS || 
+            s.Status == SessionStatusEnum.PAUSED);
+        
+        if (hasActiveSessions)
+        {
+            return Option.None<DeleteMapResponse, Error>(
+                Error.ValidationError("Map.HasActiveSessions", 
+                    "Cannot delete map while it has active sessions. Please end or cancel all active sessions first."));
         }
 
         var deleteResult = await _mapRepository.DeleteMap(mapId);
