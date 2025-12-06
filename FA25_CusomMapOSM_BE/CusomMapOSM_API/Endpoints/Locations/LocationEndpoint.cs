@@ -85,8 +85,7 @@ public class LocationEndpoint : IEndpoint
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var enriched = request with { MapId = mapId };
-                    var result = await locationService.CreateLocationAsync(enriched, ct);
+                    var result = await locationService.CreateLocationAsync(request, ct);
                 return result.Match<IResult>(
                     location => Results.Created($"{Routes.Prefix.Location}/{mapId}", location),
                     err => err.ToProblemDetailsResult());
@@ -101,8 +100,7 @@ public class LocationEndpoint : IEndpoint
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                var enriched = request with { MapId = mapId, SegmentId = segmentId };
-                var result = await locationService.CreateLocationAsync(enriched, ct);
+                var result = await locationService.CreateLocationAsync(request, ct);
                 return result.Match<IResult>(
                     location => Results.Created($"{Routes.Prefix.Location}/{mapId}/segments/{segmentId}", location),
                     err => err.ToProblemDetailsResult());
