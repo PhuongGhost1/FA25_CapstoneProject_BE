@@ -107,6 +107,7 @@ public class SessionService : ISessionService
             await _sessionQuestionBankRepository.AddQuestionBank(sessionQuestionBank);
         }
 
+        int globalQueueOrder = 0;
         foreach (var questionBankId in request.QuestionBankId)
         {
             var questions = await _questionRepository.GetQuestionsByQuestionBankId(questionBankId);
@@ -117,12 +118,13 @@ public class SessionService : ISessionService
 
             foreach (var question in questions)
             {
+                globalQueueOrder++;
                 var sessionQuestion = new SessionQuestion
                 {
                     SessionQuestionId = Guid.NewGuid(),
                     SessionId = session.SessionId,
                     QuestionId = question.QuestionId,
-                    QueueOrder = questions.IndexOf(question) + 1,
+                    QueueOrder = globalQueueOrder,
                     Status = SessionQuestionStatusEnum.QUEUED,
                     CreatedAt = DateTime.UtcNow
                 };
