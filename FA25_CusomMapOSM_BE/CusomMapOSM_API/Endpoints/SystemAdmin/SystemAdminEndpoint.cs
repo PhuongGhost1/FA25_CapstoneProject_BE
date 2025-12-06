@@ -888,7 +888,7 @@ public class SystemAdminEndpoint : IEndpoint
 
     // Export Approval Management
     private static async Task<IResult> GetPendingApprovalExportsBySystemAdmin(
-        IExportService exportService,
+        [FromServices] IExportService exportService,
         ClaimsPrincipal user,
         ISystemAdminService systemAdminService,
         CancellationToken ct)
@@ -905,7 +905,7 @@ public class SystemAdminEndpoint : IEndpoint
 
     private static async Task<IResult> ApproveExportBySystemAdmin(
         int exportId,
-        IExportService exportService,
+        [FromServices] IExportService exportService,
         ClaimsPrincipal user,
         ISystemAdminService systemAdminService,
         CancellationToken ct)
@@ -927,7 +927,7 @@ public class SystemAdminEndpoint : IEndpoint
     private static async Task<IResult> RejectExportBySystemAdmin(
         int exportId,
         [FromBody] RejectExportRequest request,
-        IExportService exportService,
+        [FromServices] IExportService exportService,
         ClaimsPrincipal user,
         ISystemAdminService systemAdminService,
         CancellationToken ct)

@@ -325,6 +325,7 @@ public static class DependencyInjections
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
+        services.AddScoped<IExportService, ExportService>();
     }
 
     private static void AddContentServices(IServiceCollection services)
@@ -334,6 +335,8 @@ public static class DependencyInjections
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<IStoryMapService, StoryMapService>();
         services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
+        services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<IBookmarkService, BookmarkService>();
     }
 
     private static void AddCollaborationServices(IServiceCollection services)
