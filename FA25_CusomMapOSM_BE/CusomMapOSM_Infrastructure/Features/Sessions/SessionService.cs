@@ -95,46 +95,50 @@ public class SessionService : ISessionService
                 Error.Failure("Session.CreateFailed", "Failed to create session"));
         }
 
-        // Attach question bank if provided
-        if (request.QuestionBankId != null)
+        foreach (var questionBankId in request.QuestionBankId)
         {
             var sessionQuestionBank = new SessionQuestionBank
             {
                 SessionQuestionBankId = Guid.NewGuid(),
                 SessionId = session.SessionId,
-                QuestionBankId = request.QuestionBankId.Value,
+                QuestionBankId = questionBankId,
                 AttachedAt = DateTime.UtcNow
             };
             await _sessionQuestionBankRepository.AddQuestionBank(sessionQuestionBank);
+        }
 
-            // Create SessionQuestions from the attached question bank
-            var questions = await _questionRepository.GetQuestionsByQuestionBankId(request.QuestionBankId.Value);
+        foreach (var questionBankId in request.QuestionBankId)
+        {
+            var questions = await _questionRepository.GetQuestionsByQuestionBankId(questionBankId);
             if (request.ShuffleQuestions)
             {
                 questions = questions.OrderBy(_ => Guid.NewGuid()).ToList();
             }
 
-            var sessionQuestions = questions.Select((q, index) => new SessionQuestion
+            foreach (var question in questions)
             {
-                SessionQuestionId = Guid.NewGuid(),
-                SessionId = session.SessionId,
-                QuestionId = q.QuestionId,
-                QueueOrder = index + 1,
-                Status = SessionQuestionStatusEnum.QUEUED,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
-            await _sessionQuestionRepository.CreateSessionQuestions(sessionQuestions);
+                var sessionQuestion = new SessionQuestion
+                {
+                    SessionQuestionId = Guid.NewGuid(),
+                    SessionId = session.SessionId,
+                    QuestionId = question.QuestionId,
+                    QueueOrder = questions.IndexOf(question) + 1,
+                    Status = SessionQuestionStatusEnum.QUEUED,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _sessionQuestionRepository.CreateSessionQuestion(sessionQuestion);
+            }
         }
+
         return Option.Some<CreateSessionResponse, Error>(new CreateSessionResponse
         {
             SessionId = session.SessionId,
-            SessionCode = session.SessionCode,
-            SessionName = session.SessionName,
-            Message = "Session created successfully",
+            SessionCode = session.SessionCode, 
+            SessionName = session.SessionName, 
+            Message = "Session created successfully", 
             CreatedAt = session.CreatedAt
         });
     }
-
     public async Task<Option<GetSessionResponse, Error>> GetSessionById(Guid sessionId)
     {
         var session = await _sessionRepository.GetSessionById(sessionId);
@@ -448,7 +452,8 @@ public class SessionService : ISessionService
         if (currentUserId != null)
         {
             participantKey = GenerateParticipantKeyForUser(currentUserId.Value, session.SessionId);
-            var alreadyJoined = await _participantRepository.CheckParticipantKeyExistsInSession(session.SessionId, participantKey);
+            var alreadyJoined =
+                await _participantRepository.CheckParticipantKeyExistsInSession(session.SessionId, participantKey);
             if (alreadyJoined)
             {
                 return Option.None<JoinSessionResponse, Error>(
@@ -804,6 +809,7 @@ public class SessionService : ISessionService
         {
             questionOptions = await _questionOptionRepository.GetQuestionOptionsByQuestionId(question.QuestionId);
         }
+
         bool isCorrect = false;
         decimal? distanceError = null;
         QuestionOption? selectedOption = null; // Store selected option for event broadcasting
@@ -1196,40 +1202,39 @@ public class SessionService : ISessionService
 
     private async Task BroadcastQuestionResponsesUpdate(Guid sessionQuestionId, Guid sessionId)
     {
-            var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
+        var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
 
-            // Map responses to event DTOs
-            var answerDetails = responses.Select(response => new StudentAnswerDetailEvent
-            {
-                StudentResponseId = response.StudentResponseId,
-                ParticipantId = response.SessionParticipantId,
-                DisplayName = response.SessionParticipant?.DisplayName ?? "Unknown",
-                IsCorrect = response.IsCorrect,
-                PointsEarned = response.PointsEarned,
-                ResponseTimeSeconds = response.ResponseTimeSeconds,
-                SubmittedAt = response.SubmittedAt,
-                // Answer content based on question type
-                QuestionOptionId = response.QuestionOptionId,
-                OptionText = response.QuestionOption?.OptionText,
-                ResponseText = response.ResponseText,
-                ResponseLatitude = response.ResponseLatitude,
-                ResponseLongitude = response.ResponseLongitude,
-                DistanceErrorMeters = response.DistanceErrorMeters
-            }).ToList();
+        // Map responses to event DTOs
+        var answerDetails = responses.Select(response => new StudentAnswerDetailEvent
+        {
+            StudentResponseId = response.StudentResponseId,
+            ParticipantId = response.SessionParticipantId,
+            DisplayName = response.SessionParticipant?.DisplayName ?? "Unknown",
+            IsCorrect = response.IsCorrect,
+            PointsEarned = response.PointsEarned,
+            ResponseTimeSeconds = response.ResponseTimeSeconds,
+            SubmittedAt = response.SubmittedAt,
+            // Answer content based on question type
+            QuestionOptionId = response.QuestionOptionId,
+            OptionText = response.QuestionOption?.OptionText,
+            ResponseText = response.ResponseText,
+            ResponseLatitude = response.ResponseLatitude,
+            ResponseLongitude = response.ResponseLongitude,
+            DistanceErrorMeters = response.DistanceErrorMeters
+        }).ToList();
 
-            var updateEvent = new QuestionResponsesUpdateEvent
-            {
-                SessionQuestionId = sessionQuestionId,
-                SessionId = sessionId,
-                TotalResponses = responses.Count,
-                Answers = answerDetails,
-                UpdatedAt = DateTime.UtcNow
-            };
+        var updateEvent = new QuestionResponsesUpdateEvent
+        {
+            SessionQuestionId = sessionQuestionId,
+            SessionId = sessionId,
+            TotalResponses = responses.Count,
+            Answers = answerDetails,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-            // Broadcast to all participants in the session
-            await _sessionHubContext.Clients.Group($"session:{sessionId}")
-                .SendAsync("QuestionResponsesUpdate", updateEvent);
-
+        // Broadcast to all participants in the session
+        await _sessionHubContext.Clients.Group($"session:{sessionId}")
+            .SendAsync("QuestionResponsesUpdate", updateEvent);
     }
 
 
