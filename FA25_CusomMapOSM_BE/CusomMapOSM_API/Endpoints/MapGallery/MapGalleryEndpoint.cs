@@ -21,12 +21,18 @@ public class MapGalleryEndpoint : IEndpoint
         // Public APIs - Get published maps
         group.MapGet("/maps", async (
                 [FromServices] IMapGalleryService service,
-                [FromQuery] MapTemplateCategoryEnum? category,
+                [FromQuery] string? category,
                 [FromQuery] string? search,
                 [FromQuery] bool? featured,
                 CancellationToken ct) =>
             {
-                var result = await service.GetPublishedMapsAsync(category, search, featured, ct);
+                MapTemplateCategoryEnum? categoryEnum = null;
+                if (!string.IsNullOrEmpty(category) && Enum.TryParse<MapTemplateCategoryEnum>(category, true, out var parsed))
+                {
+                    categoryEnum = parsed;
+                }
+
+                var result = await service.GetPublishedMapsAsync(categoryEnum, search, featured, ct);
                 return Results.Ok(result);
             })
             .WithName("GetPublishedMaps")
@@ -147,6 +153,31 @@ public class MapGalleryEndpoint : IEndpoint
             .ProducesProblem(403)
             .ProducesProblem(404);
 
+        userGroup.MapPost("/maps/{galleryId}/duplicate", async (
+                [FromServices] IMapGalleryService service,
+                [FromServices] ICurrentUserService currentUserService,
+                [FromRoute] string galleryId,
+                [FromBody] MapGalleryDuplicateRequest request,
+                CancellationToken ct) =>
+            {
+                var userId = currentUserService.GetUserId();
+                if (userId == null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                var result = await service.DuplicateMapFromGalleryAsync(userId.Value, galleryId, request, ct);
+                return result.Match(
+                    success => Results.Created($"/maps/{success.MapId}", success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("DuplicateMapFromGallery")
+            .WithDescription("Duplicate map từ gallery")
+            .Produces<MapGalleryDuplicateResponse>(201)
+            .ProducesProblem(400)
+            .ProducesProblem(404);
+
         // Admin APIs
         var adminGroup = group.MapGroup("/admin")
             .RequireAuthorization();
@@ -185,7 +216,7 @@ public class MapGalleryEndpoint : IEndpoint
             .Produces<MapGalleryDetailResponse>(200)
             .ProducesProblem(404);
 
-        adminGroup.MapPost("/submissions/{id}/approve", async (
+        adminGroup.MapPut("/submissions/{id}/approve", async (
                 [FromServices] IMapGalleryService service,
                 [FromServices] ICurrentUserService currentUserService,
                 [FromRoute] string id,

@@ -11,6 +11,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authenticatio
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.Workspaces;
@@ -20,17 +21,20 @@ public class WorkspaceService : IWorkspaceService
     private readonly IWorkspaceRepository _workspaceRepository;
     private readonly IOrganizationRepository _organizationRepository;
     private readonly IMapRepository _mapRepository;
+    private readonly IQuestionBankRepository _questionBankRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public WorkspaceService(
         IWorkspaceRepository workspaceRepository,
         IOrganizationRepository organizationRepository,
         IMapRepository mapRepository,
+        IQuestionBankRepository questionBankRepository,
         ICurrentUserService currentUserService)
     {
         _workspaceRepository = workspaceRepository;
         _organizationRepository = organizationRepository;
         _mapRepository = mapRepository;
+        _questionBankRepository = questionBankRepository;
         _currentUserService = currentUserService;
     }
 
@@ -130,6 +134,26 @@ public class WorkspaceService : IWorkspaceService
         if (!exists)
         {
             return Option.None<DeleteWorkspaceResDto, Error>(Error.NotFound("Workspace.NotFound", WorkspaceErrors.WorkspaceNotFound));
+        }
+
+        // Check if workspace has active maps
+        var maps = await _mapRepository.GetByWorkspaceIdAsync(id);
+        var activeMaps = maps.Where(m => m.IsActive).ToList();
+        if (activeMaps.Any())
+        {
+            return Option.None<DeleteWorkspaceResDto, Error>(
+                Error.ValidationError("Workspace.HasActiveMaps", 
+                    "Cannot delete workspace while it contains active maps. Please delete or move all maps first."));
+        }
+
+        // Check if workspace has question banks
+        var questionBanks = await _questionBankRepository.GetQuestionBanksByWorkspaceId(id);
+        var activeQuestionBanks = questionBanks.Where(qb => qb.IsActive).ToList();
+        if (activeQuestionBanks.Any())
+        {
+            return Option.None<DeleteWorkspaceResDto, Error>(
+                Error.ValidationError("Workspace.HasQuestionBanks", 
+                    "Cannot delete workspace while it contains question banks. Please delete or move all question banks first."));
         }
 
         await _workspaceRepository.DeleteAsync(id);

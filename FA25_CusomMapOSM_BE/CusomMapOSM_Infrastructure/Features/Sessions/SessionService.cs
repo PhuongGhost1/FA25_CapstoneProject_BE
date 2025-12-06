@@ -11,6 +11,7 @@ using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Optional;
@@ -30,6 +31,8 @@ public class SessionService : ISessionService
     private readonly ICurrentUserService _currentUserService;
     private readonly IHubContext<SessionHub> _sessionHubContext;
     private readonly IQuestionOptionRepository _questionOptionRepository;
+    private readonly IMapRepository _mapRepository;
+    private readonly IQuestionBankRepository _questionBankRepository;
 
     public SessionService(
         ISessionRepository sessionRepository,
@@ -40,7 +43,9 @@ public class SessionService : ISessionService
         IQuestionOptionRepository questionOptionRepository,
         ISessionQuestionBankRepository sessionQuestionBankRepository,
         ICurrentUserService currentUserService,
-        IHubContext<SessionHub> sessionHubContext)
+        IHubContext<SessionHub> sessionHubContext,
+        IMapRepository mapRepository,
+        IQuestionBankRepository questionBankRepository)
     {
         _sessionRepository = sessionRepository;
         _participantRepository = participantRepository;
@@ -51,6 +56,8 @@ public class SessionService : ISessionService
         _sessionQuestionBankRepository = sessionQuestionBankRepository;
         _currentUserService = currentUserService;
         _sessionHubContext = sessionHubContext;
+        _mapRepository = mapRepository;
+        _questionBankRepository = questionBankRepository;
     }
 
     public async Task<Option<CreateSessionResponse, Error>> CreateSession(CreateSessionRequest request)
@@ -60,6 +67,25 @@ public class SessionService : ISessionService
         {
             return Option.None<CreateSessionResponse, Error>(
                 Error.Unauthorized("Session.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(request.MapId);
+        if (map == null || !map.IsActive)
+        {
+            return Option.None<CreateSessionResponse, Error>(
+                Error.NotFound("Map.NotFound", "Map not found or has been deleted"));
+        }
+
+        // Validate all question banks exist and are active
+        foreach (var questionBankId in request.QuestionBankId)
+        {
+            var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+            if (questionBank == null || !questionBank.IsActive)
+            {
+                return Option.None<CreateSessionResponse, Error>(
+                    Error.NotFound("QuestionBank.NotFound", 
+                        $"Question bank {questionBankId} not found or has been deleted"));
+            }
         }
 
         // Generate unique session code

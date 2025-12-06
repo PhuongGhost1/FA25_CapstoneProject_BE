@@ -349,5 +349,19 @@ public class MapRepository : IMapRepository
         var results = await GetUserRecentMapsWithActivity(userId, limit);
         return results.Select(x => x.Map).ToList();
     }
+
+    public async Task<bool> CreateMapImage(MapImage image)
+    {
+        try
+        {
+            _context.MapImages.Add(image);
+            var result = await _context.SaveChangesAsync();
+            return result > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
 

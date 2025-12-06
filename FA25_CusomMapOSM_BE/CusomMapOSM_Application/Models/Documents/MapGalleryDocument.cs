@@ -1,15 +1,22 @@
 using System;
 using System.Collections.Generic;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-
 using System.Text.Json.Serialization;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace CusomMapOSM_Application.Models.Documents;
 
+[BsonIgnoreExtraElements]
 public class MapGalleryDocument
 {
+    [BsonId]
+    [BsonRepresentation(MongoDB.Bson.BsonType.String)]
     public string Id { get; set; } = string.Empty;
+    
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid MapId { get; set; }
+    
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
     public Guid UserId { get; set; }
     public string MapName { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -21,6 +28,9 @@ public class MapGalleryDocument
     
     // Approval workflow
     public MapGalleryStatusEnum Status { get; set; } = MapGalleryStatusEnum.Pending;
+    
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
+    [BsonIgnoreIfNull]
     public Guid? ReviewedBy { get; set; }
     public DateTime? ReviewedAt { get; set; }
     public string? RejectionReason { get; set; }

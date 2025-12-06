@@ -66,5 +66,12 @@ public interface IMapGalleryService
     Task<Option<bool, Error>> IncrementViewCountAsync(
         string id,
         CancellationToken ct = default);
+
+    // Duplicate map from gallery
+    Task<Option<MapGalleryDuplicateResponse, Error>> DuplicateMapFromGalleryAsync(
+        Guid userId,
+        string galleryId,
+        MapGalleryDuplicateRequest request,
+        CancellationToken ct = default);
 }
 
