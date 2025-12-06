@@ -1,3 +1,4 @@
+using CusomMapOSM_Application.Common;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -93,106 +94,123 @@ public class LocationService : ILocationService
         return Option.Some<IReadOnlyCollection<LocationDto>, Error>(LocationDtos);
     }
 
-    public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default)
+public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocationRequest request, CancellationToken ct = default)
+{
+    var currentUserId = _currentUserService.GetUserId();
+
+    if (!currentUserId.HasValue)
     {
-        var currentUserId = _currentUserService.GetUserId();
-
-        if (!currentUserId.HasValue)
-        {
-            throw new UnauthorizedAccessException("User is not authenticated");
-        }
-
-        var map = await _storyMapRepository.GetMapAsync(request.MapId, ct);
-        if (map is null)
-        {
-            return Option.None<LocationDto, Error>(Error.NotFound("Poi.Map.NotFound", "Map not found"));
-        }
-
-        Guid? segmentId = (request.SegmentId);
-        Guid? zoneId = (request.ZoneId);
-        Guid? linkedPoiId = (request.LinkedLocationId);
-        
-        // Validate SegmentId if provided
-        if (segmentId.HasValue)
-        {
-            var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
-            if (segment is null || segment.MapId != request.MapId)
-            {
-                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
-            }
-        }
-        
-        // Validate ZoneId if provided
-        if (zoneId.HasValue)
-        {
-            var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
-            if (zone is null)
-            {
-                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
-            }
-        }
-
-        if (linkedPoiId.HasValue)
-        {
-            var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
-            if (linked is null || linked.MapId != request.MapId)
-            {
-                return Option.None<LocationDto, Error>(Error.NotFound("Poi.Linked.NotFound",
-                    "Linked POI not found in this map"));
-            }
-        }
-        
-        string? iconUrl = null;
-        if (request.IconFile != null && request.IconFile.Length > 0)
-        {
-            using var stream = request.IconFile.OpenReadStream();
-            iconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, stream, "poi-icons");
-        }
-        
-        // Process HTML content to upload base64 images to Firebase Storage
-        var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
-            request.TooltipContent, 
-            folder: "poi-tooltips", 
-            ct);
-        
-        var processedPopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
-            request.SlideContent, 
-            folder: "poi-popups", 
-            ct);
-
-        var location = new Location
-        {
-            LocationId = Guid.NewGuid(),
-            MapId = request.MapId,
-            SegmentId = segmentId,
-            ZoneId = zoneId,
-            Title = request.Title,
-            Subtitle = request.Subtitle,
-            LocationType = request.LocationType,
-            MarkerGeometry = request.MarkerGeometry ?? string.Empty,
-            IconUrl = iconUrl,
-            ShowTooltip = request.ShowTooltip,
-            TooltipContent = processedTooltipContent,
-            OpenPopupOnClick = request.OpenSlideOnClick,
-            PopupContent = processedPopupContent,
-            MediaUrls = request.MediaResources,
-            LinkedLocationId = linkedPoiId,
-            PlayAudioOnClick = request.PlayAudioOnClick,
-            AudioUrl = request.AudioUrl,
-            ExternalUrl = request.ExternalUrl,
-            IsVisible = request.IsVisible,
-            ZIndex = request.ZIndex,
-            CreatedBy = currentUserId.Value,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        location = await _locationRepository.CreateAsync(location, ct);
-
-        var LocationDto = location.ToDto();
-
-        return Option.Some<LocationDto, Error>(LocationDto);
+        throw new UnauthorizedAccessException("User is not authenticated");
     }
+
+    var segmentId = GuidHelper.ParseNullableGuid(request.SegmentId);
+    var zoneId = GuidHelper.ParseNullableGuid(request.ZoneId);
+    var linkedPoiId = GuidHelper.ParseNullableGuid(request.LinkedLocationId);
+    
+    if (segmentId.HasValue)
+    {
+        var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
+        if (segment is null || segment.MapId != request.MapId)
+        {
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.Segment.NotFound", "Segment not found for this map"));
+        }
+    }
+
+    if (zoneId.HasValue)
+    {
+        var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
+        if (zone is null)
+        {
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.Zone.NotFound", "Zone not found"));
+        }
+    }
+
+    if (linkedPoiId.HasValue)
+    {
+        var linked = await _locationRepository.GetByIdAsync(linkedPoiId.Value, ct);
+        if (linked is null || linked.MapId != request.MapId)
+        {
+            return Option.None<LocationDto, Error>(Error.NotFound("Poi.Linked.NotFound", "Linked POI not found in this map"));
+        }
+    }
+    
+    string? iconUrl = null;
+    if (request.IconFile != null && request.IconFile.Length > 0)
+    {
+        using var stream = request.IconFile.OpenReadStream();
+        iconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, stream, "poi-icons");
+    }
+    else if (!string.IsNullOrWhiteSpace(request.IconUrl))
+    {
+        iconUrl = request.IconUrl;
+    }
+    
+    string? audioUrl = null;
+    if (request.AudioFile != null && request.AudioFile.Length > 0)
+    {
+        using var stream = request.AudioFile.OpenReadStream();
+        audioUrl = await _firebaseStorageService.UploadFileAsync(request.AudioFile.FileName, stream, "poi-audio");
+    }
+    else if (!string.IsNullOrWhiteSpace(request.AudioUrl))
+    {
+        audioUrl = request.AudioUrl;
+    }
+
+    // Process HTML content
+    var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+        request.TooltipContent, 
+        folder: "poi-tooltips", 
+        ct);
+
+    var processedPopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
+        request.PopupContent, 
+        folder: "poi-popups", 
+        ct);
+    
+    var location = new Location
+    {
+        LocationId = Guid.NewGuid(),
+        MapId = request.MapId,
+        SegmentId = segmentId,
+        ZoneId = zoneId,
+        Title = request.Title,
+        Subtitle = request.Subtitle,
+        Description = request.Description,
+        LocationType = request.LocationType,
+        DisplayOrder = request.DisplayOrder,
+        MarkerGeometry = request.MarkerGeometry,
+        IconType = request.IconType,
+        IconUrl = iconUrl ?? request.IconUrl,
+        IconColor = request.IconColor,
+        IconSize = request.IconSize,
+        ZIndex = request.ZIndex,
+        ShowTooltip = request.ShowTooltip,
+        TooltipContent = processedTooltipContent,
+        OpenPopupOnClick = request.OpenPopupOnClick,
+        PopupContent = processedPopupContent,
+        MediaUrls = request.MediaResources,
+        PlayAudioOnClick = request.PlayAudioOnClick,
+        AudioUrl = audioUrl ?? request.AudioUrl,
+        EntryDelayMs = request.EntryDelayMs,
+        EntryDurationMs = request.EntryDurationMs,
+        ExitDelayMs = request.ExitDelayMs,
+        ExitDurationMs = request.ExitDurationMs,
+        EntryEffect = request.EntryEffect,
+        ExitEffect = request.ExitEffect,
+        LinkedLocationId = linkedPoiId,
+        ExternalUrl = request.ExternalUrl,
+        IsVisible = request.IsVisible,
+        CreatedBy = currentUserId.Value,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+
+    location = await _locationRepository.CreateAsync(location, ct);
+
+    var locationDto = location.ToDto();
+
+    return Option.Some<LocationDto, Error>(locationDto);
+}
 
     public async Task<Option<LocationDto, Error>> UpdateLocationAsync(Guid poiId, UpdateLocationRequest request,
         CancellationToken ct = default)
@@ -206,7 +224,7 @@ public class LocationService : ILocationService
         // Use MapId directly from location
         var mapId = location.MapId;
 
-        Guid? segmentId = (request.SegmentId);
+        var segmentId = GuidHelper.ParseNullableGuid(request.SegmentId);
         if (segmentId.HasValue)
         {
             var segment = await _storyMapRepository.GetSegmentAsync(segmentId.Value, ct);
@@ -217,7 +235,7 @@ public class LocationService : ILocationService
             }
         }
 
-        Guid? zoneId = (request.ZoneId);
+        var zoneId = GuidHelper.ParseNullableGuid(request.ZoneId);
         if (zoneId.HasValue)
         {
             var zone = await _storyMapRepository.GetZoneAsync(zoneId.Value, ct);
@@ -227,7 +245,7 @@ public class LocationService : ILocationService
             }
         }
 
-        Guid? linkedPoiId = (request.LinkedLocationId);
+        var linkedPoiId = GuidHelper.ParseNullableGuid(request.LinkedLocationId);
         if (linkedPoiId.HasValue)
         {
             if (linkedPoiId.Value == poiId)
@@ -243,24 +261,50 @@ public class LocationService : ILocationService
                     "Linked POI not found in this map"));
             }
         }
-
-        if (segmentId.HasValue)
+        if (request.IconFile != null && request.IconFile.Length > 0)
         {
-            location.SegmentId = segmentId.Value;
+            using var iconStream = request.IconFile.OpenReadStream();
+            var newIconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, iconStream, "poi-icons");
+            location.IconUrl = newIconUrl;
         }
-        else
+        
+        if (request.AudioFile != null && request.AudioFile.Length > 0)
         {
-            location.SegmentId = null;
+            using var audioStream = request.AudioFile.OpenReadStream();
+            var newAudioUrl = await _firebaseStorageService.UploadFileAsync(request.AudioFile.FileName, audioStream, "poi-audio");
+            location.AudioUrl = newAudioUrl;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.AudioUrl))
+        {
+
+            location.AudioUrl = request.AudioUrl;
         }
 
+        location.SegmentId = segmentId;
         location.ZoneId = zoneId;
         location.Title = request.Title;
         location.Subtitle = request.Subtitle;
+        location.Description = request.Description;
         location.LocationType = request.LocationType;
-        if (!string.IsNullOrEmpty(request.MarkerGeometry))
-        {
-            location.MarkerGeometry = request.MarkerGeometry;
-        }
+        location.DisplayOrder = request.DisplayOrder;
+        location.MarkerGeometry = request.MarkerGeometry;
+        location.IconType = request.IconType;
+        location.IconColor = request.IconColor;
+        location.IconSize = request.IconSize;
+        location.ZIndex = request.ZIndex;
+        location.ShowTooltip = request.ShowTooltip;
+        location.OpenPopupOnClick = request.OpenPopupOnClick;
+        location.MediaUrls = request.MediaResources;
+        location.PlayAudioOnClick = request.PlayAudioOnClick;
+        location.EntryDelayMs = request.EntryDelayMs;
+        location.EntryDurationMs = request.EntryDurationMs;
+        location.ExitDelayMs = request.ExitDelayMs;
+        location.ExitDurationMs = request.ExitDurationMs;
+        location.EntryEffect = request.EntryEffect;
+        location.ExitEffect = request.ExitEffect;
+        location.LinkedLocationId = linkedPoiId;
+        location.ExternalUrl = request.ExternalUrl;
+        location.IsVisible = request.IsVisible;
 
         // Process HTML content to upload base64 images to Firebase Storage
         if (request.TooltipContent is not null)
@@ -270,32 +314,21 @@ public class LocationService : ILocationService
                 folder: "poi-tooltips", 
                 ct);
         }
+        else
+        {
+            location.TooltipContent = null;
+        }
         
-        if (request.SlideContent is not null)
+        if (request.PopupContent is not null)
         {
             location.PopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
-                request.SlideContent, 
+                request.PopupContent, 
                 folder: "poi-popups", 
                 ct);
         }
-
-        location.ShowTooltip = request.ShowTooltip;
-        location.OpenPopupOnClick = request.OpenSlideOnClick;
-        location.MediaUrls = request.MediaResources;
-        location.LinkedLocationId = linkedPoiId;
-        location.PlayAudioOnClick = request.PlayAudioOnClick;
-        location.AudioUrl = request.AudioUrl;
-        location.ExternalUrl = request.ExternalUrl;
-        location.DisplayOrder = request.DisplayOrder;
-
-        if (request.IsVisible.HasValue)
+        else
         {
-            location.IsVisible = request.IsVisible.Value;
-        }
-
-        if (request.ZIndex.HasValue)
-        {
-            location.ZIndex = request.ZIndex.Value;
+            location.PopupContent = null;
         }
 
         location.UpdatedAt = DateTime.UtcNow;

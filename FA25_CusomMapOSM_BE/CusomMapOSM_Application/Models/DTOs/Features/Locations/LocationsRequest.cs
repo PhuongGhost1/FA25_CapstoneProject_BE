@@ -4,59 +4,76 @@ using Microsoft.AspNetCore.Http;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.Locations;
 
-public record CreateLocationRequest(
-    Guid MapId,
-    Guid? SegmentId,
-    Guid? ZoneId,
-    string Title,
-    string? Subtitle,
-    LocationType LocationType,
-    string? MarkerGeometry,
-    string? StoryContent,
-    string? MediaResources,
-    int DisplayOrder,
-    bool HighlightOnEnter,
-    bool ShowTooltip = true,
-    string? TooltipContent = null,
-    string? EffectType = null,
-    bool OpenSlideOnClick = false,
-    string? SlideContent = null,
-    Guid? LinkedLocationId = null,
-    bool PlayAudioOnClick = false,
-    string? AudioUrl = null,
-    string? ExternalUrl = null,
-    Guid? AssociatedLayerId = null,
-    Guid? AnimationPresetId = null,
-    string? AnimationOverrides = null,
-    bool IsVisible = true,
-    int ZIndex = 0,
-    IFormFile? IconFile = null);
+public class CreateLocationRequest
+{
+    public Guid MapId { get; set; }
+    public string? SegmentId { get; set; }
+    public string? ZoneId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Subtitle { get; set; }
+    public string? Description { get; set; }
+    public LocationType LocationType { get; set; }
+    public string MarkerGeometry { get; set; } = string.Empty;
+    public string? MediaResources { get; set; }
+    public int DisplayOrder { get; set; }
+    public string? IconType { get; set; }
+    public string? IconColor { get; set; }
+    public int IconSize { get; set; } = 32;
+    public int ZIndex { get; set; } = 100;
+    public bool ShowTooltip { get; set; } = true;
+    public string? TooltipContent { get; set; }
+    public string? IconUrl { get; set; }
+    public string? AudioUrl { get; set; }
+    public bool OpenPopupOnClick { get; set; } = false;
+    public string? PopupContent { get; set; }
+    public bool PlayAudioOnClick { get; set; } = false;
+    public int EntryDelayMs { get; set; } = 0;
+    public int EntryDurationMs { get; set; } = 400;
+    public int ExitDelayMs { get; set; } = 0;
+    public int ExitDurationMs { get; set; } = 400;
+    public string? EntryEffect { get; set; } = "fade";
+    public string? ExitEffect { get; set; } = "fade";
+    public string? LinkedLocationId { get; set; }
+    public string? ExternalUrl { get; set; }
+    public bool IsVisible { get; set; } = true;
+    public IFormFile? AudioFile { get; set; }
+    public IFormFile? IconFile { get; set; }
+}
 
-public record UpdateLocationRequest(
-    Guid? SegmentId,
-    Guid? ZoneId,
-    string Title,
-    string? Subtitle,
-    LocationType LocationType,
-    string? MarkerGeometry,
-    string? StoryContent,
-    string? MediaResources,
-    int DisplayOrder,
-    bool HighlightOnEnter,
-    bool ShowTooltip = true,
-    string? TooltipContent = null,
-    string? EffectType = null,
-    bool OpenSlideOnClick = false,
-    string? SlideContent = null,
-    Guid? LinkedLocationId = null,
-    bool PlayAudioOnClick = false,
-    string? AudioUrl = null,
-    string? ExternalUrl = null,
-    Guid? AssociatedLayerId = null,
-    Guid? AnimationPresetId = null,
-    string? AnimationOverrides = null,
-    bool? IsVisible = null,
-    int? ZIndex = null);
+public class UpdateLocationRequest
+{
+    public string? SegmentId { get; set; }
+    public string? ZoneId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Subtitle { get; set; }
+    public string? Description { get; set; }
+    public LocationType LocationType { get; set; }
+    public string MarkerGeometry { get; set; } = string.Empty;
+    public string? MediaResources { get; set; }
+    public int DisplayOrder { get; set; }
+    public string? IconUrl { get; set; }
+    public string? IconType { get; set; }
+    public string? IconColor { get; set; }
+    public int IconSize { get; set; } = 32;
+    public int ZIndex { get; set; } = 100;
+    public bool ShowTooltip { get; set; } = true;
+    public string? TooltipContent { get; set; }
+    public bool OpenPopupOnClick { get; set; } = false;
+    public string? PopupContent { get; set; }
+    public bool PlayAudioOnClick { get; set; } = false;
+    public string? AudioUrl { get; set; }
+    public int EntryDelayMs { get; set; } = 0;
+    public int EntryDurationMs { get; set; } = 400;
+    public int ExitDelayMs { get; set; } = 0;
+    public int ExitDurationMs { get; set; } = 400;
+    public string? EntryEffect { get; set; } = "fade";
+    public string? ExitEffect { get; set; } = "fade";
+    public string? LinkedLocationId { get; set; }
+    public string? ExternalUrl { get; set; }
+    public bool IsVisible { get; set; } = true;
+    public IFormFile? AudioFile { get; set; }
+    public IFormFile? IconFile { get; set; }
+}
 
 public record UpdateLocationDisplayConfigRequest(
     bool? IsVisible,

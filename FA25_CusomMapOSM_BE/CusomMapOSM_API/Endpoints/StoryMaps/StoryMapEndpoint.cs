@@ -462,9 +462,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
-                // Override segmentId from route
-                var requestWithRoute = request with { SegmentId = segmentId };
-                var result = await service.UpdateLocationAsync(locationId, requestWithRoute, ct);
+                var result = await service.UpdateLocationAsync(locationId, request, ct);
                 return result.Match<IResult>(
                     location => Results.Ok(location),
                     err => err.ToProblemDetailsResult());
