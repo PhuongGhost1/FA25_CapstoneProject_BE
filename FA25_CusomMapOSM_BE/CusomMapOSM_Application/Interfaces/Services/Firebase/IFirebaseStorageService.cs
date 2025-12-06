@@ -8,5 +8,6 @@ public interface IFirebaseStorageService
     Task<string> UploadFileAsync(string fileName, Stream fileStream, string folder);
     Task<string> DownloadFileAsync(string fileName);
     Task<bool> DeleteFileAsync(string fileName);
+    Task<string?> FindFileByPatternAsync(string folder, string fileNamePattern);
 }
 

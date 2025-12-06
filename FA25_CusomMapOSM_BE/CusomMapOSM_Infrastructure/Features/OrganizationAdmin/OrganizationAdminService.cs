@@ -6,6 +6,8 @@ using CusomMapOSM_Domain.Entities.Memberships.Enums;
 using Optional;
 using System.Text.Json;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Application.Interfaces.Features.Membership;
+using Optional.Unsafe;
 
 namespace CusomMapOSM_Infrastructure.Features.OrganizationAdmin;
 
@@ -13,10 +15,16 @@ public class OrganizationAdminService : IOrganizationAdminService
 {
     private readonly IOrganizationAdminRepository _organizationAdminRepository;
     private readonly IOrganizationRepository _organizationRepository;
-    public OrganizationAdminService(IOrganizationAdminRepository organizationAdminRepository, IOrganizationRepository organizationRepository)
+    private readonly IMembershipService _membershipService;
+    
+    public OrganizationAdminService(
+        IOrganizationAdminRepository organizationAdminRepository, 
+        IOrganizationRepository organizationRepository,
+        IMembershipService membershipService)
     {
         _organizationAdminRepository = organizationAdminRepository;
         _organizationRepository = organizationRepository;
+        _membershipService = membershipService;
     }
 
     public async Task<Option<OrganizationUsageResponse, Error>> GetOrganizationUsageAsync(Guid orgId, CancellationToken ct = default)
@@ -24,18 +32,83 @@ public class OrganizationAdminService : IOrganizationAdminService
         try
         {
             var organization = await _organizationAdminRepository.GetOrganizationByIdAsync(orgId, ct);
+            if (organization == null)
+            {
+                return Option.None<OrganizationUsageResponse, Error>(Error.NotFound("Organization.NotFound", "Organization not found"));
+            }
+
+            // Get primary membership for the organization
+            var primaryMembership = await _organizationAdminRepository.GetPrimaryMembershipAsync(orgId, ct);
+            if (primaryMembership == null)
+            {
+                return Option.None<OrganizationUsageResponse, Error>(Error.NotFound("Membership.NotFound", "No active membership found for organization"));
+            }
+
+            // Get usage for the primary membership
+            var usageResult = await _membershipService.GetOrCreateUsageAsync(primaryMembership.MembershipId, orgId, ct);
+            if (!usageResult.HasValue)
+            {
+                return Option.None<OrganizationUsageResponse, Error>(Error.Failure("Usage.GetFailed", "Failed to get usage information"));
+            }
+
+            var usage = usageResult.ValueOrDefault();
+            var plan = primaryMembership.Plan;
+
+            // Get aggregated usage stats
             var usageStats = await _organizationAdminRepository.GetOrganizationUsageStatsAsync(orgId, ct);
             var totalActiveUsers = await _organizationAdminRepository.GetTotalActiveUsersAsync(orgId, ct);
             var totalMapsCreated = await _organizationAdminRepository.GetTotalMapsCreatedAsync(orgId, ct);
             var totalExportsThisMonth = await _organizationAdminRepository.GetTotalExportsThisMonthAsync(orgId, ct);
 
-            // Convert usage stats to quota DTOs
-            var aggregatedQuotas = usageStats.Select(kvp => new UsageQuotaDto
+            // Convert usage stats to quota DTOs with actual plan limits
+            var aggregatedQuotas = new List<UsageQuotaDto>();
+            
+            if (plan != null)
             {
-                ResourceType = kvp.Key,
-                CurrentUsage = kvp.Value,
-                Limit = -1 // Unlimited for now
-            }).ToList();
+                // Maps quota
+                var mapsUsage = usageStats.GetValueOrDefault("maps", 0);
+                aggregatedQuotas.Add(new UsageQuotaDto
+                {
+                    ResourceType = "maps",
+                    CurrentUsage = mapsUsage,
+                    Limit = plan.MapQuota == -1 ? int.MaxValue : plan.MapQuota
+                });
+
+                // Exports quota
+                var exportsUsage = usageStats.GetValueOrDefault("exports", 0);
+                aggregatedQuotas.Add(new UsageQuotaDto
+                {
+                    ResourceType = "exports",
+                    CurrentUsage = exportsUsage,
+                    Limit = plan.ExportQuota == -1 ? int.MaxValue : plan.ExportQuota
+                });
+
+                // Users quota
+                aggregatedQuotas.Add(new UsageQuotaDto
+                {
+                    ResourceType = "users",
+                    CurrentUsage = totalActiveUsers,
+                    Limit = plan.MaxUsersPerOrg == -1 ? int.MaxValue : plan.MaxUsersPerOrg
+                });
+
+                // Custom Layers quota
+                var customLayersUsage = usageStats.GetValueOrDefault("customLayers", 0);
+                aggregatedQuotas.Add(new UsageQuotaDto
+                {
+                    ResourceType = "customLayers",
+                    CurrentUsage = customLayersUsage,
+                    Limit = plan.MaxCustomLayers == -1 ? int.MaxValue : plan.MaxCustomLayers
+                });
+
+                // Tokens quota
+                var tokensUsage = usageStats.GetValueOrDefault("tokens", 0);
+                aggregatedQuotas.Add(new UsageQuotaDto
+                {
+                    ResourceType = "tokens",
+                    CurrentUsage = tokensUsage,
+                    Limit = plan.MonthlyTokens == -1 ? int.MaxValue : plan.MonthlyTokens
+                });
+            }
 
             // Create empty user summaries for now
             var userUsageSummaries = new List<UserUsageSummaryDto>();
@@ -43,14 +116,14 @@ public class OrganizationAdminService : IOrganizationAdminService
             var response = new OrganizationUsageResponse
             {
                 OrgId = orgId,
-                OrganizationName = organization?.OrgName ?? "Unknown Organization",
+                OrganizationName = organization.OrgName,
                 AggregatedQuotas = aggregatedQuotas,
                 UserUsageSummaries = userUsageSummaries,
                 TotalActiveUsers = totalActiveUsers,
                 TotalMapsCreated = totalMapsCreated,
                 TotalExportsThisMonth = totalExportsThisMonth,
-                LastResetDate = DateTime.UtcNow.AddDays(-30), // Placeholder
-                NextResetDate = DateTime.UtcNow.AddDays(1) // Placeholder
+                LastResetDate = usage.CycleStartDate,
+                NextResetDate = usage.CycleEndDate
             };
 
             return Option.Some<OrganizationUsageResponse, Error>(response);

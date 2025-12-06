@@ -162,4 +162,17 @@ public class OrganizationRepository : IOrganizationRepository
     {
         return await _context.Organizations.CountAsync(x => x.IsActive);
     }
+
+    public async Task<bool> IsOrganizationNameExists(string orgName, Guid? excludeOrgId = null)
+    {
+        var query = _context.Organizations
+            .Where(x => x.IsActive && x.OrgName.ToLower() == orgName.ToLower());
+        
+        if (excludeOrgId.HasValue)
+        {
+            query = query.Where(x => x.OrgId != excludeOrgId.Value);
+        }
+        
+        return await query.AnyAsync();
+    }
 }

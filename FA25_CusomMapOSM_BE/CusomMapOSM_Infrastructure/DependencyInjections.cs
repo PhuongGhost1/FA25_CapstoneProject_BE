@@ -59,6 +59,9 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Question
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.SupportTicket;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Comments;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Bookmarks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Exports;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Faqs;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
@@ -121,7 +124,40 @@ using Polly;
 using StackExchange.Redis;
 using System.Net.Security;
 using System.Net.Sockets;
+using CusomMapOSM_Application.Interfaces.Features.Groups;
+using CusomMapOSM_Application.Interfaces.Features.Locations;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
+using CusomMapOSM_Application.Interfaces.Features.QuickPolls;
+using CusomMapOSM_Application.Interfaces.Features.Sessions;
+using CusomMapOSM_Application.Interfaces.Features.TreasureHunts;
+using CusomMapOSM_Application.Interfaces.Features.Workspaces;
+using CusomMapOSM_Application.Interfaces.Features.Comments;
+using CusomMapOSM_Application.Interfaces.Features.Bookmarks;
+using CusomMapOSM_Application.Interfaces.Features.Exports;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Commons.Constant;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Groups;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Sessions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Groups;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Comments;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Bookmarks;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Exports;
+using CusomMapOSM_Infrastructure.Features.Groups;
+using CusomMapOSM_Infrastructure.Features.Locations;
+using CusomMapOSM_Infrastructure.Features.Notifications;
+using CusomMapOSM_Infrastructure.Features.QuestionBanks;
+using CusomMapOSM_Infrastructure.Features.QuickPolls;
+using CusomMapOSM_Infrastructure.Features.Sessions;
+using CusomMapOSM_Infrastructure.Features.TreasureHunts;
+using CusomMapOSM_Infrastructure.Features.Workspaces;
+using CusomMapOSM_Infrastructure.Features.Comments;
+using CusomMapOSM_Infrastructure.Features.Bookmarks;
+using CusomMapOSM_Infrastructure.Features.Exports;
 using Hangfire;
 using Hangfire.Redis;
 
@@ -212,7 +248,13 @@ public static class DependencyInjections
         services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
         services.AddScoped<IOrganizationAdminRepository, OrganizationAdminRepository>();
         services.AddScoped<ISystemAdminRepository, SystemAdminRepository>();
+
+        // Comments & Bookmarks & Exports
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<IBookmarkRepository, BookmarkRepository>();
+        services.AddScoped<IExportRepository, ExportRepository>();
     }
+        
 
     private static void AddDataStores(IServiceCollection services)
     {
@@ -283,6 +325,7 @@ public static class DependencyInjections
         services.AddScoped<ISubscriptionService, SubscriptionService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
+        services.AddScoped<IExportService, ExportService>();
     }
 
     private static void AddContentServices(IServiceCollection services)
@@ -292,6 +335,8 @@ public static class DependencyInjections
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<IStoryMapService, StoryMapService>();
         services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
+        services.AddScoped<ICommentService, CommentService>();
+        services.AddScoped<IBookmarkService, BookmarkService>();
     }
 
     private static void AddCollaborationServices(IServiceCollection services)

@@ -41,4 +41,5 @@ public interface IOrganizationRepository
     
     Task<List<OrganizationMember>> GetUserOrganizations(Guid userId);
     Task<int> GetTotalOrganizationCount();
+    Task<bool> IsOrganizationNameExists(string orgName, Guid? excludeOrgId = null);
 }

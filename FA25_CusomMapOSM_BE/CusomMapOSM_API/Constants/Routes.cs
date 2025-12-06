@@ -23,6 +23,9 @@ public static class Routes
         public const string Workspace = "workspaces";
         public const string User = "user";
         public const string Layers = "layers";
+        public const string Comments = "comments";
+        public const string Bookmarks = "bookmarks";
+        public const string Exports = "exports";
     }
 
     public static class AuthEndpoints
@@ -61,6 +64,9 @@ public static class Routes
 
         // Bulk student account creation
         public const string BulkCreateStudents = "bulk-create-students";
+        
+        // Organization name validation
+        public const string ValidateName = "validate-name";
     }
     public static class StoryMapEndpoints
     {

@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251205091529_UpdateDB_AddFieldsToExport")]
+    partial class UpdateDB_AddFieldsToExport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -63,6 +66,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("animated_layer_id");
 
+                    b.Property<bool>("AutoPlay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("auto_play");
+
                     b.Property<string>("Coordinates")
                         .HasColumnType("TEXT")
                         .HasColumnName("coordinates");
@@ -77,6 +86,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("CssFilter")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("css_filter");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)")
@@ -87,6 +101,54 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0)
                         .HasColumnName("display_order");
+
+                    b.Property<bool>("EnableClick")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("enable_click");
+
+                    b.Property<int?>("EndTimeMs")
+                        .HasColumnType("int")
+                        .HasColumnName("end_time_ms");
+
+                    b.Property<int>("EntryDelayMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("entry_delay_ms");
+
+                    b.Property<int>("EntryDurationMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(400)
+                        .HasColumnName("entry_duration_ms");
+
+                    b.Property<string>("EntryEffect")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("fade")
+                        .HasColumnName("entry_effect");
+
+                    b.Property<int>("ExitDelayMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("exit_delay_ms");
+
+                    b.Property<int>("ExitDurationMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(400)
+                        .HasColumnName("exit_duration_ms");
+
+                    b.Property<string>("ExitEffect")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("fade")
+                        .HasColumnName("exit_effect");
 
                     b.Property<bool>("IsScreenOverlay")
                         .ValueGeneratedOnAdd()
@@ -104,6 +166,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("char(36)")
                         .HasColumnName("layer_id");
 
+                    b.Property<bool>("Loop")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("loop");
+
                     b.Property<string>("MediaType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -116,11 +184,21 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("varchar(255)")
                         .HasColumnName("name");
 
+                    b.Property<string>("OnClickAction")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("on_click_action");
+
                     b.Property<decimal>("Opacity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(3,2)")
                         .HasDefaultValue(1.0m)
                         .HasColumnName("opacity");
+
+                    b.Property<int>("PlaybackSpeed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(100)
+                        .HasColumnName("playback_speed");
 
                     b.Property<double>("RotationDeg")
                         .ValueGeneratedOnAdd()
@@ -147,6 +225,12 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)")
                         .HasColumnName("source_url");
+
+                    b.Property<int>("StartTimeMs")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("start_time_ms");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasMaxLength(2000)
@@ -1594,21 +1678,21 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             AllowAudioContent = true,
                             AllowVideoContent = true,
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Perfect for getting started. Explore basic mapping features at no cost.",
+                            Description = "Basic features for individual users",
                             DurationMonths = 1,
                             ExportQuota = 10,
-                            Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true, \"basic_collaboration\": true}",
+                            Features = "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}",
                             IsActive = true,
-                            MapQuota = 20,
+                            MapQuota = 10,
                             MaxAudioFileSizeBytes = 20971520L,
                             MaxConnectionsPerMap = 100,
-                            MaxCustomLayers = 5,
+                            MaxCustomLayers = 3,
                             MaxInteractionsPerMap = 50,
                             MaxLocationsPerOrg = 5,
                             MaxMapsPerMonth = 10,
                             MaxMediaFileSizeBytes = 10485760L,
-                            MaxOrganizations = 1,
-                            MaxUsersPerOrg = 3,
+                            MaxOrganizations = 5,
+                            MaxUsersPerOrg = 5,
                             MaxVideoFileSizeBytes = 104857600L,
                             MonthlyTokens = 10000,
                             PlanName = "Free",
@@ -1623,83 +1707,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                             AllowAudioContent = true,
                             AllowVideoContent = true,
                             CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Ideal for small teams and individual professionals who need more features.",
+                            Description = "Advanced features for growing businesses",
                             DurationMonths = 1,
-                            ExportQuota = 100,
-                            Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"private_maps\": true, \"advanced_layers\": true}",
+                            ExportQuota = 200,
+                            Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}",
                             IsActive = true,
-                            MapQuota = 100,
+                            MapQuota = 200,
                             MaxAudioFileSizeBytes = 20971520L,
                             MaxConnectionsPerMap = 100,
-                            MaxCustomLayers = 20,
+                            MaxCustomLayers = 50,
                             MaxInteractionsPerMap = 50,
-                            MaxLocationsPerOrg = 10,
-                            MaxMapsPerMonth = 50,
+                            MaxLocationsPerOrg = 20,
+                            MaxMapsPerMonth = 100,
                             MaxMediaFileSizeBytes = 10485760L,
-                            MaxOrganizations = 2,
-                            MaxUsersPerOrg = 10,
+                            MaxOrganizations = 5,
+                            MaxUsersPerOrg = 20,
                             MaxVideoFileSizeBytes = 104857600L,
-                            MonthlyTokens = 30000,
-                            PlanName = "Basic",
-                            PriceMonthly = 9.99m,
-                            PrioritySupport = false
-                        },
-                        new
-                        {
-                            PlanId = 3,
-                            Allow3DEffects = false,
-                            AllowAnimatedConnections = true,
-                            AllowAudioContent = true,
-                            AllowVideoContent = true,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Advanced features for growing businesses and professional teams.",
-                            DurationMonths = 1,
-                            ExportQuota = 500,
-                            Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"advanced_analytics\": true, \"custom_branding\": true}",
-                            IsActive = true,
-                            MapQuota = 500,
-                            MaxAudioFileSizeBytes = 20971520L,
-                            MaxConnectionsPerMap = 100,
-                            MaxCustomLayers = 100,
-                            MaxInteractionsPerMap = 50,
-                            MaxLocationsPerOrg = 50,
-                            MaxMapsPerMonth = 200,
-                            MaxMediaFileSizeBytes = 10485760L,
-                            MaxOrganizations = 10,
-                            MaxUsersPerOrg = 50,
-                            MaxVideoFileSizeBytes = 104857600L,
-                            MonthlyTokens = 100000,
+                            MonthlyTokens = 50000,
                             PlanName = "Pro",
                             PriceMonthly = 29.99m,
-                            PrioritySupport = true
-                        },
-                        new
-                        {
-                            PlanId = 4,
-                            Allow3DEffects = false,
-                            AllowAnimatedConnections = true,
-                            AllowAudioContent = true,
-                            AllowVideoContent = true,
-                            CreatedAt = new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Full-featured solution with unlimited resources for large organizations.",
-                            DurationMonths = 1,
-                            ExportQuota = -1,
-                            Features = "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true, \"dedicated_support\": true, \"custom_integrations\": true, \"advanced_security\": true}",
-                            IsActive = true,
-                            MapQuota = -1,
-                            MaxAudioFileSizeBytes = 20971520L,
-                            MaxConnectionsPerMap = 100,
-                            MaxCustomLayers = -1,
-                            MaxInteractionsPerMap = 50,
-                            MaxLocationsPerOrg = -1,
-                            MaxMapsPerMonth = -1,
-                            MaxMediaFileSizeBytes = 10485760L,
-                            MaxOrganizations = -1,
-                            MaxUsersPerOrg = -1,
-                            MaxVideoFileSizeBytes = 104857600L,
-                            MonthlyTokens = 500000,
-                            PlanName = "Enterprise",
-                            PriceMonthly = 149.99m,
                             PrioritySupport = true
                         });
                 });
@@ -2729,12 +2755,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("left_at");
 
-                    b.Property<string>("ParticipantKey")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("participant_key");
-
                     b.Property<int>("Rank")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -2767,6 +2787,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("updated_at");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("user_id");
+
                     b.HasKey("SessionParticipantId");
 
                     b.HasIndex("IsActive")
@@ -2775,12 +2799,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.HasIndex("SessionId")
                         .HasDatabaseName("IX_SessionParticipant_SessionId");
 
-                    b.HasIndex("SessionId", "ParticipantKey")
-                        .IsUnique()
-                        .HasDatabaseName("UX_SessionParticipant_SessionId_ParticipantKey");
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_SessionParticipant_UserId");
 
                     b.HasIndex("SessionId", "TotalScore")
                         .HasDatabaseName("IX_SessionParticipant_SessionId_TotalScore");
+
+                    b.HasIndex("SessionId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SessionParticipant_SessionId_UserId")
+                        .HasFilter("user_id IS NOT NULL");
 
                     b.ToTable("session_participants", (string)null);
                 });
@@ -4270,7 +4298,14 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CusomMapOSM_Domain.Entities.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Session");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Sessions.SessionQuestion", b =>

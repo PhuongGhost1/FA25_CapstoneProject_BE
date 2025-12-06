@@ -237,5 +237,21 @@ public class OrganizationEndpoint : IEndpoint
             .Produces<BulkCreateStudentsResponse>(200)
             .ProducesValidationProblem();
 
+        group.MapGet(Routes.OrganizationsEndpoints.ValidateName, async (
+                [FromQuery] string orgName,
+                [FromQuery] Guid? excludeOrgId,
+                [FromServices] IOrganizationService organizationService) =>
+            {
+                var result = await organizationService.ValidateOrganizationName(orgName, excludeOrgId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName(Routes.OrganizationsEndpoints.ValidateName)
+            .WithDescription("Validate if organization name is unique")
+            .AllowAnonymous()
+            .Produces<ValidateOrganizationNameResDto>(200)
+            .ProducesValidationProblem();
+
     }
 }

@@ -47,6 +47,9 @@ public class FirebaseStorageService : IFirebaseStorageService
                 
                 if (string.IsNullOrEmpty(credentialsPath) || !File.Exists(credentialsPath))
                 {
+                    var searchedPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"));
+                    Console.WriteLine($"[FirebaseStorageService] ERROR: Firebase credentials not found!");
+                    Console.WriteLine($"[FirebaseStorageService] Searched at: {searchedPath}");
                     throw new InvalidOperationException(
                         $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place {CredentialsFileName} in solution root.");
                 }
@@ -217,6 +220,50 @@ public class FirebaseStorageService : IFirebaseStorageService
 
         var encodedName = parts[1].Split('?')[0];
         return Uri.UnescapeDataString(encodedName);
+    }
+
+    public async Task<string?> FindFileByPatternAsync(string folder, string fileNamePattern)
+    {
+        try
+        {
+            // Ensure folder ends with / for proper prefix matching
+            var searchPrefix = folder.EndsWith("/") ? folder : folder + "/";
+            
+            // List all objects in the folder
+            // PagedEnumerable is enumerable synchronously, not asynchronously
+            var objects = _storageClient.ListObjects(_bucketName, searchPrefix);
+            
+            int count = 0;
+            foreach (var obj in objects)
+            {
+                count++;
+                // Check if the object name contains the filename pattern
+                // Firebase stores files as: {folder}/{guid}_{timestamp}_{filename}
+                // So we search for files containing the filename
+                if (obj.Name.Contains(fileNamePattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Generate public URL for the found file
+                    var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(obj.Name)}?alt=media";
+                    return url;
+                }
+            }
+            
+            // If no files found, return null
+            return null;
+        }
+        catch (Google.GoogleApiException ex)
+        {
+            // Log the error for debugging - this might indicate permission issues
+            throw new InvalidOperationException(
+                $"Firebase Storage API error while searching for file in folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}. " +
+                $"Status Code: {ex.HttpStatusCode}. Make sure Firebase credentials are properly configured and have Storage access permissions.", ex);
+        }
+        catch (Exception ex)
+        {
+            // Log the error for debugging
+            throw new InvalidOperationException(
+                $"Error while searching for file in Firebase Storage folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}", ex);
+        }
     }
 
     #endregion

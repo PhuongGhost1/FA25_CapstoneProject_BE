@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
+using CusomMapOSM_Application.Interfaces.Features.Exports;
 using CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_API.Extensions;
@@ -220,6 +221,22 @@ public class SystemAdminEndpoint : IEndpoint
         //     .WithName("ResetSystemConfigurationBySystemAdmin")
         //     .WithSummary("Reset system configuration")
         //     .WithDescription("Reset system configuration to defaults (super admin only)");
+
+        // Export Approval Management
+        group.MapGet("/exports/pending-approval", GetPendingApprovalExportsBySystemAdmin)
+            .WithName("GetPendingApprovalExportsBySystemAdmin")
+            .WithSummary("Get pending approval exports")
+            .WithDescription("Retrieve all exports pending admin approval");
+
+        group.MapPost("/exports/{exportId:int}/approve", ApproveExportBySystemAdmin)
+            .WithName("ApproveExportBySystemAdmin")
+            .WithSummary("Approve export")
+            .WithDescription("Approve an export for download");
+
+        group.MapPost("/exports/{exportId:int}/reject", RejectExportBySystemAdmin)
+            .WithName("RejectExportBySystemAdmin")
+            .WithSummary("Reject export")
+            .WithDescription("Reject an export with a reason");
     }
 
     // System User Management
@@ -869,6 +886,66 @@ public class SystemAdminEndpoint : IEndpoint
         );
     }
 
+    // Export Approval Management
+    private static async Task<IResult> GetPendingApprovalExportsBySystemAdmin(
+        [FromServices] IExportService exportService,
+        ClaimsPrincipal user,
+        ISystemAdminService systemAdminService,
+        CancellationToken ct)
+    {
+        if (!await IsSystemAdmin(user, systemAdminService, ct))
+            return Results.Forbid();
+
+        var result = await exportService.GetPendingApprovalExportsAsync();
+        return result.Match(
+            some: data => Results.Ok(data),
+            none: error => error.ToProblemDetailsResult()
+        );
+    }
+
+    private static async Task<IResult> ApproveExportBySystemAdmin(
+        int exportId,
+        [FromServices] IExportService exportService,
+        ClaimsPrincipal user,
+        ISystemAdminService systemAdminService,
+        CancellationToken ct)
+    {
+        if (!await IsSystemAdmin(user, systemAdminService, ct))
+            return Results.Forbid();
+
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var adminUserId))
+            return Results.BadRequest("Invalid user ID");
+
+        var result = await exportService.ApproveExportAsync(exportId, adminUserId);
+        return result.Match(
+            some: data => Results.Ok(data),
+            none: error => error.ToProblemDetailsResult()
+        );
+    }
+
+    private static async Task<IResult> RejectExportBySystemAdmin(
+        int exportId,
+        [FromBody] RejectExportRequest request,
+        [FromServices] IExportService exportService,
+        ClaimsPrincipal user,
+        ISystemAdminService systemAdminService,
+        CancellationToken ct)
+    {
+        if (!await IsSystemAdmin(user, systemAdminService, ct))
+            return Results.Forbid();
+
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var adminUserId))
+            return Results.BadRequest("Invalid user ID");
+
+        var result = await exportService.RejectExportAsync(exportId, adminUserId, request.Reason);
+        return result.Match(
+            some: data => Results.Ok(data),
+            none: error => error.ToProblemDetailsResult()
+        );
+    }
+
     // Helper Methods
     private static async Task<bool> IsSystemAdmin(ClaimsPrincipal user, ISystemAdminService systemAdminService, CancellationToken ct)
     {
@@ -912,6 +989,11 @@ public record SystemAdminAssignTicketRequest
 }
 
 public record SystemAdminEscalateTicketRequest
+{
+    public required string Reason { get; set; }
+}
+
+public record RejectExportRequest
 {
     public required string Reason { get; set; }
 }

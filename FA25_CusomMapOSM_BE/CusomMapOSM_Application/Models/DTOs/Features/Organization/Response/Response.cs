@@ -123,3 +123,9 @@ public record TransferOwnershipResDto
 {
     public required string Result { get; set; }
 }
+
+public record ValidateOrganizationNameResDto
+{
+    public required bool IsAvailable { get; set; }
+    public required string Message { get; set; }
+}
