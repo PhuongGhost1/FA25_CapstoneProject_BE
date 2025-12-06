@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Exports;
+using CusomMapOSM_Domain.Entities.Exports.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -59,5 +60,36 @@ internal class ExportConfiguration : IEntityTypeConfiguration<Export>
             .HasColumnName("export_type")
             .HasConversion<string>()
             .HasMaxLength(50);
+
+        builder.Property(e => e.Status)
+            .HasColumnName("status")
+            .HasConversion<int>()
+            .IsRequired()
+            .HasDefaultValue(ExportStatusEnum.Pending);
+
+        builder.Property(e => e.ErrorMessage)
+            .HasColumnName("error_message")
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        builder.Property(e => e.ApprovedBy)
+            .HasColumnName("approved_by")
+            .HasColumnType("char(36)")
+            .IsRequired(false);
+
+        builder.Property(e => e.ApprovedAt)
+            .HasColumnName("approved_at")
+            .HasColumnType("datetime")
+            .IsRequired(false);
+
+        builder.Property(e => e.RejectionReason)
+            .HasColumnName("rejection_reason")
+            .HasMaxLength(500)
+            .IsRequired(false);
+
+        builder.Property(e => e.CompletedAt)
+            .HasColumnName("completed_at")
+            .HasColumnType("datetime")
+            .IsRequired(false);
     }
 }

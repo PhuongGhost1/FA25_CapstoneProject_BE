@@ -25,4 +25,5 @@ public interface IOrganizationService
     Task<Option<GetMyOrganizationsResDto, Error>> GetMyOrganizations();
     Task<Option<TransferOwnershipResDto, Error>> TransferOwnership(Guid orgId, TransferOwnershipReqDto req);
     Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request);
+    Task<Option<ValidateOrganizationNameResDto, Error>> ValidateOrganizationName(string orgName, Guid? excludeOrgId = null);
 }

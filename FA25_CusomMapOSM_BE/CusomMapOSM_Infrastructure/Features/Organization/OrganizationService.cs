@@ -56,6 +56,20 @@ public class OrganizationService : IOrganizationService
     {
         var currentUserId = _currentUserService.GetUserId()!.Value;
 
+        // Validate organization name uniqueness
+        if (string.IsNullOrWhiteSpace(req.OrgName))
+        {
+            return Option.None<OrganizationResDto, Error>(
+                Error.ValidationError("Organization.InvalidName", "Organization name cannot be empty"));
+        }
+
+        var nameExists = await _organizationRepository.IsOrganizationNameExists(req.OrgName, null);
+        if (nameExists)
+        {
+            return Option.None<OrganizationResDto, Error>(
+                Error.Conflict("Organization.NameAlreadyExists", $"Organization name '{req.OrgName}' is already taken"));
+        }
+
         var newOrg = new CusomMapOSM_Domain.Entities.Organizations.Organization()
         {
             OrgName = req.OrgName,
@@ -1176,6 +1190,33 @@ public class OrganizationService : IOrganizationService
         {
             return Option.None<BulkCreateStudentsResponse, Error>(
                 Error.Failure("BulkCreate.Failed", $"Failed to bulk create students: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<ValidateOrganizationNameResDto, Error>> ValidateOrganizationName(string orgName, Guid? excludeOrgId = null)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(orgName))
+            {
+                return Option.None<ValidateOrganizationNameResDto, Error>(
+                    Error.ValidationError("Organization.InvalidName", "Organization name cannot be empty"));
+            }
+
+            var exists = await _organizationRepository.IsOrganizationNameExists(orgName, excludeOrgId);
+            
+            return Option.Some<ValidateOrganizationNameResDto, Error>(new ValidateOrganizationNameResDto
+            {
+                IsAvailable = !exists,
+                Message = exists 
+                    ? $"Organization name '{orgName}' is already taken" 
+                    : $"Organization name '{orgName}' is available"
+            });
+        }
+        catch (Exception ex)
+        {
+            return Option.None<ValidateOrganizationNameResDto, Error>(
+                Error.Failure("Organization.ValidationFailed", $"Failed to validate organization name: {ex.Message}"));
         }
     }
 

@@ -20,10 +20,16 @@ public class Export
     public int FileSize { get; set; }
     public required Guid ExportTypeId { get; set; }
     public string QuotaType { get; set; } = "included";
+    public ExportStatusEnum Status { get; set; } = ExportStatusEnum.Pending;
+    public string? ErrorMessage { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? RejectionReason { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
 
-    public User User { get; set; } = new();
-    public Membership Membership { get; set; } = new();
-    public Map Map { get; set; } = new();
-    public ExportTypeEnum ExportType { get; set; } = new();
+    public User? User { get; set; }
+    public Membership? Membership { get; set; }
+    public Map? Map { get; set; }
+    public ExportTypeEnum ExportType { get; set; }
 }

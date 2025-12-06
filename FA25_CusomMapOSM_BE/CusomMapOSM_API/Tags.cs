@@ -23,4 +23,6 @@ internal static class Tags
     internal const string Osm = "OSM";
     internal const string Workspace = "Workspace";
     internal const string Home = "Home";
+    internal const string Comments = "Comments";
+    internal const string Bookmarks = "Bookmarks";
 }

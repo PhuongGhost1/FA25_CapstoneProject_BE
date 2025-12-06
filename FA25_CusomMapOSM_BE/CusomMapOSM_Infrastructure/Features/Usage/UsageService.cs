@@ -84,10 +84,10 @@ public class UsageService : IUsageService
             var quotaInfo = GetQuotaInfo(resourceType, usage, membership.Plan);
 
             var isAllowed = quotaInfo.IsUnlimited || (quotaInfo.CurrentUsage + requestedAmount <= quotaInfo.Limit);
-            var remainingQuota = quotaInfo.IsUnlimited ? int.MaxValue : Math.Max(0, quotaInfo.Limit - quotaInfo.CurrentUsage);
+            var remainingQuota = quotaInfo.IsUnlimited ? int.MaxValue : Math.Max(0, quotaInfo.Limit - quotaInfo.CurrentUsage - requestedAmount);
 
             var message = isAllowed
-                ? $"Quota check passed. {remainingQuota} {resourceType} remaining."
+                ? $"Quota check passed. {remainingQuota} {resourceType} remaining after this request."
                 : $"Quota exceeded. You have {quotaInfo.CurrentUsage}/{quotaInfo.Limit} {resourceType} used. Requested: {requestedAmount}";
 
             return Option.Some<CheckQuotaResponse, Error>(new CheckQuotaResponse

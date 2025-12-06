@@ -32,6 +32,8 @@ public class FirebaseStorageService : IFirebaseStorageService
                 var credentialsPath = configuration["Firebase:CredentialsPath"] 
                     ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
 
+                Console.WriteLine($"[FirebaseStorageService] Initial credentials path from config/env: {credentialsPath ?? "null"}");
+
                 // Tự động tìm file nếu không có đường dẫn
                 if (string.IsNullOrEmpty(credentialsPath))
                 {
@@ -39,9 +41,25 @@ public class FirebaseStorageService : IFirebaseStorageService
                     var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
                     var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
                     
+                    Console.WriteLine($"[FirebaseStorageService] Base directory: {baseDir}");
+                    Console.WriteLine($"[FirebaseStorageService] Solution root: {solutionRoot}");
+                    Console.WriteLine($"[FirebaseStorageService] Default path: {defaultPath}");
+                    Console.WriteLine($"[FirebaseStorageService] Default path exists: {File.Exists(defaultPath)}");
+                    
                     if (File.Exists(defaultPath))
                     {
                         credentialsPath = defaultPath;
+                        Console.WriteLine($"[FirebaseStorageService] Using default path: {credentialsPath}");
+                    }
+                }
+
+                Console.WriteLine($"[FirebaseStorageService] Final credentials path: {credentialsPath ?? "null"}");
+                if (!string.IsNullOrEmpty(credentialsPath))
+                {
+                    Console.WriteLine($"[FirebaseStorageService] Credentials file exists: {File.Exists(credentialsPath)}");
+                    if (File.Exists(credentialsPath))
+                    {
+                        Console.WriteLine($"[FirebaseStorageService] Credentials file full path: {Path.GetFullPath(credentialsPath)}");
                     }
                 }
 
@@ -53,12 +71,16 @@ public class FirebaseStorageService : IFirebaseStorageService
                         Credential = credential
                     });
                     _firebaseInitialized = true;
+                    Console.WriteLine($"[FirebaseStorageService] Firebase initialized successfully with credentials: {Path.GetFullPath(credentialsPath)}");
                 }
                 else
                 {
+                    var searchedPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"));
+                    Console.WriteLine($"[FirebaseStorageService] ERROR: Firebase credentials not found!");
+                    Console.WriteLine($"[FirebaseStorageService] Searched at: {searchedPath}");
                     throw new InvalidOperationException(
                         $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place firebase-service-account.json in solution root. " +
-                        $"Searched at: {Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"))}");
+                        $"Searched at: {searchedPath}");
                 }
             }
             else
@@ -67,31 +89,40 @@ public class FirebaseStorageService : IFirebaseStorageService
                 var credentialsPath = configuration["Firebase:CredentialsPath"] 
                     ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
                 
+                Console.WriteLine($"[FirebaseStorageService] FirebaseApp already exists. Getting credentials from: {credentialsPath ?? "null"}");
+                
                 if (string.IsNullOrEmpty(credentialsPath))
                 {
                     var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                     var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
                     var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
+                    Console.WriteLine($"[FirebaseStorageService] Checking default path: {defaultPath}");
+                    Console.WriteLine($"[FirebaseStorageService] Default path exists: {File.Exists(defaultPath)}");
                     if (File.Exists(defaultPath))
                     {
                         credentialsPath = defaultPath;
+                        Console.WriteLine($"[FirebaseStorageService] Using default path: {credentialsPath}");
                     }
                 }
 
                 if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
                 {
+                    Console.WriteLine($"[FirebaseStorageService] Loading credentials from: {Path.GetFullPath(credentialsPath)}");
                     credential = GoogleCredential.FromFile(credentialsPath);
                 }
                 else
                 {
                     // Fallback to default application credentials
+                    Console.WriteLine($"[FirebaseStorageService] Credentials file not found, trying default application credentials");
                     try
                     {
                         credential = GoogleCredential.GetApplicationDefault();
+                        Console.WriteLine($"[FirebaseStorageService] Successfully loaded default application credentials");
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        throw new InvalidOperationException("Failed to initialize Firebase credentials");
+                        Console.WriteLine($"[FirebaseStorageService] ERROR: Failed to load default application credentials: {ex.Message}");
+                        throw new InvalidOperationException("Failed to initialize Firebase credentials", ex);
                     }
                 }
             }
@@ -221,6 +252,50 @@ public class FirebaseStorageService : IFirebaseStorageService
         catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
         {
             return false;
+        }
+    }
+
+    public async Task<string?> FindFileByPatternAsync(string folder, string fileNamePattern)
+    {
+        try
+        {
+            // Ensure folder ends with / for proper prefix matching
+            var searchPrefix = folder.EndsWith("/") ? folder : folder + "/";
+            
+            // List all objects in the folder
+            // PagedEnumerable is enumerable synchronously, not asynchronously
+            var objects = _storageClient.ListObjects(_bucketName, searchPrefix);
+            
+            int count = 0;
+            foreach (var obj in objects)
+            {
+                count++;
+                // Check if the object name contains the filename pattern
+                // Firebase stores files as: {folder}/{guid}_{timestamp}_{filename}
+                // So we search for files containing the filename
+                if (obj.Name.Contains(fileNamePattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Generate public URL for the found file
+                    var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(obj.Name)}?alt=media";
+                    return url;
+                }
+            }
+            
+            // If no files found, return null
+            return null;
+        }
+        catch (Google.GoogleApiException ex)
+        {
+            // Log the error for debugging - this might indicate permission issues
+            throw new InvalidOperationException(
+                $"Firebase Storage API error while searching for file in folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}. " +
+                $"Status Code: {ex.HttpStatusCode}. Make sure Firebase credentials are properly configured and have Storage access permissions.", ex);
+        }
+        catch (Exception ex)
+        {
+            // Log the error for debugging
+            throw new InvalidOperationException(
+                $"Error while searching for file in Firebase Storage folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}", ex);
         }
     }
 }
