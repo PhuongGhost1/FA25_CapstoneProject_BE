@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using CusomMapOSM_Domain.Entities.Sessions.Enums;
+using System.Collections.Generic;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.Sessions.Request;
 
@@ -8,7 +9,7 @@ public class CreateSessionRequest
     [Required]
     public Guid MapId { get; set; }
 
-    public Guid? QuestionBankId { get; set; }
+    public List<Guid>? QuestionBankId { get; set; }
 
     [Required]
     [StringLength(200)]
