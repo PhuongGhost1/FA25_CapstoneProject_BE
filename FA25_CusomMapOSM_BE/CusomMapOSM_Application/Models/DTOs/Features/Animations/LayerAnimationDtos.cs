@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace CusomMapOSM_Application.Models.DTOs.Features.Animations;
 
 public record LayerAnimationDto(
@@ -16,7 +18,7 @@ public record LayerAnimationDto(
 public record CreateLayerAnimationRequest(
     Guid LayerId,
     string Name,
-    string SourceUrl,
+    IFormFile AnimationFile,
     string? Coordinates,
     double RotationDeg,
     double Scale,
@@ -24,7 +26,7 @@ public record CreateLayerAnimationRequest(
 
 public record UpdateLayerAnimationRequest(
     string Name,
-    string SourceUrl,
+    IFormFile AnimationFile,
     string? Coordinates,
     double RotationDeg,
     double Scale,

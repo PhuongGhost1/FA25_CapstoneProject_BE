@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Sessions;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Sessions.Request;
@@ -144,9 +144,20 @@ public class SessionService : ISessionService
                 Error.NotFound("Session.NotFound", "Session not found"));
         }
 
-        // Get first question bank attached to this session (if any)
+        // Get all question banks attached to this session
         var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(session.SessionId);
-        var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+        var questionBanks = sessionQuestionBanks
+            .Where(sqb => sqb.QuestionBank != null)
+            .Select(sqb => new QuestionBankInfo
+            {
+                QuestionBankId = sqb.QuestionBank!.QuestionBankId,
+                QuestionBankName = sqb.QuestionBank.BankName,
+                Description = sqb.QuestionBank.Description,
+                Category = sqb.QuestionBank.Category,
+                TotalQuestions = sqb.QuestionBank.TotalQuestions,
+                AttachedAt = sqb.AttachedAt
+            })
+            .ToList();
 
         return Option.Some<GetSessionResponse, Error>(new GetSessionResponse
         {
@@ -158,8 +169,7 @@ public class SessionService : ISessionService
             Status = session.Status,
             MapId = session.MapId,
             MapName = session.Map?.MapName ?? string.Empty,
-            QuestionBankId = firstQuestionBank?.QuestionBankId,
-            QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
+            QuestionBanks = questionBanks,
             HostUserId = session.HostUserId,
             HostUserName = session.HostUser?.FullName ?? string.Empty,
             MaxParticipants = session.MaxParticipants,
@@ -201,9 +211,19 @@ public class SessionService : ISessionService
         var response = new List<GetSessionResponse>();
         foreach (var s in sessions)
         {
-            // Get first question bank attached to this session (if any)
             var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(s.SessionId);
-            var firstQuestionBank = sessionQuestionBanks.FirstOrDefault()?.QuestionBank;
+            var questionBanks = sessionQuestionBanks
+                .Where(sqb => sqb.QuestionBank != null)
+                .Select(sqb => new QuestionBankInfo
+                {
+                    QuestionBankId = sqb.QuestionBank!.QuestionBankId,
+                    QuestionBankName = sqb.QuestionBank.BankName,
+                    Description = sqb.QuestionBank.Description,
+                    Category = sqb.QuestionBank.Category,
+                    TotalQuestions = sqb.QuestionBank.TotalQuestions,
+                    AttachedAt = sqb.AttachedAt
+                })
+                .ToList();
 
             response.Add(new GetSessionResponse
             {
@@ -215,8 +235,7 @@ public class SessionService : ISessionService
                 Status = s.Status,
                 MapId = s.MapId,
                 MapName = s.Map?.MapName ?? string.Empty,
-                QuestionBankId = firstQuestionBank?.QuestionBankId,
-                QuestionBankName = firstQuestionBank?.BankName ?? string.Empty,
+                QuestionBanks = questionBanks,
                 HostUserId = s.HostUserId,
                 HostUserName = s.HostUser?.FullName ?? string.Empty,
                 TotalParticipants = s.TotalParticipants,
@@ -425,25 +444,28 @@ public class SessionService : ISessionService
 
         var currentUserId = _currentUserService.GetUserId();
 
-        // Check if user already joined
+        string participantKey;
         if (currentUserId != null)
         {
-            var alreadyJoined =
-                await _participantRepository.CheckUserAlreadyJoined(session.SessionId, currentUserId.Value);
+            participantKey = GenerateParticipantKeyForUser(currentUserId.Value, session.SessionId);
+            var alreadyJoined = await _participantRepository.CheckParticipantKeyExistsInSession(session.SessionId, participantKey);
             if (alreadyJoined)
             {
                 return Option.None<JoinSessionResponse, Error>(
                     Error.Conflict("Session.AlreadyJoined", "You have already joined this session"));
             }
         }
+        else
+        {
+            participantKey = GenerateGuestParticipantKey();
+        }
 
-        // Create participant
         var participant = new SessionParticipant
         {
             SessionParticipantId = Guid.NewGuid(),
             SessionId = session.SessionId,
-            UserId = currentUserId,
             DisplayName = request.DisplayName,
+            ParticipantKey = participantKey,
             IsGuest = currentUserId == null,
             DeviceInfo = request.DeviceInfo,
             JoinedAt = DateTime.UtcNow,
@@ -535,6 +557,14 @@ public class SessionService : ISessionService
         var participants = await _participantRepository.GetLeaderboard(sessionId, limit);
         var currentUserId = _currentUserService.GetUserId();
 
+        // Find current user's participant in this session if authenticated
+        string? currentUserParticipantKey = null;
+        if (currentUserId != null)
+        {
+            // Generate the same key used when joining
+            currentUserParticipantKey = GenerateParticipantKeyForUser(currentUserId.Value, sessionId);
+        }
+
         var leaderboard = participants.Select((p, index) => new ResponseLeaderboardEntry
         {
             Rank = index + 1,
@@ -544,7 +574,8 @@ public class SessionService : ISessionService
             TotalCorrect = p.TotalCorrect,
             TotalAnswered = p.TotalAnswered,
             AverageResponseTime = p.AverageResponseTime,
-            IsCurrentUser = currentUserId != null && p.UserId == currentUserId.Value
+            // Mark as current user if ParticipantKey matches
+            IsCurrentUser = currentUserParticipantKey != null && p.ParticipantKey == currentUserParticipantKey
         }).ToList();
 
         return Option.Some<LeaderboardResponse, Error>(new LeaderboardResponse
@@ -775,6 +806,7 @@ public class SessionService : ISessionService
         }
         bool isCorrect = false;
         decimal? distanceError = null;
+        QuestionOption? selectedOption = null; // Store selected option for event broadcasting
 
         // Validate and score based on question type
         switch (question.QuestionType)
@@ -787,14 +819,14 @@ public class SessionService : ISessionService
                         Error.ValidationError("Response.MissingOption", "Question option is required"));
                 }
 
-                var option = questionOptions?.FirstOrDefault(o => o.QuestionOptionId == request.QuestionOptionId);
-                if (option == null)
+                selectedOption = questionOptions?.FirstOrDefault(o => o.QuestionOptionId == request.QuestionOptionId);
+                if (selectedOption == null)
                 {
                     return Option.None<SubmitResponseResponse, Error>(
                         Error.ValidationError("Response.InvalidOption", "Invalid question option"));
                 }
 
-                isCorrect = option.IsCorrect;
+                isCorrect = selectedOption.IsCorrect;
                 break;
 
             case QuestionTypeEnum.SHORT_ANSWER:
@@ -911,7 +943,7 @@ public class SessionService : ISessionService
         // Get total responses for this question
         var totalResponses = await _responseRepository.GetTotalResponseCount(request.SessionQuestionId);
 
-        // Broadcast response submitted event
+        // Broadcast response submitted event with detailed answer content for teacher
         await _sessionHubContext.Clients.Group($"session:{participant.SessionId}")
             .SendAsync("ResponseSubmitted", new ResponseSubmittedEvent
             {
@@ -922,7 +954,14 @@ public class SessionService : ISessionService
                 PointsEarned = pointsEarned,
                 ResponseTimeSeconds = request.ResponseTimeSeconds,
                 TotalResponses = totalResponses,
-                SubmittedAt = response.SubmittedAt
+                SubmittedAt = response.SubmittedAt,
+                // Answer content details for teacher to see in real-time
+                QuestionOptionId = request.QuestionOptionId,
+                OptionText = selectedOption?.OptionText,
+                ResponseText = request.ResponseText,
+                ResponseLatitude = request.ResponseLatitude,
+                ResponseLongitude = request.ResponseLongitude,
+                DistanceErrorMeters = distanceError
             });
 
         // Get and broadcast updated leaderboard
@@ -943,6 +982,9 @@ public class SessionService : ISessionService
                 }).ToList(),
                 UpdatedAt = DateTime.UtcNow
             });
+
+        // Broadcast updated question responses list (realtime for teacher to see who answered what)
+        await BroadcastQuestionResponsesUpdate(request.SessionQuestionId, participant.SessionId);
 
         return Option.Some<SubmitResponseResponse, Error>(new SubmitResponseResponse
         {
@@ -1090,6 +1132,46 @@ public class SessionService : ISessionService
         });
     }
 
+    public async Task<Option<QuestionResponsesResponse, Error>> GetQuestionResponses(Guid sessionQuestionId)
+    {
+        // Validate session question exists
+        var sessionQuestion = await _sessionQuestionRepository.GetSessionQuestionById(sessionQuestionId);
+        if (sessionQuestion == null)
+        {
+            return Option.None<QuestionResponsesResponse, Error>(
+                Error.NotFound("SessionQuestion.NotFound", "Session question not found"));
+        }
+
+        // Get all responses with participant and option details
+        var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
+
+        // Map responses to DTOs
+        var answerDetails = responses.Select(response => new StudentAnswerDetailDto
+        {
+            StudentResponseId = response.StudentResponseId,
+            ParticipantId = response.SessionParticipantId,
+            DisplayName = response.SessionParticipant?.DisplayName ?? "Unknown",
+            IsCorrect = response.IsCorrect,
+            PointsEarned = response.PointsEarned,
+            ResponseTimeSeconds = response.ResponseTimeSeconds,
+            SubmittedAt = response.SubmittedAt,
+            // Answer content based on question type
+            QuestionOptionId = response.QuestionOptionId,
+            OptionText = response.QuestionOption?.OptionText,
+            ResponseText = response.ResponseText,
+            ResponseLatitude = response.ResponseLatitude,
+            ResponseLongitude = response.ResponseLongitude,
+            DistanceErrorMeters = response.DistanceErrorMeters
+        }).ToList();
+
+        return Option.Some<QuestionResponsesResponse, Error>(new QuestionResponsesResponse
+        {
+            SessionQuestionId = sessionQuestionId,
+            TotalResponses = responses.Count,
+            Answers = answerDetails
+        });
+    }
+
     // Helper method to calculate distance between two points (Haversine formula)
     private decimal CalculateDistance(double lat1, double lon1, double lat2, double lon2)
     {
@@ -1110,5 +1192,57 @@ public class SessionService : ISessionService
     private double ToRadians(double degrees)
     {
         return degrees * Math.PI / 180;
+    }
+
+    private async Task BroadcastQuestionResponsesUpdate(Guid sessionQuestionId, Guid sessionId)
+    {
+            var responses = await _responseRepository.GetResponsesBySessionQuestion(sessionQuestionId);
+
+            // Map responses to event DTOs
+            var answerDetails = responses.Select(response => new StudentAnswerDetailEvent
+            {
+                StudentResponseId = response.StudentResponseId,
+                ParticipantId = response.SessionParticipantId,
+                DisplayName = response.SessionParticipant?.DisplayName ?? "Unknown",
+                IsCorrect = response.IsCorrect,
+                PointsEarned = response.PointsEarned,
+                ResponseTimeSeconds = response.ResponseTimeSeconds,
+                SubmittedAt = response.SubmittedAt,
+                // Answer content based on question type
+                QuestionOptionId = response.QuestionOptionId,
+                OptionText = response.QuestionOption?.OptionText,
+                ResponseText = response.ResponseText,
+                ResponseLatitude = response.ResponseLatitude,
+                ResponseLongitude = response.ResponseLongitude,
+                DistanceErrorMeters = response.DistanceErrorMeters
+            }).ToList();
+
+            var updateEvent = new QuestionResponsesUpdateEvent
+            {
+                SessionQuestionId = sessionQuestionId,
+                SessionId = sessionId,
+                TotalResponses = responses.Count,
+                Answers = answerDetails,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Broadcast to all participants in the session
+            await _sessionHubContext.Clients.Group($"session:{sessionId}")
+                .SendAsync("QuestionResponsesUpdate", updateEvent);
+
+    }
+
+
+    private string GenerateParticipantKeyForUser(Guid userId, Guid sessionId)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var keyBytes = System.Text.Encoding.UTF8.GetBytes($"{userId}:{sessionId}");
+        var hashBytes = sha256.ComputeHash(keyBytes);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private string GenerateGuestParticipantKey()
+    {
+        return Guid.NewGuid().ToString("N");
     }
 }

@@ -2,6 +2,8 @@ using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Services.Maps;
+using CusomMapOSM_Application.Interfaces.Services.Organization;
+using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Infrastructure.Features.Maps;
 using FluentAssertions;
@@ -16,12 +18,19 @@ public class MapHistoryServiceTests
 {
     private readonly Mock<IMapHistoryStore> _mockStore;
     private readonly MapHistoryService _mapHistoryService;
+    private readonly Mock<IOrganizationPermissionService> _mockOrganizationPermissionService;
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Faker _faker;
 
     public MapHistoryServiceTests()
     {
         _mockStore = new Mock<IMapHistoryStore>();
-        _mapHistoryService = new MapHistoryService(_mockStore.Object);
+        _mockOrganizationPermissionService = new Mock<IOrganizationPermissionService>();
+        _mockCurrentUserService = new Mock<ICurrentUserService>();
+        _mapHistoryService = new MapHistoryService(
+            _mockStore.Object,
+            _mockOrganizationPermissionService.Object,
+            _mockCurrentUserService.Object);
         _faker = new Faker();
     }
 

@@ -14,7 +14,7 @@ using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspace;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using CusomMapOSM_Infrastructure.Services;
 using FluentAssertions;

@@ -33,7 +33,6 @@ public class StudentResponseRepository : IStudentResponseRepository
     {
         return await _context.StudentResponses
             .Include(sr => sr.SessionParticipant)
-                .ThenInclude(sp => sp!.User)
             .Include(sr => sr.QuestionOption)
             .Where(sr => sr.SessionQuestionId == sessionQuestionId)
             .OrderBy(sr => sr.SubmittedAt)
@@ -106,7 +105,6 @@ public class StudentResponseRepository : IStudentResponseRepository
     {
         return await _context.StudentResponses
             .Include(sr => sr.SessionParticipant)
-                .ThenInclude(sp => sp!.User)
             .Where(sr => sr.SessionQuestionId == sessionQuestionId &&
                         sr.ResponseLatitude.HasValue &&
                         sr.ResponseLongitude.HasValue)

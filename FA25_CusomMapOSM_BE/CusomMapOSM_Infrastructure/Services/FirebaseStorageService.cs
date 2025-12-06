@@ -11,131 +11,103 @@ public class FirebaseStorageService : IFirebaseStorageService
 {
     private readonly StorageClient _storageClient;
     private readonly string _bucketName;
+    
     private static readonly object _firebaseInitLock = new object();
     private static bool _firebaseInitialized = false;
 
+    private const string DefaultFolder = "blog";
+    private const string CredentialsFileName = "firebase-service-account.json";
+
     public FirebaseStorageService(IConfiguration configuration)
     {
-        var bucketName = configuration["Firebase:StorageBucket"] 
-            ?? Environment.GetEnvironmentVariable("FIREBASE_STORAGE_BUCKET") 
-            ?? throw new InvalidOperationException("Firebase Storage Bucket is not configured");
+        _bucketName = GetBucketName(configuration);
+        
+        InitializeFirebase(configuration);
+        
+        var credential = GetGoogleCredential(configuration);
+        _storageClient = StorageClient.Create(credential);
+    }
 
-        _bucketName = bucketName;
-        
-        GoogleCredential credential = null;
-        
-        // Thread-safe initialization of FirebaseApp
+    #region Initialization
+
+    private string GetBucketName(IConfiguration configuration)
+    {
+        return configuration["Firebase:StorageBucket"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_STORAGE_BUCKET")
+            ?? throw new InvalidOperationException("Firebase Storage Bucket is not configured");
+    }
+
+    private void InitializeFirebase(IConfiguration configuration)
+    {
         lock (_firebaseInitLock)
         {
             if (FirebaseApp.DefaultInstance == null)
             {
-                var credentialsPath = configuration["Firebase:CredentialsPath"] 
-                    ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
-
-                Console.WriteLine($"[FirebaseStorageService] Initial credentials path from config/env: {credentialsPath ?? "null"}");
-
-                // Tự động tìm file nếu không có đường dẫn
-                if (string.IsNullOrEmpty(credentialsPath))
-                {
-                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
-                    var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
-                    
-                    Console.WriteLine($"[FirebaseStorageService] Base directory: {baseDir}");
-                    Console.WriteLine($"[FirebaseStorageService] Solution root: {solutionRoot}");
-                    Console.WriteLine($"[FirebaseStorageService] Default path: {defaultPath}");
-                    Console.WriteLine($"[FirebaseStorageService] Default path exists: {File.Exists(defaultPath)}");
-                    
-                    if (File.Exists(defaultPath))
-                    {
-                        credentialsPath = defaultPath;
-                        Console.WriteLine($"[FirebaseStorageService] Using default path: {credentialsPath}");
-                    }
-                }
-
-                Console.WriteLine($"[FirebaseStorageService] Final credentials path: {credentialsPath ?? "null"}");
-                if (!string.IsNullOrEmpty(credentialsPath))
-                {
-                    Console.WriteLine($"[FirebaseStorageService] Credentials file exists: {File.Exists(credentialsPath)}");
-                    if (File.Exists(credentialsPath))
-                    {
-                        Console.WriteLine($"[FirebaseStorageService] Credentials file full path: {Path.GetFullPath(credentialsPath)}");
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
-                {
-                    credential = GoogleCredential.FromFile(credentialsPath);
-                    FirebaseApp.Create(new AppOptions
-                    {
-                        Credential = credential
-                    });
-                    _firebaseInitialized = true;
-                    Console.WriteLine($"[FirebaseStorageService] Firebase initialized successfully with credentials: {Path.GetFullPath(credentialsPath)}");
-                }
-                else
+                var credentialsPath = ResolveCredentialsPath(configuration);
+                
+                if (string.IsNullOrEmpty(credentialsPath) || !File.Exists(credentialsPath))
                 {
                     var searchedPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "firebase-service-account.json"));
                     Console.WriteLine($"[FirebaseStorageService] ERROR: Firebase credentials not found!");
                     Console.WriteLine($"[FirebaseStorageService] Searched at: {searchedPath}");
                     throw new InvalidOperationException(
-                        $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place firebase-service-account.json in solution root. " +
-                        $"Searched at: {searchedPath}");
-                }
-            }
-            else
-            {
-                // FirebaseApp already exists, get credential from file if needed
-                var credentialsPath = configuration["Firebase:CredentialsPath"] 
-                    ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
-                
-                Console.WriteLine($"[FirebaseStorageService] FirebaseApp already exists. Getting credentials from: {credentialsPath ?? "null"}");
-                
-                if (string.IsNullOrEmpty(credentialsPath))
-                {
-                    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    var solutionRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
-                    var defaultPath = Path.Combine(solutionRoot, "firebase-service-account.json");
-                    Console.WriteLine($"[FirebaseStorageService] Checking default path: {defaultPath}");
-                    Console.WriteLine($"[FirebaseStorageService] Default path exists: {File.Exists(defaultPath)}");
-                    if (File.Exists(defaultPath))
-                    {
-                        credentialsPath = defaultPath;
-                        Console.WriteLine($"[FirebaseStorageService] Using default path: {credentialsPath}");
-                    }
+                        $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_PATH or place {CredentialsFileName} in solution root.");
                 }
 
-                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
-                {
-                    Console.WriteLine($"[FirebaseStorageService] Loading credentials from: {Path.GetFullPath(credentialsPath)}");
-                    credential = GoogleCredential.FromFile(credentialsPath);
-                }
-                else
-                {
-                    // Fallback to default application credentials
-                    Console.WriteLine($"[FirebaseStorageService] Credentials file not found, trying default application credentials");
-                    try
-                    {
-                        credential = GoogleCredential.GetApplicationDefault();
-                        Console.WriteLine($"[FirebaseStorageService] Successfully loaded default application credentials");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[FirebaseStorageService] ERROR: Failed to load default application credentials: {ex.Message}");
-                        throw new InvalidOperationException("Failed to initialize Firebase credentials", ex);
-                    }
-                }
+                var credential = GoogleCredential.FromFile(credentialsPath);
+                FirebaseApp.Create(new AppOptions { Credential = credential });
+                _firebaseInitialized = true;
             }
         }
-
-        // Tạo StorageClient với credentials
-        _storageClient = StorageClient.Create(credential);
     }
+
+    private GoogleCredential GetGoogleCredential(IConfiguration configuration)
+    {
+        var credentialsPath = ResolveCredentialsPath(configuration);
+
+        if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+        {
+            return GoogleCredential.FromFile(credentialsPath);
+        }
+
+        try
+        {
+            return GoogleCredential.GetApplicationDefault();
+        }
+        catch
+        {
+            throw new InvalidOperationException("Failed to initialize Firebase credentials");
+        }
+    }
+
+    private string ResolveCredentialsPath(IConfiguration configuration)
+    {
+        var configPath = configuration["Firebase:CredentialsPath"]
+            ?? Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_PATH");
+
+        if (!string.IsNullOrEmpty(configPath))
+        {
+            return configPath;
+        }
+
+        var defaultPath = Path.Combine(GetSolutionRoot(), CredentialsFileName);
+        return File.Exists(defaultPath) ? defaultPath : null;
+    }
+
+    private static string GetSolutionRoot()
+    {
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        return Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", ".."));
+    }
+
+    #endregion
+
+    #region Content Type
 
     private static string GetContentType(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        
+
         return extension switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
@@ -164,66 +136,37 @@ public class FirebaseStorageService : IFirebaseStorageService
         };
     }
 
+    #endregion
+
+    #region File Operations
+
     public async Task<string> UploadFileAsync(string fileName, Stream fileStream)
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var uniqueFileName = $"blog/{Guid.NewGuid()}_{timestamp}_{fileName}";
-        
-        var contentType = GetContentType(fileName);
-        
-        await _storageClient.UploadObjectAsync(
-            bucket: _bucketName,
-            objectName: uniqueFileName,
-            contentType: contentType,
-            source: fileStream);
-        
-        // Get public URL
-        var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(uniqueFileName)}?alt=media";
-        
-        return url;
+        return await UploadFileAsync(fileName, fileStream, DefaultFolder);
     }
 
     public async Task<string> UploadFileAsync(string fileName, Stream fileStream, string folder)
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var uniqueFileName = $"{folder}/{Guid.NewGuid()}_{timestamp}_{fileName}";
-        
+        var uniqueFileName = GenerateUniqueFileName(fileName, folder);
         var contentType = GetContentType(fileName);
-        
+
         await _storageClient.UploadObjectAsync(
             bucket: _bucketName,
             objectName: uniqueFileName,
             contentType: contentType,
             source: fileStream);
-        
-        // Get public URL
-        var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(uniqueFileName)}?alt=media";
-        
-        return url;
+
+        return GeneratePublicUrl(uniqueFileName);
     }
 
     public async Task<string> DownloadFileAsync(string fileName)
     {
-        // Extract object name from full path if it's a URL
-        var objectName = fileName;
-        if (fileName.Contains("/o/"))
-        {
-            var parts = fileName.Split(new[] { "/o/" }, StringSplitOptions.None);
-            if (parts.Length > 1)
-            {
-                var encodedName = parts[1].Split('?')[0];
-                objectName = Uri.UnescapeDataString(encodedName);
-            }
-        }
+        var objectName = ExtractObjectName(fileName);
 
         try
         {
-            var obj = await _storageClient.GetObjectAsync(_bucketName, objectName);
-            
-            // Generate public URL
-            var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(objectName)}?alt=media";
-            
-            return url;
+            await _storageClient.GetObjectAsync(_bucketName, objectName);
+            return GeneratePublicUrl(objectName);
         }
         catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
         {
@@ -233,16 +176,7 @@ public class FirebaseStorageService : IFirebaseStorageService
 
     public async Task<bool> DeleteFileAsync(string fileName)
     {
-        var objectName = fileName;
-        if (fileName.Contains("/o/"))
-        {
-            var parts = fileName.Split(new[] { "/o/" }, StringSplitOptions.None);
-            if (parts.Length > 1)
-            {
-                var encodedName = parts[1].Split('?')[0];
-                objectName = Uri.UnescapeDataString(encodedName);
-            }
-        }
+        var objectName = ExtractObjectName(fileName);
 
         try
         {
@@ -255,48 +189,38 @@ public class FirebaseStorageService : IFirebaseStorageService
         }
     }
 
-    public async Task<string?> FindFileByPatternAsync(string folder, string fileNamePattern)
-    {
-        try
-        {
-            // Ensure folder ends with / for proper prefix matching
-            var searchPrefix = folder.EndsWith("/") ? folder : folder + "/";
-            
-            // List all objects in the folder
-            // PagedEnumerable is enumerable synchronously, not asynchronously
-            var objects = _storageClient.ListObjects(_bucketName, searchPrefix);
-            
-            int count = 0;
-            foreach (var obj in objects)
-            {
-                count++;
-                // Check if the object name contains the filename pattern
-                // Firebase stores files as: {folder}/{guid}_{timestamp}_{filename}
-                // So we search for files containing the filename
-                if (obj.Name.Contains(fileNamePattern, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Generate public URL for the found file
-                    var url = $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(obj.Name)}?alt=media";
-                    return url;
-                }
-            }
-            
-            // If no files found, return null
-            return null;
-        }
-        catch (Google.GoogleApiException ex)
-        {
-            // Log the error for debugging - this might indicate permission issues
-            throw new InvalidOperationException(
-                $"Firebase Storage API error while searching for file in folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}. " +
-                $"Status Code: {ex.HttpStatusCode}. Make sure Firebase credentials are properly configured and have Storage access permissions.", ex);
-        }
-        catch (Exception ex)
-        {
-            // Log the error for debugging
-            throw new InvalidOperationException(
-                $"Error while searching for file in Firebase Storage folder '{folder}' with pattern '{fileNamePattern}': {ex.Message}", ex);
-        }
-    }
-}
+    #endregion
 
+    #region Helpers
+
+    private string GenerateUniqueFileName(string fileName, string folder)
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        return $"{folder}/{Guid.NewGuid()}_{timestamp}_{fileName}";
+    }
+
+    private string GeneratePublicUrl(string objectName)
+    {
+        var encodedName = Uri.EscapeDataString(objectName);
+        return $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{encodedName}?alt=media";
+    }
+
+    private static string ExtractObjectName(string fileNameOrUrl)
+    {
+        if (!fileNameOrUrl.Contains("/o/"))
+        {
+            return fileNameOrUrl;
+        }
+
+        var parts = fileNameOrUrl.Split(new[] { "/o/" }, StringSplitOptions.None);
+        if (parts.Length <= 1)
+        {
+            return fileNameOrUrl;
+        }
+
+        var encodedName = parts[1].Split('?')[0];
+        return Uri.UnescapeDataString(encodedName);
+    }
+
+    #endregion
+}

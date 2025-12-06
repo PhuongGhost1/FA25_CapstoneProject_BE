@@ -60,29 +60,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "membership_usages",
-                columns: table => new
-                {
-                    usage_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    membership_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    org_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    maps_created_this_cycle = table.Column<int>(type: "int", nullable: false),
-                    exports_this_cycle = table.Column<int>(type: "int", nullable: false),
-                    active_users_in_org = table.Column<int>(type: "int", nullable: false),
-                    feature_flags = table.Column<string>(type: "json", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    cycle_start_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    cycle_end_date = table.Column<DateTime>(type: "datetime", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_membership_usages", x => x.usage_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "payment_gateways",
                 columns: table => new
                 {
@@ -495,6 +472,41 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "membership_usages",
+                columns: table => new
+                {
+                    usage_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    membership_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    org_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    maps_created_this_cycle = table.Column<int>(type: "int", nullable: false),
+                    exports_this_cycle = table.Column<int>(type: "int", nullable: false),
+                    active_users_in_org = table.Column<int>(type: "int", nullable: false),
+                    feature_flags = table.Column<string>(type: "json", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    cycle_start_date = table.Column<DateTime>(type: "datetime", nullable: false),
+                    cycle_end_date = table.Column<DateTime>(type: "datetime", nullable: false),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_membership_usages", x => x.usage_id);
+                    table.ForeignKey(
+                        name: "FK_membership_usages_memberships_membership_id",
+                        column: x => x.membership_id,
+                        principalTable: "memberships",
+                        principalColumn: "membership_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_membership_usages_organizations_org_id",
+                        column: x => x.org_id,
+                        principalTable: "organizations",
+                        principalColumn: "org_id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "organization_members",
                 columns: table => new
                 {
@@ -866,38 +878,11 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "map_question_banks",
-                columns: table => new
-                {
-                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    question_bank_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    assigned_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_map_question_banks", x => new { x.map_id, x.question_bank_id });
-                    table.ForeignKey(
-                        name: "FK_map_question_banks_maps_map_id",
-                        column: x => x.map_id,
-                        principalTable: "maps",
-                        principalColumn: "map_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_map_question_banks_question_banks_question_bank_id",
-                        column: x => x.question_bank_id,
-                        principalTable: "question_banks",
-                        principalColumn: "question_bank_id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "sessions",
                 columns: table => new
                 {
                     session_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    question_bank_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     host_user_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     session_code = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -931,12 +916,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         column: x => x.map_id,
                         principalTable: "maps",
                         principalColumn: "map_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_sessions_question_banks_question_bank_id",
-                        column: x => x.question_bank_id,
-                        principalTable: "question_banks",
-                        principalColumn: "question_bank_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_sessions_users_host_user_id",
@@ -1494,8 +1473,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 {
                     session_participant_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     session_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    user_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     display_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    participant_key = table.Column<string>(type: "varchar(64)", maxLength: 64, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     is_guest = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     joined_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
@@ -1522,12 +1502,33 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         principalTable: "sessions",
                         principalColumn: "session_id",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "session_question_banks",
+                columns: table => new
+                {
+                    session_question_bank_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    session_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    question_bank_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    attached_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_session_question_banks", x => x.session_question_bank_id);
                     table.ForeignKey(
-                        name: "FK_session_participants_users_user_id",
-                        column: x => x.user_id,
-                        principalTable: "users",
-                        principalColumn: "user_id",
-                        onDelete: ReferentialAction.SetNull);
+                        name: "FK_session_question_banks_question_banks_question_bank_id",
+                        column: x => x.question_bank_id,
+                        principalTable: "question_banks",
+                        principalColumn: "question_bank_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_session_question_banks_sessions_session_id",
+                        column: x => x.session_id,
+                        principalTable: "sessions",
+                        principalColumn: "session_id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1780,9 +1781,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: new[] { "plan_id", "Allow3DEffects", "AllowAnimatedConnections", "AllowAudioContent", "AllowVideoContent", "created_at", "description", "duration_months", "export_quota", "features", "is_active", "map_quota", "MaxAudioFileSizeBytes", "MaxConnectionsPerMap", "max_custom_layers", "MaxInteractionsPerMap", "max_locations_per_org", "max_maps_per_month", "MaxMediaFileSizeBytes", "max_organizations", "max_users_per_org", "MaxVideoFileSizeBytes", "monthly_tokens", "plan_name", "price_monthly", "priority_support", "updated_at" },
                 values: new object[,]
                 {
-                    { 1, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Basic features for individual users", 1, 5, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true}", true, 10, 20971520L, 100, 3, 50, 1, 5, 10485760L, 1, 1, 104857600L, 5000, "Free", 0.00m, false, null },
-                    { 2, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses", 1, 200, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true}", true, 200, 20971520L, 100, 50, 50, 20, 100, 10485760L, 5, 20, 104857600L, 50000, "Pro", 29.99m, true, null },
-                    { 3, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution for large organizations", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true}", true, -1, 20971520L, 100, -1, 50, -1, -1, 10485760L, -1, -1, 104857600L, 200000, "Enterprise", 99.99m, true, null }
+                    { 1, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Perfect for getting started. Explore basic mapping features at no cost.", 1, 10, "{\"templates\": true, \"basic_export\": true, \"public_maps\": true, \"basic_collaboration\": true}", true, 20, 20971520L, 100, 5, 50, 5, 10, 10485760L, 1, 3, 104857600L, 10000, "Free", 0.00m, false, null },
+                    { 2, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Ideal for small teams and individual professionals who need more features.", 1, 100, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"private_maps\": true, \"advanced_layers\": true}", true, 100, 20971520L, 100, 20, 50, 10, 50, 10485760L, 2, 10, 104857600L, 30000, "Basic", 9.99m, false, null },
+                    { 3, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Advanced features for growing businesses and professional teams.", 1, 500, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"advanced_analytics\": true, \"custom_branding\": true}", true, 500, 20971520L, 100, 100, 50, 50, 200, 10485760L, 10, 50, 104857600L, 100000, "Pro", 29.99m, true, null },
+                    { 4, false, true, true, true, new DateTime(2025, 8, 6, 1, 0, 0, 0, DateTimeKind.Utc), "Full-featured solution with unlimited resources for large organizations.", 1, -1, "{\"templates\": true, \"all_export_formats\": true, \"collaboration\": true, \"data_import\": true, \"analytics\": true, \"version_history\": true, \"api_access\": true, \"white_label\": true, \"sso\": true, \"dedicated_support\": true, \"custom_integrations\": true, \"advanced_security\": true}", true, -1, 20971520L, 100, -1, 50, -1, -1, 10485760L, -1, -1, 104857600L, 500000, "Enterprise", 149.99m, true, null }
                 });
 
             migrationBuilder.InsertData(
@@ -1931,11 +1933,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "map_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_map_question_banks_question_bank_id",
-                table: "map_question_banks",
-                column: "question_bank_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_maps_parent_map_id",
                 table: "maps",
                 column: "parent_map_id");
@@ -1949,6 +1946,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_maps_workspace_id",
                 table: "maps",
                 column: "workspace_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_membership_usages_membership_id",
+                table: "membership_usages",
+                column: "membership_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_membership_usages_org_id",
+                table: "membership_usages",
+                column: "org_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_memberships_org_id",
@@ -2137,16 +2144,20 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: new[] { "session_id", "total_score" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_SessionParticipant_UserId",
+                name: "UX_SessionParticipant_SessionId_ParticipantKey",
                 table: "session_participants",
-                column: "user_id");
+                columns: new[] { "session_id", "participant_key" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "UX_SessionParticipant_SessionId_UserId",
-                table: "session_participants",
-                columns: new[] { "session_id", "user_id" },
-                unique: true,
-                filter: "user_id IS NOT NULL");
+                name: "IX_session_question_banks_question_bank_id",
+                table: "session_question_banks",
+                column: "question_bank_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_session_question_banks_session_id",
+                table: "session_question_banks",
+                column: "session_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SessionQuestion_QuestionId",
@@ -2183,11 +2194,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "IX_Session_MapId",
                 table: "sessions",
                 column: "map_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Session_QuestionBankId",
-                table: "sessions",
-                column: "question_bank_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Session_SessionType",
@@ -2331,9 +2337,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 name: "map_images");
 
             migrationBuilder.DropTable(
-                name: "map_question_banks");
-
-            migrationBuilder.DropTable(
                 name: "membership_usages");
 
             migrationBuilder.DropTable(
@@ -2353,6 +2356,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "session_group_members");
+
+            migrationBuilder.DropTable(
+                name: "session_question_banks");
 
             migrationBuilder.DropTable(
                 name: "student_responses");

@@ -1,13 +1,11 @@
-﻿using CusomMapOSM_Domain.Entities.Users;
-
-namespace CusomMapOSM_Domain.Entities.Sessions;
+﻿namespace CusomMapOSM_Domain.Entities.Sessions;
 
 public class SessionParticipant
 {
     public Guid SessionParticipantId { get; set; }
     public Guid SessionId { get; set; }
-    public Guid? UserId { get; set; }
     public string DisplayName { get; set; } = string.Empty;
+    public string ParticipantKey { get; set; } = string.Empty;
     public bool IsGuest { get; set; } = false;
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LeftAt { get; set; }
@@ -22,5 +20,4 @@ public class SessionParticipant
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public Session? Session { get; set; }
-    public User? User { get; set; }
 }

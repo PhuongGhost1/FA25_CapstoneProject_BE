@@ -8,7 +8,6 @@ public interface ISessionParticipantRepository
     Task<bool> CreateParticipant(SessionParticipant participant);
     Task<SessionParticipant?> GetParticipantById(Guid participantId);
     Task<List<SessionParticipant>> GetParticipantsBySessionId(Guid sessionId);
-    Task<SessionParticipant?> GetParticipantBySessionAndUser(Guid sessionId, Guid userId);
     Task<bool> UpdateParticipant(SessionParticipant participant);
     Task<bool> RemoveParticipant(Guid participantId);
 
@@ -24,8 +23,9 @@ public interface ISessionParticipantRepository
 
     // Validation
     Task<bool> CheckParticipantExists(Guid participantId);
-    Task<bool> CheckUserAlreadyJoined(Guid sessionId, Guid userId);
     Task<bool> CheckParticipantBelongsToSession(Guid participantId, Guid sessionId);
+    Task<bool> CheckParticipantKeyExistsInSession(Guid sessionId, string participantKey);
+    Task<SessionParticipant?> GetParticipantBySessionAndParticipantKey(Guid sessionId, string participantKey);
 
     // Session Management
     Task<bool> MarkParticipantAsLeft(Guid participantId);

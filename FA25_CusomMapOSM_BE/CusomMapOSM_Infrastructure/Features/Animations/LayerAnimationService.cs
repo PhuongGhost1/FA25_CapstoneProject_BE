@@ -1,6 +1,7 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
@@ -13,11 +14,13 @@ public class LayerAnimationService : ILayerAnimationService
 {
     private readonly ILayerAnimationRepository _repository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IFirebaseStorageService _firebaseStorageService;
 
-    public LayerAnimationService(ILayerAnimationRepository repository, ICurrentUserService currentUserService)
+    public LayerAnimationService(ILayerAnimationRepository repository, ICurrentUserService currentUserService, IFirebaseStorageService firebaseStorageService)
     {
         _repository = repository;
         _currentUserService = currentUserService;
+        _firebaseStorageService = firebaseStorageService;
     }
 
     public async Task<Option<IReadOnlyCollection<LayerAnimationDto>, Error>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct = default)
@@ -44,13 +47,24 @@ public class LayerAnimationService : ILayerAnimationService
         {
             return Option.None<LayerAnimationDto, Error>(Error.Unauthorized("Animation.Unauthorized", "User not authenticated"));
         }
+        string sourceUrl = string.Empty;
+        if (request.AnimationFile is not null)
+        {   
+            using var stream = request.AnimationFile.OpenReadStream();
+            var animationUrl = await _firebaseStorageService.UploadFileAsync(request.AnimationFile.FileName, stream ,"animations");
+            if (animationUrl is null)
+            {
+                return Option.None<LayerAnimationDto, Error>(Error.NotFound("Animation.AnimationFile.NotFound", "Animation file not found"));
+            }
+            sourceUrl = animationUrl;
+        }
         var entity = new AnimatedLayer
         {
             AnimatedLayerId = Guid.NewGuid(),
             LayerId = request.LayerId,
             CreatedBy = currentUserId.Value,
             Name = request.Name,
-            SourceUrl = request.SourceUrl,
+            SourceUrl = sourceUrl,
             Coordinates = request.Coordinates,
             RotationDeg = request.RotationDeg,
             Scale = request.Scale,
@@ -73,7 +87,16 @@ public class LayerAnimationService : ILayerAnimationService
         }
 
         entity.Name = request.Name;
-        entity.SourceUrl = request.SourceUrl;
+        if (request.AnimationFile is not null)
+        {
+            using var stream = request.AnimationFile.OpenReadStream();
+            var animationUrl = await _firebaseStorageService.UploadFileAsync(request.AnimationFile.FileName, stream, "animations");
+            if (animationUrl is null)
+            {
+                return Option.None<LayerAnimationDto, Error>(Error.NotFound("Animation.AnimationFile.NotFound", "Animation file not found"));
+            }
+            entity.SourceUrl = animationUrl;
+        }
         entity.Coordinates = request.Coordinates;
         entity.RotationDeg = request.RotationDeg;
         entity.Scale = request.Scale;

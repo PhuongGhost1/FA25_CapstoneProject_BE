@@ -23,25 +23,16 @@ public class SessionParticipantRepository : ISessionParticipantRepository
     {
         return await _context.SessionParticipants
             .Include(sp => sp.Session)
-            .Include(sp => sp.User)
             .FirstOrDefaultAsync(sp => sp.SessionParticipantId == participantId);
     }
 
     public async Task<List<SessionParticipant>> GetParticipantsBySessionId(Guid sessionId)
     {
         return await _context.SessionParticipants
-            .Include(sp => sp.User)
             .Where(sp => sp.SessionId == sessionId)
             .OrderByDescending(sp => sp.TotalScore)
             .ThenBy(sp => sp.AverageResponseTime)
             .ToListAsync();
-    }
-
-    public async Task<SessionParticipant?> GetParticipantBySessionAndUser(Guid sessionId, Guid userId)
-    {
-        return await _context.SessionParticipants
-            .Include(sp => sp.Session)
-            .FirstOrDefaultAsync(sp => sp.SessionId == sessionId && sp.UserId == userId);
     }
 
     public async Task<bool> UpdateParticipant(SessionParticipant participant)
@@ -63,7 +54,6 @@ public class SessionParticipantRepository : ISessionParticipantRepository
     public async Task<List<SessionParticipant>> GetLeaderboard(Guid sessionId, int limit = 10)
     {
         return await _context.SessionParticipants
-            .Include(sp => sp.User)
             .Where(sp => sp.SessionId == sessionId && sp.IsActive)
             .OrderByDescending(sp => sp.TotalScore)
             .ThenBy(sp => sp.AverageResponseTime)
@@ -141,16 +131,22 @@ public class SessionParticipantRepository : ISessionParticipantRepository
         return await _context.SessionParticipants.AnyAsync(sp => sp.SessionParticipantId == participantId);
     }
 
-    public async Task<bool> CheckUserAlreadyJoined(Guid sessionId, Guid userId)
-    {
-        return await _context.SessionParticipants
-            .AnyAsync(sp => sp.SessionId == sessionId && sp.UserId == userId);
-    }
-
     public async Task<bool> CheckParticipantBelongsToSession(Guid participantId, Guid sessionId)
     {
         return await _context.SessionParticipants
             .AnyAsync(sp => sp.SessionParticipantId == participantId && sp.SessionId == sessionId);
+    }
+
+    public async Task<bool> CheckParticipantKeyExistsInSession(Guid sessionId, string participantKey)
+    {
+        return await _context.SessionParticipants
+            .AnyAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey);
+    }
+
+    public async Task<SessionParticipant?> GetParticipantBySessionAndParticipantKey(Guid sessionId, string participantKey)
+    {
+        return await _context.SessionParticipants
+            .FirstOrDefaultAsync(sp => sp.SessionId == sessionId && sp.ParticipantKey == participantKey);
     }
 
     public async Task<bool> MarkParticipantAsLeft(Guid participantId)
