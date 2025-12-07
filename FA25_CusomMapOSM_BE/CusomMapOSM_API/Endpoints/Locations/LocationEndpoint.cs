@@ -183,6 +183,7 @@ public class LocationEndpoint : IEndpoint
             .WithDescription("Upload an audio file for location")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);

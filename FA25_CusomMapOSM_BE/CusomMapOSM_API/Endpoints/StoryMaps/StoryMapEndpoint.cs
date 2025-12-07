@@ -446,6 +446,7 @@ public class StoryMapEndpoint : IEndpoint
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .WithName("CreateStoryMapSegmentLocation")
             .WithDescription("Create a new location (POI) for a segment with optional icon upload")
             .WithTags(Tags.StoryMaps)

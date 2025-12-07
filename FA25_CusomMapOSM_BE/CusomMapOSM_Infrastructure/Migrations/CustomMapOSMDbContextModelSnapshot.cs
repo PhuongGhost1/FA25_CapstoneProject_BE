@@ -3654,6 +3654,107 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.ToTable("workspaces", (string)null);
                 });
 
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.MapZone", b =>
+                {
+                    b.Property<Guid>("MapZoneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_zone_id");
+
+                    b.Property<string>("BoundaryColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("boundary_color");
+
+                    b.Property<int>("BoundaryWidth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2)
+                        .HasColumnName("boundary_width");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("FillColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("fill_color");
+
+                    b.Property<decimal>("FillOpacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(3,2)")
+                        .HasDefaultValue(0.3m)
+                        .HasColumnName("fill_opacity");
+
+                    b.Property<bool>("FillZone")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("fill_zone");
+
+                    b.Property<bool>("HighlightBoundary")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("highlight_boundary");
+
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_visible");
+
+                    b.Property<string>("LabelOverride")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("label_override");
+
+                    b.Property<string>("LabelStyle")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("label_style");
+
+                    b.Property<Guid>("MapId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("map_id");
+
+                    b.Property<bool>("ShowLabel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("show_label");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("ZIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("z_index");
+
+                    b.Property<Guid>("ZoneId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("zone_id");
+
+                    b.HasKey("MapZoneId");
+
+                    b.HasIndex("MapId");
+
+                    b.HasIndex("ZoneId");
+
+                    b.ToTable("map_zones", (string)null);
+                });
+
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.Zone", b =>
                 {
                     b.Property<Guid>("ZoneId")
@@ -4452,6 +4553,25 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Navigation("Creator");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.MapZone", b =>
+                {
+                    b.HasOne("CusomMapOSM_Domain.Entities.Maps.Map", "Map")
+                        .WithMany()
+                        .HasForeignKey("MapId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CusomMapOSM_Domain.Entities.Zones.Zone", "Zone")
+                        .WithMany()
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Map");
+
+                    b.Navigation("Zone");
                 });
 
             modelBuilder.Entity("CusomMapOSM_Domain.Entities.Zones.Zone", b =>

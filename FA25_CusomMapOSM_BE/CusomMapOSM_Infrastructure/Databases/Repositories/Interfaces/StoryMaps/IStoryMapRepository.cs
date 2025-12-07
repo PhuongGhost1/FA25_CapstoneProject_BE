@@ -46,6 +46,13 @@ public interface IStoryMapRepository
     void UpdateZone(Zone zone);
     void RemoveZone(Zone zone);
 
+    // ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+    Task<MapZone?> GetMapZoneAsync(Guid mapZoneId, CancellationToken ct);
+    Task<List<MapZone>> GetMapZonesByMapAsync(Guid mapId, CancellationToken ct);
+    Task AddMapZoneAsync(MapZone mapZone, CancellationToken ct);
+    void UpdateMapZone(MapZone mapZone);
+    void RemoveMapZone(MapZone mapZone);
+
     // ================== LOCATION (Điểm đánh dấu) ==================
     Task<Location?> GetLocationAsync(Guid locationId, CancellationToken ct);
     Task<List<Location>> GetLocationsByMapAsync(Guid mapId, CancellationToken ct);

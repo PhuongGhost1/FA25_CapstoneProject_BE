@@ -1400,6 +1400,107 @@ public class StoryMapService : IStoryMapService
                 Error.Failure("Zone.SyncError", $"Failed to sync zones from OSM: {ex.Message}"));
         }
     }
+
+    // ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+    
+    public async Task<Option<IReadOnlyCollection<MapZoneDto>, Error>> GetMapZonesAsync(Guid mapId,
+        CancellationToken ct = default)
+    {
+        var map = await _repository.GetMapAsync(mapId, ct);
+        if (map is null)
+        {
+            return Option.None<IReadOnlyCollection<MapZoneDto>, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        var mapZones = await _repository.GetMapZonesByMapAsync(mapId, ct);
+        var zoneDtos = mapZones.Select(mz => mz.ToDto()).ToList();
+        return Option.Some<IReadOnlyCollection<MapZoneDto>, Error>(zoneDtos);
+    }
+
+    public async Task<Option<MapZoneDto, Error>> CreateMapZoneAsync(CreateMapZoneRequest request,
+        CancellationToken ct = default)
+    {
+        var map = await _repository.GetMapAsync(request.MapId, ct);
+        if (map is null)
+        {
+            return Option.None<MapZoneDto, Error>(Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        var zone = await _repository.GetZoneAsync(request.ZoneId, ct);
+        if (zone is null)
+        {
+            return Option.None<MapZoneDto, Error>(Error.NotFound("Zone.NotFound", "Zone not found"));
+        }
+
+        var mapZone = new MapZone
+        {
+            MapZoneId = Guid.NewGuid(),
+            MapId = request.MapId,
+            ZoneId = request.ZoneId,
+            DisplayOrder = request.DisplayOrder,
+            IsVisible = request.IsVisible,
+            ZIndex = request.ZIndex,
+            HighlightBoundary = request.HighlightBoundary,
+            BoundaryColor = request.BoundaryColor,
+            BoundaryWidth = request.BoundaryWidth,
+            FillZone = request.FillZone,
+            FillColor = request.FillColor,
+            FillOpacity = request.FillOpacity,
+            ShowLabel = request.ShowLabel,
+            LabelOverride = request.LabelOverride,
+            LabelStyle = request.LabelStyle,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repository.AddMapZoneAsync(mapZone, ct);
+        await _repository.SaveChangesAsync(ct);
+
+        mapZone = await _repository.GetMapZoneAsync(mapZone.MapZoneId, ct);
+        return Option.Some<MapZoneDto, Error>(mapZone!.ToDto());
+    }
+
+    public async Task<Option<MapZoneDto, Error>> UpdateMapZoneAsync(Guid mapZoneId, UpdateMapZoneRequest request,
+        CancellationToken ct = default)
+    {
+        var mapZone = await _repository.GetMapZoneAsync(mapZoneId, ct);
+        if (mapZone is null)
+        {
+            return Option.None<MapZoneDto, Error>(Error.NotFound("MapZone.NotFound", "Map zone not found"));
+        }
+
+        mapZone.DisplayOrder = request.DisplayOrder;
+        mapZone.IsVisible = request.IsVisible;
+        mapZone.ZIndex = request.ZIndex;
+        mapZone.HighlightBoundary = request.HighlightBoundary;
+        mapZone.BoundaryColor = request.BoundaryColor;
+        mapZone.BoundaryWidth = request.BoundaryWidth;
+        mapZone.FillZone = request.FillZone;
+        mapZone.FillColor = request.FillColor;
+        mapZone.FillOpacity = request.FillOpacity;
+        mapZone.ShowLabel = request.ShowLabel;
+        mapZone.LabelOverride = request.LabelOverride;
+        mapZone.LabelStyle = request.LabelStyle;
+        mapZone.UpdatedAt = DateTime.UtcNow;
+
+        _repository.UpdateMapZone(mapZone);
+        await _repository.SaveChangesAsync(ct);
+
+        return Option.Some<MapZoneDto, Error>(mapZone.ToDto());
+    }
+
+    public async Task<Option<bool, Error>> DeleteMapZoneAsync(Guid mapZoneId, CancellationToken ct = default)
+    {
+        var mapZone = await _repository.GetMapZoneAsync(mapZoneId, ct);
+        if (mapZone is null)
+        {
+            return Option.None<bool, Error>(Error.NotFound("MapZone.NotFound", "Map zone not found"));
+        }
+
+        _repository.RemoveMapZone(mapZone);
+        await _repository.SaveChangesAsync(ct);
+        return Option.Some<bool, Error>(true);
+    }
     
     public async Task<Option<IReadOnlyCollection<TimelineTransitionDto>, Error>> GetTimelineTransitionsAsync(
         Guid mapId, CancellationToken ct = default)

@@ -283,3 +283,24 @@ public record ZoneSummaryDto(
     string? Geometry,
     string? Centroid,
     string? BoundingBox);
+
+// ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+public record MapZoneDto(
+    Guid MapZoneId,
+    Guid MapId,
+    Guid ZoneId,
+    int DisplayOrder,
+    bool IsVisible,
+    int ZIndex,
+    bool HighlightBoundary,
+    string? BoundaryColor,
+    int BoundaryWidth,
+    bool FillZone,
+    string? FillColor,
+    decimal FillOpacity,
+    bool ShowLabel,
+    string? LabelOverride,
+    string? LabelStyle,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt,
+    ZoneSummaryDto? Zone);
