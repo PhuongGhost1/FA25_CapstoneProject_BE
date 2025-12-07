@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -82,6 +82,10 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasColumnName("map_status")
                      .HasConversion<int>()
                      .HasDefaultValue(MapStatusEnum.Draft);
+              
+              builder.Property(m => m.IsStoryMap)
+                     .HasColumnName("is_storymap")
+                     .HasDefaultValue(false);
               
               builder.Property(m => m.PublishedAt)
                      .HasColumnName("published_at")

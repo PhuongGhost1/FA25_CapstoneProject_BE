@@ -159,6 +159,7 @@ public class MapService : IMapService
                     DefaultBounds = req.DefaultBounds,
                     ViewState = req.ViewState,
                     BaseLayer = req.BaseMapProvider ?? "osm",
+                    IsStoryMap = req.IsStoryMap,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -270,6 +271,7 @@ public class MapService : IMapService
                 Description = map.Description ?? "",
                 IsPublic = map.IsPublic,
                 Status = map.Status,
+                IsStoryMap = map.IsStoryMap,
                 PreviewImage = map.PreviewImage,
                 CreatedAt = map.CreatedAt,
                 UpdatedAt = map.UpdatedAt,
@@ -323,6 +325,7 @@ public class MapService : IMapService
                 Description = map.Description ?? "",
                 IsPublic = map.IsPublic,
                 Status = map.Status,
+                IsStoryMap = map.IsStoryMap,
                 PreviewImage = map.PreviewImage,
                 CreatedAt = map.CreatedAt,
                 UpdatedAt = map.UpdatedAt,
@@ -1551,7 +1554,7 @@ public class MapService : IMapService
     
     #region Map Publishing Operations
     
-    public async Task<Option<bool, Error>> PublishMap(Guid mapId)
+    public async Task<Option<bool, Error>> PublishMap(Guid mapId, PublishMapRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId is null)
@@ -1577,10 +1580,11 @@ public class MapService : IMapService
         {
             return Option.None<bool, Error>(
                 Error.ValidationError("Map.InvalidStatus", 
-                    $"Map cannot be published from status {map.Status}. Only Draft or Unpublished maps can be published."));
+                    $"Map cannot be published from status {map.Status}. Only Draft maps can be published."));
         }
         map.Status = MapStatusEnum.Published;
         map.IsPublic = true;
+        map.IsStoryMap = request.IsStoryMap;
         map.PublishedAt = DateTime.UtcNow;
         map.UpdatedAt = DateTime.UtcNow;
 

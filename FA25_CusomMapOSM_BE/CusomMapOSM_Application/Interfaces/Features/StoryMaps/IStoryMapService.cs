@@ -41,6 +41,12 @@ public interface IStoryMapService
     Task<Option<bool, Error>> DeleteZoneAsync(Guid zoneId, CancellationToken ct = default);
     Task<Option<int, Error>> SyncZonesFromOSMAsync(SyncZonesFromOSMRequest request, CancellationToken ct = default);
 
+    // ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+    Task<Option<IReadOnlyCollection<MapZoneDto>, Error>> GetMapZonesAsync(Guid mapId, CancellationToken ct = default);
+    Task<Option<MapZoneDto, Error>> CreateMapZoneAsync(CreateMapZoneRequest request, CancellationToken ct = default);
+    Task<Option<MapZoneDto, Error>> UpdateMapZoneAsync(Guid mapZoneId, UpdateMapZoneRequest request, CancellationToken ct = default);
+    Task<Option<bool, Error>> DeleteMapZoneAsync(Guid mapZoneId, CancellationToken ct = default);
+
     // ================== TIMELINE TRANSITION (Chuyển cảnh giữa các segments) ==================
     Task<Option<IReadOnlyCollection<TimelineTransitionDto>, Error>> GetTimelineTransitionsAsync(Guid mapId, CancellationToken ct = default);
     Task<Option<TimelineTransitionDto, Error>> GetTimelineTransitionAsync(Guid transitionId, CancellationToken ct = default);

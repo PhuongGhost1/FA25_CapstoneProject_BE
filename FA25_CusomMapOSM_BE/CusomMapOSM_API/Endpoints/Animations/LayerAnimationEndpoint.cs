@@ -83,6 +83,7 @@ public class LayerAnimationEndpoint : IEndpoint
             .WithDescription("Create a new animation")
             .WithTags(Tags.Animations)
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .Produces<LayerAnimationDto>(201)
             .ProducesProblem(400)
             .ProducesProblem(500);

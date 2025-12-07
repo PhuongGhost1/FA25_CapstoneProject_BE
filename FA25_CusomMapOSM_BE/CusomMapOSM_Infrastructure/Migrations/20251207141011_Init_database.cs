@@ -582,6 +582,7 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     is_public = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     is_active = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     map_status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    is_storymap = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     published_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
@@ -696,7 +697,15 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     ExportTypeId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     quota_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    error_message = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    approved_by = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    approved_at = table.Column<DateTime>(type: "datetime", nullable: true),
+                    rejection_reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    completed_at = table.Column<DateTime>(type: "datetime", nullable: true),
                     export_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
@@ -834,6 +843,50 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         principalTable: "maps",
                         principalColumn: "map_id",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "map_zones",
+                columns: table => new
+                {
+                    map_zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    map_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    zone_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    display_order = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    highlight_boundary = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    boundary_color = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    boundary_width = table.Column<int>(type: "int", nullable: false, defaultValue: 2),
+                    fill_zone = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    fill_color = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    fill_opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false, defaultValue: 0.3m),
+                    show_label = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    label_override = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    label_style = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_map_zones", x => x.map_zone_id);
+                    table.ForeignKey(
+                        name: "FK_map_zones_maps_map_id",
+                        column: x => x.map_id,
+                        principalTable: "maps",
+                        principalColumn: "map_id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_map_zones_zones_zone_id",
+                        column: x => x.zone_id,
+                        principalTable: "zones",
+                        principalColumn: "zone_id",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1064,9 +1117,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 columns: table => new
                 {
                     animated_layer_id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     layer_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     segment_id = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    created_by = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
@@ -1087,24 +1140,6 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     scale = table.Column<double>(type: "double", nullable: false, defaultValue: 1.0),
                     opacity = table.Column<decimal>(type: "decimal(3,2)", nullable: false, defaultValue: 1.0m),
                     z_index = table.Column<int>(type: "int", nullable: false, defaultValue: 1000),
-                    css_filter = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    auto_play = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    loop = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    playback_speed = table.Column<int>(type: "int", nullable: false, defaultValue: 100),
-                    start_time_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    end_time_ms = table.Column<int>(type: "int", nullable: true),
-                    entry_delay_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    entry_duration_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 400),
-                    entry_effect = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true, defaultValue: "fade")
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    exit_delay_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    exit_duration_ms = table.Column<int>(type: "int", nullable: false, defaultValue: 400),
-                    exit_effect = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true, defaultValue: "fade")
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    enable_click = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    on_click_action = table.Column<string>(type: "TEXT", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     is_visible = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
@@ -1933,6 +1968,16 @@ namespace CusomMapOSM_Infrastructure.Migrations
                 column: "map_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_map_zones_map_id",
+                table: "map_zones",
+                column: "map_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_map_zones_zone_id",
+                table: "map_zones",
+                column: "zone_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_maps_parent_map_id",
                 table: "maps",
                 column: "parent_map_id");
@@ -2335,6 +2380,9 @@ namespace CusomMapOSM_Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "map_images");
+
+            migrationBuilder.DropTable(
+                name: "map_zones");
 
             migrationBuilder.DropTable(
                 name: "membership_usages");

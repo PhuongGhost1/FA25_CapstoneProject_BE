@@ -245,4 +245,13 @@ public static class Routes
         public const string Update = "{layerId:guid}";
         public const string Delete = "{layerId:guid}";
     }
+
+    public static class MapsEndpoints
+    {
+        // Map Zones (for non-StoryMap mode)
+        public const string GetMapZones = "{mapId:guid}/zones";
+        public const string CreateMapZone = "{mapId:guid}/zones";
+        public const string UpdateMapZone = "{mapId:guid}/zones/{mapZoneId:guid}";
+        public const string DeleteMapZone = "{mapId:guid}/zones/{mapZoneId:guid}";
+    }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,6 +30,7 @@ public class Map
     public bool IsPublic { get; set; } = false;
     public bool IsActive { get; set; } = true;
     public MapStatusEnum Status { get; set; } = MapStatusEnum.Draft;
+    public bool IsStoryMap { get; set; } = false;
     public DateTime? PublishedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

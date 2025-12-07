@@ -176,6 +176,30 @@ public class StoryMapRepository : IStoryMapRepository
     public void RemoveZone(Zone zone) =>
         _context.Zones.Remove(zone);
 
+    // ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+    public Task<MapZone?> GetMapZoneAsync(Guid mapZoneId, CancellationToken ct) =>
+        _context.MapZones
+            .Include(mz => mz.Zone)
+            .Include(mz => mz.Map)
+            .FirstOrDefaultAsync(mz => mz.MapZoneId == mapZoneId, ct);
+
+    public Task<List<MapZone>> GetMapZonesByMapAsync(Guid mapId, CancellationToken ct) =>
+        _context.MapZones
+            .AsNoTracking()
+            .Include(mz => mz.Zone)
+            .Where(mz => mz.MapId == mapId)
+            .OrderBy(mz => mz.DisplayOrder).ThenBy(mz => mz.CreatedAt)
+            .ToListAsync(ct);
+
+    public Task AddMapZoneAsync(MapZone mapZone, CancellationToken ct) =>
+        _context.MapZones.AddAsync(mapZone, ct).AsTask();
+
+    public void UpdateMapZone(MapZone mapZone) =>
+        _context.MapZones.Update(mapZone);
+
+    public void RemoveMapZone(MapZone mapZone) =>
+        _context.MapZones.Remove(mapZone);
+
     public Task<Location?> GetLocationAsync(Guid locationId, CancellationToken ct) =>
         _context.MapLocations
             .FirstOrDefaultAsync(l => l.LocationId == locationId, ct);

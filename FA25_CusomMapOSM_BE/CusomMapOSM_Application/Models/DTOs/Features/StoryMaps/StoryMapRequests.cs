@@ -487,3 +487,34 @@ public record UpdateSegmentLayerRequest(
     string? EntryEffect,
     string? ExitEffect,
     string? StyleOverride);
+
+// ================== MAP ZONE (Zone attached to map for non-StoryMap mode) ==================
+public record CreateMapZoneRequest(
+    Guid MapId,
+    Guid ZoneId,
+    int DisplayOrder,
+    bool IsVisible,
+    int ZIndex,
+    bool HighlightBoundary,
+    string? BoundaryColor,
+    int BoundaryWidth,
+    bool FillZone,
+    string? FillColor,
+    decimal FillOpacity,
+    bool ShowLabel,
+    string? LabelOverride,
+    string? LabelStyle);
+
+public record UpdateMapZoneRequest(
+    int DisplayOrder,
+    bool IsVisible,
+    int ZIndex,
+    bool HighlightBoundary,
+    string? BoundaryColor,
+    int BoundaryWidth,
+    bool FillZone,
+    string? FillColor,
+    decimal FillOpacity,
+    bool ShowLabel,
+    string? LabelOverride,
+    string? LabelStyle);

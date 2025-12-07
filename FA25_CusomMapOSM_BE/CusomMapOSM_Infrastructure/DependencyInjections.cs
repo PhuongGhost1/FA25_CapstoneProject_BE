@@ -192,11 +192,21 @@ public static class DependencyInjections
 
     private static void AddDatabaseContext(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<CustomMapOSMDbContext>(opt =>
+        services.AddDbContextPool<CustomMapOSMDbContext>(opt =>
         {
             opt.UseMySql(MySqlDatabase.CONNECTION_STRING,
-                Microsoft.EntityFrameworkCore.ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING));
-        });
+                Microsoft.EntityFrameworkCore.ServerVersion.AutoDetect(MySqlDatabase.CONNECTION_STRING),
+                mySqlOptions =>
+                {
+                    mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null);
+                    mySqlOptions.CommandTimeout(60);
+                });
+            opt.EnableSensitiveDataLogging();
+            opt.EnableDetailedErrors();
+        }, poolSize: 128);
     }
 
     private static void AddRepositories(IServiceCollection services)

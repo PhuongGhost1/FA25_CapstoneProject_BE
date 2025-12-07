@@ -2,7 +2,6 @@ using System;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
 using CusomMapOSM_Domain.Entities.Segments;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
-
 namespace CusomMapOSM_Domain.Entities.Zones;
 
 public class Zone

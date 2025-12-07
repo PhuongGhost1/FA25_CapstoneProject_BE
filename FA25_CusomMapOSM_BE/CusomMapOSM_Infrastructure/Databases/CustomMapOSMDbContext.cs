@@ -54,6 +54,7 @@ public class CustomMapOSMDbContext : DbContext
     public DbSet<TimelineTransition> TimelineTransitions { get; set; }
     public DbSet<RouteAnimation> RouteAnimations { get; set; }
     public DbSet<Zone> Zones { get; set; }
+    public DbSet<MapZone> MapZones { get; set; }
     public DbSet<Membership> Memberships { get; set; }
     public DbSet<Plan> Plans { get; set; }
     public DbSet<MembershipUsage> MembershipUsages { get; set; }
@@ -83,13 +84,5 @@ public class CustomMapOSMDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CustomMapOSMDbContext).Assembly);
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-
-        optionsBuilder.EnableSensitiveDataLogging();
-        optionsBuilder.EnableDetailedErrors();
     }
 }

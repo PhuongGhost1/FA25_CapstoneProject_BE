@@ -326,6 +326,7 @@ public class QuestionBankEndpoint : IEndpoint
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);
@@ -363,6 +364,7 @@ public class QuestionBankEndpoint : IEndpoint
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);
@@ -400,6 +402,7 @@ public class QuestionBankEndpoint : IEndpoint
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
+            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);
