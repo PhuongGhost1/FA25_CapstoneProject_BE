@@ -26,6 +26,7 @@ public static class Routes
         public const string Comments = "comments";
         public const string Bookmarks = "bookmarks";
         public const string Exports = "exports";
+        public const string Assets = "assets";
     }
 
     public static class AuthEndpoints
@@ -253,5 +254,12 @@ public static class Routes
         public const string CreateMapZone = "{mapId:guid}/zones";
         public const string UpdateMapZone = "{mapId:guid}/zones/{mapZoneId:guid}";
         public const string DeleteMapZone = "{mapId:guid}/zones/{mapZoneId:guid}";
+    }
+
+    public static class UserAssetEndpoints
+    {
+        public const string GetAll = "";
+        public const string Upload = "upload";
+        public const string Delete = "{id:guid}";
     }
 }

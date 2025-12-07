@@ -1,7 +1,6 @@
-﻿using CusomMapOSM_API.Extensions;
+using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
-using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using Microsoft.AspNetCore.Mvc;
 
@@ -296,37 +295,20 @@ public class QuestionBankEndpoint : IEndpoint
         // Upload Question Image
         group.MapPost("/questions/upload-image", async (
                 IFormFile file,
-                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+                [FromQuery] Guid? questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
             {
-                if (file == null || file.Length == 0)
-                {
-                    return Results.BadRequest(new { error = "No file provided" });
-                }
-
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return Results.BadRequest(new { error = "Invalid file type. Only images are allowed." });
-                }
-
-                try
-                {
-                    using var stream = file.OpenReadStream();
-                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-images");
-                    return Results.Ok(new { imageUrl = storageUrl });
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem(detail: ex.Message, statusCode: 500);
-                }
+                var result = await questionBankService.UploadQuestionImage(file, questionBankId);
+                return result.Match(
+                    url => Results.Ok(new { imageUrl = url }),
+                    error => error.ToProblemDetailsResult()
+                );
             })
             .WithName("UploadQuestionImage")
             .WithDescription("Upload an image for question")
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
-            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);
@@ -334,37 +316,20 @@ public class QuestionBankEndpoint : IEndpoint
         // Upload Question Audio
         group.MapPost("/questions/upload-audio", async (
                 IFormFile file,
-                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+                [FromQuery] Guid? questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
             {
-                if (file == null || file.Length == 0)
-                {
-                    return Results.BadRequest(new { error = "No file provided" });
-                }
-
-                var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return Results.BadRequest(new { error = "Invalid file type. Only audio files are allowed." });
-                }
-
-                try
-                {
-                    using var stream = file.OpenReadStream();
-                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-audio");
-                    return Results.Ok(new { audioUrl = storageUrl });
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem(detail: ex.Message, statusCode: 500);
-                }
+                var result = await questionBankService.UploadQuestionAudio(file, questionBankId);
+                return result.Match(
+                    url => Results.Ok(new { audioUrl = url }),
+                    error => error.ToProblemDetailsResult()
+                );
             })
             .WithName("UploadQuestionAudio")
             .WithDescription("Upload an audio file for question")
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
-            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);
@@ -372,37 +337,20 @@ public class QuestionBankEndpoint : IEndpoint
         // Upload Option Image
         group.MapPost("/questions/options/upload-image", async (
                 IFormFile file,
-                [FromServices] IFirebaseStorageService firebaseStorageService) =>
+                [FromQuery] Guid? questionBankId,
+                [FromServices] IQuestionBankService questionBankService) =>
             {
-                if (file == null || file.Length == 0)
-                {
-                    return Results.BadRequest(new { error = "No file provided" });
-                }
-
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return Results.BadRequest(new { error = "Invalid file type. Only images are allowed." });
-                }
-
-                try
-                {
-                    using var stream = file.OpenReadStream();
-                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-option-images");
-                    return Results.Ok(new { imageUrl = storageUrl });
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem(detail: ex.Message, statusCode: 500);
-                }
+                var result = await questionBankService.UploadOptionImage(file, questionBankId);
+                return result.Match(
+                    url => Results.Ok(new { imageUrl = url }),
+                    error => error.ToProblemDetailsResult()
+                );
             })
             .WithName("UploadOptionImage")
             .WithDescription("Upload an image for question option")
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
-            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);

@@ -161,6 +161,10 @@ using CusomMapOSM_Infrastructure.Features.Exports;
 using Hangfire;
 using Hangfire.Redis;
 
+using CusomMapOSM_Infrastructure.Services.UserAssets.Mongo;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
+using CusomMapOSM_Infrastructure.Features.Assets;
+
 namespace CusomMapOSM_Infrastructure;
 
 public static class DependencyInjections
@@ -281,6 +285,7 @@ public static class DependencyInjections
 
         services.AddScoped<IMapFeatureStore, MongoMapFeatureStore>();
         services.AddScoped<IMapHistoryStore, MongoMapHistoryStore>();
+        services.AddScoped<MongoUserAssetStore>();
     }
 
     #endregion
@@ -347,6 +352,7 @@ public static class DependencyInjections
         services.AddSingleton<IStoryBroadcastService, StoryBroadcastService>();
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IBookmarkService, BookmarkService>();
+        services.AddScoped<IUserAssetService, UserAssetService>();
     }
 
     private static void AddCollaborationServices(IServiceCollection services)

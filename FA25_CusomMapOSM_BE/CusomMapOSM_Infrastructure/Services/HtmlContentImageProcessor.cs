@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using Microsoft.Extensions.Logging;
 
 namespace CusomMapOSM_Infrastructure.Services;
@@ -11,6 +13,8 @@ namespace CusomMapOSM_Infrastructure.Services;
 public class HtmlContentImageProcessor
 {
     private readonly IFirebaseStorageService _storageService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserAssetService _userAssetService;
     private readonly ILogger<HtmlContentImageProcessor> _logger;
     private const int MaxBase64SizeBytes = 5 * 1024 * 1024; // 5MB limit per image
 
@@ -22,9 +26,13 @@ public class HtmlContentImageProcessor
 
     public HtmlContentImageProcessor(
         IFirebaseStorageService storageService,
+        ICurrentUserService currentUserService,
+        IUserAssetService userAssetService,
         ILogger<HtmlContentImageProcessor> logger)
     {
         _storageService = storageService;
+        _currentUserService = currentUserService;
+        _userAssetService = userAssetService;
         _logger = logger;
     }
 
@@ -39,6 +47,7 @@ public class HtmlContentImageProcessor
     public async Task<string> ProcessHtmlContentAsync(
         string? htmlContent,
         string folder = "poi-content",
+        Guid? orgId = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(htmlContent))
@@ -102,6 +111,27 @@ public class HtmlContentImageProcessor
                 _logger.LogInformation(
                     "Uploaded base64 image ({Size} bytes) to Firebase Storage: {Url}",
                     imageSizeBytes, imageUrl);
+
+                // Register in User Library
+                var currentUserId = _currentUserService.GetUserId();
+                if (currentUserId.HasValue)
+                {
+                    try 
+                    {
+                        await _userAssetService.CreateAssetMetadataAsync(
+                            currentUserId.Value,
+                            fileName,
+                            imageUrl,
+                            "image",
+                            imageSizeBytes,
+                            $"image/{extension}", // Approximate MIME type
+                            orgId);
+                    }
+                    catch (Exception ex) 
+                    { 
+                        _logger.LogWarning(ex, "Failed to register image in user library");
+                    }
+                }
             }
             catch (Exception ex)
             {

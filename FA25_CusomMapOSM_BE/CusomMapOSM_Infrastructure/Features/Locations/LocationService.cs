@@ -3,6 +3,7 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
 using CusomMapOSM_Domain.Entities.Locations;
@@ -10,6 +11,9 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Services;
 using Optional;
+
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Features.Locations;
 
 namespace CusomMapOSM_Infrastructure.Features.Locations;
 
@@ -20,19 +24,37 @@ public class LocationService : ILocationService
     private readonly ICurrentUserService _currentUserService;
     private readonly HtmlContentImageProcessor _htmlImageProcessor;
     private readonly IFirebaseStorageService _firebaseStorageService;
+    private readonly IUserAssetService _userAssetService;
+    private readonly IWorkspaceRepository _workspaceRepository;
 
     public LocationService(
         IStoryMapRepository storyMapRepository, 
         ILocationRepository locationRepository,
         ICurrentUserService currentUserService,
         HtmlContentImageProcessor htmlImageProcessor,
-        IFirebaseStorageService firebaseStorageService)
+        IFirebaseStorageService firebaseStorageService,
+        IUserAssetService userAssetService,
+        IWorkspaceRepository workspaceRepository)
     {
         _storyMapRepository = storyMapRepository;
         _locationRepository = locationRepository;
         _currentUserService = currentUserService;
         _htmlImageProcessor = htmlImageProcessor;
         _firebaseStorageService = firebaseStorageService;
+        _userAssetService = userAssetService;
+        _workspaceRepository = workspaceRepository;
+    }
+
+    private async Task<Guid?> GetOrganizationIdAsync(Guid mapId, CancellationToken ct)
+    {
+        var map = await _storyMapRepository.GetMapAsync(mapId, ct);
+        if (map == null || !map.WorkspaceId.HasValue)
+        {
+            return null;
+        }
+
+        var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+        return workspace?.OrgId;
     }
 
     public async Task<Option<IReadOnlyCollection<LocationDto>, Error>> GetMapLocations(Guid mapId,
@@ -134,11 +156,31 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         }
     }
     
+    var orgId = await GetOrganizationIdAsync(request.MapId, ct);
+
     string? iconUrl = null;
     if (request.IconFile != null && request.IconFile.Length > 0)
     {
         using var stream = request.IconFile.OpenReadStream();
         iconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, stream, "poi-icons");
+        
+        // Register in User Library
+        try 
+        {
+            await _userAssetService.CreateAssetMetadataAsync(
+                currentUserId.Value,
+                request.IconFile.FileName,
+                iconUrl,
+                "image",
+                request.IconFile.Length,
+                request.IconFile.ContentType,
+                orgId);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the whole request if library registration fails
+            // Console.WriteLine($"Failed to register icon asset: {ex.Message}");
+        }
     }
     else if (!string.IsNullOrWhiteSpace(request.IconUrl))
     {
@@ -150,6 +192,23 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
     {
         using var stream = request.AudioFile.OpenReadStream();
         audioUrl = await _firebaseStorageService.UploadFileAsync(request.AudioFile.FileName, stream, "poi-audio");
+        
+        // Register in User Library
+        try 
+        {
+            await _userAssetService.CreateAssetMetadataAsync(
+                currentUserId.Value,
+                request.AudioFile.FileName,
+                audioUrl,
+                "audio",
+                request.AudioFile.Length,
+                request.AudioFile.ContentType,
+                orgId);
+        }
+        catch (Exception)
+        {
+            // Ignore failure
+        }
     }
     else if (!string.IsNullOrWhiteSpace(request.AudioUrl))
     {
@@ -160,12 +219,14 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
     var processedTooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
         request.TooltipContent, 
         folder: "poi-tooltips", 
-        ct);
+        orgId: orgId,
+        ct: ct);
 
     var processedPopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
         request.PopupContent, 
         folder: "poi-popups", 
-        ct);
+        orgId: orgId,
+        ct: ct);
     
     var location = new Location
     {
@@ -223,6 +284,7 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
 
         // Use MapId directly from location
         var mapId = location.MapId;
+        var orgId = await GetOrganizationIdAsync(mapId, ct);
 
         var segmentId = GuidHelper.ParseNullableGuid(request.SegmentId);
         if (segmentId.HasValue)
@@ -261,11 +323,30 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
                     "Linked POI not found in this map"));
             }
         }
+        var currentUserId = _currentUserService.GetUserId();
+
         if (request.IconFile != null && request.IconFile.Length > 0)
         {
             using var iconStream = request.IconFile.OpenReadStream();
             var newIconUrl = await _firebaseStorageService.UploadFileAsync(request.IconFile.FileName, iconStream, "poi-icons");
             location.IconUrl = newIconUrl;
+
+            // Register in User Library if we have a user
+            if (currentUserId.HasValue)
+            {
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        currentUserId.Value,
+                        request.IconFile.FileName,
+                        newIconUrl,
+                        "image",
+                        request.IconFile.Length,
+                        request.IconFile.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
         }
         
         if (request.AudioFile != null && request.AudioFile.Length > 0)
@@ -273,6 +354,23 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
             using var audioStream = request.AudioFile.OpenReadStream();
             var newAudioUrl = await _firebaseStorageService.UploadFileAsync(request.AudioFile.FileName, audioStream, "poi-audio");
             location.AudioUrl = newAudioUrl;
+
+            // Register in User Library if we have a user
+            if (currentUserId.HasValue)
+            {
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        currentUserId.Value,
+                        request.AudioFile.FileName,
+                        newAudioUrl,
+                        "audio",
+                        request.AudioFile.Length,
+                        request.AudioFile.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
         }
         else if (!string.IsNullOrWhiteSpace(request.AudioUrl))
         {
@@ -312,7 +410,8 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
             location.TooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
                 request.TooltipContent, 
                 folder: "poi-tooltips", 
-                ct);
+                orgId: orgId,
+                ct: ct);
         }
         else
         {
@@ -324,7 +423,8 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
             location.PopupContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
                 request.PopupContent, 
                 folder: "poi-popups", 
-                ct);
+                orgId: orgId,
+                ct: ct);
         }
         else
         {
@@ -363,6 +463,7 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         {
             return Option.None<LocationDto, Error>(Error.NotFound("Poi.NotFound", "Point of interest not found"));
         }
+        var orgId = await GetOrganizationIdAsync(location.MapId, ct);
 
         if (request.IsVisible.HasValue)
         {
@@ -384,7 +485,8 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
             location.TooltipContent = await _htmlImageProcessor.ProcessHtmlContentAsync(
                 request.TooltipContent, 
                 folder: "poi-tooltips", 
-                ct);
+                orgId: orgId,
+                ct: ct);
         }
 
         location.UpdatedAt = DateTime.UtcNow;

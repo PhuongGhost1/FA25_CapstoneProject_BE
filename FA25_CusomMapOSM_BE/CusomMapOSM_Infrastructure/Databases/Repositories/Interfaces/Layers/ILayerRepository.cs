@@ -11,4 +11,5 @@ public interface ILayerRepository
     Task<List<Layer>> GetAvailableLayersAsync(Guid userId, CancellationToken ct = default);
     Task<Layer?> GetLayerByIdAsync(Guid layerId, Guid userId, CancellationToken ct = default);
     Task<List<Layer>> GetLayersByMapAsync(Guid mapId, Guid userId, CancellationToken ct = default);
+    Task<Layer?> GetLayerByIdAsync(Guid layerId, CancellationToken ct = default);
 }

@@ -1,6 +1,8 @@
-﻿using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Response;
 using CusomMapOSM_Domain.Entities.QuestionBanks;
@@ -9,6 +11,8 @@ using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using Microsoft.AspNetCore.Http;
 using Optional;
 using System;
 using System.Collections.Generic;
@@ -28,6 +32,9 @@ public class QuestionBankService : IQuestionBankService
     private readonly ISessionQuestionBankRepository _sessionQuestionBankRepository;
     private readonly ISessionQuestionRepository _sessionQuestionRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IFirebaseStorageService _firebaseStorageService;
+    private readonly IUserAssetService _userAssetService;
+    private readonly IWorkspaceRepository _workspaceRepository;
 
     public QuestionBankService(
         IQuestionBankRepository questionBankRepository,
@@ -37,7 +44,10 @@ public class QuestionBankService : IQuestionBankService
         IMapRepository mapRepository,
         ISessionRepository sessionRepository,
         ISessionQuestionBankRepository sessionQuestionBankRepository,
-        ISessionQuestionRepository sessionQuestionRepository)
+        ISessionQuestionRepository sessionQuestionRepository,
+        IFirebaseStorageService firebaseStorageService,
+        IUserAssetService userAssetService,
+        IWorkspaceRepository workspaceRepository)
     {
         _questionBankRepository = questionBankRepository;
         _questionRepository = questionRepository;
@@ -47,6 +57,9 @@ public class QuestionBankService : IQuestionBankService
         _sessionRepository = sessionRepository;
         _sessionQuestionBankRepository = sessionQuestionBankRepository;
         _sessionQuestionRepository = sessionQuestionRepository;
+        _firebaseStorageService = firebaseStorageService;
+        _userAssetService = userAssetService;
+        _workspaceRepository = workspaceRepository;
     }
 
     public async Task<Option<QuestionBankDTO, Error>> CreateQuestionBank(CreateQuestionBankRequest request)
@@ -901,6 +914,161 @@ public class QuestionBankService : IQuestionBankService
 
         var serialized = string.Join(",", tags);
         return serialized.Length == 0 ? null : serialized;
+    }
+
+    private async Task<Guid?> GetOrganizationIdAsync(Guid? questionBankId)
+    {
+        if (!questionBankId.HasValue)
+        {
+            return null;
+        }
+
+        var questionBank = await _questionBankRepository.GetQuestionBankById(questionBankId.Value);
+        if (questionBank == null || !questionBank.WorkspaceId.HasValue)
+        {
+            return null;
+        }
+
+        var workspace = await _workspaceRepository.GetByIdAsync(questionBank.WorkspaceId.Value);
+        return workspace?.OrgId;
+    }
+
+    public async Task<Option<string, Error>> UploadQuestionImage(IFormFile file, Guid? questionBankId)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.Empty", "No file provided"));
+        }
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.InvalidType", "Invalid file type. Only images are allowed."));
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var storageUrl = await _firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-images");
+            
+            // Register in User Library
+            var userId = _currentUserService.GetUserId();
+            if (userId.HasValue)
+            {
+                var orgId = await GetOrganizationIdAsync(questionBankId);
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        userId.Value,
+                        file.FileName,
+                        storageUrl,
+                        "image",
+                        file.Length,
+                        file.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
+
+            return Option.Some<string, Error>(storageUrl);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<string, Error>(Error.Failure("File.UploadFailed", ex.Message));
+        }
+    }
+
+    public async Task<Option<string, Error>> UploadQuestionAudio(IFormFile file, Guid? questionBankId)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.Empty", "No file provided"));
+        }
+
+        var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.InvalidType", "Invalid file type. Only audio files are allowed."));
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var storageUrl = await _firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-audio");
+            
+            // Register in User Library
+            var userId = _currentUserService.GetUserId();
+            if (userId.HasValue)
+            {
+                var orgId = await GetOrganizationIdAsync(questionBankId);
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        userId.Value,
+                        file.FileName,
+                        storageUrl,
+                        "audio",
+                        file.Length,
+                        file.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
+
+            return Option.Some<string, Error>(storageUrl);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<string, Error>(Error.Failure("File.UploadFailed", ex.Message));
+        }
+    }
+
+    public async Task<Option<string, Error>> UploadOptionImage(IFormFile file, Guid? questionBankId)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.Empty", "No file provided"));
+        }
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            return Option.None<string, Error>(Error.ValidationError("File.InvalidType", "Invalid file type. Only images are allowed."));
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var storageUrl = await _firebaseStorageService.UploadFileAsync(file.FileName, stream, "question-option-images");
+            
+            // Register in User Library
+            var userId = _currentUserService.GetUserId();
+            if (userId.HasValue)
+            {
+                var orgId = await GetOrganizationIdAsync(questionBankId);
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        userId.Value,
+                        file.FileName,
+                        storageUrl,
+                        "image",
+                        file.Length,
+                        file.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
+
+            return Option.Some<string, Error>(storageUrl);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<string, Error>(Error.Failure("File.UploadFailed", ex.Message));
+        }
     }
     
 }

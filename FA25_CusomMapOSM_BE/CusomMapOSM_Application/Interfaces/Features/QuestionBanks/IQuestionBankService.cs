@@ -1,6 +1,7 @@
-﻿using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.QuestionBanks.Response;
+using Microsoft.AspNetCore.Http;
 using Optional;
 
 namespace CusomMapOSM_Application.Interfaces.Features.QuestionBanks;
@@ -28,4 +29,9 @@ public interface IQuestionBankService
     Task<Option<bool, Error>> DetachQuestionBankFromSession(Guid sessionId);
     Task<Option<List<QuestionDTO>, Error>> GetQuestionBanksBySessionId(Guid sessionId);
     Task<Option<List<SessionQuestionBankResponse>, Error>> GetSessionsByQuestionBankId(Guid questionBankId);
+
+    // File Uploads
+    Task<Option<string, Error>> UploadQuestionImage(IFormFile file, Guid? questionBankId);
+    Task<Option<string, Error>> UploadQuestionAudio(IFormFile file, Guid? questionBankId);
+    Task<Option<string, Error>> UploadOptionImage(IFormFile file, Guid? questionBankId);
 }
