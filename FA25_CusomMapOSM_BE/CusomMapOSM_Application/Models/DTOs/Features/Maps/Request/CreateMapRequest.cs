@@ -20,5 +20,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
         public string? BaseMapProvider { get; set; } = "osm";
 
         public Guid? WorkspaceId { get; set; }
+
+        public bool IsStoryMap { get; set; } = false;
     }
 }

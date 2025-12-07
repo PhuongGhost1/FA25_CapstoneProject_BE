@@ -23,6 +23,7 @@ public static class MapMappings
             ViewState = JsonDocument.Parse(string.IsNullOrEmpty(map.ViewState) ? "{}" : map.ViewState),
             IsPublic = map.IsPublic,
             Status = map.Status,
+            IsStoryMap = map.IsStoryMap,
             PublishedAt = map.PublishedAt,
             CreatedAt = map.CreatedAt,
             UpdatedAt = map.UpdatedAt,

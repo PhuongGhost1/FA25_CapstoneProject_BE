@@ -81,7 +81,7 @@ public class LocationEndpoint : IEndpoint
     {
         group.MapPost(Routes.LocationEndpoints.CreateMapLocation, async (
                 [FromRoute] Guid mapId,
-                [FromBody] CreateLocationRequest request,
+                [FromForm] CreateLocationRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
@@ -91,26 +91,12 @@ public class LocationEndpoint : IEndpoint
                     err => err.ToProblemDetailsResult());
             })
             .WithName("CreateLocation")
-            .WithDescription("Create a new location for the map");
-
-        group.MapPost(Routes.LocationEndpoints.CreateSegmentLocation, async (
-                [FromRoute] Guid mapId,
-                [FromRoute] Guid segmentId,
-                [FromBody] CreateLocationRequest request,
-                [FromServices] ILocationService locationService,
-                CancellationToken ct) =>
-            {
-                var result = await locationService.CreateLocationAsync(request, ct);
-                return result.Match<IResult>(
-                    location => Results.Created($"{Routes.Prefix.Location}/{mapId}/segments/{segmentId}", location),
-                    err => err.ToProblemDetailsResult());
-            })
-            .WithName("CreateSegmentLocation")
-            .WithDescription("Create a location tied to a segment");
+            .WithDescription("Create a new location for the map")
+            .DisableAntiforgery();
 
         group.MapPut(Routes.LocationEndpoints.UpdateLocation, async (
                 [FromRoute] Guid locationId,
-                [FromBody] UpdateLocationRequest request,
+                [FromForm] UpdateLocationRequest request,
                 [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
@@ -120,7 +106,8 @@ public class LocationEndpoint : IEndpoint
                     err => err.ToProblemDetailsResult());
             })
             .WithName("UpdatePoi")
-            .WithDescription("Update a point of interest");
+            .WithDescription("Update a point of interest")
+            .DisableAntiforgery();
 
         group.MapDelete(Routes.LocationEndpoints.DeleteLocation, async (
                 [FromRoute] Guid locationId,

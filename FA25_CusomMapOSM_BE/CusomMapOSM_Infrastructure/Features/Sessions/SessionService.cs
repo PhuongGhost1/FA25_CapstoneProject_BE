@@ -8,6 +8,7 @@ using CusomMapOSM_Domain.Entities.QuestionBanks;
 using CusomMapOSM_Domain.Entities.QuestionBanks.Enums;
 using CusomMapOSM_Domain.Entities.Sessions;
 using CusomMapOSM_Domain.Entities.Sessions.Enums;
+using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
@@ -74,6 +75,14 @@ public class SessionService : ISessionService
         {
             return Option.None<CreateSessionResponse, Error>(
                 Error.NotFound("Map.NotFound", "Map not found or has been deleted"));
+        }
+
+        // Check if map is published as storymap (can create sessions)
+        if (!map.IsStoryMap || map.Status != MapStatusEnum.Published)
+        {
+            return Option.None<CreateSessionResponse, Error>(
+                Error.ValidationError("Map.NotStoryMap", 
+                    "Chỉ có thể tạo session từ bản đồ đã được publish thành storymap. Vui lòng publish bản đồ với loại storymap để có thể tạo session."));
         }
 
         // Validate all question banks exist and are active

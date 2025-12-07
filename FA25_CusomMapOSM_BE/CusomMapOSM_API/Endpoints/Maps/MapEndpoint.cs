@@ -209,15 +209,17 @@ public class MapEndpoints : IEndpoint
         // ===== Map Publishing =====
         group.MapPost("/{mapId:guid}/publish", async (
                 [FromRoute] Guid mapId,
+                [FromBody] PublishMapRequest? request,
                 [FromServices] IMapService mapService) =>
             {
-                var result = await mapService.PublishMap(mapId);
+                var publishRequest = request ?? new PublishMapRequest { IsStoryMap = false };
+                var result = await mapService.PublishMap(mapId, publishRequest);
                 return result.Match(
                     success => Results.Ok(new { success = true }),
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("PublishMap")
-            .WithDescription("Publish a map")
+            .WithDescription("Publish a map. Set IsStoryMap=true to publish as storymap (can create sessions), false for view-only.")
             .RequireAuthorization()
             .Produces(200)
             .Produces(400)
