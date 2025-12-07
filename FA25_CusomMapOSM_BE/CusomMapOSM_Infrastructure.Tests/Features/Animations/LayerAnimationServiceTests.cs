@@ -1,11 +1,15 @@
 using Bogus;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Layers;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using CusomMapOSM_Infrastructure.Features.Animations;
 using FluentAssertions;
 using Moq;
@@ -21,17 +25,29 @@ public class LayerAnimationServiceTests
     private readonly LayerAnimationService _layerAnimationService;
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Mock<IFirebaseStorageService> _mockFirebaseStorageService;
+    private readonly Mock<IUserAssetService> _mockUserAssetService;
+    private readonly Mock<ILayerRepository> _mockLayerRepository;
+    private readonly Mock<IWorkspaceRepository> _mockWorkspaceRepository;
+    private readonly Mock<IStoryMapRepository> _mockStoryMapRepository;
     private readonly Faker _faker;
 
-    public LayerAnimationServiceTests(Mock<IFirebaseStorageService> mockFirebaseStorageService)
+    public LayerAnimationServiceTests()
     {
-        _mockFirebaseStorageService = mockFirebaseStorageService;
+        _mockFirebaseStorageService = new Mock<IFirebaseStorageService>();
+        _mockUserAssetService = new Mock<IUserAssetService>();
+        _mockLayerRepository = new Mock<ILayerRepository>();
+        _mockWorkspaceRepository = new Mock<IWorkspaceRepository>();
+        _mockStoryMapRepository = new Mock<IStoryMapRepository>();
         _mockRepository = new Mock<ILayerAnimationRepository>();
         _mockCurrentUserService = new Mock<ICurrentUserService>();
         _layerAnimationService = new LayerAnimationService(
             _mockRepository.Object,
             _mockCurrentUserService.Object,
-            _mockFirebaseStorageService.Object
+            _mockFirebaseStorageService.Object,
+            _mockUserAssetService.Object,
+            _mockLayerRepository.Object,
+            _mockWorkspaceRepository.Object,
+            _mockStoryMapRepository.Object
             );
         _faker = new Faker();
     }

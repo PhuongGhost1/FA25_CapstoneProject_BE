@@ -3,7 +3,11 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Locations;
@@ -153,7 +157,12 @@ public class LocationEndpoint : IEndpoint
         // Upload POI Audio
         group.MapPost(Routes.LocationEndpoints.UploadLocationAudio, async (
                 IFormFile file,
+                [FromQuery] Guid? mapId,
                 [FromServices] IFirebaseStorageService firebaseStorageService,
+                [FromServices] IUserAssetService userAssetService,
+                [FromServices] ICurrentUserService currentUserService,
+                [FromServices] IStoryMapRepository storyMapRepository,
+                [FromServices] IWorkspaceRepository workspaceRepository,
                 CancellationToken ct) =>
             {
                 if (file == null || file.Length == 0)
@@ -172,6 +181,36 @@ public class LocationEndpoint : IEndpoint
                 {
                     using var stream = file.OpenReadStream();
                     var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "location-audio");
+                    
+                    // Register in User Library
+                    var userId = currentUserService.GetUserId();
+                    if (userId.HasValue)
+                    {
+                        Guid? orgId = null;
+                        if (mapId.HasValue)
+                        {
+                            var map = await storyMapRepository.GetMapAsync(mapId.Value, ct);
+                            if (map?.WorkspaceId != null)
+                            {
+                                var ws = await workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+                                orgId = ws?.OrgId;
+                            }
+                        }
+
+                        try 
+                        {
+                            await userAssetService.CreateAssetMetadataAsync(
+                                userId.Value,
+                                file.FileName,
+                                storageUrl,
+                                "audio",
+                                file.Length,
+                                file.ContentType,
+                                orgId);
+                        }
+                        catch (Exception) { /* Ensure robust */ }
+                    }
+
                     return Results.Ok(new { audioUrl = storageUrl });
                 }
                 catch (Exception ex)
@@ -183,7 +222,6 @@ public class LocationEndpoint : IEndpoint
             .WithDescription("Upload an audio file for location")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
-            .DisableAntiforgery()
             .Produces(200)
             .Produces(400)
             .Produces(500);

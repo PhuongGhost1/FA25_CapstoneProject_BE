@@ -3,9 +3,13 @@ using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.User;
+using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Models.DTOs.Features.Animations;
 using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Animations;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Layers;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.Animations;
@@ -15,12 +19,39 @@ public class LayerAnimationService : ILayerAnimationService
     private readonly ILayerAnimationRepository _repository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IFirebaseStorageService _firebaseStorageService;
+    private readonly IUserAssetService _userAssetService;
+    private readonly ILayerRepository _layerRepository;
+    private readonly IWorkspaceRepository _workspaceRepository;
+    private readonly IStoryMapRepository _storyMapRepository;
 
-    public LayerAnimationService(ILayerAnimationRepository repository, ICurrentUserService currentUserService, IFirebaseStorageService firebaseStorageService)
+    public LayerAnimationService(
+        ILayerAnimationRepository repository, 
+        ICurrentUserService currentUserService, 
+        IFirebaseStorageService firebaseStorageService, 
+        IUserAssetService userAssetService,
+        ILayerRepository layerRepository,
+        IWorkspaceRepository workspaceRepository,
+        IStoryMapRepository storyMapRepository)
     {
         _repository = repository;
         _currentUserService = currentUserService;
         _firebaseStorageService = firebaseStorageService;
+        _userAssetService = userAssetService;
+        _layerRepository = layerRepository;
+        _workspaceRepository = workspaceRepository;
+        _storyMapRepository = storyMapRepository;
+    }
+
+    private async Task<Guid?> GetOrganizationIdAsync(Guid layerId, CancellationToken ct)
+    {
+        var layer = await _layerRepository.GetLayerByIdAsync(layerId, ct);
+        if (layer == null) return null;
+
+        var map = await _storyMapRepository.GetMapAsync(layer.MapId, ct);
+        if (map == null || !map.WorkspaceId.HasValue) return null;
+
+        var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+        return workspace?.OrgId;
     }
 
     public async Task<Option<IReadOnlyCollection<LayerAnimationDto>, Error>> GetAnimationsByLayerAsync(Guid layerId, CancellationToken ct = default)
@@ -48,6 +79,7 @@ public class LayerAnimationService : ILayerAnimationService
             return Option.None<LayerAnimationDto, Error>(Error.Unauthorized("Animation.Unauthorized", "User not authenticated"));
         }
         string sourceUrl = string.Empty;
+        var orgId = await GetOrganizationIdAsync(request.LayerId, ct);
         if (request.AnimationFile is not null)
         {   
             using var stream = request.AnimationFile.OpenReadStream();
@@ -57,6 +89,20 @@ public class LayerAnimationService : ILayerAnimationService
                 return Option.None<LayerAnimationDto, Error>(Error.NotFound("Animation.AnimationFile.NotFound", "Animation file not found"));
             }
             sourceUrl = animationUrl;
+
+            // Register in User Library
+            try 
+            {
+                await _userAssetService.CreateAssetMetadataAsync(
+                    currentUserId.Value,
+                    request.AnimationFile.FileName,
+                    animationUrl,
+                    "image", // Assuming static images/gifs are images. if "video", might be different but usually animations here are images.
+                    request.AnimationFile.Length,
+                    request.AnimationFile.ContentType,
+                    orgId);
+            }
+            catch (Exception) { /* Ensure robust */ }
         }
         var entity = new AnimatedLayer
         {
@@ -96,6 +142,25 @@ public class LayerAnimationService : ILayerAnimationService
                 return Option.None<LayerAnimationDto, Error>(Error.NotFound("Animation.AnimationFile.NotFound", "Animation file not found"));
             }
             entity.SourceUrl = animationUrl;
+
+            // Register in User Library
+            var currentUserId = _currentUserService.GetUserId();
+            var orgId = await GetOrganizationIdAsync(entity.LayerId.Value, ct);
+            if (currentUserId.HasValue)
+            {
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        currentUserId.Value,
+                        request.AnimationFile.FileName,
+                        animationUrl,
+                        "image",
+                        request.AnimationFile.Length,
+                        request.AnimationFile.ContentType,
+                        orgId);
+                }
+                catch (Exception) { /* Ensure robust */ }
+            }
         }
         entity.Coordinates = request.Coordinates;
         entity.RotationDeg = request.RotationDeg;

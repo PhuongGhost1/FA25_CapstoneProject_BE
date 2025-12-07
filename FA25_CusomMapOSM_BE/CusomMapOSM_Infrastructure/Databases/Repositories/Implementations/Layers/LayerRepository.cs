@@ -44,4 +44,11 @@ public class LayerRepository : ILayerRepository
             .OrderBy(l => l.CreatedAt).ThenBy(l => l.LayerId)
             .ToListAsync(ct);
     }
+    public Task<Layer?> GetLayerByIdAsync(Guid layerId, CancellationToken ct = default)
+    {
+        return _dbContext.Layers
+            .Include(l => l.Map)
+            .Where(l => l.LayerId == layerId && l.Map != null && l.Map.IsPublic)
+            .FirstOrDefaultAsync(ct);
+    }
 }
