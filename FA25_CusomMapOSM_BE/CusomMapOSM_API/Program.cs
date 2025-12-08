@@ -143,6 +143,9 @@ public class Program
             .RequireAuthorization();
         api.MapHub<SessionHub>("/hubs/session")
             .RequireCors("FrontendCors");
+        api.MapHub<GroupCollaborationHub>("/hubs/groupCollaboration")
+            .RequireCors("FrontendCors")
+            .RequireAuthorization();
         app.Run();
     }
 }
