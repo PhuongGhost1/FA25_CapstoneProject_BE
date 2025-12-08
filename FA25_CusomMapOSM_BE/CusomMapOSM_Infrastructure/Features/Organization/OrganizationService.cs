@@ -312,12 +312,20 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.MemberTypeNotFound", "Invalid member type"));
         }
 
-        var existingInvitation = await _organizationRepository.GetInvitationByEmailAndOrg(req.MemberEmail, req.OrgId);
-        if (existingInvitation != null && existingInvitation.Status == InvitationStatus.Pending)
+        // Normalize email for comparison (case-insensitive)
+        var normalizedInviteEmail = req.MemberEmail.Trim().ToLowerInvariant();
+
+        // Prevent self-invitation: Check if the invited email belongs to the current user
+        var currentUser = await _authenticationRepository.GetUserById(currentUserId.Value);
+        if (currentUser != null && !string.IsNullOrEmpty(currentUser.Email))
         {
-            return Option.None<InviteMemberOrganizationResDto, Error>(
-                Error.Conflict("Organization.InvitationAlreadyExists",
-                    "An invitation has already been sent to this email for this organization"));
+            var normalizedCurrentEmail = currentUser.Email.Trim().ToLowerInvariant();
+            if (normalizedInviteEmail == normalizedCurrentEmail)
+            {
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.ValidationError("Organization.CannotInviteSelf",
+                        "You cannot invite yourself to the organization"));
+            }
         }
 
         // Check if organization has active membership and quota available
@@ -326,6 +334,31 @@ public class OrganizationService : IOrganizationService
         {
             return Option.None<InviteMemberOrganizationResDto, Error>(
                 Error.NotFound("Organization.NotFound", "Organization not found"));
+        }
+
+        // Check if the invited email is already a member of the organization
+        var invitedUser = await _authenticationRepository.GetUserByEmail(req.MemberEmail);
+        if (invitedUser != null)
+        {
+            var existingMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(invitedUser.UserId, req.OrgId);
+            if (existingMember != null && existingMember.Status == MemberStatus.Active)
+            {
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.Conflict("Organization.AlreadyMember",
+                        "This user is already a member of the organization"));
+            }
+        }
+
+        // Check for any existing invitation (pending or otherwise) - prevent duplicate invitations
+        var existingInvitation = await _organizationRepository.GetInvitationByEmailAndOrg(req.MemberEmail, req.OrgId);
+        if (existingInvitation != null)
+        {
+            if (existingInvitation.Status == InvitationStatus.Pending)
+            {
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.Conflict("Organization.InvitationAlreadyExists",
+                        "An invitation has already been sent to this email for this organization"));
+            }
         }
 
         // Get organization owner's active membership (since memberships are tied to users, not orgs directly)
@@ -363,12 +396,38 @@ public class OrganizationService : IOrganizationService
         var currentMembers = await _organizationRepository.GetOrganizationMembers(req.OrgId);
         var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
 
-        // Check if adding this user would exceed quota (only if plan has user limits)
-        if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
+        // Check quota: current active members + pending invitations should not exceed limit
+        // We check if (currentUserCount + 1) would exceed, since we're about to add one invitation
+        if (plan.MaxUsersPerOrg > 0)
         {
-            return Option.None<InviteMemberOrganizationResDto, Error>(
-                Error.Conflict("Organization.UserQuotaExceeded",
-                    $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
+            // Check quota using membership service directly
+            var quotaCheck = await _membershipService.GetOrCreateUsageAsync(membership.MembershipId, req.OrgId, CancellationToken.None);
+            if (quotaCheck.HasValue)
+            {
+                var usage = quotaCheck.Match(some: u => u, none: _ => null!);
+                if (usage != null)
+                {
+                    // Check if current usage + 1 would exceed the limit
+                    // Note: ActiveUsersInOrg tracks actual members, but we should also consider pending invitations
+                    // For now, we check if adding one more would exceed, which is conservative
+                    if (usage.ActiveUsersInOrg + 1 > plan.MaxUsersPerOrg)
+                    {
+                        return Option.None<InviteMemberOrganizationResDto, Error>(
+                            Error.Conflict("Organization.UserQuotaExceeded",
+                                $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users. Current: {usage.ActiveUsersInOrg}/{plan.MaxUsersPerOrg}"));
+                    }
+                }
+            }
+            else
+            {
+                // Fallback to simple count check if usage tracking fails
+                if (currentUserCount + 1 > plan.MaxUsersPerOrg)
+                {
+                    return Option.None<InviteMemberOrganizationResDto, Error>(
+                        Error.Conflict("Organization.UserQuotaExceeded",
+                            $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
+                }
+            }
         }
 
         var newInvitation = new OrganizationInvitation()
@@ -502,44 +561,98 @@ public class OrganizationService : IOrganizationService
                     $"Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
         }
 
-        // Consume user quota
-        var quotaResult = await _membershipService.TryConsumeQuotaAsync(
-            membership.MembershipId,
-            invitation.OrgId,
-            "users",
-            1,
-            CancellationToken.None);
-
-        if (!quotaResult.HasValue)
+        // Check if member already exists (even if removed/left)
+        var existingMember = await _organizationRepository.GetOrganizationMemberByUserAndOrgAnyStatus(user.UserId, invitation.OrgId);
+        
+        bool memberResult;
+        bool isReactivation = existingMember != null;
+        
+        if (existingMember != null)
         {
-            return Option.None<AcceptInviteOrganizationResDto, Error>(
-                Error.Failure("Organization.QuotaConsumptionFailed", "Failed to consume user quota"));
-        }
-
-        var newMember = new OrganizationMember()
-        {
-            OrgId = invitation.OrgId,
-            UserId = user.UserId,
-            Role = invitation.Role,
-            InvitationId = invitation.InvitationId,
-            InvitedBy = invitation.InvitedBy,
-            JoinedAt = DateTime.UtcNow,
-            Status = MemberStatus.Active
-        };
-
-        var memberResult = await _organizationRepository.AddMemberToOrganization(newMember);
-        if (!memberResult)
-        {
-            // Rollback quota consumption if member addition fails
-            await _membershipService.TryConsumeQuotaAsync(
+            // Member exists but was removed/left - reactivate them
+            // First check and consume quota (since they were removed, quota was released)
+            var quotaResult = await _membershipService.TryConsumeQuotaAsync(
                 membership.MembershipId,
                 invitation.OrgId,
                 "users",
-                -1, // Negative amount to release quota
+                1,
                 CancellationToken.None);
 
+            if (!quotaResult.HasValue)
+            {
+                return Option.None<AcceptInviteOrganizationResDto, Error>(
+                    Error.Failure("Organization.QuotaConsumptionFailed", "Failed to consume user quota for reactivated member"));
+            }
+            
+            // Update existing member record
+            existingMember.Status = MemberStatus.Active;
+            existingMember.Role = invitation.Role;
+            existingMember.InvitationId = invitation.InvitationId;
+            existingMember.InvitedBy = invitation.InvitedBy;
+            existingMember.JoinedAt = DateTime.UtcNow; // Update join date to now
+            existingMember.LeftAt = null; // Clear left date
+            existingMember.LeaveReason = null; // Clear leave reason
+            
+            memberResult = await _organizationRepository.UpdateOrganizationMember(existingMember);
+            
+            if (!memberResult)
+            {
+                // Rollback quota if update fails
+                await _membershipService.TryConsumeQuotaAsync(
+                    membership.MembershipId,
+                    invitation.OrgId,
+                    "users",
+                    -1, // Negative amount to release quota
+                    CancellationToken.None);
+            }
+        }
+        else
+        {
+            // New member - create new record
+            // Consume user quota first
+            var quotaResult = await _membershipService.TryConsumeQuotaAsync(
+                membership.MembershipId,
+                invitation.OrgId,
+                "users",
+                1,
+                CancellationToken.None);
+
+            if (!quotaResult.HasValue)
+            {
+                return Option.None<AcceptInviteOrganizationResDto, Error>(
+                    Error.Failure("Organization.QuotaConsumptionFailed", "Failed to consume user quota"));
+            }
+
+            var newMember = new OrganizationMember()
+            {
+                OrgId = invitation.OrgId,
+                UserId = user.UserId,
+                Role = invitation.Role,
+                InvitationId = invitation.InvitationId,
+                InvitedBy = invitation.InvitedBy,
+                JoinedAt = DateTime.UtcNow,
+                Status = MemberStatus.Active
+            };
+
+            memberResult = await _organizationRepository.AddMemberToOrganization(newMember);
+            
+            if (!memberResult)
+            {
+                // Rollback quota consumption if member addition fails
+                await _membershipService.TryConsumeQuotaAsync(
+                    membership.MembershipId,
+                    invitation.OrgId,
+                    "users",
+                    -1, // Negative amount to release quota
+                    CancellationToken.None);
+            }
+        }
+
+        if (!memberResult)
+        {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
-                Error.Failure("Organization.MemberAddFailed", "Failed to add member to organization"));
+                Error.Failure("Organization.MemberAddFailed", 
+                    isReactivation ? "Failed to reactivate member in organization" : "Failed to add member to organization"));
         }
 
         invitation.Status = InvitationStatus.Accepted;
@@ -696,27 +809,33 @@ public class OrganizationService : IOrganizationService
                     "Member does not belong to this organization"));
         }
 
+        // Only release quota if member is currently Active (not already Removed/Left)
+        bool shouldReleaseQuota = member.Status == MemberStatus.Active;
+
         // Get organization owner's active membership to release quota
-        var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
-        if (organization != null)
+        if (shouldReleaseQuota)
         {
-            var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
-            if (activeMembership.HasValue)
+            var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
+            if (organization != null)
             {
-                var membership = activeMembership.Match(some: m => m, none: _ => null!);
-
-                // Release user quota when removing member
-                var quotaResult = await _membershipService.TryConsumeQuotaAsync(
-                    membership.MembershipId,
-                    req.OrgId,
-                    "users",
-                    -1, // Negative amount to release quota
-                    CancellationToken.None);
-
-                if (!quotaResult.HasValue)
+                var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+                if (activeMembership.HasValue)
                 {
-                    // Log warning but don't fail the removal - quota release is secondary
-                    Console.WriteLine($"Failed to release user quota for organization {req.OrgId} when removing member {req.MemberId}");
+                    var membership = activeMembership.Match(some: m => m, none: _ => null!);
+
+                    // Release user quota when removing active member
+                    var quotaResult = await _membershipService.TryConsumeQuotaAsync(
+                        membership.MembershipId,
+                        req.OrgId,
+                        "users",
+                        -1, // Negative amount to release quota
+                        CancellationToken.None);
+
+                    if (!quotaResult.HasValue)
+                    {
+                        // Log warning but don't fail the removal - quota release is secondary
+                        Console.WriteLine($"Failed to release user quota for organization {req.OrgId} when removing member {req.MemberId}");
+                    }
                 }
             }
         }
@@ -724,6 +843,26 @@ public class OrganizationService : IOrganizationService
         var removeResult = await _organizationRepository.RemoveOrganizationMember(req.MemberId);
         if (!removeResult)
         {
+            // If removal fails and we released quota, rollback the quota
+            if (shouldReleaseQuota)
+            {
+                var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
+                if (organization != null)
+                {
+                    var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+                    if (activeMembership.HasValue)
+                    {
+                        var membership = activeMembership.Match(some: m => m, none: _ => null!);
+                        await _membershipService.TryConsumeQuotaAsync(
+                            membership.MembershipId,
+                            req.OrgId,
+                            "users",
+                            1, // Rollback: add quota back
+                            CancellationToken.None);
+                    }
+                }
+            }
+
             return Option.None<RemoveMemberResDto, Error>(
                 Error.Failure("Organization.RemoveMemberFailed", "Failed to remove member"));
         }

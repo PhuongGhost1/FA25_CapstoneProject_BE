@@ -1,5 +1,6 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Exports;
+using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
 using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
@@ -19,11 +20,26 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Optional;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 
 namespace CusomMapOSM_Infrastructure.Features.Exports;
+
+// Helper class for SVG path data
+internal class SvgPathInfo
+{
+    public string Type { get; set; } = string.Empty; // "path", "circle", "polygon", "polyline"
+    public string Data { get; set; } = string.Empty; // Path data, circle coords, or polygon points
+    public string Fill { get; set; } = "#3388ff";
+    public string Stroke { get; set; } = "#3388ff";
+    public string StrokeWidth { get; set; } = "2";
+    public string FillOpacity { get; set; } = "0.2";
+    public string StrokeOpacity { get; set; } = "1";
+    public string? Transform { get; set; }
+}
 
 public class ExportService : IExportService
 {
@@ -34,11 +50,13 @@ public class ExportService : IExportService
     private readonly IWorkspaceRepository _workspaceRepository;
     private readonly IFirebaseStorageService _firebaseStorageService;
     private readonly IExportQuotaService _exportQuotaService;
+    private readonly IUsageService _usageService;
     private readonly IConfiguration _configuration;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IMapFeatureStore _mapFeatureStore;
     private readonly ILayerDataStore _layerDataStore;
     private readonly ILogger<ExportService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public ExportService(
         IExportRepository exportRepository,
@@ -48,11 +66,13 @@ public class ExportService : IExportService
         IWorkspaceRepository workspaceRepository,
         IFirebaseStorageService firebaseStorageService,
         IExportQuotaService exportQuotaService,
+        IUsageService usageService,
         IConfiguration configuration,
         IServiceScopeFactory serviceScopeFactory,
         IMapFeatureStore mapFeatureStore,
         ILayerDataStore layerDataStore,
-        ILogger<ExportService> logger)
+        ILogger<ExportService> logger,
+        IHttpClientFactory httpClientFactory)
     {
         _exportRepository = exportRepository;
         _currentUserService = currentUserService;
@@ -61,11 +81,13 @@ public class ExportService : IExportService
         _workspaceRepository = workspaceRepository;
         _firebaseStorageService = firebaseStorageService;
         _exportQuotaService = exportQuotaService;
+        _usageService = usageService;
         _configuration = configuration;
         _serviceScopeFactory = serviceScopeFactory;
         _mapFeatureStore = mapFeatureStore;
         _layerDataStore = layerDataStore;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<Option<ExportResponse, Error>> CreateExportAsync(CreateExportRequest request)
@@ -89,10 +111,15 @@ public class ExportService : IExportService
 
             // Get user's active membership
             DomainMembership? membership = null;
+            Guid? orgId = null;
             
             if (request.MembershipId.HasValue)
             {
                 membership = await _membershipRepository.GetByIdAsync(request.MembershipId.Value, CancellationToken.None);
+                if (membership != null)
+                {
+                    orgId = membership.OrgId;
+                }
             }
             else
             {
@@ -103,26 +130,75 @@ public class ExportService : IExportService
                     var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
                     if (workspace != null && workspace.OrgId.HasValue)
                     {
+                        orgId = workspace.OrgId.Value;
                         membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(
                             currentUserId.Value,
                             workspace.OrgId.Value,
                             CancellationToken.None);
                     }
                 }
+            }
+
+            // Validate membership exists and is active
+            if (membership == null)
+            {
+                return Option.None<ExportResponse, Error>(
+                    Error.NotFound("Export.MembershipNotFound", 
+                        "Active membership not found. Please provide a membershipId or ensure you have an active membership for the map's organization."));
+            }
+
+            if (membership.Status != MembershipStatusEnum.Active)
+            {
+                return Option.None<ExportResponse, Error>(
+                    Error.ValidationError("Export.MembershipInactive", 
+                        $"Membership is not active. Current status: {membership.Status}. Please activate your membership to create exports."));
+            }
+
+            // Ensure membership includes Plan data
+            if (membership.Plan == null)
+            {
+                // Reload membership with includes if Plan is missing
+                membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(
+                    currentUserId.Value,
+                    membership.OrgId,
+                    CancellationToken.None);
                 
-                // If no membership found, try to get any active membership for the user
-                // (This handles personal maps or maps without organization)
-                if (membership == null || membership.Status != MembershipStatusEnum.Active)
+                if (membership?.Plan == null)
                 {
-                    // For now, we require an active membership
-                    // In the future, we could allow exports without membership for free tier
+                    return Option.None<ExportResponse, Error>(
+                        Error.Failure("Export.MembershipPlanNotFound", 
+                            "Membership plan information not found. Please contact support."));
                 }
             }
 
-            if (membership == null || membership.Status != MembershipStatusEnum.Active)
+            // Check count-based export quota before creating export
+            if (orgId.HasValue)
             {
-                return Option.None<ExportResponse, Error>(
-                    Error.NotFound("Export.MembershipNotFound", "Active membership not found. Please provide a membershipId or ensure you have an active membership for the map's organization."));
+                var quotaCheck = await _usageService.CheckUserQuotaAsync(
+                    currentUserId.Value, 
+                    orgId.Value, 
+                    "exports", 
+                    1, 
+                    CancellationToken.None);
+                
+                if (!quotaCheck.HasValue)
+                {
+                    return Option.None<ExportResponse, Error>(
+                        Error.Failure("Export.QuotaCheckFailed", 
+                            "Failed to check export quota. Please try again."));
+                }
+
+                var quotaResult = quotaCheck.Match(
+                    some: quota => quota,
+                    none: error => throw new InvalidOperationException($"Quota check failed: {error.Description}")
+                );
+
+                if (!quotaResult.IsAllowed)
+                {
+                    return Option.None<ExportResponse, Error>(
+                        Error.ValidationError("Export.QuotaExceeded", 
+                            $"Export quota exceeded. {quotaResult.Message} Please upgrade your membership or wait for quota reset."));
+                }
             }
 
             // Determine file extension and folder
@@ -134,7 +210,7 @@ public class ExportService : IExportService
             var export = new Export
             {
                 UserId = currentUserId.Value,
-                MembershipId = membership.MembershipId,
+                MembershipId = membership.MembershipId, // Now guaranteed to be non-null
                 MapId = request.MapId,
                 FilePath = string.Empty, // Will be updated with full Firebase URL after upload
                 FileSize = 0, // Will be updated after file generation
@@ -147,72 +223,139 @@ public class ExportService : IExportService
 
             var createdExport = await _exportRepository.CreateAsync(export);
 
+            // Consume export quota immediately when export is created (not waiting for approval)
+            // This ensures the quota is reserved even while waiting for admin approval
+            if (orgId.HasValue)
+            {
+                var consumeQuotaResult = await _usageService.ConsumeUserQuotaAsync(
+                    currentUserId.Value,
+                    orgId.Value,
+                    "exports",
+                    1,
+                    CancellationToken.None);
+                
+                if (!consumeQuotaResult.HasValue)
+                {
+                    _logger.LogWarning("Failed to consume export quota for export {ExportId}, user {UserId}, org {OrgId}. Export created but quota not tracked.", 
+                        createdExport.ExportId, currentUserId.Value, orgId.Value);
+                    // Note: We don't fail the export creation here since the export record is already created
+                    // This is a tracking issue, but the export should still be processable
+                }
+                else
+                {
+                    var consumed = consumeQuotaResult.Match(
+                        some: result => result,
+                        none: error => false
+                    );
+                    
+                    if (!consumed)
+                    {
+                        _logger.LogWarning("Quota consumption failed for export {ExportId}, user {UserId}, org {OrgId}. Export created but quota not consumed.", 
+                            createdExport.ExportId, currentUserId.Value, orgId.Value);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Consumed export quota: incremented ExportsThisCycle for user {UserId}, org {OrgId}, export {ExportId} (status: {Status})", 
+                            currentUserId.Value, orgId.Value, createdExport.ExportId, createdExport.Status);
+                    }
+                }
+            }
+
             // Store export configuration to pass to background processing
             var exportConfig = new
             {
                 ViewState = request.ViewState,
                 MapImageData = request.MapImageData,
+                SvgPathData = request.SvgPathData,
                 VisibleLayerIds = request.VisibleLayerIds,
                 VisibleFeatureIds = request.VisibleFeatureIds,
                 Options = request.Options
             };
 
-            // Process export asynchronously in a background scope to avoid DbContext disposal issues
-            _ = Task.Run(async () =>
+            // For GeoJSON, process synchronously so we can return the approved status and file URL immediately
+            // For PNG/PDF, process asynchronously in background since they require admin approval
+            if (request.Format == ExportTypeEnum.GeoJSON)
             {
                 try
                 {
-                    if (_serviceScopeFactory == null)
-                    {
-                        _logger.LogError("ServiceScopeFactory is null. Cannot process export {ExportId} in background.", createdExport.ExportId);
-                        await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
-                            "ServiceScopeFactory is not available for background processing");
-                        return;
-                    }
-
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var scopedExportService = scope.ServiceProvider.GetRequiredService<IExportService>();
-                    var scopedMapRepository = scope.ServiceProvider.GetRequiredService<IMapRepository>();
+                    // Process GeoJSON synchronously
+                    await ProcessExportAsyncInternal(createdExport.ExportId, request.Format, map, exportConfig);
                     
-                    // Get fresh map instance from new scope
-                    var scopedMap = await scopedMapRepository.GetMapById(map.MapId);
-                    if (scopedMap == null)
+                    // Refresh the export to get the updated status and file URL
+                    var updatedExport = await _exportRepository.GetByIdWithIncludesAsync(createdExport.ExportId);
+                    if (updatedExport != null)
                     {
-                        _logger.LogError("Map {MapId} not found in background processing scope", map.MapId);
-                        await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
-                            "Map not found in background processing");
-                        return;
+                        return Option.Some<ExportResponse, Error>(MapToDto(updatedExport));
                     }
-                    
-                    // If view state is provided, update the map's view state temporarily for export
-                    if (!string.IsNullOrEmpty(exportConfig.ViewState))
-                    {
-                        scopedMap.ViewState = exportConfig.ViewState;
-                        _logger.LogInformation("Using provided view state for export {ExportId}: {ViewState}", 
-                            createdExport.ExportId, exportConfig.ViewState);
-                    }
-                    
-                    // Process using scoped services with export configuration
-                    await ((ExportService)scopedExportService).ProcessExportAsyncInternal(
-                        createdExport.ExportId, request.Format, scopedMap, exportConfig);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in background export processing for export {ExportId}", createdExport.ExportId);
+                    _logger.LogError(ex, "Error processing GeoJSON export {ExportId} synchronously", createdExport.ExportId);
+                    await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
+                        $"Export processing failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                // Process PNG/PDF asynchronously in a background scope to avoid DbContext disposal issues
+                _ = Task.Run(async () =>
+                {
                     try
                     {
-                        await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
-                            $"Background processing failed: {ex.Message}");
-                    }
-                    catch
-                    {
-                        // If we can't update status, at least log it
-                        _logger.LogError("Failed to update export status after background processing error");
-                    }
-                }
-            });
+                        if (_serviceScopeFactory == null)
+                        {
+                            _logger.LogError("ServiceScopeFactory is null. Cannot process export {ExportId} in background.", createdExport.ExportId);
+                            await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
+                                "ServiceScopeFactory is not available for background processing");
+                            return;
+                        }
 
-            return Option.Some<ExportResponse, Error>(MapToDto(createdExport));
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var scopedExportService = scope.ServiceProvider.GetRequiredService<IExportService>();
+                        var scopedMapRepository = scope.ServiceProvider.GetRequiredService<IMapRepository>();
+                        
+                        // Get fresh map instance from new scope
+                        var scopedMap = await scopedMapRepository.GetMapById(map.MapId);
+                        if (scopedMap == null)
+                        {
+                            _logger.LogError("Map {MapId} not found in background processing scope", map.MapId);
+                            await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
+                                "Map not found in background processing");
+                            return;
+                        }
+                        
+                        // If view state is provided, update the map's view state temporarily for export
+                        if (!string.IsNullOrEmpty(exportConfig.ViewState))
+                        {
+                            scopedMap.ViewState = exportConfig.ViewState;
+                            _logger.LogInformation("Using provided view state for export {ExportId}: {ViewState}", 
+                                createdExport.ExportId, exportConfig.ViewState);
+                        }
+                        
+                        // Process using scoped services with export configuration
+                        await ((ExportService)scopedExportService).ProcessExportAsyncInternal(
+                            createdExport.ExportId, request.Format, scopedMap, exportConfig);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in background export processing for export {ExportId}", createdExport.ExportId);
+                        try
+                        {
+                            await UpdateExportStatusAsync(createdExport.ExportId, ExportStatusEnum.Failed, 
+                                $"Background processing failed: {ex.Message}");
+                        }
+                        catch
+                        {
+                            // If we can't update status, at least log it
+                            _logger.LogError("Failed to update export status after background processing error");
+                        }
+                    }
+                });
+            }
+
+            // Return the export (for GeoJSON it will have Approved status and fileUrl, for PNG/PDF it will be Pending)
+            var finalExport = await _exportRepository.GetByIdWithIncludesAsync(createdExport.ExportId);
+            return Option.Some<ExportResponse, Error>(MapToDto(finalExport ?? createdExport));
         }
         catch (Exception ex)
         {
@@ -354,6 +497,7 @@ public class ExportService : IExportService
             Dictionary<string, bool>? visibleFeatureIds = null;
             ExportOptions? options = null;
             string? mapImageData = null;
+            string? svgPathData = null;
             
             if (exportConfig != null)
             {
@@ -367,6 +511,11 @@ public class ExportService : IExportService
                         if (configDict.ContainsKey("MapImageData") && configDict["MapImageData"] != null)
                         {
                             mapImageData = configDict["MapImageData"]?.ToString();
+                        }
+                        
+                        if (configDict.ContainsKey("SvgPathData") && configDict["SvgPathData"] != null)
+                        {
+                            svgPathData = configDict["SvgPathData"]?.ToString();
                         }
                         
                         if (configDict.ContainsKey("VisibleLayerIds") && configDict["VisibleLayerIds"] != null)
@@ -421,7 +570,7 @@ public class ExportService : IExportService
                     folder = "exports/png";
                     break;
                 case ExportTypeEnum.SVG:
-                    fileData = await GenerateSvgAsync(map, visibleLayerIds, visibleFeatureIds, options, mapImageData);
+                    fileData = await GenerateSvgAsync(map, visibleLayerIds, visibleFeatureIds, options, mapImageData, svgPathData);
                     fileExtension = "svg";
                     folder = "exports/svg";
                     break;
@@ -461,20 +610,36 @@ public class ExportService : IExportService
                 return;
             }
 
-            // Note: Quota tokens will be consumed when admin approves the export
-            // We only check quota here to ensure user has enough tokens before processing
-            // The actual consumption happens in ApproveExportAsync
+            // Note: Export count quota was already consumed when export was created (in CreateExportAsync)
+            // Token quota will be consumed when admin approves the export (in ApproveExportAsync)
+            // We check token quota here to ensure user has enough tokens before processing
 
-            // Update export record - set to PendingApproval for admin review
+            // GeoJSON exports are auto-approved (no admin approval needed)
+            // PNG and PDF exports require admin approval
+            var isGeoJson = format == ExportTypeEnum.GeoJSON;
+            
+            // Update export record
             // Store the full Firebase URL
             export.FilePath = fileUrl;
             export.FileSize = fileData.Length;
-            export.Status = ExportStatusEnum.PendingApproval;
             export.CompletedAt = DateTime.UtcNow;
+            
+            if (isGeoJson)
+            {
+                // Auto-approve GeoJSON exports
+                export.Status = ExportStatusEnum.Approved;
+                _logger.LogInformation("Export {ExportId} (GeoJSON) file uploaded to Firebase: {FileUrl}. File size: {FileSize}KB. Auto-approved (no admin approval required).", 
+                    exportId, fileUrl, fileSizeKB);
+            }
+            else
+            {
+                // PNG and PDF require admin approval
+                export.Status = ExportStatusEnum.PendingApproval;
+                _logger.LogInformation("Export {ExportId} file uploaded to Firebase: {FileUrl}. File size: {FileSize}KB. Waiting for admin approval before consuming quota tokens.", 
+                    exportId, fileUrl, fileSizeKB);
+            }
+            
             await _exportRepository.UpdateAsync(export);
-
-            _logger.LogInformation("Export {ExportId} file uploaded to Firebase: {FileUrl}. File size: {FileSize}KB. Waiting for admin approval before consuming quota tokens.", 
-                exportId, fileUrl, fileSizeKB);
         }
         catch (Exception ex)
         {
@@ -488,13 +653,102 @@ public class ExportService : IExportService
         var export = await _exportRepository.GetByIdAsync(exportId);
         if (export != null)
         {
+            var previousStatus = export.Status;
             export.Status = status;
             export.ErrorMessage = errorMessage;
             if (status == ExportStatusEnum.PendingApproval || status == ExportStatusEnum.Approved)
             {
                 export.CompletedAt = DateTime.UtcNow;
             }
+            
+            // If status is changing to Failed, and previous status was one where quota was consumed, refund the quota
+            if (status == ExportStatusEnum.Failed && 
+                (previousStatus == ExportStatusEnum.Pending || 
+                 previousStatus == ExportStatusEnum.PendingApproval || 
+                 previousStatus == ExportStatusEnum.Processing))
+            {
+                // Refund export quota when export fails
+                await RefundExportQuotaAsync(exportId, export);
+            }
+            
             await _exportRepository.UpdateAsync(export);
+        }
+    }
+
+    private async Task RefundExportQuotaAsync(int exportId, Export export)
+    {
+        try
+        {
+            // Get membership to find organization ID
+            DomainMembership? membership = null;
+            Guid? orgId = null;
+            
+            if (export.MembershipId != Guid.Empty)
+            {
+                membership = await _membershipRepository.GetByIdAsync(export.MembershipId, CancellationToken.None);
+                if (membership != null)
+                {
+                    orgId = membership.OrgId;
+                }
+            }
+            
+            // If membership not found by ID, try to get from map's workspace organization
+            if (membership == null)
+            {
+                var map = await _mapRepository.GetMapById(export.MapId);
+                if (map?.WorkspaceId.HasValue == true)
+                {
+                    var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+                    if (workspace?.OrgId.HasValue == true)
+                    {
+                        orgId = workspace.OrgId.Value;
+                        membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(
+                            export.UserId,
+                            workspace.OrgId.Value,
+                            CancellationToken.None);
+                    }
+                }
+            }
+
+            // Refund quota by consuming -1 (decrementing)
+            if (membership != null && orgId.HasValue)
+            {
+                var refundQuotaResult = await _usageService.ConsumeUserQuotaAsync(
+                    export.UserId,
+                    orgId.Value,
+                    "exports",
+                    -1, // Negative amount to refund
+                    CancellationToken.None);
+                
+                if (!refundQuotaResult.HasValue)
+                {
+                    _logger.LogWarning("Failed to refund export quota for failed export {ExportId}, user {UserId}, org {OrgId}.", 
+                        exportId, export.UserId, orgId.Value);
+                }
+                else
+                {
+                    var refunded = refundQuotaResult.Match(
+                        some: result => result,
+                        none: error => false
+                    );
+                    
+                    if (!refunded)
+                    {
+                        _logger.LogWarning("Quota refund failed for failed export {ExportId}, user {UserId}, org {OrgId}.", 
+                            exportId, export.UserId, orgId.Value);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Refunded export quota: decremented ExportsThisCycle for user {UserId}, org {OrgId}, export {ExportId} (failed)", 
+                            export.UserId, orgId.Value, exportId);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error refunding export quota for export {ExportId}", exportId);
+            // Don't throw - quota refund failure shouldn't prevent status update
         }
     }
 
@@ -803,46 +1057,78 @@ startxref
         Dictionary<string, bool>? visibleLayerIds = null,
         Dictionary<string, bool>? visibleFeatureIds = null,
         ExportOptions? options = null,
-        string? mapImageData = null)
+        string? mapImageData = null,
+        string? svgPathData = null)
     {
-        // If we have captured image data, embed it in SVG
-        if (!string.IsNullOrEmpty(mapImageData))
+        var svgWidth = options?.Width ?? 1920;
+        var svgHeight = options?.Height ?? 1080;
+        
+        // html2canvas captures at scale 2, so the actual image dimensions are 2x
+        // The frontend sends coordinates already scaled by 2, so we need to use 2x dimensions for viewBox
+        var imageScale = 2;
+        var actualWidth = svgWidth * imageScale;
+        var actualHeight = svgHeight * imageScale;
+        
+        // Parse SVG path data if provided
+        List<SvgPathInfo>? svgPaths = null;
+        if (!string.IsNullOrEmpty(svgPathData))
         {
             try
             {
-                var svgWidth = options?.Width ?? 1920;
-                var svgHeight = options?.Height ?? 1080;
-                
-                // Embed the base64 image in SVG
-                var svgContent = $@"<svg xmlns=""http://www.w3.org/2000/svg"" width=""{svgWidth}"" height=""{svgHeight}"" viewBox=""0 0 {svgWidth} {svgHeight}"">
-                    <image href=""{mapImageData}"" width=""{svgWidth}"" height=""{svgHeight}"" />
-                </svg>";
-                return System.Text.Encoding.UTF8.GetBytes(svgContent);
+                svgPaths = JsonSerializer.Deserialize<List<SvgPathInfo>>(svgPathData);
+                _logger.LogInformation("Parsed {Count} SVG paths from frontend", svgPaths?.Count ?? 0);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to embed map image in SVG, falling back to placeholder");
+                _logger.LogWarning(ex, "Failed to parse SVG path data");
             }
         }
         
-        // Fallback: Generate SVG with map information
-        // TODO: Render actual map features as SVG paths
-        await Task.Delay(100);
+        // Build SVG content with image and paths
+        // Use actualWidth/actualHeight for viewBox to match the scaled coordinates
+        var svgBuilder = new System.Text.StringBuilder();
+        svgBuilder.AppendLine($@"<svg xmlns=""http://www.w3.org/2000/svg"" width=""{actualWidth}"" height=""{actualHeight}"" viewBox=""0 0 {actualWidth} {actualHeight}"">");
         
-        var mapData = await GetMapDataForExportAsync(map, visibleLayerIds, visibleFeatureIds);
-        var title = options?.Title ?? map.MapName;
-        var width = options?.Width ?? 800;
-        var height = options?.Height ?? 600;
+        // Add background image if available
+        // Image is already at 2x scale, so use actualWidth/actualHeight
+        if (!string.IsNullOrEmpty(mapImageData))
+        {
+            svgBuilder.AppendLine($@"    <image href=""{mapImageData}"" width=""{actualWidth}"" height=""{actualHeight}"" />");
+        }
         
-        var svg = $@"<svg xmlns=""http://www.w3.org/2000/svg"" width=""{width}"" height=""{height}"" viewBox=""0 0 {width} {height}"">
-            <rect width=""{width}"" height=""{height}"" fill=""#f0f0f0""/>
-            <text x=""50"" y=""50"" font-family=""Arial"" font-size=""20"" font-weight=""bold"">{title}</text>
-            <text x=""50"" y=""80"" font-family=""Arial"" font-size=""14"">Generated at: {DateTime.UtcNow:O}</text>
-            <text x=""50"" y=""110"" font-family=""Arial"" font-size=""14"">Layers: {mapData.Layers.Count}</text>
-            <text x=""50"" y=""140"" font-family=""Arial"" font-size=""14"">Features: {mapData.Features.Count}</text>
-            <text x=""50"" y=""170"" font-family=""Arial"" font-size=""12"" fill=""#666"">Note: This is a placeholder. Full map rendering requires rendering library.</text>
-        </svg>";
-        return System.Text.Encoding.UTF8.GetBytes(svg);
+        // Add SVG paths if available
+        if (svgPaths != null && svgPaths.Count > 0)
+        {
+            foreach (var path in svgPaths)
+            {
+                var transformAttr = !string.IsNullOrEmpty(path.Transform) ? $@" transform=""{path.Transform}""" : "";
+                
+                switch (path.Type.ToLower())
+                {
+                    case "path":
+                        svgBuilder.AppendLine($@"    <path d=""{path.Data}"" fill=""{path.Fill}"" stroke=""{path.Stroke}"" stroke-width=""{path.StrokeWidth}"" fill-opacity=""{path.FillOpacity}"" stroke-opacity=""{path.StrokeOpacity}""{transformAttr} />");
+                        break;
+                    case "circle":
+                        var circleParts = path.Data.Split(',');
+                        if (circleParts.Length >= 3)
+                        {
+                            svgBuilder.AppendLine($@"    <circle cx=""{circleParts[0]}"" cy=""{circleParts[1]}"" r=""{circleParts[2]}"" fill=""{path.Fill}"" stroke=""{path.Stroke}"" stroke-width=""{path.StrokeWidth}"" fill-opacity=""{path.FillOpacity}"" stroke-opacity=""{path.StrokeOpacity}""{transformAttr} />");
+                        }
+                        break;
+                    case "polygon":
+                        svgBuilder.AppendLine($@"    <polygon points=""{path.Data}"" fill=""{path.Fill}"" stroke=""{path.Stroke}"" stroke-width=""{path.StrokeWidth}"" fill-opacity=""{path.FillOpacity}"" stroke-opacity=""{path.StrokeOpacity}""{transformAttr} />");
+                        break;
+                    case "polyline":
+                        svgBuilder.AppendLine($@"    <polyline points=""{path.Data}"" fill=""{path.Fill}"" stroke=""{path.Stroke}"" stroke-width=""{path.StrokeWidth}"" fill-opacity=""{path.FillOpacity}"" stroke-opacity=""{path.StrokeOpacity}""{transformAttr} />");
+                        break;
+                }
+            }
+        }
+        
+        svgBuilder.AppendLine("</svg>");
+        
+        var svgContent = svgBuilder.ToString();
+        return System.Text.Encoding.UTF8.GetBytes(svgContent);
     }
 
     private async Task<byte[]> GenerateGeoJsonAsync(
@@ -1446,6 +1732,79 @@ startxref
                 _logger.LogInformation("Export {ExportId} status updated to PendingApproval before approval", exportId);
             }
 
+            // Get membership to find organization ID for quota checking
+            DomainMembership? membership = null;
+            Guid? orgId = null;
+            
+            if (export.MembershipId != Guid.Empty)
+            {
+                membership = await _membershipRepository.GetByIdAsync(export.MembershipId, CancellationToken.None);
+                if (membership != null)
+                {
+                    orgId = membership.OrgId;
+                }
+            }
+            
+            // If membership not found by ID, try to get from user's organization
+            if (membership == null)
+            {
+                // Try to get membership from map's workspace organization
+                var map = await _mapRepository.GetMapById(export.MapId);
+                if (map?.WorkspaceId.HasValue == true)
+                {
+                    var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+                    if (workspace?.OrgId.HasValue == true)
+                    {
+                        orgId = workspace.OrgId.Value;
+                        membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(
+                            export.UserId,
+                            workspace.OrgId.Value,
+                            CancellationToken.None);
+                    }
+                }
+            }
+
+            // Check count-based export quota before approving (if membership found)
+            if (membership != null && orgId.HasValue)
+            {
+                var quotaCheck = await _usageService.CheckUserQuotaAsync(
+                    export.UserId,
+                    orgId.Value,
+                    "exports",
+                    1,
+                    CancellationToken.None);
+                
+                if (!quotaCheck.HasValue)
+                {
+                    _logger.LogWarning("Failed to check export quota for export {ExportId}, user {UserId}", exportId, export.UserId);
+                }
+                else
+                {
+                    var quotaResult = quotaCheck.Match(
+                        some: quota => quota,
+                        none: error => throw new InvalidOperationException($"Quota check failed: {error.Description}")
+                    );
+                    
+                    if (!quotaResult.IsAllowed)
+                    {
+                        _logger.LogWarning("Export {ExportId} cannot be approved: user {UserId} export count quota exceeded. {Message}", 
+                            exportId, export.UserId, quotaResult.Message);
+                        
+                        // Reject the export due to insufficient count quota
+                        export.Status = ExportStatusEnum.Rejected;
+                        export.ApprovedBy = adminUserId;
+                        export.ApprovedAt = DateTime.UtcNow;
+                        export.RejectionReason = $"Export quota exceeded. {quotaResult.Message} Please upgrade your membership or wait for quota reset.";
+                        await _exportRepository.UpdateAsync(export);
+                        
+                        var rejectedExport = await _exportRepository.GetByIdWithIncludesAsync(exportId);
+                        return Option.None<ExportResponse, Error>(
+                            Error.ValidationError("Export.QuotaExceeded", 
+                                $"Cannot approve export: Export quota exceeded. {quotaResult.Message} The export has been rejected."));
+                    }
+                }
+            }
+
             // Calculate and consume quota tokens when admin approves
             // Determine file type from export format
             var fileExtension = export.ExportType switch
@@ -1460,13 +1819,13 @@ startxref
             var fileType = ExportQuotaExtensions.GetFileTypeFromExtension($".{fileExtension}");
             var fileSizeKB = (int)Math.Ceiling(export.FileSize / 1024.0);
             
-            // Re-check quota before consuming (in case user's quota changed since export was created)
+            // Re-check token quota before consuming (in case user's quota changed since export was created)
             if (!await _exportQuotaService.CanExportAsync(export.UserId, fileType, fileSizeKB))
             {
-                _logger.LogWarning("Export {ExportId} cannot be approved: user {UserId} quota exceeded. File size: {FileSizeKB}KB", 
+                _logger.LogWarning("Export {ExportId} cannot be approved: user {UserId} token quota exceeded. File size: {FileSizeKB}KB", 
                     exportId, export.UserId, fileSizeKB);
                 
-                // Reject the export due to insufficient quota
+                // Reject the export due to insufficient token quota
                 export.Status = ExportStatusEnum.Rejected;
                 export.ApprovedBy = adminUserId;
                 export.ApprovedAt = DateTime.UtcNow;
@@ -1476,7 +1835,7 @@ startxref
                 var rejectedExport = await _exportRepository.GetByIdWithIncludesAsync(exportId);
                 return Option.None<ExportResponse, Error>(
                     Error.ValidationError("Export.QuotaExceeded", 
-                        "Cannot approve export: User quota exceeded. The export has been rejected."));
+                        "Cannot approve export: User token quota exceeded. The export has been rejected."));
             }
             
             // Calculate and consume quota tokens
@@ -1503,6 +1862,32 @@ startxref
             
             _logger.LogInformation("Consumed {TokenCost} tokens for user {UserId} when approving export {ExportId}", 
                 tokenCost, export.UserId, exportId);
+
+            // Note: Export quota (count-based) was already consumed when export was created
+            // We don't need to consume again here to avoid double-counting
+            // Only token quota is consumed on approval
+
+            // For PNG and PDF exports, add IMOS logo before finalizing approval
+            if (export.ExportType == ExportTypeEnum.PNG || export.ExportType == ExportTypeEnum.PDF)
+            {
+                try
+                {
+                    var logoAdded = await AddLogoToExportAsync(export);
+                    if (logoAdded)
+                    {
+                        _logger.LogInformation("IMOS logo added to export {ExportId}", exportId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to add IMOS logo to export {ExportId}, but continuing with approval", exportId);
+                    }
+                }
+                catch (Exception logoEx)
+                {
+                    _logger.LogWarning(logoEx, "Error adding logo to export {ExportId}, but continuing with approval", exportId);
+                    // Don't fail approval if logo addition fails
+                }
+            }
 
             export.Status = ExportStatusEnum.Approved;
             export.ApprovedBy = adminUserId;
@@ -1576,6 +1961,90 @@ startxref
                 export.CompletedAt = DateTime.UtcNow;
                 await _exportRepository.UpdateAsync(export);
                 _logger.LogInformation("Export {ExportId} status updated to PendingApproval before rejection", exportId);
+            }
+
+            // Refund export quota (decrement usage) when export is rejected
+            // Only refund if the export was in a state where quota was consumed (Pending, PendingApproval, Processing)
+            // Don't refund if already Approved (quota should remain consumed) or already Rejected (already refunded)
+            var shouldRefundQuota = export.Status == ExportStatusEnum.Pending ||
+                                   export.Status == ExportStatusEnum.PendingApproval ||
+                                   export.Status == ExportStatusEnum.Processing;
+            
+            if (shouldRefundQuota)
+            {
+                // Get membership to find organization ID
+                DomainMembership? membership = null;
+                Guid? orgId = null;
+                
+                if (export.MembershipId != Guid.Empty)
+                {
+                    membership = await _membershipRepository.GetByIdAsync(export.MembershipId, CancellationToken.None);
+                    if (membership != null)
+                    {
+                        orgId = membership.OrgId;
+                    }
+                }
+                
+                // If membership not found by ID, try to get from map's workspace organization
+                if (membership == null)
+                {
+                    var map = await _mapRepository.GetMapById(export.MapId);
+                    if (map?.WorkspaceId.HasValue == true)
+                    {
+                        var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+                        if (workspace?.OrgId.HasValue == true)
+                        {
+                            orgId = workspace.OrgId.Value;
+                            membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(
+                                export.UserId,
+                                workspace.OrgId.Value,
+                                CancellationToken.None);
+                        }
+                    }
+                }
+
+                // Refund quota by consuming -1 (decrementing)
+                if (membership != null && orgId.HasValue)
+                {
+                    // Use negative amount to refund/decrement
+                    var refundQuotaResult = await _usageService.ConsumeUserQuotaAsync(
+                        export.UserId,
+                        orgId.Value,
+                        "exports",
+                        -1, // Negative amount to refund
+                        CancellationToken.None);
+                    
+                    if (!refundQuotaResult.HasValue)
+                    {
+                        _logger.LogWarning("Failed to refund export quota for export {ExportId}, user {UserId}, org {OrgId}. Export rejected but quota not refunded.", 
+                            exportId, export.UserId, orgId.Value);
+                        // Note: We don't fail the rejection here since the export should still be rejected
+                        // This is a tracking issue, but the export should still be rejected
+                    }
+                    else
+                    {
+                        var refunded = refundQuotaResult.Match(
+                            some: result => result,
+                            none: error => false
+                        );
+                        
+                        if (!refunded)
+                        {
+                            _logger.LogWarning("Quota refund failed for export {ExportId}, user {UserId}, org {OrgId}. Export rejected but quota not refunded.", 
+                                exportId, export.UserId, orgId.Value);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Refunded export quota: decremented ExportsThisCycle for user {UserId}, org {OrgId}, export {ExportId} (rejected)", 
+                                export.UserId, orgId.Value, exportId);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Export {ExportId} rejection: quota not refunded because status is {Status} (quota was not consumed or already refunded)", 
+                    exportId, export.Status);
             }
 
             export.Status = ExportStatusEnum.Rejected;
@@ -1750,6 +2219,206 @@ startxref
             return Option.None<string, Error>(
                 Error.Failure("Export.GetDownloadUrlFailed", $"Failed to get download URL: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Adds IMOS logo to PNG/PDF export images before approval
+    /// </summary>
+    private async Task<bool> AddLogoToExportAsync(Export export)
+    {
+        try
+        {
+            // Get logo path from configuration (default to assets folder if not configured)
+            var logoPath = _configuration["ExportSettings:LogoPath"] ?? 
+                          Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "imos-logo.svg");
+            
+            // For now, we'll create a simple text-based logo if the file doesn't exist
+            // In production, you should upload the actual IMOS logo to Firebase Storage or a CDN
+            // and reference it via URL
+            
+            // Download the current export file from Firebase
+            if (string.IsNullOrEmpty(export.FilePath) || !export.FilePath.StartsWith("http"))
+            {
+                _logger.LogWarning("Export {ExportId} has invalid file path for logo addition: {FilePath}", 
+                    export.ExportId, export.FilePath);
+                return false;
+            }
+
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            
+            var fileBytes = await httpClient.GetByteArrayAsync(export.FilePath);
+            
+            byte[] modifiedBytes;
+            if (export.ExportType == ExportTypeEnum.PNG)
+            {
+                modifiedBytes = await AddLogoToPngAsync(fileBytes, logoPath);
+            }
+            else if (export.ExportType == ExportTypeEnum.PDF)
+            {
+                // For PDF, we need to extract the image, add logo, and rebuild PDF
+                // For simplicity, we'll add logo to the PNG image used in PDF generation
+                // This requires re-generating the PDF with the logo
+                modifiedBytes = await AddLogoToPdfAsync(fileBytes, logoPath);
+            }
+            else
+            {
+                return false;
+            }
+
+            // Re-upload the modified file to Firebase
+            var fileName = Path.GetFileName(new Uri(export.FilePath).LocalPath);
+            var folder = export.ExportType == ExportTypeEnum.PNG ? "exports/png" : "exports/pdf";
+            
+            using var fileStream = new MemoryStream(modifiedBytes);
+            var newFileUrl = await _firebaseStorageService.UploadFileAsync(fileName, fileStream, folder);
+            
+            if (string.IsNullOrEmpty(newFileUrl) || (!newFileUrl.StartsWith("http://") && !newFileUrl.StartsWith("https://")))
+            {
+                _logger.LogError("Failed to upload modified export file for export {ExportId}", export.ExportId);
+                return false;
+            }
+
+            // Update export with new file URL
+            export.FilePath = newFileUrl;
+            export.FileSize = modifiedBytes.Length;
+            await _exportRepository.UpdateAsync(export);
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding logo to export {ExportId}", export.ExportId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Adds IMOS logo to PNG image
+    /// </summary>
+    private async Task<byte[]> AddLogoToPngAsync(byte[] pngBytes, string logoPath)
+    {
+        using var inputStream = new MemoryStream(pngBytes);
+        using var bitmap = new Bitmap(inputStream);
+        using var graphics = Graphics.FromImage(bitmap);
+        
+        // Set high quality rendering
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+        graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+        // Try to load logo from file or URL
+        Image? logoImage = null;
+        try
+        {
+            if (logoPath.StartsWith("http://") || logoPath.StartsWith("https://"))
+            {
+                using var httpClient = _httpClientFactory.CreateClient();
+                var logoBytes = await httpClient.GetByteArrayAsync(logoPath);
+                using var logoStream = new MemoryStream(logoBytes);
+                logoImage = Image.FromStream(logoStream);
+            }
+            else if (File.Exists(logoPath))
+            {
+                logoImage = Image.FromFile(logoPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load logo from {LogoPath}, using text-based logo", logoPath);
+        }
+
+        // If logo image not available, create a professional text-based logo
+        if (logoImage == null)
+        {
+            // Calculate logo size and position (top-right corner)
+            var logoWidth = Math.Min(bitmap.Width / 6, 150); // Max 150px or 1/6 of width
+            var logoHeight = logoWidth / 3; // 3:1 aspect ratio
+            var logoX = bitmap.Width - logoWidth - 20; // 20px margin from right
+            var logoY = 20; // 20px margin from top
+            
+            // Draw rounded rectangle background with emerald color
+            var cornerRadius = 8;
+            var rect = new Rectangle(logoX, logoY, logoWidth, logoHeight);
+            
+            // Create rounded rectangle path
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(rect.X, rect.Y, cornerRadius * 2, cornerRadius * 2, 180, 90);
+            path.AddArc(rect.X + rect.Width - cornerRadius * 2, rect.Y, cornerRadius * 2, cornerRadius * 2, 270, 90);
+            path.AddArc(rect.X + rect.Width - cornerRadius * 2, rect.Y + rect.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90);
+            path.AddArc(rect.X, rect.Y + rect.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90);
+            path.CloseAllFigures();
+            
+            // Fill with emerald color (semi-transparent)
+            using var logoBrush = new SolidBrush(Color.FromArgb(230, 16, 185, 129)); // Emerald with slight transparency
+            graphics.FillPath(logoBrush, path);
+            
+            // Draw border
+            using var borderPen = new Pen(Color.FromArgb(16, 185, 129), 2);
+            graphics.DrawPath(borderPen, path);
+            
+            // Draw "IMOS" text in white, bold
+            var fontSize = logoHeight / 2.5f;
+            using var font = new Font("Arial", fontSize, FontStyle.Bold);
+            using var textBrush = new SolidBrush(Color.White);
+            
+            var textSize = graphics.MeasureString("IMOS", font);
+            var textX = logoX + (logoWidth - textSize.Width) / 2;
+            var textY = logoY + (logoHeight - textSize.Height) / 2;
+            
+            // Draw text with slight shadow for depth
+            using var shadowBrush = new SolidBrush(Color.FromArgb(100, 0, 0, 0));
+            graphics.DrawString("IMOS", font, shadowBrush, textX + 1, textY + 1);
+            graphics.DrawString("IMOS", font, textBrush, textX, textY);
+            
+            // Draw decorative line under text
+            var lineY = textY + textSize.Height - 2;
+            var lineX1 = textX + 5;
+            var lineX2 = textX + textSize.Width - 5;
+            using var linePen = new Pen(Color.White, 1.5f);
+            graphics.DrawLine(linePen, lineX1, lineY, lineX2, lineY);
+        }
+        else
+        {
+            // Draw logo image
+            var logoSize = Math.Min(bitmap.Width, bitmap.Height) / 10; // 10% of smaller dimension
+            var logoX = bitmap.Width - logoSize - 20; // 20px margin from right
+            var logoY = 20; // 20px margin from top
+            
+            // Maintain aspect ratio
+            var aspectRatio = (double)logoImage.Width / logoImage.Height;
+            var logoWidth = logoSize;
+            var logoHeight = (int)(logoSize / aspectRatio);
+            
+            graphics.DrawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+            logoImage.Dispose();
+        }
+
+        // Convert back to PNG bytes
+        using var outputStream = new MemoryStream();
+        bitmap.Save(outputStream, ImageFormat.Png);
+        return outputStream.ToArray();
+    }
+
+    /// <summary>
+    /// Adds IMOS logo to PDF (by modifying the embedded image)
+    /// Note: This is a simplified implementation. For production, consider using a proper PDF library.
+    /// </summary>
+    private async Task<byte[]> AddLogoToPdfAsync(byte[] pdfBytes, string logoPath)
+    {
+        // For PDF, we'll extract the JPEG image, add logo, and rebuild PDF
+        // This is a simplified approach - in production, use a proper PDF library like iTextSharp or PdfSharp
+        
+        // For now, we'll just return the original PDF
+        // A proper implementation would:
+        // 1. Parse PDF structure
+        // 2. Extract JPEG image from PDF
+        // 3. Add logo to JPEG using AddLogoToPngAsync logic
+        // 4. Rebuild PDF with modified JPEG
+        
+        _logger.LogWarning("PDF logo addition not fully implemented. Returning original PDF.");
+        return pdfBytes;
     }
 
     private static ExportResponse MapToDto(Export export)

@@ -25,7 +25,7 @@ internal class ExportConfiguration : IEntityTypeConfiguration<Export>
         builder.Property(e => e.FilePath)
             .HasColumnName("file_path")
             .IsRequired()
-            .HasMaxLength(255);
+            .HasColumnType("text"); // Use TEXT instead of varchar(255) to support long Firebase URLs
 
         builder.Property(e => e.FileSize)
             .HasColumnName("file_size")
