@@ -39,7 +39,7 @@ public interface IMapService
     Task<Option<List<LayerInfoResponse>, Error>> GetMapLayers(Guid mapId);
     
     // Map Publishing Operations
-    Task<Option<bool, Error>> PublishMap(Guid mapId, PublishMapRequest request);
+    Task<Option<bool, Error>> PublishMap(Guid mapId);
     Task<Option<bool, Error>> UnpublishMap(Guid mapId);
     Task<Option<bool, Error>> ArchiveMap(Guid mapId);
     Task<Option<bool, Error>> RestoreMap(Guid mapId);
