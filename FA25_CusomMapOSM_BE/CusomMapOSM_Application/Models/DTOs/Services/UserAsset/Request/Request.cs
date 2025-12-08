@@ -1,9 +1,8 @@
-using System;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 
-namespace CusomMapOSM_Application.Models.DTOs.Assets;
+namespace CusomMapOSM_Application.Models.DTOs.Services.UserAsset.Request;
 
-public record UserAssetDto(
+public record UserAssetRequest(
     Guid Id,
     string Name,
     string Url,

@@ -209,11 +209,9 @@ public class MapEndpoints : IEndpoint
         // ===== Map Publishing =====
         group.MapPost("/{mapId:guid}/publish", async (
                 [FromRoute] Guid mapId,
-                [FromBody] PublishMapRequest? request,
                 [FromServices] IMapService mapService) =>
             {
-                var publishRequest = request ?? new PublishMapRequest { IsStoryMap = false };
-                var result = await mapService.PublishMap(mapId, publishRequest);
+                var result = await mapService.PublishMap(mapId);
                 return result.Match(
                     success => Results.Ok(new { success = true }),
                     error => error.ToProblemDetailsResult()

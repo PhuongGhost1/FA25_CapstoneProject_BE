@@ -61,7 +61,7 @@ public record MapInWorkspaceDto
     public string? Description { get; set; }
     public string? PreviewImage { get; set; }
     public required bool IsPublic { get; set; }
-    public required bool IsActive { get; set; }
+    public required bool IsStoryMap { get; set; }
     public required DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

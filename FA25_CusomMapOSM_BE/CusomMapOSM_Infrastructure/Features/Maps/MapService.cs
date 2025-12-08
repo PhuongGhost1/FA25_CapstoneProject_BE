@@ -1554,7 +1554,7 @@ public class MapService : IMapService
     
     #region Map Publishing Operations
     
-    public async Task<Option<bool, Error>> PublishMap(Guid mapId, PublishMapRequest request)
+    public async Task<Option<bool, Error>> PublishMap(Guid mapId)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId is null)
@@ -1583,8 +1583,6 @@ public class MapService : IMapService
                     $"Map cannot be published from status {map.Status}. Only Draft maps can be published."));
         }
         map.Status = MapStatusEnum.Published;
-        map.IsPublic = true;
-        map.IsStoryMap = request.IsStoryMap;
         map.PublishedAt = DateTime.UtcNow;
         map.UpdatedAt = DateTime.UtcNow;
 

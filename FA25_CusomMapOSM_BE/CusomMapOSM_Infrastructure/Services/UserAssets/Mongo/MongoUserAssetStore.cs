@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using CusomMapOSM_Commons.Constant;
 using MongoDB.Driver;
 
 namespace CusomMapOSM_Infrastructure.Services.UserAssets.Mongo;
@@ -13,8 +8,6 @@ public class MongoUserAssetStore
 
     public MongoUserAssetStore(IMongoDatabase database)
     {
-        // We'll reuse the existing Mongo constant or add a new one if needed.
-        // For now, let's assume a new collection name "user_assets"
         _collection = database.GetCollection<UserAssetBsonDocument>("user_assets");
         EnsureIndexesAsync().Wait();
     }
@@ -48,11 +41,15 @@ public class MongoUserAssetStore
         await _collection.InsertOneAsync(asset, cancellationToken: ct);
     }
 
-    public async Task<List<UserAssetBsonDocument>> GetAssetsAsync(Guid userId, Guid? orgId = null, string? type = null, CancellationToken ct = default)
+    public async Task<(List<UserAssetBsonDocument> Items, int TotalCount)> GetAssetsAsync(
+        Guid userId, 
+        Guid? orgId = null, 
+        string? type = null, 
+        int page = 1, 
+        int pageSize = 20,
+        CancellationToken ct = default)
     {
         var builder = Builders<UserAssetBsonDocument>.Filter;
-        
-        // Filter: (UserId == userId) OR (OrganizationId == orgId AND OrganizationId != null)
         var ownerFilter = builder.Eq(a => a.UserId, userId);
         if (orgId.HasValue)
         {
@@ -65,11 +62,18 @@ public class MongoUserAssetStore
         {
             finalFilter &= builder.Eq(a => a.Type, type);
         }
+        
+        var totalCount = await _collection.CountDocumentsAsync(finalFilter, cancellationToken: ct);
 
-        return await _collection
+        // Get paginated data
+        var items = await _collection
             .Find(finalFilter)
             .SortByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
             .ToListAsync(ct);
+
+        return (items, (int)totalCount);
     }
 
     public async Task<UserAssetBsonDocument?> GetByIdAsync(Guid assetId, CancellationToken ct = default)

@@ -5,17 +5,15 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SupportTi
 
 public interface ISupportTicketRepository
 {
-    // Support Ticket operations
-    Task<List<SupportTicketEntity>> GetUserSupportTicketsAsync(Guid userId, int page = 1, int pageSize = 20, string? status = null, CancellationToken ct = default);
-    Task<int> GetUserSupportTicketsCountAsync(Guid userId, string? status = null, CancellationToken ct = default);
-    Task<SupportTicketEntity?> GetSupportTicketByIdAsync(int ticketId, CancellationToken ct = default);
-    Task<bool> CreateSupportTicketAsync(SupportTicketEntity ticket, CancellationToken ct = default);
-    Task<bool> UpdateSupportTicketAsync(SupportTicketEntity ticket, CancellationToken ct = default);
-    Task<bool> DeleteSupportTicketAsync(int ticketId, CancellationToken ct = default);
-
-    // Support Ticket Message operations
-    Task<List<SupportTicketMessage>> GetTicketMessagesAsync(int ticketId, CancellationToken ct = default);
-    Task<bool> AddTicketMessageAsync(SupportTicketMessage message, CancellationToken ct = default);
-    Task<bool> UpdateTicketMessageAsync(SupportTicketMessage message, CancellationToken ct = default);
-    Task<bool> DeleteTicketMessageAsync(int messageId, CancellationToken ct = default);
+    Task<SupportTicketEntity> CreateSupportTicket(SupportTicketEntity supportTicket);
+    Task<SupportTicketEntity> GetSupportTicketById(int ticketId);
+    Task<SupportTicketEntity> UpdateSupportTicket(SupportTicketEntity supportTicket);
+    Task<bool> DeleteSupportTicket(int ticketId);
+    Task<List<SupportTicketEntity>> GetSupportTickets(int page = 1, int pageSize = 20);
+    Task<int> GetSupportTicketsCount();
+    Task<List<SupportTicketMessage>> GetSupportTicketMessages(int ticketId);
+    Task<SupportTicketMessage> GetSupportTicketMessageById(int messageId);
+    Task<SupportTicketMessage> CreateSupportTicketMessage(SupportTicketMessage supportTicketMessage);
+    Task<SupportTicketMessage> UpdateSupportTicketMessage(SupportTicketMessage supportTicketMessage);
+    Task<bool> DeleteSupportTicketMessage(int messageId);
 }
