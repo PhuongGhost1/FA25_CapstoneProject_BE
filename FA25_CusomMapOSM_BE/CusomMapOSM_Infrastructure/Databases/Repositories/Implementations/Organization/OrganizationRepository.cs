@@ -118,6 +118,14 @@ public class OrganizationRepository : IOrganizationRepository
             .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId && x.Status == MemberStatus.Active);
     }
 
+    public async Task<OrganizationMember?> GetOrganizationMemberByUserAndOrgAnyStatus(Guid userId, Guid orgId)
+    {
+        return await _context.OrganizationMembers
+            .Include(x => x.User)
+            .Include(x => x.Organization)
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.OrgId == orgId);
+    }
+
     public async Task<bool> UpdateOrganizationMember(OrganizationMember member)
     {
         _context.OrganizationMembers.Update(member);
@@ -134,6 +142,7 @@ public class OrganizationRepository : IOrganizationRepository
             
         // Soft delete by setting status to Removed
         member.Status = MemberStatus.Removed;
+        member.LeftAt = DateTime.UtcNow; // Set left timestamp
         _context.OrganizationMembers.Update(member);
         return await _context.SaveChangesAsync() > 0;
     }

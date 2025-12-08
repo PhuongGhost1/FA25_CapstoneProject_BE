@@ -33,6 +33,8 @@ public interface IOrganizationRepository
     
     Task<OrganizationMember?> GetOrganizationMemberByUserAndOrg(Guid userId, Guid orgId);
     
+    Task<OrganizationMember?> GetOrganizationMemberByUserAndOrgAnyStatus(Guid userId, Guid orgId);
+
     Task<bool> UpdateOrganizationMember(OrganizationMember member);
     
     Task<bool> RemoveOrganizationMember(Guid memberId);
