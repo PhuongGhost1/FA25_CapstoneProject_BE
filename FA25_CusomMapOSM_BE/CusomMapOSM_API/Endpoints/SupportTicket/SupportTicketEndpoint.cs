@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.SupportTicket;
-using CusomMapOSM_Application.Models.DTOs.Features.SupportTicket;
+using CusomMapOSM_Application.Models.DTOs.Features.SupportTicket.Request;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.SupportTicket;
@@ -11,216 +10,150 @@ public class SupportTicketEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/support-tickets")
+        var group = app.MapGroup("/support-tickets")
             .WithTags("SupportTicket")
             .WithDescription("Support ticket management endpoints for registered users")
             .RequireAuthorization();
 
-        // Get user's support tickets
-        group.MapGet("/", GetUserSupportTickets)
-            .WithName("GetUserSupportTickets")
-            .WithSummary("Get user's support tickets")
-            .WithDescription("Retrieve paginated list of support tickets for the authenticated user")
-            .Produces<SupportTicketListResponse>(200)
-            .ProducesProblem(401)
-            .ProducesProblem(500);
-
-        // Get support ticket details
-        group.MapGet("/{ticketId:int}", GetSupportTicketDetails)
-            .WithName("GetSupportTicketDetails")
-            .WithSummary("Get support ticket details")
-            .WithDescription("Retrieve detailed information about a specific support ticket")
-            .Produces<SupportTicketDto>(200)
-            .ProducesProblem(401)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-
-        // Create support ticket
-        group.MapPost("/", CreateSupportTicket)
+        // User create support ticket
+        group.MapPost("/",
+                async ([FromServices] ISupportTicketService service, [FromBody] CreateSupportTicketRequest request) =>
+                {
+                    var result = await service.CreateSupportTicket(request);
+                    return result.Match(
+                        success => Results.Ok(success),
+                        error => error.ToProblemDetailsResult()
+                    );
+                })
             .WithName("CreateSupportTicket")
-            .WithSummary("Create support ticket")
-            .WithDescription("Create a new support ticket")
-            .Produces<CreateSupportTicketResponse>(201)
-            .ProducesProblem(400)
-            .ProducesProblem(401)
-            .ProducesProblem(500);
+            .WithSummary("Create a new support ticket")
+            .WithDescription("Create a new support ticket for the current user")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-        // Update support ticket
-        group.MapPut("/{ticketId:int}", UpdateSupportTicket)
-            .WithName("UpdateSupportTicket")
-            .WithSummary("Update support ticket")
-            .WithDescription("Update an existing support ticket (only if not closed)")
-            .Produces<UpdateSupportTicketResponse>(200)
-            .ProducesProblem(400)
-            .ProducesProblem(401)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
+        //User get support tickets
+        group.MapGet("/", async ([FromServices] ISupportTicketService service, [FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
+            {
+                var result = await service.GetSupportTickets(page, pageSize);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.BadRequest(new { error = error.Description })
+                );
+            })
+            .WithName("GetSupportTickets")
+            .WithSummary("Get all support tickets for the current user")
+            .WithDescription("Get all support tickets for the current user")            
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-        // Close support ticket
-        group.MapPost("/{ticketId:int}/close", CloseSupportTicket)
-            .WithName("CloseSupportTicket")
-            .WithSummary("Close support ticket")
-            .WithDescription("Close a support ticket")
-            .Produces<object>(200)
-            .ProducesProblem(400)
-            .ProducesProblem(401)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
+        //User get support ticket by id
+        group.MapGet("/{ticketId}", async ([FromServices] ISupportTicketService service, [FromRoute] int ticketId) =>
+            {
+                var result = await service.GetSupportTicketById(ticketId);
+                    return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.NotFound(new { error = error.Description })
+                );
+            })
+            .WithName("GetSupportTicketById")
+            .WithSummary("Get a support ticket by id")
+            .WithDescription("Get a support ticket by id")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-        // Add message to support ticket
-        group.MapPost("/{ticketId:int}/messages", AddTicketMessage)
-            .WithName("AddTicketMessage")
-            .WithSummary("Add message to support ticket")
-            .WithDescription("Add a message to an existing support ticket")
-            .Produces<AddTicketMessageResponse>(201)
-            .ProducesProblem(400)
-            .ProducesProblem(401)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
+        //User response to support ticket
+        group.MapPost("/{ticketId}/response", async ([FromServices] ISupportTicketService service,
+                [FromRoute] int ticketId, [FromBody] ResponseSupportTicketRequest request) =>
+            {
+                var result = await service.ResponseToSupportTicket(ticketId, request);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.NotFound(new { error = error.Description })
+                );
+            })
+            .WithName("ResponseToSupportTicket")
+            .WithSummary("Response to a support ticket")
+            .WithDescription("Response to a support ticket")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-        // Get support ticket messages
-        group.MapGet("/{ticketId:int}/messages", GetTicketMessages)
-            .WithName("GetTicketMessages")
-            .WithSummary("Get support ticket messages")
-            .WithDescription("Retrieve all messages for a specific support ticket")
-            .Produces<List<SupportTicketMessageDto>>(200)
-            .ProducesProblem(401)
-            .ProducesProblem(404)
-            .ProducesProblem(500);
-    }
+        //Admin get support tickets
+        group.MapGet("/admin", async ([FromServices] ISupportTicketService service, [FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
+            {
+                var result = await service.GetSupportTickets(page, pageSize);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.BadRequest(new { error = error.Description })
+                );
+            })
+            .WithName("GetSupportTicketsByAdmin")
+            .WithSummary("Get all support tickets for the admin")
+            .WithDescription("Get all support tickets for the admin")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-    private static async Task<IResult> GetUserSupportTickets(
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        int page = 1,
-        int pageSize = 20,
-        string? status = null,
-        CancellationToken ct = default)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
+        //Admin get support ticket by id
+        group.MapGet("/admin/{ticketId}",
+                async ([FromServices] ISupportTicketService service, [FromRoute] int ticketId) =>
+                {
+                    var result = await service.GetSupportTicketById(ticketId);
+                    return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.NotFound(new { error = error.Description })
+                );
+                })
+            .WithName("GetSupportTicketByIdByAdmin")
+            .WithSummary("Get a support ticket by id for the admin")
+            .WithDescription("Get a support ticket by id for the admin")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-        var result = await supportTicketService.GetUserSupportTicketsAsync(userId.Value, page, pageSize, status, ct);
-        return result.Match(
-            success => Results.Ok(success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
+        //Admin reply to support ticket
+        group.MapPost("/admin/{ticketId}/reply", async ([FromServices] ISupportTicketService service,
+                [FromRoute] int ticketId, [FromBody] ReplySupportTicketRequest request) =>
+            {
+                var result = await service.ReplyToSupportTicket(ticketId, request);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.NotFound(new { error = error.Description })
+                );
+            })
+            .WithName("ReplyToSupportTicketByAdmin")
+            .WithSummary("Reply to a support ticket for the admin")
+            .WithDescription("Reply to a support ticket for the admin")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
 
-    private static async Task<IResult> GetSupportTicketDetails(
-        int ticketId,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        var result = await supportTicketService.GetSupportTicketDetailsAsync(userId.Value, ticketId, ct);
-        return result.Match(
-            success => Results.Ok(success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static async Task<IResult> CreateSupportTicket(
-        [FromBody] CreateSupportTicketRequest request,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        var result = await supportTicketService.CreateSupportTicketAsync(userId.Value, request, ct);
-        return result.Match(
-            success => Results.Created($"/api/support-tickets/{success.TicketId}", success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static async Task<IResult> UpdateSupportTicket(
-        int ticketId,
-        [FromBody] UpdateSupportTicketRequest request,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        // Ensure the ticketId in the request matches the route parameter
-        request = request with { TicketId = ticketId };
-
-        var result = await supportTicketService.UpdateSupportTicketAsync(userId.Value, request, ct);
-        return result.Match(
-            success => Results.Ok(success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static async Task<IResult> CloseSupportTicket(
-        int ticketId,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        var result = await supportTicketService.CloseSupportTicketAsync(userId.Value, ticketId, ct);
-        return result.Match(
-            success => Results.Ok(new { success = true, message = "Support ticket closed successfully" }),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static async Task<IResult> AddTicketMessage(
-        int ticketId,
-        [FromBody] AddTicketMessageRequest request,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        // Ensure the ticketId in the request matches the route parameter
-        request = request with { TicketId = ticketId };
-
-        var result = await supportTicketService.AddTicketMessageAsync(userId.Value, request, ct);
-        return result.Match(
-            success => Results.Created($"/api/support-tickets/{ticketId}/messages/{success.MessageId}", success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static async Task<IResult> GetTicketMessages(
-        int ticketId,
-        ClaimsPrincipal user,
-        ISupportTicketService supportTicketService,
-        CancellationToken ct)
-    {
-        var userId = GetUserId(user);
-        if (userId == null)
-            return Results.Unauthorized();
-
-        var result = await supportTicketService.GetTicketMessagesAsync(userId.Value, ticketId, ct);
-        return result.Match(
-            success => Results.Ok(success),
-            error => error.ToProblemDetailsResult()
-        );
-    }
-
-    private static Guid? GetUserId(ClaimsPrincipal user)
-    {
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
-        return userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId) ? userId : null;
+        //Admin close support ticket
+        group.MapPost("/admin/{ticketId}/close",
+                async ([FromServices] ISupportTicketService service, [FromRoute] int ticketId) =>
+                {
+                    var result = await service.CloseSupportTicket(ticketId);
+                    return result.Match(
+                    success => Results.Ok(success),
+                    error => Results.NotFound(new { error = error.Description })
+                );
+                })
+            .WithName("CloseSupportTicketByAdmin")
+            .WithSummary("Close a support ticket for the admin")
+            .WithDescription("Close a support ticket for the admin")
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
     }
 }

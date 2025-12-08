@@ -94,12 +94,10 @@ public class LayerAnimationService : ILayerAnimationService
             try 
             {
                 await _userAssetService.CreateAssetMetadataAsync(
-                    currentUserId.Value,
                     request.AnimationFile.FileName,
                     animationUrl,
-                    "image", // Assuming static images/gifs are images. if "video", might be different but usually animations here are images.
-                    request.AnimationFile.Length,
                     request.AnimationFile.ContentType,
+                    request.AnimationFile.Length,
                     orgId);
             }
             catch (Exception) { /* Ensure robust */ }
@@ -151,12 +149,10 @@ public class LayerAnimationService : ILayerAnimationService
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        currentUserId.Value,
                         request.AnimationFile.FileName,
                         animationUrl,
-                        "image",
-                        request.AnimationFile.Length,
                         request.AnimationFile.ContentType,
+                        request.AnimationFile.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }

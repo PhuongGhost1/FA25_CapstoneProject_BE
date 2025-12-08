@@ -2,12 +2,7 @@ using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
-using CusomMapOSM_Application.Interfaces.Services.Firebase;
-using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Locations;
@@ -158,65 +153,13 @@ public class LocationEndpoint : IEndpoint
         group.MapPost(Routes.LocationEndpoints.UploadLocationAudio, async (
                 IFormFile file,
                 [FromQuery] Guid? mapId,
-                [FromServices] IFirebaseStorageService firebaseStorageService,
-                [FromServices] IUserAssetService userAssetService,
-                [FromServices] ICurrentUserService currentUserService,
-                [FromServices] IStoryMapRepository storyMapRepository,
-                [FromServices] IWorkspaceRepository workspaceRepository,
+                [FromServices] ILocationService locationService,
                 CancellationToken ct) =>
             {
-                if (file == null || file.Length == 0)
-                {
-                    return Results.BadRequest(new { error = "No file provided" });
-                }
-
-                var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return Results.BadRequest(new { error = "Invalid file type. Only audio files are allowed." });
-                }
-
-                try
-                {
-                    using var stream = file.OpenReadStream();
-                    var storageUrl = await firebaseStorageService.UploadFileAsync(file.FileName, stream, "location-audio");
-                    
-                    // Register in User Library
-                    var userId = currentUserService.GetUserId();
-                    if (userId.HasValue)
-                    {
-                        Guid? orgId = null;
-                        if (mapId.HasValue)
-                        {
-                            var map = await storyMapRepository.GetMapAsync(mapId.Value, ct);
-                            if (map?.WorkspaceId != null)
-                            {
-                                var ws = await workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
-                                orgId = ws?.OrgId;
-                            }
-                        }
-
-                        try 
-                        {
-                            await userAssetService.CreateAssetMetadataAsync(
-                                userId.Value,
-                                file.FileName,
-                                storageUrl,
-                                "audio",
-                                file.Length,
-                                file.ContentType,
-                                orgId);
-                        }
-                        catch (Exception) { /* Ensure robust */ }
-                    }
-
-                    return Results.Ok(new { audioUrl = storageUrl });
-                }
-                catch (Exception ex)
-                {
-                    return Results.Problem(detail: ex.Message, statusCode: 500);
-                }
+                var result = await locationService.UploadLocationAudioAsync(file, mapId, ct);
+                return result.Match<IResult>(
+                    response => Results.Ok(new { audioUrl = response.AudioUrl }),
+                    err => err.ToProblemDetailsResult());
             })
             .WithName("UploadLocationAudio")
             .WithDescription("Upload an audio file for location")

@@ -3,6 +3,8 @@ using CusomMapOSM_Domain.Entities.Locations.Enums;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.Locations;
 
+public record UploadLocationAudioResponse(string AudioUrl);
+
 public record LocationDto(
     Guid LocationId,
     Guid MapId,

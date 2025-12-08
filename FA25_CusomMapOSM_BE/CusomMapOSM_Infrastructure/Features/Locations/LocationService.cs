@@ -1,3 +1,4 @@
+using System.IO;
 using CusomMapOSM_Application.Common;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
@@ -6,6 +7,7 @@ using CusomMapOSM_Application.Interfaces.Services.Firebase;
 using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Interfaces.Features.Locations;
 using CusomMapOSM_Application.Models.DTOs.Features.Locations;
+using Microsoft.AspNetCore.Http;
 using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
@@ -168,12 +170,10 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         try 
         {
             await _userAssetService.CreateAssetMetadataAsync(
-                currentUserId.Value,
                 request.IconFile.FileName,
                 iconUrl,
-                "image",
-                request.IconFile.Length,
                 request.IconFile.ContentType,
+                request.IconFile.Length,
                 orgId);
         }
         catch (Exception ex)
@@ -197,12 +197,10 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         try 
         {
             await _userAssetService.CreateAssetMetadataAsync(
-                currentUserId.Value,
                 request.AudioFile.FileName,
                 audioUrl,
-                "audio",
-                request.AudioFile.Length,
                 request.AudioFile.ContentType,
+                request.AudioFile.Length,
                 orgId);
         }
         catch (Exception)
@@ -337,12 +335,10 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        currentUserId.Value,
                         request.IconFile.FileName,
                         newIconUrl,
-                        "image",
-                        request.IconFile.Length,
                         request.IconFile.ContentType,
+                        request.IconFile.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }
@@ -361,12 +357,10 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        currentUserId.Value,
                         request.AudioFile.FileName,
                         newAudioUrl,
-                        "audio",
-                        request.AudioFile.Length,
                         request.AudioFile.ContentType,
+                        request.AudioFile.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }
@@ -566,5 +560,58 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         await _locationRepository.UpdateSegmentIdAsync(locationId, toSegmentId, ct);
 
         return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<UploadLocationAudioResponse, Error>> UploadLocationAudioAsync(IFormFile file, Guid? mapId, CancellationToken ct = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Option.None<UploadLocationAudioResponse, Error>(
+                Error.ValidationError("Location.Audio.Empty", "No file provided"));
+        }
+
+        var allowedExtensions = new[] { ".mp3", ".wav", ".ogg", ".m4a" };
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(extension))
+        {
+            return Option.None<UploadLocationAudioResponse, Error>(
+                Error.ValidationError("Location.Audio.InvalidType", "Invalid file type. Only audio files are allowed."));
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var storageUrl = await _firebaseStorageService.UploadFileAsync(file.FileName, stream, "location-audio");
+            
+            var userId = _currentUserService.GetUserId();
+            if (userId.HasValue)
+            {
+                Guid? orgId = null;
+                if (mapId.HasValue)
+                {
+                    orgId = await GetOrganizationIdAsync(mapId.Value, ct);
+                }
+
+                try 
+                {
+                    await _userAssetService.CreateAssetMetadataAsync(
+                        file.FileName,
+                        storageUrl,
+                        file.ContentType,
+                        file.Length,
+                        orgId);
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            return Option.Some<UploadLocationAudioResponse, Error>(new UploadLocationAudioResponse(storageUrl));
+        }
+        catch (Exception ex)
+        {
+            return Option.None<UploadLocationAudioResponse, Error>(
+                Error.Problem("Location.Audio.UploadFailed", $"Failed to upload audio: {ex.Message}"));
+        }
     }
 }

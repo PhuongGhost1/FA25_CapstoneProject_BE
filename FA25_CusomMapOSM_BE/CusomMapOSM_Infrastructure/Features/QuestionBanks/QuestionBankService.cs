@@ -960,12 +960,10 @@ public class QuestionBankService : IQuestionBankService
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        userId.Value,
                         file.FileName,
                         storageUrl,
-                        "image",
-                        file.Length,
                         file.ContentType,
+                        file.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }
@@ -1006,12 +1004,10 @@ public class QuestionBankService : IQuestionBankService
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        userId.Value,
                         file.FileName,
                         storageUrl,
-                        "audio",
-                        file.Length,
                         file.ContentType,
+                        file.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }
@@ -1052,12 +1048,10 @@ public class QuestionBankService : IQuestionBankService
                 try 
                 {
                     await _userAssetService.CreateAssetMetadataAsync(
-                        userId.Value,
                         file.FileName,
                         storageUrl,
-                        "image",
-                        file.Length,
                         file.ContentType,
+                        file.Length,
                         orgId);
                 }
                 catch (Exception) { /* Ensure robust */ }

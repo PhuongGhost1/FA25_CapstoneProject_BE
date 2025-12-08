@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Interfaces.Features.Faqs;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Layers;
@@ -136,6 +136,7 @@ using CusomMapOSM_Application.Interfaces.Features.Comments;
 using CusomMapOSM_Application.Interfaces.Features.Bookmarks;
 using CusomMapOSM_Application.Interfaces.Features.Exports;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.FileUpload;
 using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Groups;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
@@ -164,6 +165,7 @@ using Hangfire.Redis;
 using CusomMapOSM_Infrastructure.Services.UserAssets.Mongo;
 using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Infrastructure.Features.Assets;
+using CusomMapOSM_Infrastructure.Services.FileUpload;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -384,6 +386,9 @@ public static class DependencyInjections
 
         // Firebase Storage
         services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
+
+        // File Upload Service
+        services.AddScoped<IFileUploadService, FileUploadService>();
 
         // Home & Reporting
         services.AddScoped<IHomeService, HomeService>();
