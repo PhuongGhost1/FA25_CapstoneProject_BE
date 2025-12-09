@@ -653,7 +653,7 @@ public class SystemAdminEndpoint : IEndpoint
         if (!await IsSystemAdmin(user, systemAdminService, ct))
             return Results.Forbid();
 
-        var result = await systemAdminService.GetSystemDashboardAsync(ct);
+        var result = await systemAdminService.GetFlattenedSystemDashboardAsync(ct);
         return result.Match(
             some: data => Results.Ok(data),
             none: error => error.ToProblemDetailsResult()
@@ -769,7 +769,7 @@ public class SystemAdminEndpoint : IEndpoint
         if (!await IsSystemAdmin(user, systemAdminService, ct))
             return Results.Forbid();
 
-        var result = await systemAdminService.GetRevenueAnalyticsAsync(startDate, endDate, ct);
+        var result = await systemAdminService.GetDailyRevenueAnalyticsAsync(startDate, endDate, ct);
         return result.Match(
             some: data => Results.Ok(data),
             none: error => error.ToProblemDetailsResult()

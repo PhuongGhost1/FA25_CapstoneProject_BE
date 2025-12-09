@@ -69,7 +69,7 @@ public class ApprovalUrlResponse
     public string? OrderCode { get; set; } // PayOS specific - order code
 }
 
-public class ConfirmPaymentResponse
+public record ConfirmPaymentResponse
 {
     public required string PaymentId { get; set; }
     public required PaymentGatewayEnum PaymentGateway { get; set; }

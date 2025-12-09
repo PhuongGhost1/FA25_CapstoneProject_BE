@@ -40,6 +40,7 @@ public interface ISystemAdminService
     // System Usage Monitoring
     Task<Option<SystemUsageStatsDto, Error>> GetSystemUsageStatsAsync(CancellationToken ct = default);
     Task<Option<SystemDashboardDto, Error>> GetSystemDashboardAsync(CancellationToken ct = default);
+    Task<Option<FlattenedSystemDashboardDto, Error>> GetFlattenedSystemDashboardAsync(CancellationToken ct = default);
     Task<Option<List<SystemAlertDto>, Error>> GetActiveAlertsAsync(CancellationToken ct = default);
     Task<Option<bool, Error>> ResolveAlertAsync(Guid alertId, string resolution, CancellationToken ct = default);
     Task<Option<List<SystemRecentActivityDto>, Error>> GetRecentActivitiesAsync(int page = 1, int pageSize = 20, CancellationToken ct = default);
@@ -49,6 +50,7 @@ public interface ISystemAdminService
     Task<Option<List<SystemTopUserDto>, Error>> GetTopUsersAsync(int count = 10, CancellationToken ct = default);
     Task<Option<List<SystemTopOrganizationDto>, Error>> GetTopOrganizationsAsync(int count = 10, CancellationToken ct = default);
     Task<Option<Dictionary<string, decimal>, Error>> GetRevenueAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);
+    Task<Option<RevenueAnalyticsDto, Error>> GetDailyRevenueAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);
 
     // System Maintenance
     Task<Option<bool, Error>> PerformSystemMaintenanceAsync(string maintenanceType, CancellationToken ct = default);

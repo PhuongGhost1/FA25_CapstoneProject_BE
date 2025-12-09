@@ -20,4 +20,5 @@ public interface ITransactionService
     Task<Option<Transactions, ErrorCustom.Error>> GetTransactionAsync(Guid transactionId, CancellationToken ct);
     Task<Option<CancelPaymentResponse, ErrorCustom.Error>> CancelPaymentWithContextAsync(CancelPaymentWithContextReq req, CancellationToken ct);
     Task<Option<Transactions, ErrorCustom.Error>> UpdateTransactionGatewayInfoAsync(Guid transactionId, string gatewayReference, CancellationToken ct);
+    Task<Option<object, ErrorCustom.Error>> HandleWebhookAsync(PaymentGatewayEnum gateway, string gatewayReference, string? orderCode = null, CancellationToken ct = default);
 }

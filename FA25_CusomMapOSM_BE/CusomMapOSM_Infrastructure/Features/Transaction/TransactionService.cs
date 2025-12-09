@@ -10,7 +10,6 @@ using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
-using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
@@ -112,8 +111,8 @@ public class TransactionService : ITransactionService
         _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
-        var returnUrl = $"https://custommaposm.vercel.app/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
-        var cancelUrl = $"https://custommaposm.vercel.app/profile/select-plans?transactionId={pendingTransaction.TransactionId}";
+        var returnUrl = $"http://localhost:3000/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"http://localhost:3000/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
 
         _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
 
@@ -153,15 +152,7 @@ public class TransactionService : ITransactionService
         // Find the service that matches the requested gateway
         foreach (var service in paymentServices)
         {
-            // Test the service by trying to create a minimal checkout to see which gateway it supports
-            // This is a simple way to identify which service handles which gateway
             if (service is PayOSPaymentService && gateway == PaymentGatewayEnum.PayOS)
-                return service;
-            if (service is VNPayPaymentService && gateway == PaymentGatewayEnum.VNPay)
-                return service;
-            if (service is StripePaymentService && gateway == PaymentGatewayEnum.Stripe)
-                return service;
-            if (service is PaypalPaymentService && gateway == PaymentGatewayEnum.PayPal)
                 return service;
         }
 
@@ -572,6 +563,71 @@ public class TransactionService : ITransactionService
             Console.WriteLine($"=== End Parsing Transaction Context ERROR ===");
             return (transaction.Purpose, null);
         }
+    }
+
+    public async Task<Option<object, ErrorCustom.Error>> HandleWebhookAsync(PaymentGatewayEnum gateway, string gatewayReference, string? orderCode = null, CancellationToken ct = default)
+    {
+        _logger.LogInformation("=== TransactionService.HandleWebhookAsync START ===");
+        _logger.LogInformation("Gateway: {Gateway}, GatewayReference: {GatewayReference}, OrderCode: {OrderCode}", gateway, gatewayReference, orderCode);
+
+        // 1. Find transaction by gateway reference (TransactionReference field)
+        var transaction = await _transactionRepository.GetByTransactionReferenceAsync(gatewayReference, ct);
+        if (transaction == null)
+        {
+            _logger.LogWarning("Transaction not found for gateway reference: {GatewayReference}", gatewayReference);
+            return Option.None<object, ErrorCustom.Error>(
+                new ErrorCustom.Error("Transaction.NotFound", "Transaction not found for the given gateway reference", ErrorCustom.ErrorType.NotFound));
+        }
+
+        _logger.LogInformation("Transaction found: {TransactionId}, Status: {Status}", transaction.TransactionId, transaction.Status);
+
+        // 2. Check if transaction is already processed
+        if (transaction.Status == "success")
+        {
+            _logger.LogInformation("Transaction already processed successfully: {TransactionId}", transaction.TransactionId);
+            return Option.Some<object, ErrorCustom.Error>(new
+            {
+                TransactionId = transaction.TransactionId,
+                Status = "success",
+                Message = "Transaction already processed"
+            });
+        }
+
+        // 3. Get payment service and verify payment status
+        var paymentService = GetPaymentService(gateway);
+        
+        // Extract payment details based on gateway
+        // For PayOS, OrderCode is required and should be passed from webhook
+        var confirmRequest = new ConfirmPaymentReq
+        {
+            PaymentGateway = gateway,
+            PaymentId = gatewayReference,
+            OrderCode = orderCode // PayOS requires this, other gateways can ignore it
+        };
+
+        var confirmed = await paymentService.ConfirmPaymentAsync(confirmRequest, ct);
+
+        return await confirmed.Match(
+            some: async _ =>
+            {
+                // 4. Update transaction status
+                await UpdateTransactionStatusAsync(transaction.TransactionId, "success", ct);
+
+                // 5. Handle post-payment fulfillment
+                var fulfillmentResult = await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("=== TransactionService.HandleWebhookAsync SUCCESS ===");
+                return fulfillmentResult;
+            },
+            none: async err =>
+            {
+                // Update transaction status to failed if payment verification failed
+                if (transaction.Status == "pending")
+                {
+                    await UpdateTransactionStatusAsync(transaction.TransactionId, "failed", ct);
+                }
+                return Option.None<object, ErrorCustom.Error>(err);
+            }
+        );
     }
 
 

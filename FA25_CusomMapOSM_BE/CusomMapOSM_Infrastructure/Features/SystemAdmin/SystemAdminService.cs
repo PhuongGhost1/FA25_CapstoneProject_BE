@@ -801,7 +801,7 @@ public class SystemAdminService : ISystemAdminService
                     NewSubscriptionsThisMonth = newMembershipsThisMonth,
                     NewSubscriptionsLastMonth = newMembershipsLastMonth,
                     SubscriptionGrowthRate = newMembershipsLastMonth > 0 ? (double)(newMembershipsThisMonth - newMembershipsLastMonth) / newMembershipsLastMonth * 100 : 0,
-                    SubscriptionsByPlan = await _systemAdminRepository.GetMembershipsByPlanAsync(ct)
+                    SubscriptionsByPlan = await _systemAdminRepository.GetMembershipsByPlanAsync(ct) ?? new Dictionary<string, int>()
                 },
                 RevenueStats = new SystemRevenueStatsDto
                 {
@@ -811,8 +811,8 @@ public class SystemAdminService : ISystemAdminService
                     RevenueGrowthRate = (double)(revenueLastMonth > 0 ? (revenueThisMonth - revenueLastMonth) / revenueLastMonth * 100 : 0),
                     AverageRevenuePerUser = totalUsers > 0 ? totalRevenue / totalUsers : 0,
                     AverageRevenuePerOrganization = totalOrganizations > 0 ? totalRevenue / totalOrganizations : 0,
-                    RevenueByPlan = await _systemAdminRepository.GetRevenueByPlanAsync(thisMonthStart, DateTime.UtcNow, ct),
-                    RevenueByPaymentGateway = await _systemAdminRepository.GetRevenueByPaymentGatewayAsync(thisMonthStart, DateTime.UtcNow, ct)
+                    RevenueByPlan = await _systemAdminRepository.GetRevenueByPlanAsync(thisMonthStart, DateTime.UtcNow, ct) ?? new Dictionary<string, decimal>(),
+                    RevenueByPaymentGateway = await _systemAdminRepository.GetRevenueByPaymentGatewayAsync(thisMonthStart, DateTime.UtcNow, ct) ?? new Dictionary<string, decimal>()
                 },
                 PerformanceStats = new SystemPerformanceStatsDto
                 {
@@ -824,7 +824,11 @@ public class SystemAdminService : ISystemAdminService
                     ApiSuccessRate = 100.0,
                     ApiCallsByEndpoint = new Dictionary<string, int>(),
                     ErrorsByType = new Dictionary<string, int>()
-                }
+                },
+                TotalMaps = usageStats.GetValueOrDefault("total_maps", 0),
+                TotalExports = usageStats.GetValueOrDefault("total_exports", 0),
+                TotalCustomLayers = usageStats.GetValueOrDefault("total_custom_layers", 0),
+                TotalTokens = usageStats.GetValueOrDefault("total_tokens", 0)
             };
 
             return Option.Some<SystemUsageStatsDto, Error>(stats);
@@ -862,6 +866,70 @@ public class SystemAdminService : ISystemAdminService
         catch (Exception ex)
         {
             return Option.None<SystemDashboardDto, Error>(Error.Failure("SystemAdmin.DashboardFailed", $"Failed to get system dashboard: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<FlattenedSystemDashboardDto, Error>> GetFlattenedSystemDashboardAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var totalUsers = await _systemAdminRepository.GetTotalUsersCountAsync(ct: ct);
+            var activeUsersToday = await _systemAdminRepository.GetActiveUsersTodayCountAsync(ct);
+            
+            var todayStart = DateTime.UtcNow.Date;
+            var yesterdayStart = todayStart.AddDays(-1);
+            var yesterdayEnd = todayStart;
+            
+            var yesterdayUsers = await _systemAdminRepository.GetUsersByDateRangeAsync(yesterdayStart, yesterdayEnd, ct);
+            var activeUsersYesterday = yesterdayUsers.Count(u => u.LastLogin != null && u.LastLogin >= yesterdayStart && u.LastLogin < yesterdayEnd);
+            
+            var activeTodayChangePct = activeUsersYesterday > 0 
+                ? ((double)(activeUsersToday - activeUsersYesterday) / activeUsersYesterday) * 100 
+                : (activeUsersToday > 0 ? 100.0 : 0.0);
+
+            var thisMonthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            var lastMonthStart = thisMonthStart.AddMonths(-1);
+            var lastMonthEnd = thisMonthStart.AddDays(-1);
+
+            var newUsersThisMonth = await _systemAdminRepository.GetUsersByDateRangeAsync(thisMonthStart, DateTime.UtcNow, ct);
+            var newUsersLastMonth = await _systemAdminRepository.GetUsersByDateRangeAsync(lastMonthStart, lastMonthEnd, ct);
+
+            var newSignupsChangePct = newUsersLastMonth.Count > 0
+                ? ((double)(newUsersThisMonth.Count - newUsersLastMonth.Count) / newUsersLastMonth.Count) * 100
+                : (newUsersThisMonth.Count > 0 ? 100.0 : 0.0);
+
+            var lastMonthEndDate = thisMonthStart.AddDays(-1);
+            var usersAtLastMonthEnd = await _systemAdminRepository.GetTotalUsersCountAsync(ct: ct) - newUsersThisMonth.Count;
+            var totalUsersChangePct = usersAtLastMonthEnd > 0
+                ? ((double)(totalUsers - usersAtLastMonthEnd) / usersAtLastMonthEnd) * 100
+                : (totalUsers > 0 ? 100.0 : 0.0);
+
+            var errors24h = 0;
+            var errorsPrevious24h = 0;
+            var errors24hChangePct = 0.0;
+
+            if (errorsPrevious24h > 0)
+            {
+                errors24hChangePct = ((double)(errors24h - errorsPrevious24h) / errorsPrevious24h) * 100;
+            }
+
+            var dashboard = new FlattenedSystemDashboardDto
+            {
+                TotalUsers = totalUsers,
+                TotalUsersChangePct = totalUsersChangePct,
+                ActiveToday = activeUsersToday,
+                ActiveTodayChangePct = activeTodayChangePct,
+                NewSignups = newUsersThisMonth.Count,
+                NewSignupsChangePct = newSignupsChangePct,
+                Errors24h = errors24h,
+                Errors24hChangePct = errors24hChangePct
+            };
+
+            return Option.Some<FlattenedSystemDashboardDto, Error>(dashboard);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<FlattenedSystemDashboardDto, Error>(Error.Failure("SystemAdmin.DashboardFailed", $"Failed to get system dashboard: {ex.Message}"));
         }
     }
 
@@ -965,11 +1033,18 @@ public class SystemAdminService : ISystemAdminService
                 var totalExports = await _systemAdminRepository.GetOrganizationTotalExportsAsync(o.OrgId, ct);
                 var totalSpent = await _systemAdminRepository.GetOrganizationTotalSpentAsync(o.OrgId, ct);
 
+                var ownerName = "Unknown";
+                if (o.Owner != null)
+                {
+                    ownerName = !string.IsNullOrEmpty(o.Owner.FullName) ? o.Owner.FullName : 
+                               (!string.IsNullOrEmpty(o.Owner.Email) ? o.Owner.Email : "Unknown");
+                }
+
                 organizationDtos.Add(new SystemTopOrganizationDto
                 {
                     OrgId = o.OrgId,
                     Name = o.OrgName,
-                    OwnerName = o.Owner?.FullName ?? "Unknown",
+                    OwnerName = ownerName,
                     TotalMembers = totalMembers,
                     TotalMaps = totalMaps,
                     TotalExports = totalExports,
@@ -1008,6 +1083,121 @@ public class SystemAdminService : ISystemAdminService
         catch (Exception ex)
         {
             return Option.None<Dictionary<string, decimal>, Error>(Error.Failure("SystemAdmin.RevenueAnalyticsFailed", $"Failed to get revenue analytics: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<RevenueAnalyticsDto, Error>> GetDailyRevenueAnalyticsAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
+    {
+        try
+        {
+            var transactions = await _systemAdminRepository.GetTransactionsByDateRangeAsync(startDate, endDate, ct);
+            var successfulTransactions = transactions.Where(t => t.Status == "completed" || t.Status == "paid" || t.Status == "success").ToList();
+
+            var dailyRevenueMap = new Dictionary<string, DailyRevenueDto>();
+            
+            // Initialize all days in range
+            var currentDate = startDate.Date;
+            var endDateOnly = endDate.Date;
+            while (currentDate <= endDateOnly)
+            {
+                var dateStr = currentDate.ToString("yyyy-MM-dd");
+                dailyRevenueMap[dateStr] = new DailyRevenueDto
+                {
+                    Date = dateStr,
+                    Value = 0,
+                    TransactionCount = 0,
+                    RevenueByPlan = new Dictionary<string, decimal>(),
+                    RevenueByPaymentGateway = new Dictionary<string, decimal>()
+                };
+                currentDate = currentDate.AddDays(1);
+            }
+
+            // Group transactions by date
+            foreach (var transaction in successfulTransactions)
+            {
+                var dateStr = transaction.TransactionDate.Date.ToString("yyyy-MM-dd");
+                if (!dailyRevenueMap.ContainsKey(dateStr))
+                {
+                    dailyRevenueMap[dateStr] = new DailyRevenueDto
+                    {
+                        Date = dateStr,
+                        Value = 0,
+                        TransactionCount = 0,
+                        RevenueByPlan = new Dictionary<string, decimal>(),
+                        RevenueByPaymentGateway = new Dictionary<string, decimal>()
+                    };
+                }
+
+                var daily = dailyRevenueMap[dateStr];
+                daily.Value += transaction.Amount;
+                daily.TransactionCount++;
+
+                // Revenue by plan
+                var planName = transaction.Membership?.Plan?.PlanName ?? "Unknown";
+                if (!daily.RevenueByPlan.ContainsKey(planName))
+                {
+                    daily.RevenueByPlan[planName] = 0;
+                }
+                daily.RevenueByPlan[planName] += transaction.Amount;
+
+                // Revenue by payment gateway
+                var gatewayName = transaction.PaymentGateway?.Name ?? "Unknown";
+                if (!daily.RevenueByPaymentGateway.ContainsKey(gatewayName))
+                {
+                    daily.RevenueByPaymentGateway[gatewayName] = 0;
+                }
+                daily.RevenueByPaymentGateway[gatewayName] += transaction.Amount;
+            }
+
+            var dailyRevenue = dailyRevenueMap.Values.OrderBy(d => d.Date).ToList();
+
+            // Calculate summary statistics
+            var totalRevenue = dailyRevenue.Sum(d => d.Value);
+            var totalTransactions = dailyRevenue.Sum(d => d.TransactionCount);
+            var averageTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+            // Aggregate revenue by plan and payment gateway
+            var revenueByPlan = new Dictionary<string, decimal>();
+            var revenueByPaymentGateway = new Dictionary<string, decimal>();
+
+            foreach (var daily in dailyRevenue)
+            {
+                foreach (var kvp in daily.RevenueByPlan)
+                {
+                    if (!revenueByPlan.ContainsKey(kvp.Key))
+                    {
+                        revenueByPlan[kvp.Key] = 0;
+                    }
+                    revenueByPlan[kvp.Key] += kvp.Value;
+                }
+
+                foreach (var kvp in daily.RevenueByPaymentGateway)
+                {
+                    if (!revenueByPaymentGateway.ContainsKey(kvp.Key))
+                    {
+                        revenueByPaymentGateway[kvp.Key] = 0;
+                    }
+                    revenueByPaymentGateway[kvp.Key] += kvp.Value;
+                }
+            }
+
+            var analytics = new RevenueAnalyticsDto
+            {
+                DailyRevenue = dailyRevenue,
+                TotalRevenue = totalRevenue,
+                TotalTransactions = totalTransactions,
+                AverageTransactionValue = averageTransactionValue,
+                RevenueByPlan = revenueByPlan,
+                RevenueByPaymentGateway = revenueByPaymentGateway,
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            return Option.Some<RevenueAnalyticsDto, Error>(analytics);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<RevenueAnalyticsDto, Error>(Error.Failure("SystemAdmin.DailyRevenueAnalyticsFailed", $"Failed to get daily revenue analytics: {ex.Message}"));
         }
     }
 
@@ -1109,8 +1299,8 @@ public class SystemAdminService : ISystemAdminService
     {
         try
         {
-            var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
-            return Option.Some<bool, Error>(user?.Role == UserRoleEnum.Admin);
+            var user = await _authenticationRepository.GetUserById(userId);
+            return Option.Some<bool, Error>(user != null && user.Role == UserRoleEnum.Admin);
         }
         catch (Exception ex)
         {
@@ -1122,9 +1312,8 @@ public class SystemAdminService : ISystemAdminService
     {
         try
         {
-            var user = await _systemAdminRepository.GetUserByIdAsync(userId, ct);
-            // Would need to implement role-based authorization
-            return Option.Some<bool, Error>(user?.Role == UserRoleEnum.Admin);
+            var user = await _authenticationRepository.GetUserById(userId);
+            return Option.Some<bool, Error>(user != null && user.Role == UserRoleEnum.Admin);
         }
         catch (Exception ex)
         {

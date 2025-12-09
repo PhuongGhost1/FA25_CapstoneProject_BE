@@ -107,7 +107,6 @@ using CusomMapOSM_Infrastructure.Features.TreasureHunts;
 using CusomMapOSM_Infrastructure.Features.Workspaces;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using CusomMapOSM_Infrastructure.Services;
-using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
@@ -500,13 +499,9 @@ public static class DependencyInjections
 
     public static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IPaymentService, StripePaymentService>();
-        services.AddScoped<IPaymentService, PaypalPaymentService>();
         services.AddScoped<IPaymentService, PayOSPaymentService>();
-        services.AddScoped<IPaymentService, VNPayPaymentService>();
 
         services.AddHttpClient<PayOSPaymentService>();
-        services.AddHttpClient<VNPayPaymentService>();
 
         return services;
     }
