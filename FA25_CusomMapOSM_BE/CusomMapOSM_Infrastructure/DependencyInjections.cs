@@ -250,6 +250,7 @@ public static class DependencyInjections
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
+        services.AddScoped<IMapReportRepository, MapReportRepository>();
         services.AddScoped<ILayerRepository, LayerRepository>();
 
         // Location & Content
@@ -325,6 +326,7 @@ public static class DependencyInjections
     private static void AddMapServices(IServiceCollection services)
     {
         services.AddScoped<IMapService, MapService>();
+        services.AddScoped<IMapReportService, MapReportService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IMapSelectionService, MapSelectionService>();
