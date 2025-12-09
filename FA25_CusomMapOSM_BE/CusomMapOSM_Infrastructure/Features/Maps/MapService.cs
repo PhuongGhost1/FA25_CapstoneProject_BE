@@ -1,6 +1,7 @@
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
@@ -13,6 +14,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using Optional;
+using Optional.Unsafe;
 using System;
 using System.Linq;
 using System.Text.Json;
@@ -39,6 +41,7 @@ public class MapService : IMapService
     private readonly IHubContext<MapCollaborationHub> _hubContext;
     private readonly IOrganizationPermissionService _organizationPermissionService;
     private readonly ISessionRepository _sessionRepository;
+    private readonly ISystemAdminService _systemAdminService;
 
     public MapService(
         IMapRepository mapRepository,
@@ -50,7 +53,8 @@ public class MapService : IMapService
         IHubContext<MapCollaborationHub> hubContext, 
         IRedisCacheService cacheService,
         IOrganizationPermissionService organizationPermissionService,
-        ISessionRepository sessionRepository)
+        ISessionRepository sessionRepository,
+        ISystemAdminService systemAdminService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
@@ -62,6 +66,7 @@ public class MapService : IMapService
         _cacheService = cacheService;
         _organizationPermissionService = organizationPermissionService;
         _sessionRepository = sessionRepository;
+        _systemAdminService = systemAdminService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -413,7 +418,12 @@ public class MapService : IMapService
                 Error.NotFound("Map.NotFound", "Map not found"));
         }
 
-        if (map.UserId != currentUserId.Value)
+        // Check if user is admin
+        var isAdminResult = await _systemAdminService.IsUserSystemAdminAsync(currentUserId.Value, CancellationToken.None);
+        var isAdminUser = isAdminResult.HasValue && isAdminResult.ValueOrDefault();
+
+        // Only allow deletion if user is the owner OR user is admin
+        if (map.UserId != currentUserId.Value && !isAdminUser)
         {
             return Option.None<DeleteMapResponse, Error>(
                 Error.Forbidden("Map.NotOwner", "Only the map owner can delete it"));
@@ -1591,6 +1601,60 @@ public class MapService : IMapService
         {
             return Option.None<bool, Error>(
                 Error.Failure("Map.PublishFailed", "Failed to publish map"));
+        }
+
+        return Option.Some<bool, Error>(true);
+    }
+
+    public async Task<Option<bool, Error>> PrepareForEmbed(Guid mapId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<bool, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map is null || !map.IsActive)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<bool, Error>(
+                Error.Forbidden("Map.NotOwner", "Only the map owner can prepare it for embed"));
+        }
+
+        var needsUpdate = false;
+
+        // Publish map if not already published
+        if (map.Status != MapStatusEnum.Published)
+        {
+            map.Status = MapStatusEnum.Published;
+            map.PublishedAt = DateTime.UtcNow;
+            needsUpdate = true;
+        }
+
+        // Set IsPublic to true if not already public
+        if (!map.IsPublic)
+        {
+            map.IsPublic = true;
+            needsUpdate = true;
+        }
+
+        // Update map if any changes were made
+        if (needsUpdate)
+        {
+            map.UpdatedAt = DateTime.UtcNow;
+            var updateResult = await _mapRepository.UpdateMap(map);
+            if (!updateResult)
+            {
+                return Option.None<bool, Error>(
+                    Error.Failure("Map.PrepareEmbedFailed", "Failed to prepare map for embed"));
+            }
         }
 
         return Option.Some<bool, Error>(true);

@@ -8,6 +8,8 @@ using CusomMapOSM_Domain.Entities.Tickets;
 using CusomMapOSM_Domain.Entities.Tickets.Enums;
 using Optional;
 using SupportTicketEntity = CusomMapOSM_Domain.Entities.Tickets.SupportTicket;
+using Microsoft.AspNetCore.SignalR;
+using CusomMapOSM_Infrastructure.Hubs;
 
 namespace CusomMapOSM_Infrastructure.Features.SupportTicket;
 
@@ -15,12 +17,16 @@ public class SupportTicketService : ISupportTicketService
 {
     private readonly ISupportTicketRepository _supportTicketRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IHubContext<SupportTicketHub> _hubContext;
 
-    public SupportTicketService(ISupportTicketRepository supportTicketRepository,
-        ICurrentUserService currentUserService)
+    public SupportTicketService(
+        ISupportTicketRepository supportTicketRepository,
+        ICurrentUserService currentUserService,
+        IHubContext<SupportTicketHub> hubContext)
     {
         _supportTicketRepository = supportTicketRepository;
         _currentUserService = currentUserService;
+        _hubContext = hubContext;
     }
 
 
@@ -38,6 +44,17 @@ public class SupportTicketService : ISupportTicketService
             CreatedAt = DateTime.UtcNow,
         };
         await _supportTicketRepository.CreateSupportTicket(supportTicket);
+
+        await _hubContext.Clients.Group("admin").SendAsync("TicketCreated", new
+        {
+            ticketId = supportTicket.TicketId,
+            subject = supportTicket.Subject,
+            message = supportTicket.Message,
+            priority = supportTicket.Priority,
+            status = supportTicket.Status.ToString(),
+            createdAt = supportTicket.CreatedAt
+        });
+
         return Option.Some<CreateSupportTicketResponse, Error>(new CreateSupportTicketResponse
         {
             TicketId = supportTicket.TicketId,
@@ -130,6 +147,22 @@ public class SupportTicketService : ISupportTicketService
         };
         await _supportTicketRepository.CreateSupportTicketMessage(supportTicketMessage);
         await _supportTicketRepository.UpdateSupportTicket(supportTicket);
+
+        await _hubContext.Clients.Group($"ticket_{ticketId}").SendAsync("NewMessage", new
+        {
+            messageId = supportTicketMessage.MessageId,
+            ticketId = ticketId,
+            message = supportTicketMessage.Message,
+            isFromUser = true,
+            createdAt = supportTicketMessage.CreatedAt
+        });
+
+        await _hubContext.Clients.Group("admin").SendAsync("TicketUpdated", new
+        {
+            ticketId = ticketId,
+            hasNewMessage = true
+        });
+
         return Option.Some<ResponseSupportTicketResponse, Error>(new ResponseSupportTicketResponse
         {
             TicketId = supportTicket.TicketId,
@@ -161,6 +194,24 @@ public class SupportTicketService : ISupportTicketService
         };
         await _supportTicketRepository.CreateSupportTicketMessage(supportTicketMessage);
         await _supportTicketRepository.UpdateSupportTicket(supportTicket);
+
+        await _hubContext.Clients.Group($"ticket_{ticketId}").SendAsync("NewMessage", new
+        {
+            messageId = supportTicketMessage.MessageId,
+            ticketId = ticketId,
+            message = supportTicketMessage.Message,
+            isFromUser = false,
+            createdAt = supportTicketMessage.CreatedAt
+        });
+
+        await _hubContext.Clients.Group($"user_{supportTicket.UserId}").SendAsync("TicketReply", new
+        {
+            ticketId = ticketId,
+            subject = supportTicket.Subject,
+            message = supportTicketMessage.Message,
+            createdAt = supportTicketMessage.CreatedAt
+        });
+
         return Option.Some<ReplySupportTicketResponse, Error>(new ReplySupportTicketResponse
         {
             TicketId = supportTicket.TicketId,
@@ -178,6 +229,19 @@ public class SupportTicketService : ISupportTicketService
 
         supportTicket.Status = TicketStatusEnum.Closed;
         await _supportTicketRepository.UpdateSupportTicket(supportTicket);
+
+        await _hubContext.Clients.Group($"ticket_{ticketId}").SendAsync("TicketStatusChanged", new
+        {
+            ticketId = ticketId,
+            status = "closed"
+        });
+
+        await _hubContext.Clients.Group($"user_{supportTicket.UserId}").SendAsync("TicketClosed", new
+        {
+            ticketId = ticketId,
+            subject = supportTicket.Subject
+        });
+
         return Option.Some<bool, Error>(true);
     }
 }

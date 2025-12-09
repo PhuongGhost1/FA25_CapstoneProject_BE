@@ -42,6 +42,7 @@ public interface IMapService
     Task<Option<bool, Error>> PublishMap(Guid mapId);
     Task<Option<bool, Error>> UnpublishMap(Guid mapId);
     Task<Option<bool, Error>> ArchiveMap(Guid mapId);
+    Task<Option<bool, Error>> PrepareForEmbed(Guid mapId); // Auto publish and set public for embed
     Task<Option<bool, Error>> RestoreMap(Guid mapId);
 
     // Custom listings
