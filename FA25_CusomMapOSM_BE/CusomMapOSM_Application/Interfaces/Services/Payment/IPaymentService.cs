@@ -1,4 +1,5 @@
 using CusomMapOSM_Application.Models.DTOs.Services;
+using Microsoft.AspNetCore.Http;
 using Optional;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
@@ -14,6 +15,8 @@ public interface IPaymentService
     Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> CreateCheckoutAsync(ProcessPaymentReq request, string returnUrl, string cancelUrl, CancellationToken ct);
 
     Task<Option<ConfirmPaymentResponse, ErrorCustom.Error>> ConfirmPaymentAsync(ConfirmPaymentReq req, CancellationToken ct);
+
+    Task<Option<ConfirmPaymentResponse, ErrorCustom.Error>> ConfirmPaymentAsync(HttpRequest req, CancellationToken ct);
 
     Task<Option<CancelPaymentResponse, ErrorCustom.Error>> CancelPaymentAsync(CancelPaymentWithContextReq req, CancellationToken ct);
 }

@@ -776,6 +776,7 @@ public class MapEndpoints : IEndpoint
             .WithName("GetMapFeatures")
             .WithDescription("Get all features for a map")
             .RequireAuthorization()
+            .AllowAnonymous()
             .Produces<List<MapFeatureResponse>>(200);
 
         group.MapGet("/{mapId:guid}/features/{featureId:guid}", async (
@@ -792,6 +793,7 @@ public class MapEndpoints : IEndpoint
             .WithName("GetMapFeatureById")
             .WithDescription("Get a specific feature by ID")
             .RequireAuthorization()
+            .AllowAnonymous()
             .Produces<MapFeatureResponse>(200)
             .ProducesProblem(404);
 

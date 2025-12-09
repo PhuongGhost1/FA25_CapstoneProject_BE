@@ -70,7 +70,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<UserEntity?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
         return await _context.Users
-            .Where(u => u.Role == UserRoleEnum.Admin) // Exclude admin users
+            .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .FirstOrDefaultAsync(u => u.UserId == userId, ct);
     }
 
@@ -135,6 +135,19 @@ public class SystemAdminRepository : ISystemAdminRepository
         return await _context.Users
             .Where(u => u.Role != UserRoleEnum.Admin) // Exclude admin users
             .CountAsync(u => u.AccountStatus == AccountStatusEnum.PendingVerification, ct);
+    }
+
+    public async Task<int> GetActiveUsersTodayCountAsync(CancellationToken ct = default)
+    {
+        var todayStart = DateTime.UtcNow.Date;
+        var todayEnd = todayStart.AddDays(1);
+
+        return await _context.Users
+            .Where(u => u.Role != UserRoleEnum.Admin
+                && u.LastLogin != null
+                && u.LastLogin >= todayStart
+                && u.LastLogin < todayEnd)
+            .CountAsync(ct);
     }
 
     // Organization Management
@@ -372,7 +385,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<decimal> GetRevenueByPlanAsync(int planId, CancellationToken ct = default)
     {
         return await _context.Transactions
-            .Where(t => t.Membership != null && t.Membership.PlanId == planId && t.Status == "completed")
+            .Where(t => t.Membership != null && t.Membership.PlanId == planId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
@@ -436,11 +449,15 @@ public class SystemAdminRepository : ISystemAdminRepository
 
     public async Task<Dictionary<string, int>> GetMembershipsByPlanAsync(CancellationToken ct = default)
     {
-        return await _context.Memberships
+        var memberships = await _context.Memberships
             .Include(m => m.Plan)
             .Where(m => m.Status == MembershipStatusEnum.Active)
-            .GroupBy(m => m.Plan.PlanName)
-            .ToDictionaryAsync(g => g.Key, g => g.Count(), ct);
+            .ToListAsync(ct);
+
+        return memberships
+            .Where(m => m.Plan != null && !string.IsNullOrEmpty(m.Plan.PlanName))
+            .GroupBy(m => m.Plan!.PlanName)
+            .ToDictionary(g => g.Key, g => g.Count());
     }
 
     // Transaction Management
@@ -468,34 +485,77 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<decimal> GetTotalRevenueAsync(CancellationToken ct = default)
     {
         return await _context.Transactions
-            .Where(t => t.Status == "completed")
+            .Where(t => t.Status == "completed" || t.Status == "paid" || t.Status == "success")
             .SumAsync(t => t.Amount, ct);
     }
 
     public async Task<decimal> GetRevenueByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
     {
         return await _context.Transactions
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && t.Status == "completed")
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
     public async Task<Dictionary<string, decimal>> GetRevenueByPaymentGatewayAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
     {
-        return await _context.Transactions
+        var transactions = await _context.Transactions
             .Include(t => t.PaymentGateway)
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && t.Status == "completed")
-            .GroupBy(t => t.PaymentGateway.Name)
-            .ToDictionaryAsync(g => g.Key, g => g.Sum(t => t.Amount), ct);
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .ToListAsync(ct);
+
+        return transactions
+            .Where(t => t.PaymentGateway != null && !string.IsNullOrEmpty(t.PaymentGateway.Name))
+            .GroupBy(t => t.PaymentGateway!.Name)
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
     }
 
     public async Task<Dictionary<string, decimal>> GetRevenueByPlanAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
     {
-        return await _context.Transactions
+        var transactions = await _context.Transactions
             .Include(t => t.Membership)
             .ThenInclude(m => m.Plan)
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && t.Status == "completed")
-            .GroupBy(t => t.Membership.Plan.PlanName)
-            .ToDictionaryAsync(g => g.Key, g => g.Sum(t => t.Amount), ct);
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .ToListAsync(ct);
+
+        return transactions
+            .Where(t => t.Membership != null && t.Membership.Plan != null && !string.IsNullOrEmpty(t.Membership.Plan.PlanName))
+            .GroupBy(t => t.Membership!.Plan!.PlanName)
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
+    }
+
+    public async Task<List<CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin.DailyRevenueDto>> GetDailyRevenueAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
+    {
+        var transactions = await _context.Transactions
+            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .ToListAsync(ct);
+
+        var dailyRevenue = transactions
+            .GroupBy(t => t.TransactionDate.Date)
+            .Select(g => new CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin.DailyRevenueDto
+            {
+                Date = g.Key.ToString("yyyy-MM-dd"),
+                Value = g.Sum(t => t.Amount)
+            })
+            .OrderBy(d => d.Date)
+            .ToList();
+
+        var allDays = new List<CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin.DailyRevenueDto>();
+        var currentDate = startDate.Date;
+        var endDateOnly = endDate.Date;
+
+        while (currentDate <= endDateOnly)
+        {
+            var dateStr = currentDate.ToString("yyyy-MM-dd");
+            var existing = dailyRevenue.FirstOrDefault(d => d.Date == dateStr);
+            allDays.Add(existing ?? new CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin.DailyRevenueDto
+            {
+                Date = dateStr,
+                Value = 0
+            });
+            currentDate = currentDate.AddDays(1);
+        }
+
+        return allDays;
     }
 
     // Usage Statistics
@@ -906,6 +966,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     public async Task<List<OrganizationEntity>> GetTopOrganizationsByActivityAsync(int count = 10, CancellationToken ct = default)
     {
         return await _context.Organizations
+            .Include(o => o.Owner)
             .OrderByDescending(o => o.UpdatedAt)
             .Take(count)
             .ToListAsync(ct);
@@ -917,7 +978,7 @@ public class SystemAdminRepository : ISystemAdminRepository
         var userRevenues = await _context.Transactions
             .Include(t => t.Membership)
             .ThenInclude(m => m.User)
-            .Where(t => t.Membership != null && t.Status == "completed")
+            .Where(t => t.Membership != null && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .GroupBy(t => t.Membership.UserId)
             .Select(g => new { UserId = g.Key, TotalRevenue = g.Sum(t => t.Amount) })
             .OrderByDescending(x => x.TotalRevenue)
@@ -936,7 +997,7 @@ public class SystemAdminRepository : ISystemAdminRepository
         var orgRevenues = await _context.Transactions
             .Include(t => t.Membership)
             .ThenInclude(m => m.Organization)
-            .Where(t => t.Membership != null && t.Status == "completed")
+            .Where(t => t.Membership != null && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .GroupBy(t => t.Membership.OrgId)
             .Select(g => new { OrgId = g.Key, TotalRevenue = g.Sum(t => t.Amount) })
             .OrderByDescending(x => x.TotalRevenue)
@@ -945,6 +1006,7 @@ public class SystemAdminRepository : ISystemAdminRepository
 
         var orgIds = orgRevenues.Select(x => x.OrgId).ToList();
         return await _context.Organizations
+            .Include(o => o.Owner)
             .Where(o => orgIds.Contains(o.OrgId))
             .ToListAsync(ct);
     }
@@ -1102,7 +1164,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     {
         return await _context.Transactions
             .Include(t => t.Membership)
-            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && t.Status == "completed")
+            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
@@ -1175,7 +1237,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     {
         return await _context.Transactions
             .Include(t => t.Membership)
-            .Where(t => t.Membership != null && t.Membership.UserId == userId && t.Status == "completed")
+            .Where(t => t.Membership != null && t.Membership.UserId == userId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
@@ -1239,7 +1301,7 @@ public class SystemAdminRepository : ISystemAdminRepository
     {
         return await _context.Transactions
             .Include(t => t.Membership)
-            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && t.Status == "completed")
+            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 }
