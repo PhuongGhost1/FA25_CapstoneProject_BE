@@ -951,6 +951,75 @@ public class SystemAdminRepository : ISystemAdminRepository
             ["total_transactions"] = await _context.Transactions.CountAsync(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate, ct)
         };
 
+        // --- Monthly series for last 12 months (inclusive) ---
+        var utcNow = DateTime.UtcNow;
+        var seriesStart = new DateTime(utcNow.Year, utcNow.Month, 1).AddMonths(-11);
+        var seriesEnd = utcNow;
+
+        // Preload data for grouping
+        var users12 = await _context.Users
+            .Where(u => u.CreatedAt >= seriesStart && u.CreatedAt <= seriesEnd)
+            .ToListAsync(ct);
+
+        var maps12 = await _context.Maps
+            .Where(m => m.CreatedAt >= seriesStart && m.CreatedAt <= seriesEnd)
+            .ToListAsync(ct);
+
+        var exports12 = await _context.Exports
+            .Where(e => e.CreatedAt >= seriesStart && e.CreatedAt <= seriesEnd)
+            .ToListAsync(ct);
+
+        var tx12 = await _context.Transactions
+            .Where(t => t.TransactionDate >= seriesStart && t.TransactionDate <= seriesEnd && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .ToListAsync(ct);
+
+        // Exclude admin users from analytics series
+        var nonAdminUsers = users12.Where(u => u.Role != UserRoleEnum.Admin).ToList();
+        var nonAdminUserIds = new HashSet<Guid>(nonAdminUsers.Select(u => u.UserId));
+        var mapsNonAdmin = maps12.Where(m => nonAdminUserIds.Contains(m.UserId)).ToList();
+        var exportsNonAdmin = exports12.Where(e => nonAdminUserIds.Contains(e.UserId)).ToList();
+
+        var monthlyUsers = new List<object>();
+        var monthlyMaps = new List<object>();
+        var monthlyExports = new List<object>();
+        var monthlyRevenue = new List<object>();
+
+        for (var i = 0; i < 12; i++)
+        {
+            var monthStart = new DateTime(seriesStart.Year, seriesStart.Month, 1).AddMonths(i);
+            var monthEnd = monthStart.AddMonths(1);
+            var monthLabel = monthStart.ToString("yyyy-MM-01"); // FE can parse this
+
+            monthlyUsers.Add(new
+            {
+                month = monthLabel,
+                value = nonAdminUsers.Count(u => u.CreatedAt >= monthStart && u.CreatedAt < monthEnd)
+            });
+
+            monthlyMaps.Add(new
+            {
+                month = monthLabel,
+                value = mapsNonAdmin.Count(m => m.CreatedAt >= monthStart && m.CreatedAt < monthEnd)
+            });
+
+            monthlyExports.Add(new
+            {
+                month = monthLabel,
+                value = exportsNonAdmin.Count(e => e.CreatedAt >= monthStart && e.CreatedAt < monthEnd)
+            });
+
+            monthlyRevenue.Add(new
+            {
+                month = monthLabel,
+                value = tx12.Where(t => t.TransactionDate >= monthStart && t.TransactionDate < monthEnd).Sum(t => t.Amount)
+            });
+        }
+
+        analytics["monthlyUsers"] = monthlyUsers;
+        analytics["monthlyMaps"] = monthlyMaps;
+        analytics["monthlyExports"] = monthlyExports;
+        analytics["monthlyRevenue"] = monthlyRevenue;
+
         return analytics;
     }
 
