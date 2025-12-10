@@ -379,8 +379,8 @@ public class MapService : IMapService
             map.Description = req.Description;
         if (req.IsPublic.HasValue)
             map.IsPublic = req.IsPublic.Value;
-        if (!string.IsNullOrEmpty(req.BaseMapProvider))
-            map.BaseLayer = req.BaseMapProvider;
+        if (!string.IsNullOrEmpty(req.BaseLayer))
+            map.BaseLayer = req.BaseLayer;
         if (!string.IsNullOrEmpty(req.GeographicBounds))
             map.DefaultBounds = req.GeographicBounds;
         if (!string.IsNullOrEmpty(req.ViewState))
@@ -1628,26 +1628,11 @@ public class MapService : IMapService
                 Error.Forbidden("Map.NotOwner", "Only the map owner can prepare it for embed"));
         }
 
-        var needsUpdate = false;
-
         // Publish map if not already published
         if (map.Status != MapStatusEnum.Published)
         {
             map.Status = MapStatusEnum.Published;
             map.PublishedAt = DateTime.UtcNow;
-            needsUpdate = true;
-        }
-
-        // Set IsPublic to true if not already public
-        if (!map.IsPublic)
-        {
-            map.IsPublic = true;
-            needsUpdate = true;
-        }
-
-        // Update map if any changes were made
-        if (needsUpdate)
-        {
             map.UpdatedAt = DateTime.UtcNow;
             var updateResult = await _mapRepository.UpdateMap(map);
             if (!updateResult)
