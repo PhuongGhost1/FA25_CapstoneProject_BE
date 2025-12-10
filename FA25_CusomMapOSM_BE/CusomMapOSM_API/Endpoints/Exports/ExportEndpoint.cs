@@ -77,6 +77,24 @@ public class ExportEndpoint : IEndpoint
             .WithDescription("Get all exports for a specific map")
             .Produces<ExportListResponse>(200);
 
+        // Get exports by organization ID
+        group.MapGet("/organization/{organizationId:guid}", async (
+                [FromRoute] Guid organizationId,
+                [FromServices] IExportService exportService,
+                HttpContext httpContext) =>
+            {
+                var result = await exportService.GetExportsByOrganizationIdAsync(organizationId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("GetExportsByOrganizationId")
+            .WithDescription("Get all exports for a specific organization (requires active membership)")
+            .Produces<ExportListResponse>(200)
+            .Produces(403)
+            .Produces(404);
+
         // Get download URL (only if approved)
         group.MapGet("/{exportId:int}/download", async (
                 [FromRoute] int exportId,
