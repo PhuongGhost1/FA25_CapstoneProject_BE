@@ -398,7 +398,7 @@ public class ExportService : IExportService
             }
 
             var exports = await _exportRepository.GetByUserIdAsync(currentUserId.Value);
-            var exportDtos = exports.Select(MapToDto).ToList();
+            var exportDtos = exports.Select(e => MapToDto(e)).ToList();
 
             return Option.Some<ExportListResponse, Error>(new ExportListResponse
             {
@@ -419,7 +419,7 @@ public class ExportService : IExportService
         try
         {
             var exports = await _exportRepository.GetByMapIdAsync(mapId);
-            var exportDtos = exports.Select(MapToDto).ToList();
+            var exportDtos = exports.Select(e => MapToDto(e)).ToList();
 
             return Option.Some<ExportListResponse, Error>(new ExportListResponse
             {
@@ -430,6 +430,50 @@ public class ExportService : IExportService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting exports for map {MapId}", mapId);
+            return Option.None<ExportListResponse, Error>(
+                Error.Failure("Export.GetFailed", $"Failed to get exports: {ex.Message}"));
+        }
+    }
+
+    public async Task<Option<ExportListResponse, Error>> GetExportsByOrganizationIdAsync(Guid organizationId)
+    {
+        try
+        {
+            var currentUserId = _currentUserService.GetUserId();
+            if (!currentUserId.HasValue)
+            {
+                return Option.None<ExportListResponse, Error>(
+                    Error.Unauthorized("Export.Unauthorized", "User must be authenticated"));
+            }
+
+            // Verify user is a member of the organization
+            var membership = await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, organizationId, CancellationToken.None);
+            if (membership == null)
+            {
+                return Option.None<ExportListResponse, Error>(
+                    Error.NotFound("Membership.NotFound", "User is not a member of this organization"));
+            }
+
+            // Check membership status is Active
+            if (membership.Status != MembershipStatusEnum.Active)
+            {
+                return Option.None<ExportListResponse, Error>(
+                    Error.Forbidden("Membership.Inactive", "Membership is not active"));
+            }
+
+            // Get all exports for the organization
+            var exports = await _exportRepository.GetByOrganizationIdAsync(organizationId);
+            var exportDtos = exports.Select(e => MapToDto(e)).ToList();
+
+            return Option.Some<ExportListResponse, Error>(new ExportListResponse
+            {
+                Exports = exportDtos,
+                Total = exportDtos.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting exports for organization {OrganizationId}", organizationId);
             return Option.None<ExportListResponse, Error>(
                 Error.Failure("Export.GetFailed", $"Failed to get exports: {ex.Message}"));
         }
@@ -1647,7 +1691,8 @@ startxref
         try
         {
             var exports = await _exportRepository.GetPendingApprovalExportsAsync();
-            var exportDtos = exports.Select(MapToDto).ToList();
+            // Admin view: always show file URLs
+            var exportDtos = exports.Select(e => MapToDto(e, isAdminView: true)).ToList();
 
             return Option.Some<ExportListResponse, Error>(new ExportListResponse
             {
@@ -2421,11 +2466,14 @@ startxref
         return pdfBytes;
     }
 
-    private static ExportResponse MapToDto(Export export)
+    private static ExportResponse MapToDto(Export export, bool isAdminView = false)
     {
-        // Only show file URL if approved
+        // For admin view, always show file URL if it exists
+        // For user view, only show file URL if approved
         var canDownload = export.Status == ExportStatusEnum.Approved;
-        var fileUrl = canDownload ? export.FilePath : null;
+        var fileUrl = isAdminView
+            ? export.FilePath  // Admin can always see the file URL
+            : (canDownload ? export.FilePath : null);  // Users only see if approved
 
         return new ExportResponse
         {

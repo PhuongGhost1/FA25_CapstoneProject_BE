@@ -10,8 +10,9 @@ public interface IExportService
     Task<Option<ExportResponse, Error>> GetExportByIdAsync(int exportId);
     Task<Option<ExportListResponse, Error>> GetMyExportsAsync();
     Task<Option<ExportListResponse, Error>> GetExportsByMapIdAsync(Guid mapId);
+    Task<Option<ExportListResponse, Error>> GetExportsByOrganizationIdAsync(Guid organizationId);
     Task ProcessPendingExportsAsync();
-    
+
     // Admin approval methods
     Task<Option<ExportListResponse, Error>> GetPendingApprovalExportsAsync();
     Task<Option<ExportResponse, Error>> ApproveExportAsync(int exportId, Guid adminUserId);

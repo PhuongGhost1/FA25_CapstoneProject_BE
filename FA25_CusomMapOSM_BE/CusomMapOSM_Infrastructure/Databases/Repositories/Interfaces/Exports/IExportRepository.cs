@@ -9,6 +9,7 @@ public interface IExportRepository
     Task<Export?> GetByIdWithIncludesAsync(int exportId);
     Task<List<Export>> GetByUserIdAsync(Guid userId);
     Task<List<Export>> GetByMapIdAsync(Guid mapId);
+    Task<List<Export>> GetByOrganizationIdAsync(Guid organizationId);
     Task<List<Export>> GetPendingExportsAsync();
     Task<List<Export>> GetPendingApprovalExportsAsync();
     Task<Export> CreateAsync(Export export);

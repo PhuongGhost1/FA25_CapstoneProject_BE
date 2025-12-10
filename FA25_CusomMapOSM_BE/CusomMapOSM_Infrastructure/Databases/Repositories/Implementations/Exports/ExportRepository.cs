@@ -46,6 +46,18 @@ public class ExportRepository : IExportRepository
             .ToListAsync();
     }
 
+    public async Task<List<Export>> GetByOrganizationIdAsync(Guid organizationId)
+    {
+        return await _context.Exports
+            .Include(e => e.User)
+            .Include(e => e.Map)
+            .Include(e => e.Membership)
+                .ThenInclude(m => m!.Organization)
+            .Where(e => e.Membership != null && e.Membership.OrgId == organizationId)
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<List<Export>> GetPendingExportsAsync()
     {
         return await _context.Exports
