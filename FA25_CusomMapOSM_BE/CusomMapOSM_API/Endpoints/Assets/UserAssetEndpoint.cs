@@ -3,7 +3,7 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Application.Interfaces.Services.User;
-using CusomMapOSM_Application.Models.DTOs.Assets;
+using CusomMapOSM_Application.Models.DTOs.Services.UserAsset.Response;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CusomMapOSM_API.Endpoints.Assets;
@@ -17,80 +17,61 @@ public class UserAssetEndpoint : IEndpoint
             .WithDescription("Manage user uploaded assets (images, audio)");
 
         group.MapGet(Routes.UserAssetEndpoints.GetAll, async (
-            [FromQuery] string? type,
-            [FromQuery] Guid? orgId,
-            [FromServices] IUserAssetService assetService,
-            [FromServices] ICurrentUserService currentUserService) =>
-        {
-            var userId = currentUserService.GetUserId();
-            if (!userId.HasValue)
+                [FromQuery] string? type,
+                [FromQuery] Guid? orgId,
+                [FromServices] IUserAssetService assetService,
+                [FromServices] ICurrentUserService currentUserService,
+                [FromQuery] int page,
+                [FromQuery] int pageSize) =>
             {
-                return Results.Unauthorized();
-            }
-            var result = await assetService.GetUserAssetsAsync(userId.Value, orgId, type);
-            return Results.Ok(result);
-        })
-        .WithName("GetUserAssets")
-        .RequireAuthorization()
-        .Produces<List<UserAssetDto>>(200);
+                var result = await assetService.GetUserAssetsAsync(orgId, type, page, pageSize);
+                return Results.Ok(result);
+            })
+            .WithName("GetUserAssets")
+            .RequireAuthorization()
+            .Produces<UserAssetListResponse>(200);
 
         group.MapPost(Routes.UserAssetEndpoints.Upload, async (
-            IFormFile file,
-            [FromForm] string? type,
-            [FromServices] IUserAssetService assetService,
-            [FromServices] ICurrentUserService currentUserService,
-            CancellationToken ct) =>
-        {
-            
-            if (file == null || file.Length == 0)
+                IFormFile file,
+                [FromForm] string? type,
+                [FromQuery] Guid? orgId,
+                [FromServices] IUserAssetService assetService,
+                [FromServices] ICurrentUserService currentUserService,
+                CancellationToken ct) =>
             {
-                return Results.BadRequest("No file uploaded");
-            }
-
-            var request = new UploadAssetRequest
-            {
-                File = file,
-                Type = type ?? "image"
-            };
-
-            var userId = currentUserService.GetUserId();
-            if (!userId.HasValue)
-            {
-                return Results.Unauthorized();
-            }
-
-            try
-            {
-                var result = await assetService.UploadAssetAsync(userId.Value, request);
-                return Results.Created($"/api/v1/assets/{result.Id}", result);
-            }
-            catch (ArgumentException ex)
-            {
-                return Results.BadRequest(ex.Message);
-            }
-        })
-        .WithName("UploadUserAsset")
-        .RequireAuthorization()
-        .DisableAntiforgery()
-        .Accepts<IFormFile>("multipart/form-data")
-        .Produces<UserAssetDto>(201);
+                try
+                {
+                    var result = await assetService.UploadAssetAsync(file, orgId);
+                    return Results.Created($"/api/v1/assets/{result.Id}", result);
+                }
+                catch (ArgumentException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            })
+            .WithName("UploadUserAsset")
+            .RequireAuthorization()
+            .DisableAntiforgery()
+            .Accepts<IFormFile>("multipart/form-data")
+            .Produces<UserAssetResponse>(201);
 
         group.MapDelete(Routes.UserAssetEndpoints.Delete, async (
-            [FromRoute] Guid id,
-            [FromServices] IUserAssetService assetService,
-            [FromServices] ICurrentUserService currentUserService,
-            CancellationToken ct) =>
-        {
-            var userId = currentUserService.GetUserId();
-            if (!userId.HasValue)
+                [FromRoute] Guid id,
+                [FromServices] IUserAssetService assetService,
+                [FromServices] ICurrentUserService currentUserService,
+                CancellationToken ct) =>
             {
-                return Results.Unauthorized();
-            }
-            await assetService.DeleteAssetAsync(userId.Value, id);
-            return Results.Ok();
-        })
-        .WithName("DeleteUserAsset")
-        .RequireAuthorization()
-        .Produces(200);
+                var userId = currentUserService.GetUserId();
+                if (!userId.HasValue)
+                {
+                    return Results.Unauthorized();
+                }
+
+                await assetService.DeleteAssetAsync(userId.Value, id);
+                return Results.Ok();
+            })
+            .WithName("DeleteUserAsset")
+            .RequireAuthorization()
+            .Produces(200);
     }
 }

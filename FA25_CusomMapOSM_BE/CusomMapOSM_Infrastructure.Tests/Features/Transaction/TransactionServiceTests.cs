@@ -14,7 +14,6 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Infrastructure.Services;
-using CusomMapOSM_Infrastructure.Services.Payment;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -328,26 +327,6 @@ public class TransactionServiceTests
         result.HasValue.Should().BeTrue();
         var response = result.ValueOr(default(CancelPaymentResponse));
         response.Status.Should().Be("cancelled");
-    }
-
-    [Fact]
-    public void GetPaymentService_WithPayOSGateway_ShouldReturnPayOSPaymentService()
-    {
-        // Arrange
-        // Create a mock PayOSPaymentService by creating a concrete instance
-        // Since PayOSPaymentService requires HttpClient, we'll use a mock
-        var httpClient = new HttpClient();
-        var payOSService = new PayOSPaymentService(httpClient);
-        var paymentServices = new List<IPaymentService> { payOSService };
-        _mockServiceProvider.Setup(x => x.GetServices<IPaymentService>())
-            .Returns(paymentServices);
-
-        // Act
-        var result = _transactionService.GetPaymentService(PaymentGatewayEnum.PayOS);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Should().BeOfType<PayOSPaymentService>();
     }
 
     [Fact]

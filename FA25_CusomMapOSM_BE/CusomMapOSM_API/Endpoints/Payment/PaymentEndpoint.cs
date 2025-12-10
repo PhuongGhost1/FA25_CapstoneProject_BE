@@ -3,6 +3,7 @@ using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
+using CusomMapOSM_Application.Interfaces.Services.Payment;
 using CusomMapOSM_Application.Models.DTOs.Features.Payment;
 using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Services;
@@ -179,6 +180,24 @@ public class PaymentEndpoint : IEndpoint
             .WithDescription("Get user payment history")
             .Produces<object>(200)
             .ProducesProblem(401)
+            .ProducesProblem(500);
+        
+        group.MapPost("/webhook/payos", async (
+                HttpRequest request,
+                [FromServices] IPaymentService paymentService,
+                CancellationToken ct) =>
+            {
+                var result = await paymentService.ConfirmPaymentAsync(request, ct);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("ConfirmPayOSPayment")
+            .WithDescription("Confirm a payment with PayOS")
+            .Produces<ConfirmPaymentResponse>(200)
+            .AllowAnonymous()
+            .ProducesProblem(400)
             .ProducesProblem(500);
     }
 }

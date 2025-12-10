@@ -193,6 +193,10 @@ public record SystemUsageStatsDto
     public required SystemSubscriptionStatsDto SubscriptionStats { get; set; }
     public required SystemRevenueStatsDto RevenueStats { get; set; }
     public required SystemPerformanceStatsDto PerformanceStats { get; set; }
+    public int TotalMaps { get; set; }
+    public int TotalExports { get; set; }
+    public int TotalCustomLayers { get; set; }
+    public int TotalTokens { get; set; }
 }
 
 public record SystemUserStatsDto
@@ -307,4 +311,37 @@ public record SystemTopOrganizationDto
     public required int TotalExports { get; set; }
     public required decimal TotalSpent { get; set; }
     public required DateTime CreatedAt { get; set; }
+}
+
+public record DailyRevenueDto
+{
+    public required string Date { get; set; }
+    public required decimal Value { get; set; }
+    public int TransactionCount { get; set; }
+    public Dictionary<string, decimal> RevenueByPlan { get; set; } = new();
+    public Dictionary<string, decimal> RevenueByPaymentGateway { get; set; } = new();
+}
+
+public record RevenueAnalyticsDto
+{
+    public required List<DailyRevenueDto> DailyRevenue { get; set; }
+    public required decimal TotalRevenue { get; set; }
+    public required int TotalTransactions { get; set; }
+    public required decimal AverageTransactionValue { get; set; }
+    public required Dictionary<string, decimal> RevenueByPlan { get; set; }
+    public required Dictionary<string, decimal> RevenueByPaymentGateway { get; set; }
+    public required DateTime StartDate { get; set; }
+    public required DateTime EndDate { get; set; }
+}
+
+public record FlattenedSystemDashboardDto
+{
+    public required int TotalUsers { get; set; }
+    public required double TotalUsersChangePct { get; set; }
+    public required int ActiveToday { get; set; }
+    public required double ActiveTodayChangePct { get; set; }
+    public required int NewSignups { get; set; }
+    public required double NewSignupsChangePct { get; set; }
+    public required int Errors24h { get; set; }
+    public required double Errors24hChangePct { get; set; }
 }

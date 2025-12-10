@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Interfaces.Features.Authentication;
+using CusomMapOSM_Application.Interfaces.Features.Authentication;
 using CusomMapOSM_Application.Interfaces.Features.Faqs;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.Layers;
@@ -107,7 +107,6 @@ using CusomMapOSM_Infrastructure.Features.TreasureHunts;
 using CusomMapOSM_Infrastructure.Features.Workspaces;
 using CusomMapOSM_Infrastructure.Features.Organization;
 using CusomMapOSM_Infrastructure.Services;
-using CusomMapOSM_Infrastructure.Services.Payment;
 using CusomMapOSM_Infrastructure.Services.Maps.Mongo;
 using CusomMapOSM_Infrastructure.Services.StoryMaps;
 using CusomMapOSM_Infrastructure.Services.LayerData.Mongo;
@@ -136,6 +135,7 @@ using CusomMapOSM_Application.Interfaces.Features.Comments;
 using CusomMapOSM_Application.Interfaces.Features.Bookmarks;
 using CusomMapOSM_Application.Interfaces.Features.Exports;
 using CusomMapOSM_Application.Interfaces.Services.Firebase;
+using CusomMapOSM_Application.Interfaces.Services.FileUpload;
 using CusomMapOSM_Commons.Constant;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.Groups;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Implementations.QuestionBanks;
@@ -164,6 +164,7 @@ using Hangfire.Redis;
 using CusomMapOSM_Infrastructure.Services.UserAssets.Mongo;
 using CusomMapOSM_Application.Interfaces.Services.Assets;
 using CusomMapOSM_Infrastructure.Features.Assets;
+using CusomMapOSM_Infrastructure.Services.FileUpload;
 
 namespace CusomMapOSM_Infrastructure;
 
@@ -249,6 +250,7 @@ public static class DependencyInjections
         services.AddScoped<IMapRepository, MapRepository>();
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
+        services.AddScoped<IMapReportRepository, MapReportRepository>();
         services.AddScoped<ILayerRepository, LayerRepository>();
 
         // Location & Content
@@ -324,6 +326,7 @@ public static class DependencyInjections
     private static void AddMapServices(IServiceCollection services)
     {
         services.AddScoped<IMapService, MapService>();
+        services.AddScoped<IMapReportService, MapReportService>();
         services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IMapSelectionService, MapSelectionService>();
@@ -384,6 +387,9 @@ public static class DependencyInjections
 
         // Firebase Storage
         services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
+
+        // File Upload Service
+        services.AddScoped<IFileUploadService, FileUploadService>();
 
         // Home & Reporting
         services.AddScoped<IHomeService, HomeService>();
@@ -495,13 +501,9 @@ public static class DependencyInjections
 
     public static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IPaymentService, StripePaymentService>();
-        services.AddScoped<IPaymentService, PaypalPaymentService>();
         services.AddScoped<IPaymentService, PayOSPaymentService>();
-        services.AddScoped<IPaymentService, VNPayPaymentService>();
 
         services.AddHttpClient<PayOSPaymentService>();
-        services.AddHttpClient<VNPayPaymentService>();
 
         return services;
     }

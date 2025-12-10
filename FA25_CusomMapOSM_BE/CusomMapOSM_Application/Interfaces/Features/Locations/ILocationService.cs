@@ -17,4 +17,5 @@ public interface ILocationService
     Task<Option<LocationDto, Error>> UpdateLocationDisplayConfigAsync(Guid poiId, UpdateLocationDisplayConfigRequest request, CancellationToken ct = default);
     Task<Option<LocationDto, Error>> UpdateLocationInteractionConfigAsync(Guid poiId, UpdateLocationInteractionConfigRequest request, CancellationToken ct = default);
     Task<Option<bool, Error>> MoveLocationToSegmentAsync(Guid locationId, Guid fromSegmentId, Guid toSegmentId, CancellationToken ct = default);
+    Task<Option<UploadLocationAudioResponse, Error>> UploadLocationAudioAsync(IFormFile file, Guid? mapId, CancellationToken ct = default);
 }

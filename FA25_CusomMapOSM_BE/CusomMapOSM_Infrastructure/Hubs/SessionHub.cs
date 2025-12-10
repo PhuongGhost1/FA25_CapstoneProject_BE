@@ -61,6 +61,20 @@ public class SessionHub : Hub
                 return;
             }
 
+            // Check if session has ended - block joining completed/cancelled sessions
+            if (session.Status == CusomMapOSM_Domain.Entities.Sessions.Enums.SessionStatusEnum.COMPLETED ||
+                session.Status == CusomMapOSM_Domain.Entities.Sessions.Enums.SessionStatusEnum.CANCELLED)
+            {
+                await Clients.Caller.SendAsync("SessionEnded", new
+                {
+                    SessionId = sessionId,
+                    Status = session.Status.ToString(),
+                    Message = "This session has ended and is no longer accessible",
+                    EndedAt = session.EndTime ?? DateTime.UtcNow
+                });
+                return;
+            }
+
             var connectionId = Context.ConnectionId;
             var groupName = GetSessionGroupName(sessionId);
 
@@ -283,6 +297,49 @@ public class SessionHub : Hub
         {
             _logger.LogError(ex, "[SessionHub] Error syncing map lock state for session {SessionId}", sessionId);
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync map lock state" });
+        }
+    }
+
+    /// <summary>
+    /// Teacher syncs map layer (base map provider)
+    /// </summary>
+    public async Task SyncMapLayer(Guid sessionId, string layerKey)
+    {
+        try
+        {
+            var userId = _currentUserService.GetUserId();
+
+            // Validate user is the session host
+            var session = await _sessionRepository.GetSessionById(sessionId);
+            if (session == null || session.HostUserId != userId)
+            {
+                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync map layer" });
+                return;
+            }
+
+            var syncEvent = new MapLayerSyncEvent
+            {
+                SessionId = sessionId,
+                LayerKey = layerKey,
+                SyncedAt = DateTime.UtcNow
+            };
+
+            // Cache current map layer
+            var cacheKey = GetMapLayerCacheKey(sessionId);
+            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+
+            // Broadcast to all participants except the caller
+            await Clients.OthersInGroup(GetSessionGroupName(sessionId))
+                .SendAsync("MapLayerSync", syncEvent);
+
+            _logger.LogInformation(
+                "[SessionHub] Host synced map layer {LayerKey} for session {SessionId}",
+                layerKey, sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SessionHub] Error syncing map layer for session {SessionId}", sessionId);
+            await Clients.Caller.SendAsync("Error", new { Message = "Failed to sync map layer" });
         }
     }
 
@@ -678,6 +735,7 @@ public class SessionHub : Hub
     private static string GetMapStateCacheKey(Guid sessionId) => $"session:{sessionId}:map-state";
     private static string GetSegmentStateCacheKey(Guid sessionId) => $"session:{sessionId}:segment-state";
     private static string GetMapLockStateCacheKey(Guid sessionId) => $"session:{sessionId}:map-lock-state";
+    private static string GetMapLayerCacheKey(Guid sessionId) => $"session:{sessionId}:map-layer";
 
     #endregion
 }
@@ -706,6 +764,13 @@ public class SegmentSyncEvent
     public string? SegmentId { get; set; }
     public string? SegmentName { get; set; }
     public bool IsPlaying { get; set; }
+    public DateTime SyncedAt { get; set; }
+}
+
+public class MapLayerSyncEvent
+{
+    public Guid SessionId { get; set; }
+    public string LayerKey { get; set; } = string.Empty;
     public DateTime SyncedAt { get; set; }
 }
 

@@ -38,4 +38,10 @@ public class TransactionRepository : ITransactionRepository
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync(ct);
     }
+
+    public async Task<Transactions?> GetByTransactionReferenceAsync(string transactionReference, CancellationToken ct)
+    {
+        return await _context.Transactions
+            .FirstOrDefaultAsync(t => t.TransactionReference == transactionReference, ct);
+    }
 }

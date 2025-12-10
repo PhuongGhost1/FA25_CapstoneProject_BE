@@ -209,11 +209,9 @@ public class MapEndpoints : IEndpoint
         // ===== Map Publishing =====
         group.MapPost("/{mapId:guid}/publish", async (
                 [FromRoute] Guid mapId,
-                [FromBody] PublishMapRequest? request,
                 [FromServices] IMapService mapService) =>
             {
-                var publishRequest = request ?? new PublishMapRequest { IsStoryMap = false };
-                var result = await mapService.PublishMap(mapId, publishRequest);
+                var result = await mapService.PublishMap(mapId);
                 return result.Match(
                     success => Results.Ok(new { success = true }),
                     error => error.ToProblemDetailsResult()
@@ -238,6 +236,24 @@ public class MapEndpoints : IEndpoint
                 );
             }).WithName("UnpublishMap")
             .WithDescription("Unpublish a map")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(400)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
+
+        group.MapPost("/{mapId:guid}/prepare-embed", async (
+                [FromRoute] Guid mapId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.PrepareForEmbed(mapId);
+                return result.Match(
+                    success => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("PrepareForEmbed")
+            .WithDescription("Automatically publish and set map to public for embedding")
             .RequireAuthorization()
             .Produces(200)
             .Produces(400)
@@ -778,6 +794,7 @@ public class MapEndpoints : IEndpoint
             .WithName("GetMapFeatures")
             .WithDescription("Get all features for a map")
             .RequireAuthorization()
+            .AllowAnonymous()
             .Produces<List<MapFeatureResponse>>(200);
 
         group.MapGet("/{mapId:guid}/features/{featureId:guid}", async (
@@ -794,6 +811,7 @@ public class MapEndpoints : IEndpoint
             .WithName("GetMapFeatureById")
             .WithDescription("Get a specific feature by ID")
             .RequireAuthorization()
+            .AllowAnonymous()
             .Produces<MapFeatureResponse>(200)
             .ProducesProblem(404);
 

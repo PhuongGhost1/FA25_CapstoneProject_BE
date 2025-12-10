@@ -15,139 +15,105 @@ public class SupportTicketRepository : ISupportTicketRepository
         _context = context;
     }
 
-    public async Task<List<SupportTicketEntity>> GetUserSupportTicketsAsync(Guid userId, int page = 1, int pageSize = 20, string? status = null, CancellationToken ct = default)
+
+    public async Task<SupportTicketEntity> CreateSupportTicket(SupportTicketEntity supportTicket)
     {
-        var query = _context.SupportTickets
-            .Where(t => t.UserId == userId)
-            .AsQueryable();
+        await _context.SupportTickets.AddAsync(supportTicket);
+        await _context.SaveChangesAsync();
+        return supportTicket;
+    }
 
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<TicketStatusEnum>(status, out var statusEnum))
+    public async Task<SupportTicketEntity> GetSupportTicketById(int ticketId)
+    {
+        var supportTicket = await _context.SupportTickets
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.TicketId == ticketId);
+    
+        if (supportTicket == null)
         {
-            query = query.Where(t => t.Status == statusEnum);
+            throw new Exception("Support ticket not found");
         }
+    
+        return supportTicket;
+    }
 
-        return await query
-            .OrderByDescending(t => t.CreatedAt)
+    public async Task<SupportTicketEntity> UpdateSupportTicket(SupportTicketEntity supportTicket)
+    {
+        _context.SupportTickets.Update(supportTicket);
+        await _context.SaveChangesAsync();
+        return supportTicket;
+    }
+
+    public async Task<bool> DeleteSupportTicket(int ticketId)
+    {
+        var supportTicket = await _context.SupportTickets.FindAsync(ticketId);
+        if (supportTicket == null)
+        {
+            throw new Exception("Support ticket not found");
+        }
+        _context.SupportTickets.Remove(supportTicket);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<List<SupportTicketEntity>> GetSupportTickets(int page = 1, int pageSize = 20)
+    {
+        var supportTickets = await _context.SupportTickets
+            .Include(t => t.User)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(ct);
+            .ToListAsync();
+        return supportTickets;
     }
 
-    public async Task<int> GetUserSupportTicketsCountAsync(Guid userId, string? status = null, CancellationToken ct = default)
+    public async Task<int> GetSupportTicketsCount()
     {
-        var query = _context.SupportTickets
-            .Where(t => t.UserId == userId)
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<TicketStatusEnum>(status, out var statusEnum))
-        {
-            query = query.Where(t => t.Status == statusEnum);
-        }
-
-        return await query.CountAsync(ct);
+        var supportTicketsCount = await _context.SupportTickets.CountAsync();
+        return supportTicketsCount;
     }
 
-    public async Task<SupportTicketEntity?> GetSupportTicketByIdAsync(int ticketId, CancellationToken ct = default)
+    public async Task<List<SupportTicketMessage>> GetSupportTicketMessages(int ticketId)
     {
-        return await _context.SupportTickets
-            .FirstOrDefaultAsync(t => t.TicketId == ticketId, ct);
-    }
-
-    public async Task<bool> CreateSupportTicketAsync(SupportTicketEntity ticket, CancellationToken ct = default)
-    {
-        try
-        {
-            _context.SupportTickets.Add(ticket);
-            await _context.SaveChangesAsync(ct);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public async Task<bool> UpdateSupportTicketAsync(SupportTicketEntity ticket, CancellationToken ct = default)
-    {
-        try
-        {
-            _context.SupportTickets.Update(ticket);
-            await _context.SaveChangesAsync(ct);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public async Task<bool> DeleteSupportTicketAsync(int ticketId, CancellationToken ct = default)
-    {
-        try
-        {
-            var ticket = await _context.SupportTickets.FirstOrDefaultAsync(t => t.TicketId == ticketId, ct);
-            if (ticket == null) return false;
-
-            _context.SupportTickets.Remove(ticket);
-            await _context.SaveChangesAsync(ct);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    public async Task<List<SupportTicketMessage>> GetTicketMessagesAsync(int ticketId, CancellationToken ct = default)
-    {
-        return await _context.SupportTicketMessages
+        var supportTicketMessages = await _context.SupportTicketMessages
             .Where(m => m.TicketId == ticketId)
-            .OrderBy(m => m.CreatedAt)
-            .ToListAsync(ct);
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+        return supportTicketMessages;
     }
 
-    public async Task<bool> AddTicketMessageAsync(SupportTicketMessage message, CancellationToken ct = default)
+    public async Task<SupportTicketMessage> GetSupportTicketMessageById(int messageId)
     {
-        try
+        var supportTicketMessage = await _context.SupportTicketMessages.FindAsync(messageId);
+        if (supportTicketMessage == null)
         {
-            _context.SupportTicketMessages.Add(message);
-            await _context.SaveChangesAsync(ct);
-            return true;
+            throw new Exception("Support ticket message not found");
         }
-        catch
-        {
-            return false;
-        }
+        return supportTicketMessage;
     }
 
-    public async Task<bool> UpdateTicketMessageAsync(SupportTicketMessage message, CancellationToken ct = default)
+    public async Task<SupportTicketMessage> CreateSupportTicketMessage(SupportTicketMessage supportTicketMessage)
     {
-        try
-        {
-            _context.SupportTicketMessages.Update(message);
-            await _context.SaveChangesAsync(ct);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        await _context.SupportTicketMessages.AddAsync(supportTicketMessage);
+        await _context.SaveChangesAsync();
+        return supportTicketMessage;
     }
 
-    public async Task<bool> DeleteTicketMessageAsync(int messageId, CancellationToken ct = default)
+    public async Task<SupportTicketMessage> UpdateSupportTicketMessage(SupportTicketMessage supportTicketMessage)
     {
-        try
-        {
-            var message = await _context.SupportTicketMessages.FirstOrDefaultAsync(m => m.MessageId == messageId, ct);
-            if (message == null) return false;
+        _context.SupportTicketMessages.Update(supportTicketMessage);
+        await _context.SaveChangesAsync();
+        return supportTicketMessage;
+    }
 
-            _context.SupportTicketMessages.Remove(message);
-            await _context.SaveChangesAsync(ct);
-            return true;
-        }
-        catch
+    public async Task<bool> DeleteSupportTicketMessage(int messageId)
+    {
+        var supportTicketMessage = await _context.SupportTicketMessages.FindAsync(messageId);
+        if (supportTicketMessage == null)
         {
-            return false;
+            throw new Exception("Support ticket message not found");
         }
+        _context.SupportTicketMessages.Remove(supportTicketMessage);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

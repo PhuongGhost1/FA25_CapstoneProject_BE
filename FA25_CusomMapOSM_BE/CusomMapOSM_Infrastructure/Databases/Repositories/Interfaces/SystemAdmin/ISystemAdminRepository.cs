@@ -1,3 +1,4 @@
+using CusomMapOSM_Application.Models.DTOs.Features.SystemAdmin;
 using UserEntity = CusomMapOSM_Domain.Entities.Users.User;
 using OrganizationEntity = CusomMapOSM_Domain.Entities.Organizations.Organization;
 using MembershipEntity = CusomMapOSM_Domain.Entities.Memberships.Membership;
@@ -15,7 +16,9 @@ public interface ISystemAdminRepository
     Task<bool> DeleteUserAsync(Guid userId, CancellationToken ct = default);
     Task<List<UserEntity>> GetUsersByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);
     Task<int> GetActiveUsersCountAsync(CancellationToken ct = default);
+    Task<int> GetActiveUsersTodayCountAsync(CancellationToken ct = default);
     Task<int> GetVerifiedUsersCountAsync(CancellationToken ct = default);
+    Task<List<DailyRevenueDto>> GetDailyRevenueAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default);
 
     // Organization Management
     Task<List<OrganizationEntity>> GetAllOrganizationsAsync(int page = 1, int pageSize = 20, string? search = null, string? status = null, CancellationToken ct = default);

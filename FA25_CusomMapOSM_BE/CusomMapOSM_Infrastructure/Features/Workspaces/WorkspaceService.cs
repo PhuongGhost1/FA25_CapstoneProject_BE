@@ -215,7 +215,7 @@ public class WorkspaceService : IWorkspaceService
             Description = m.Description,
             PreviewImage = m.PreviewImage,
             IsPublic = m.IsPublic,
-            IsActive = m.IsActive,
+            IsStoryMap = m.IsStoryMap,
             CreatedAt = m.CreatedAt,
             UpdatedAt = m.UpdatedAt
         }).ToList();

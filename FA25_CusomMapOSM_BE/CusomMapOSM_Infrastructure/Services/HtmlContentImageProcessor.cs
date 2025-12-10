@@ -119,12 +119,10 @@ public class HtmlContentImageProcessor
                     try 
                     {
                         await _userAssetService.CreateAssetMetadataAsync(
-                            currentUserId.Value,
                             fileName,
                             imageUrl,
-                            "image",
+                            $"image/{extension}",
                             imageSizeBytes,
-                            $"image/{extension}", // Approximate MIME type
                             orgId);
                     }
                     catch (Exception ex) 
