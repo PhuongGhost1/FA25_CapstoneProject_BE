@@ -202,16 +202,23 @@ public class MapGalleryService : IMapGalleryService
 
         await _collection.InsertOneAsync(doc, cancellationToken: ct);
 
-        await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+        try
         {
-            type = "gallery_submission",
-            title = "Gallery submission mới",
-            message = $"Có submission gallery mới: {doc.MapName}",
-            submissionId = doc.Id,
-            mapId = doc.MapId.ToString(),
-            authorName = doc.AuthorName,
-            createdAt = doc.CreatedAt
-        });
+            await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+            {
+                type = "gallery_submission",
+                title = "Gallery submission mới",
+                message = $"Có submission gallery mới: {doc.MapName}",
+                submissionId = doc.Id,
+                mapId = doc.MapId.ToString(),
+                authorName = doc.AuthorName,
+                createdAt = doc.CreatedAt
+            });
+        }
+        catch
+        {
+            // Ignore SignalR errors - notification is best-effort and should not block the main operation
+        }
 
         return Option.Some<MapGalleryDetailResponse, Error>(doc.ToDetail());
     }
