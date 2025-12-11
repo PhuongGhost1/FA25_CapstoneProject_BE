@@ -27,6 +27,8 @@ using CusomMapOSM_Domain.Entities.Locations;
 using CusomMapOSM_Domain.Entities.Timeline;
 using CusomMapOSM_Domain.Entities.Animations;
 using CusomMapOSM_Domain.Entities.Zones;
+using CusomMapOSM_Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using MongoDB.Driver;
 using Optional;
 
@@ -44,6 +46,7 @@ public class MapGalleryService : IMapGalleryService
     private readonly IMapFeatureRepository _mapFeatureRepository;
     private readonly IMapFeatureStore _mapFeatureStore;
     private readonly IStoryMapRepository _storyMapRepository;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public MapGalleryService(
         IMongoDatabase database,
@@ -55,7 +58,8 @@ public class MapGalleryService : IMapGalleryService
         IWorkspaceRepository workspaceRepository,
         IMapFeatureRepository mapFeatureRepository,
         IMapFeatureStore mapFeatureStore,
-        IStoryMapRepository storyMapRepository)
+        IStoryMapRepository storyMapRepository,
+        IHubContext<NotificationHub> hubContext)
     {
         _collection = database.GetCollection<MapGalleryDocument>("map_gallery");
         _mapService = mapService;
@@ -67,6 +71,7 @@ public class MapGalleryService : IMapGalleryService
         _mapFeatureRepository = mapFeatureRepository;
         _mapFeatureStore = mapFeatureStore;
         _storyMapRepository = storyMapRepository;
+        _hubContext = hubContext;
     }
 
     public async Task<List<MapGallerySummaryResponse>> GetPublishedMapsAsync(
@@ -196,6 +201,18 @@ public class MapGalleryService : IMapGalleryService
         };
 
         await _collection.InsertOneAsync(doc, cancellationToken: ct);
+
+        await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+        {
+            type = "gallery_submission",
+            title = "Gallery submission mới",
+            message = $"Có submission gallery mới: {doc.MapName}",
+            submissionId = doc.Id,
+            mapId = doc.MapId.ToString(),
+            authorName = doc.AuthorName,
+            createdAt = doc.CreatedAt
+        });
+
         return Option.Some<MapGalleryDetailResponse, Error>(doc.ToDetail());
     }
 

@@ -21,12 +21,24 @@ public class NotificationHub : Hub
         }
         
         var userId = GetUserId();
+        var role = GetUserRole();
+        
         if (userId.HasValue)
         {
             try
             {
                 var groupName = $"user_{userId.Value}";
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                _logger.LogInformation("[NotificationHub] User {UserId} connected. ConnectionId: {ConnectionId}", 
+                    userId.Value, Context.ConnectionId);
+
+                if (role == "Admin" || role == "SystemAdmin" || role == "admin" || role == "systemadmin")
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, "admin");
+                    _logger.LogInformation("[NotificationHub] Admin {UserId} added to admin group. ConnectionId: {ConnectionId}", 
+                        userId.Value, Context.ConnectionId);
+                }
+                
                 await base.OnConnectedAsync();
             }
             catch (Exception ex)
@@ -47,12 +59,19 @@ public class NotificationHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userId = GetUserId();
+        var role = GetUserRole();
+        
         if (userId.HasValue)
         {
             try
             {
                 var groupName = $"user_{userId.Value}";
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+                
+                if (role == "Admin" || role == "SystemAdmin" || role == "admin" || role == "systemadmin")
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, "admin");
+                }
             }
             catch (Exception ex)
             {
@@ -84,6 +103,19 @@ public class NotificationHub : Hub
             return userId;
         }
         return null;
+    }
+
+    private string? GetUserRole()
+    {
+        if (Context.User == null)
+        {
+            return null;
+        }
+
+        var roleClaim = Context.User.FindFirst(ClaimTypes.Role) 
+            ?? Context.User.FindFirst("role");
+
+        return roleClaim?.Value;
     }
 }
 
