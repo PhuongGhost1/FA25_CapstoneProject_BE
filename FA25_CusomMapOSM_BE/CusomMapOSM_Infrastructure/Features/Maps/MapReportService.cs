@@ -7,6 +7,8 @@ using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using CusomMapOSM_Domain.Entities.Maps;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
+using CusomMapOSM_Infrastructure.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Optional;
 
 namespace CusomMapOSM_Infrastructure.Features.Maps;
@@ -18,19 +20,22 @@ public class MapReportService : IMapReportService
     private readonly IMapService _mapService;
     private readonly INotificationService _notificationService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public MapReportService(
         IMapReportRepository reportRepository,
         IMapRepository mapRepository,
         IMapService mapService,
         INotificationService notificationService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IHubContext<NotificationHub> hubContext)
     {
         _reportRepository = reportRepository;
         _mapRepository = mapRepository;
         _mapService = mapService;
         _notificationService = notificationService;
         _currentUserService = currentUserService;
+        _hubContext = hubContext;
     }
 
     public async Task<Option<MapReportDto, Error>> ReportMapAsync(ReportMapRequest request)
@@ -69,6 +74,17 @@ public class MapReportService : IMapReportService
             return Option.None<MapReportDto, Error>(
                 Error.Failure("Report.CreateFailed", "Failed to create report"));
         }
+
+        await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+        {
+            type = "map_report",
+            title = "Báo cáo vi phạm map mới",
+            message = $"Có báo cáo vi phạm mới cho map: {map.MapName ?? "Không tên"}",
+            reportId = report.MapReportId.ToString(),
+            mapId = report.MapId.ToString(),
+            reason = report.Reason,
+            createdAt = report.CreatedAt
+        });
 
         return Option.Some<MapReportDto, Error>(ToDto(report, map));
     }
