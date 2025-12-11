@@ -75,16 +75,23 @@ public class MapReportService : IMapReportService
                 Error.Failure("Report.CreateFailed", "Failed to create report"));
         }
 
-        await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+        try
         {
-            type = "map_report",
-            title = "Báo cáo vi phạm map mới",
-            message = $"Có báo cáo vi phạm mới cho map: {map.MapName ?? "Không tên"}",
-            reportId = report.MapReportId.ToString(),
-            mapId = report.MapId.ToString(),
-            reason = report.Reason,
-            createdAt = report.CreatedAt
-        });
+            await _hubContext.Clients.Group("admin").SendAsync("AdminNotification", new
+            {
+                type = "map_report",
+                title = "Báo cáo vi phạm map mới",
+                message = $"Có báo cáo vi phạm mới cho map: {map.MapName ?? "Không tên"}",
+                reportId = report.MapReportId.ToString(),
+                mapId = report.MapId.ToString(),
+                reason = report.Reason,
+                createdAt = report.CreatedAt
+            });
+        }
+        catch
+        {
+            // Ignore SignalR errors - notification is best-effort and should not block the main operation
+        }
 
         return Option.Some<MapReportDto, Error>(ToDto(report, map));
     }

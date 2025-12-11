@@ -61,6 +61,17 @@ public class GroupCollaborationService : IGroupCollaborationService
                 Error.ValidationError("Group.NoMembers", "At least one member is required"));
         }
 
+        // Validate all participants exist and belong to the session before creating the group to prevent orphaned groups
+        foreach (var participantId in request.MemberParticipantIds)
+        {
+            var belongsToSession = await _participantRepository.CheckParticipantBelongsToSession(participantId, request.SessionId);
+            if (!belongsToSession)
+            {
+                return Option.None<GroupResponse, Error>(
+                    Error.ValidationError("Group.InvalidParticipant", $"Participant {participantId} does not exist or does not belong to this session"));
+            }
+        }
+
         var group = new SessionGroup
         {
             GroupId = Guid.NewGuid(),
@@ -78,6 +89,7 @@ public class GroupCollaborationService : IGroupCollaborationService
         }
 
         // Add members directly to database
+        // Since we validated all participants exist above, member creation should succeed
         foreach (var participantId in request.MemberParticipantIds)
         {
             var member = new SessionGroupMember
@@ -88,12 +100,18 @@ public class GroupCollaborationService : IGroupCollaborationService
                 IsLeader = request.LeaderParticipantId.HasValue && participantId == request.LeaderParticipantId.Value,
                 JoinedAt = DateTime.UtcNow
             };
-            _groupMemberRepository.CreateGroupMember(member);
+            var memberCreated = await _groupMemberRepository.CreateGroupMember(member);
+            if (!memberCreated)
+            {
+                // If member creation fails after validation, this is unexpected but we still return error
+                // The group will remain but this is better than silently failing
+                return Option.None<GroupResponse, Error>(Error.Failure("GroupMember.CreatedFailed", $"Failed to create group member for participant {participantId}"));
+            }
         }
 
         // Get members for response
         var members = await _groupMemberRepository.GetGroupMembersByGroup(group.GroupId);
-
+        
         return Option.Some<GroupResponse, Error>(MapToGroupResponse(group, members));
     }
 
