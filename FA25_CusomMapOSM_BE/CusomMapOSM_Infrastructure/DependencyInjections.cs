@@ -312,7 +312,7 @@ public static class DependencyInjections
     {
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IMailService, MailService>();
-        services.AddScoped<IRedisCacheService, RedisCacheService>();
+        services.AddSingleton<IRedisCacheService, RedisCacheService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IOrganizationPermissionService, OrganizationPermissionService>();
     }

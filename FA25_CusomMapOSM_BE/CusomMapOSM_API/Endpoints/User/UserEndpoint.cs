@@ -28,7 +28,7 @@ public class UserEndpoint : IEndpoint
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 return Results.BadRequest("Invalid user ID");
 
-            var userResult = await userService.GetUserByIdAsync(userId, ct);
+            var userResult = await userService.GetUserByIdAsync(userId);
             return userResult.Match(
                 some: userEntity => Results.Ok(new GetUserInfoResponse
                 {

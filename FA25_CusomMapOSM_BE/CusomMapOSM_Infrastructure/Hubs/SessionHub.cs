@@ -16,7 +16,6 @@ public class SessionHub : Hub
     private readonly ISessionParticipantRepository _participantRepository;
     private readonly ISessionQuestionRepository _sessionQuestionRepository;
     private readonly ISessionService _sessionService;
-    private readonly ICurrentUserService _currentUserService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly IQuickPollService _quickPollService;
     private readonly ILogger<SessionHub> _logger;
@@ -31,7 +30,6 @@ public class SessionHub : Hub
         ISessionParticipantRepository participantRepository,
         ISessionQuestionRepository sessionQuestionRepository,
         ISessionService sessionService,
-        ICurrentUserService currentUserService,
         IRedisCacheService redisCacheService,
         IQuickPollService quickPollService,
         ILogger<SessionHub> logger)
@@ -40,7 +38,6 @@ public class SessionHub : Hub
         _participantRepository = participantRepository;
         _sessionQuestionRepository = sessionQuestionRepository;
         _sessionService = sessionService;
-        _currentUserService = currentUserService;
         _redisCacheService = redisCacheService;
         _quickPollService = quickPollService;
         _logger = logger;
@@ -92,9 +89,21 @@ public class SessionHub : Hub
                 connectionId, sessionId);
 
             // Send initial state to caller
-            var mapState = await _redisCacheService.Get<MapStateSyncEvent>(GetMapStateCacheKey(sessionId));
-            var segmentState = await _redisCacheService.Get<SegmentSyncEvent>(GetSegmentStateCacheKey(sessionId));
-            var mapLockState = await _redisCacheService.Get<MapLockStateSyncEvent>(GetMapLockStateCacheKey(sessionId));
+            MapStateSyncEvent? mapState = null;
+            SegmentSyncEvent? segmentState = null;
+            MapLockStateSyncEvent? mapLockState = null;
+
+            try
+            {
+                mapState = await _redisCacheService.Get<MapStateSyncEvent>(GetMapStateCacheKey(sessionId));
+                segmentState = await _redisCacheService.Get<SegmentSyncEvent>(GetSegmentStateCacheKey(sessionId));
+                mapLockState = await _redisCacheService.Get<MapLockStateSyncEvent>(GetMapLockStateCacheKey(sessionId));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SessionHub] Error retrieving cached state for session {SessionId}", sessionId);
+                // Continue without cached state - this is not a critical error
+            }
 
             await Clients.Caller.SendAsync("JoinedSession", new
             {
@@ -170,17 +179,7 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-            var userName = _currentUserService.GetEmail() ?? "Teacher";
-
-            // Validate user is the session host
             var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync map state" });
-                return;
-            }
-
             var syncEvent = new MapStateSyncEvent
             {
                 SessionId = sessionId,
@@ -189,12 +188,20 @@ public class SessionHub : Hub
                 ZoomLevel = request.ZoomLevel,
                 Bearing = request.Bearing,
                 Pitch = request.Pitch,
-                SyncedBy = userName,
+                SyncedBy = session.HostUser.FullName,
                 SyncedAt = DateTime.UtcNow
             };
 
             var cacheKey = GetMapStateCacheKey(sessionId);
-            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            try
+            {
+                await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SessionHub] Error caching map state for session {SessionId}", sessionId);
+                // Continue with broadcast even if caching fails
+            }
 
             // Broadcast to all participants except the caller
             await Clients.OthersInGroup(GetSessionGroupName(sessionId))
@@ -202,7 +209,7 @@ public class SessionHub : Hub
 
             _logger.LogInformation(
                 "[SessionHub] Host {UserId} synced map state for session {SessionId}",
-                userId, sessionId);
+                session.HostUserId, sessionId);
         }
         catch (Exception ex)
         {
@@ -218,16 +225,6 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-
-            // Validate user is the session host
-            var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync segment" });
-                return;
-            }
-
             var syncEvent = new SegmentSyncEvent
             {
                 SessionId = sessionId,
@@ -240,7 +237,15 @@ public class SessionHub : Hub
 
             // Cache current segment state
             var cacheKey = GetSegmentStateCacheKey(sessionId);
-            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            try
+            {
+                await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SessionHub] Error caching segment state for session {SessionId}", sessionId);
+                // Continue with broadcast even if caching fails
+            }
 
             // Broadcast to all participants except the caller
             await Clients.OthersInGroup(GetSessionGroupName(sessionId))
@@ -264,16 +269,6 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-
-            // Validate user is the session host
-            var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync map lock state" });
-                return;
-            }
-
             var syncEvent = new MapLockStateSyncEvent
             {
                 SessionId = sessionId,
@@ -283,7 +278,15 @@ public class SessionHub : Hub
 
             // Cache current map lock state
             var cacheKey = GetMapLockStateCacheKey(sessionId);
-            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            try
+            {
+                await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SessionHub] Error caching map lock state for session {SessionId}", sessionId);
+                // Continue with broadcast even if caching fails
+            }
 
             // Broadcast to all participants except the caller
             await Clients.OthersInGroup(GetSessionGroupName(sessionId))
@@ -307,11 +310,8 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-
-            // Validate user is the session host
             var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
+            if (session == null)
             {
                 await Clients.Caller.SendAsync("Error", new { Message = "Only host can sync map layer" });
                 return;
@@ -326,7 +326,16 @@ public class SessionHub : Hub
 
             // Cache current map layer
             var cacheKey = GetMapLayerCacheKey(sessionId);
-            await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+            try
+            {
+                await _redisCacheService.Set(cacheKey, syncEvent, MapStateCacheTtl);
+                _logger.LogInformation("[SessionHub] Cached map layer key {CacheKey} for session {SessionId}", cacheKey, sessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SessionHub] Error caching map layer for session {SessionId}", sessionId);
+                // Continue with broadcast even if caching fails
+            }
 
             // Broadcast to all participants except the caller
             await Clients.OthersInGroup(GetSessionGroupName(sessionId))
@@ -350,16 +359,6 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-
-            // Validate user is the session host
-            var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "Only host can broadcast question" });
-                return;
-            }
-
             var resolvedSessionQuestionId =
                 await _sessionService.ResolveAndActivateSessionQuestion(sessionId, request.QuestionId);
 
@@ -399,16 +398,6 @@ public class SessionHub : Hub
     {
         try
         {
-            var userId = _currentUserService.GetUserId();
-
-            // Validate user is the session host
-            var session = await _sessionRepository.GetSessionById(sessionId);
-            if (session == null || session.HostUserId != userId)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "Only host can show results" });
-                return;
-            }
-
             var resultsEvent = new QuestionResultsEvent
             {
                 SessionId = sessionId,
