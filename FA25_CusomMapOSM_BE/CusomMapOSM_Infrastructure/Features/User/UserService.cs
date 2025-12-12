@@ -16,7 +16,7 @@ public class UserService : IUserService
         _authenticationRepository = authenticationRepository;
     }
 
-    public async Task<Option<DomainUser.User, ErrorCustom.Error>> GetUserByIdAsync(Guid userId, CancellationToken ct)
+    public async Task<Option<DomainUser.User, ErrorCustom.Error>> GetUserByIdAsync(Guid userId)
     {
         try
         {

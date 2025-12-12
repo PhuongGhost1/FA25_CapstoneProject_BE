@@ -14,10 +14,10 @@ public class LoggingMiddleware(ILogger<LoggingMiddleware> logger) : IMiddleware
         var path = context.Request.Path;
         var host = context.Request.Host;
 
-        logger.LogInformation(
-            "Begin handling request {0} {1} {2}://{3}{4}",
-            protocol, method, scheme, host, path
-        );
+        // logger.LogInformation(
+        //     "Begin handling request {0} {1} {2}://{3}{4}",
+        //     protocol, method, scheme, host, path
+        // );
 
         var stopwatch = Stopwatch.StartNew();
         await next(context);
@@ -26,18 +26,18 @@ public class LoggingMiddleware(ILogger<LoggingMiddleware> logger) : IMiddleware
         var elapsedMs = stopwatch.Elapsed.TotalMilliseconds;
         var statusCode = context.Response.StatusCode;
 
-        var message = string.Format(
-            "Finish handling request {0} {1} {2}://{3}{4} {5} {6:F2}ms",
-            protocol, method, scheme, host, path, statusCode, elapsedMs
-        );
-
-        if (elapsedMs >= WarningThresholdMs)
-        {
-            logger.LogWarning("Slow request detected: " + message);
-        }
-        else
-        {
-            logger.LogInformation(message);
-        }
+        // var message = string.Format(
+        //     "Finish handling request {0} {1} {2}://{3}{4} {5} {6:F2}ms",
+        //     protocol, method, scheme, host, path, statusCode, elapsedMs
+        // );
+        //
+        // if (elapsedMs >= WarningThresholdMs)
+        // {
+        //     logger.LogWarning("Slow request detected: " + message);
+        // }
+        // else
+        // {
+        //     logger.LogInformation(message);
+        // }
     }
 }

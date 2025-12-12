@@ -1,44 +1,40 @@
-﻿using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace CusomMapOSM_Infrastructure.Hubs;
 public class MapCollaborationHub : Hub
 {
     private readonly IMapSelectionService _selectionService;
-    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<MapCollaborationHub> _logger;
+    private readonly IUserService _userService;
     public MapCollaborationHub(
         IMapSelectionService selectionService,
-        ICurrentUserService currentUserService,
-        ILogger<MapCollaborationHub> logger)
+        ILogger<MapCollaborationHub> logger,
+        IUserService userService)
     {
         _selectionService = selectionService;
-        _currentUserService = currentUserService;
         _logger = logger;
+        _userService = userService;
     }
-    public async Task JoinMap(Guid mapId)
+    public async Task JoinMap(Guid mapId, Guid userId)
     {
-        var userId = _currentUserService.GetUserId();
-        var userName = _currentUserService.GetEmail() ?? "Unknown User";
+        var userResult = await _userService.GetUserByIdAsync(userId);
+        var user = userResult.Match(u => u, error => throw new Exception($"User not found: {error.Description}"));
         try
         {
-            if (userId == null)
-            {
-                await Clients.Caller.SendAsync("Error", new { Message = "User not authenticated" });
-                return;
-            }
-            
             // Add to group first and wait for it to complete
             await Groups.AddToGroupAsync(Context.ConnectionId, GetMapGroupName(mapId));
-            
+
             // Small delay to ensure group membership is fully registered
             await Task.Delay(50);
-            
-            var result = await _selectionService.UserJoinMap(mapId, userId.Value, Context.ConnectionId);
+
+            var result = await _selectionService.UserJoinMap(mapId, userId, Context.ConnectionId);
             await result.Match(
                 async success =>
                 {
@@ -50,7 +46,7 @@ public class MapCollaborationHub : Hub
                     );
                     
                     // Get the new user's highlight color
-                    var highlightColorResult = await _selectionService.GetUserHighlightColor(userId.Value);
+                    var highlightColorResult = await _selectionService.GetUserHighlightColor(userId);
                     var highlightColor = highlightColorResult.Match(
                         color => color,
                         error => "#FF5733" // Default color if not found
@@ -62,7 +58,7 @@ public class MapCollaborationHub : Hub
                         .SendAsync("UserJoined", new
                         {
                             UserId = userId,
-                            UserName = userName,
+                            UserName = user.FullName,
                             HighlightColor = highlightColor,
                             JoinedAt = DateTime.UtcNow
                         });
@@ -89,18 +85,13 @@ public class MapCollaborationHub : Hub
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to join map" });
         }
     }
-    public async Task LeaveMap(Guid mapId)
+    public async Task LeaveMap(Guid mapId, Guid userId)
     {
-        var userId = _currentUserService.GetUserId();
+        _logger.LogWarning("LeaveMap called by user {UserId} for map {MapId}", userId, mapId);
         var connectionId = Context.ConnectionId;
-        if (userId == null)
-        {
-            await Clients.Caller.SendAsync("Error", new { Message = "User not authenticated" });
-            return;
-        }
         try
         {
-            await _selectionService.UserLeaveMap(mapId, userId.Value);
+            await _selectionService.UserLeaveMap(mapId, userId);
             await Groups.RemoveFromGroupAsync(connectionId, GetMapGroupName(mapId));
             
             // Remove connection mapping
@@ -119,17 +110,12 @@ public class MapCollaborationHub : Hub
             _logger.LogError(ex, "Error leaving map {MapId} for user {UserId}", mapId, userId);
         }
     }
-    public async Task UpdateSelection(UpdateSelectionRequest request)
+    public async Task UpdateSelection(UpdateSelectionRequest request, Guid userId)
     {
-        var userId = _currentUserService.GetUserId();
-        if (userId == null)
-        {
-            await Clients.Caller.SendAsync("Error", new { Message = "User not authenticated" });
-            return;
-        }
+        _logger.LogWarning("UpdateSelection called by user {UserId} for map {MapId}", userId, request.MapId);
         try
         {
-            var result = await _selectionService.UpdateSelection(request.MapId, userId.Value, request);
+            var result = await _selectionService.UpdateSelection(request.MapId, userId, request);
             await result.Match(
                 async selection =>
                 {
@@ -155,17 +141,12 @@ public class MapCollaborationHub : Hub
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to update selection" });
         }
     }
-    public async Task ClearSelection(ClearSelectionRequest request)
+    public async Task ClearSelection(ClearSelectionRequest request, Guid userId)
     {
-        var userId = _currentUserService.GetUserId();
-        if (userId == null)
-        {
-            await Clients.Caller.SendAsync("Error", new { Message = "User not authenticated" });
-            return;
-        }
+        _logger.LogWarning("ClearSelection called by user {UserId} for map {MapId}", userId, request.MapId);
         try
         {
-            var result = await _selectionService.ClearSelection(request.MapId, userId.Value);
+            var result = await _selectionService.ClearSelection(request.MapId, userId);
             await result.Match(
                 async success =>
                 {
@@ -192,20 +173,16 @@ public class MapCollaborationHub : Hub
             await Clients.Caller.SendAsync("Error", new { Message = "Failed to clear selection" });
         }
     }
-    public async Task SendHeartbeat(Guid mapId)
+    public async Task SendHeartbeat(Guid mapId, Guid userId)
     {
-        var userId = _currentUserService.GetUserId();
-        if (userId == null)
-        {
-            return;
-        }
+        _logger.LogWarning("SendHeartbeat called by user {UserId} for map {MapId}", userId, mapId);
         try
         {
-            var selectionResult = await _selectionService.GetUserSelection(mapId, userId.Value);
+            var selectionResult = await _selectionService.GetUserSelection(mapId, userId);
             await selectionResult.Match(
                 async selection =>
                 {
-                    await _selectionService.UpdateSelection(mapId, userId.Value, new UpdateSelectionRequest
+                    await _selectionService.UpdateSelection(mapId, userId, new UpdateSelectionRequest
                     {
                         MapId = mapId,
                         SelectionType = selection.SelectionType,
@@ -224,7 +201,14 @@ public class MapCollaborationHub : Hub
     }
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var userId = _currentUserService.GetUserId();
+        var userIdClaim = Context.User?.FindFirst("sub")?.Value ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = null;
+        if (Guid.TryParse(userIdClaim, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        _logger.LogWarning("OnDisconnectedAsync called by user {UserId} with connection {ConnectionId}", userId, Context.ConnectionId);
         var connectionId = Context.ConnectionId;
         
         try

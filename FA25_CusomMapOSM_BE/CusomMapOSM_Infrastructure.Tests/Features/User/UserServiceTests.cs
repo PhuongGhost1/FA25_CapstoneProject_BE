@@ -47,7 +47,7 @@ public class UserServiceTests
         _mockRepository.Setup(x => x.GetUserById(userId)).ReturnsAsync(user);
 
         // Act
-        var result = await _userService.GetUserByIdAsync(userId, CancellationToken.None);
+        var result = await _userService.GetUserByIdAsync(userId);
 
         // Assert
         result.HasValue.Should().BeTrue();
@@ -65,7 +65,7 @@ public class UserServiceTests
         _mockRepository.Setup(x => x.GetUserById(userId)).ReturnsAsync((DomainUser.User?)null);
 
         // Act
-        var result = await _userService.GetUserByIdAsync(userId, CancellationToken.None);
+        var result = await _userService.GetUserByIdAsync(userId);
 
         // Assert
         result.HasValue.Should().BeFalse();
@@ -89,7 +89,7 @@ public class UserServiceTests
             .ThrowsAsync(new Exception("Database error"));
 
         // Act
-        var result = await _userService.GetUserByIdAsync(userId, CancellationToken.None);
+        var result = await _userService.GetUserByIdAsync(userId);
 
         // Assert
         result.HasValue.Should().BeFalse();
