@@ -1708,6 +1708,33 @@ startxref
         }
     }
 
+    public async Task<Option<ExportListResponse, Error>> GetAllExportsAsync(int page = 1, int pageSize = 20, ExportStatusEnum? status = null)
+    {
+        try
+        {
+            var (exports, totalCount) = await _exportRepository.GetAllExportsAsync(page, pageSize, status);
+
+            // Admin view: always show file URLs
+            var exportDtos = exports.Select(e => MapToDto(e, isAdminView: true)).ToList();
+
+            return Option.Some<ExportListResponse, Error>(new ExportListResponse
+            {
+                Exports = exportDtos,
+                Total = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all exports for admin. Page: {Page}, PageSize: {PageSize}, Status: {Status}",
+                page, pageSize, status?.ToString() ?? "All");
+            return Option.None<ExportListResponse, Error>(
+                Error.Failure("Export.GetAllFailed", $"Failed to get all exports: {ex.Message}"));
+        }
+    }
+
     public async Task<Option<ExportResponse, Error>> ApproveExportAsync(int exportId, Guid adminUserId)
     {
         try
