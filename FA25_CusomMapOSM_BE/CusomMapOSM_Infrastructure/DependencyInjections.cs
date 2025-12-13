@@ -6,6 +6,7 @@ using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
+using CusomMapOSM_Application.Services.Billing;
 using CusomMapOSM_Application.Interfaces.Features.StoryMaps;
 using CusomMapOSM_Application.Interfaces.Features.Animations;
 using CusomMapOSM_Application.Interfaces.Features.Home;
@@ -344,6 +345,7 @@ public static class DependencyInjections
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
         services.AddScoped<IExportService, ExportService>();
+        services.AddScoped<IProrationService, ProrationService>();
     }
 
     private static void AddContentServices(IServiceCollection services)
@@ -484,12 +486,14 @@ public static class DependencyInjections
         services.AddScoped<MembershipExpirationNotificationJob>();
         services.AddScoped<MembershipQuotaResetJob>();
         services.AddScoped<MembershipUsageTrackingJob>();
+        services.AddScoped<MembershipAutoDowngradeJob>();
         services.AddScoped<OrganizationInvitationCleanupJob>();
         services.AddScoped<PaymentFailureHandlingJob>();
         services.AddScoped<ExportFileCleanupJob>();
         services.AddScoped<MapHistoryCleanupJob>();
         services.AddScoped<UserAccountDeactivationJob>();
         services.AddScoped<MapSelectionCleanupJob>();
+        services.AddScoped<SystemLogCleanupJob>();
         services.AddScoped<BackgroundJobScheduler>();
 
         return services;

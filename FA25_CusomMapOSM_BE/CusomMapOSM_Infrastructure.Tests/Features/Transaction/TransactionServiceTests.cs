@@ -229,7 +229,7 @@ public class TransactionServiceTests
 
         var membership = new Faker<DomainMembership.Membership>()
             .RuleFor(m => m.MembershipId, Guid.NewGuid())
-            .RuleFor(m => m.EndDate, DateTime.UtcNow.AddMonths(1))
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow.AddDays(30))
             .RuleFor(m => m.Plan, plan)
             .Generate();
 

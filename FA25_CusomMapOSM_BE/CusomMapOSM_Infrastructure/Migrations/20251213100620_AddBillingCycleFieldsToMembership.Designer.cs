@@ -4,6 +4,7 @@ using CusomMapOSM_Infrastructure.Databases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CusomMapOSM_Infrastructure.Migrations
 {
     [DbContext(typeof(CustomMapOSMDbContext))]
-    partial class CustomMapOSMDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251213100620_AddBillingCycleFieldsToMembership")]
+    partial class AddBillingCycleFieldsToMembership
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1427,6 +1430,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                         .HasColumnType("json")
                         .HasColumnName("current_usage");
 
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime")
+                        .HasColumnName("end_date");
+
                     b.Property<DateTime?>("LastResetDate")
                         .HasColumnType("datetime")
                         .HasColumnName("last_reset_date");
@@ -1438,6 +1445,10 @@ namespace CusomMapOSM_Infrastructure.Migrations
                     b.Property<int>("PlanId")
                         .HasColumnType("int")
                         .HasColumnName("plan_id");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime")
+                        .HasColumnName("start_date");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")

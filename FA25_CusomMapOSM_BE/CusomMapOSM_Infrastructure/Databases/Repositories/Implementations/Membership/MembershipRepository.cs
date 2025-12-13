@@ -22,7 +22,7 @@ public class MembershipRepository : IMembershipRepository
     public async Task<DomainMembership?> GetByUserOrgAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
         return await _context.Memberships
-            .OrderByDescending(m => m.StartDate)
+            .OrderByDescending(m => m.BillingCycleStartDate)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
 
@@ -31,7 +31,7 @@ public class MembershipRepository : IMembershipRepository
         return await _context.Memberships
             .Include(m => m.Organization)
             .Include(m => m.Plan)
-            .OrderByDescending(m => m.StartDate)
+            .OrderByDescending(m => m.BillingCycleStartDate)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
 

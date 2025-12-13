@@ -82,6 +82,14 @@ public class BackgroundJobScheduler
             "0 */6 * * *", // Every 6 hours
             TimeZoneInfo.Utc);
 
+        // Auto-downgrade expired memberships to Free Plan
+        RecurringJob.AddOrUpdate(
+            "membership-auto-downgrade",
+            () => _serviceProvider.GetRequiredService<MembershipAutoDowngradeJob>()
+                .AutoDowngradeExpiredMembershipsAsync(),
+            "0 2 * * *", // Daily at 2 AM UTC
+            TimeZoneInfo.Utc);
+
         _logger.LogInformation("Membership-related jobs registered");
     }
 
@@ -190,6 +198,7 @@ public class BackgroundJobScheduler
                 "membership-expiration-notifications",
                 "membership-quota-reset",
                 "membership-usage-tracking",
+                "membership-auto-downgrade",
                 "organization-invitation-cleanup",
                 "payment-failure-handling",
                 "payment-failure-warnings",
@@ -227,6 +236,7 @@ public class BackgroundJobScheduler
                 "membership-expiration-notifications",
                 "membership-quota-reset",
                 "membership-usage-tracking",
+                "membership-auto-downgrade",
                 "organization-invitation-cleanup",
                 "payment-failure-handling",
                 "payment-failure-warnings",
@@ -285,6 +295,11 @@ public class BackgroundJobScheduler
                 case "membership-usage-tracking":
                     BackgroundJob.Enqueue(() => _serviceProvider.GetRequiredService<MembershipUsageTrackingJob>()
                         .UpdateUsageStatisticsAsync());
+                    break;
+
+                case "membership-auto-downgrade":
+                    BackgroundJob.Enqueue(() => _serviceProvider.GetRequiredService<MembershipAutoDowngradeJob>()
+                        .AutoDowngradeExpiredMembershipsAsync());
                     break;
 
                 case "organization-invitation-cleanup":

@@ -9,6 +9,8 @@ using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Services;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using Microsoft.AspNetCore.Mvc;
+using ErrorCustom = CusomMapOSM_Application.Common.Errors;
+using Error = CusomMapOSM_Application.Common.Errors.Error;
 
 namespace CusomMapOSM_API.Endpoints.Payment;
 
@@ -103,10 +105,18 @@ public class PaymentEndpoint : IEndpoint
                 var confirmResult = await transactionService.ConfirmPaymentWithContextAsync(confirmRequest, ct);
                 if (!confirmResult.HasValue)
                 {
-                    return Results.BadRequest("Failed to confirm payment");
+                    // Extract error and return
+                    ErrorCustom.Error? error = null;
+                    confirmResult.Match(
+                        some: _ => { },
+                        none: err => { error = err; }
+                    );
+                    return error?.ToProblemDetailsResult() ?? Results.BadRequest("Failed to confirm payment");
                 }
 
                 // If payment was successful, process membership updates
+                // Note: HandlePostPaymentWithStoredContextAsync already processes the upgrade/membership,
+                // but ProcessSuccessfulPaymentAsync provides a more detailed response
                 if (request.Status == "success")
                 {
                     var processResult = await subscriptionService.ProcessSuccessfulPaymentAsync(transactionId, ct);

@@ -154,8 +154,8 @@ public class OrganizationAdminService : IOrganizationAdminService
                 PlanId = m.PlanId,
                 PlanName = m.Plan?.PlanName ?? "Unknown",
                 Status = m.Status.ToString(),
-                StartDate = m.StartDate,
-                EndDate = m.EndDate ?? DateTime.UtcNow.AddDays(30),
+                BillingCycleStartDate = m.BillingCycleStartDate,
+                BillingCycleEndDate = m.BillingCycleEndDate,
                 AutoRenew = m.AutoRenew,
                 MonthlyCost = m.Plan?.PriceMonthly ?? 0,
                 CreatedAt = m.CreatedAt
@@ -170,8 +170,8 @@ public class OrganizationAdminService : IOrganizationAdminService
                 PlanId = m.PlanId,
                 PlanName = m.Plan?.PlanName ?? "Unknown",
                 Status = m.Status.ToString(),
-                StartDate = m.StartDate,
-                EndDate = m.EndDate ?? DateTime.UtcNow.AddDays(30),
+                BillingCycleStartDate = m.BillingCycleStartDate,
+                BillingCycleEndDate = m.BillingCycleEndDate,
                 AutoRenew = m.AutoRenew,
                 MonthlyCost = m.Plan?.PriceMonthly ?? 0,
                 CreatedAt = m.CreatedAt
@@ -184,7 +184,7 @@ public class OrganizationAdminService : IOrganizationAdminService
                 ActiveMemberships = activeMembershipSummaries,
                 PendingMemberships = new List<MembershipSummaryDto>(), // No pending memberships for now
                 ExpiredMemberships = expiredMembershipSummaries,
-                NextBillingDate = primaryMembership?.EndDate ?? DateTime.UtcNow.AddDays(30),
+                NextBillingDate = primaryMembership?.BillingCycleEndDate ?? DateTime.UtcNow.AddDays(30),
                 TotalMonthlyCost = activeMemberships.Sum(m => m.Plan?.PriceMonthly ?? 0),
                 PrimaryPlanName = primaryMembership?.Plan?.PlanName ?? "No Plan",
                 HasActiveSubscription = activeMemberships.Any()

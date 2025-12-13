@@ -15,6 +15,7 @@ using Optional.Unsafe;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
 using CusomMapOSM_Infrastructure.Features.Transaction;
 using CusomMapOSM_Domain.Entities.Transactions;
+using CusomMapOSM_Application.Services.Billing;
 
 namespace CusomMapOSM_Infrastructure.Features.Payment;
 
@@ -28,6 +29,7 @@ public class SubscriptionService : ISubscriptionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IMembershipRepository _membershipRepository;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
+    private readonly IProrationService _prorationService;
 
     public SubscriptionService(
         ITransactionService transactionService,
@@ -37,7 +39,8 @@ public class SubscriptionService : ISubscriptionService
         IOrganizationRepository organizationRepository,
         ITransactionRepository transactionRepository,
         IMembershipRepository membershipRepository,
-        IPaymentGatewayRepository paymentGatewayRepository)
+        IPaymentGatewayRepository paymentGatewayRepository,
+        IProrationService prorationService)
     {
         _transactionService = transactionService;
         _membershipService = membershipService;
@@ -47,6 +50,7 @@ public class SubscriptionService : ISubscriptionService
         _transactionRepository = transactionRepository;
         _membershipRepository = membershipRepository;
         _paymentGatewayRepository = paymentGatewayRepository;
+        _prorationService = prorationService;
     }
 
     public async Task<Option<SubscribeResponse, Error>> SubscribeToPlanAsync(SubscribeRequest request, CancellationToken ct = default)
@@ -127,16 +131,40 @@ public class SubscriptionService : ISubscriptionService
 
             var currentMembership = currentMembershipResult.ValueOrDefault();
             var newPlan = newPlanResult;
+            var currentPlan = currentMembership.Plan;
+            
+            if (currentPlan == null)
+            {
+                return Option.None<UpgradeResponse, Error>(Error.NotFound("Plan.CurrentPlanNotFound", "Current plan not found"));
+            }
 
-            // Calculate pro-rated amount (simplified calculation)
-            var proRatedAmount = CalculateProRatedAmount(currentMembership, newPlan);
+            // Validate upgrade (prevent downgrade - downgrades are NOT allowed)
+            // Policy: Users cannot downgrade during billing cycle. If they don't renew, plan downgrades to free plan.
+            var currentPlanPrice = currentPlan.PriceMonthly ?? 0;
+            var newPlanPrice = newPlan.PriceMonthly ?? 0;
+            
+            if (newPlanPrice <= currentPlanPrice)
+            {
+                return Option.None<UpgradeResponse, Error>(
+                    Error.ValidationError("Plan.DowngradeNotAllowed", 
+                        $"Downgrades are not allowed during billing cycle. Your current plan expires on {currentMembership.BillingCycleEndDate:yyyy-MM-dd}. If you don't renew, your plan will automatically downgrade to the free plan."));
+            }
 
-            // Create payment transaction using existing TransactionService
+            // Calculate proration using new service
+            var proration = _prorationService.CalculateUpgradeProration(
+                currentPlanPrice: currentPlanPrice,
+                newPlanPrice: newPlanPrice,
+                billingCycleStartDate: currentMembership.BillingCycleStartDate,
+                billingCycleEndDate: currentMembership.BillingCycleEndDate,
+                upgradeDate: DateTime.UtcNow
+            );
+
+            // Create payment transaction
             var paymentRequest = new ProcessPaymentReq
             {
                 UserId = request.UserId,
                 OrgId = request.OrgId,
-                Total = proRatedAmount,
+                Total = proration.AmountDue,
                 PaymentGateway = request.PaymentMethod,
                 Purpose = "upgrade",
                 PlanId = request.NewPlanId,
@@ -156,11 +184,14 @@ public class SubscriptionService : ISubscriptionService
                 PaymentGateway = approval.PaymentGateway,
                 QrCode = approval.QrCode,
                 OrderCode = approval.OrderCode,
-                TransactionId = approval.SessionId, // Use SessionId as transaction identifier
+                TransactionId = approval.SessionId,
                 PaymentUrl = approval.ApprovalUrl,
-                Status = "pending", // Payment is pending until confirmed
-                Message = "Payment initiated successfully. Complete payment to upgrade your plan.",
-                ProRatedAmount = proRatedAmount
+                Status = "pending",
+                Message = proration.Message ?? "Payment initiated successfully. Complete payment to upgrade your plan.",
+                ProRatedAmount = proration.AmountDue,
+                UnusedCredit = proration.UnusedCredit,
+                ProratedNewPlanCost = proration.ProratedNewPlanCost,
+                DaysRemaining = proration.DaysRemaining
             });
         }
         catch (Exception ex)
@@ -210,9 +241,58 @@ public class SubscriptionService : ISubscriptionService
                     case "upgrade":
                         if (context.UserId.HasValue && context.OrgId.HasValue && context.PlanId.HasValue)
                         {
-                            var upgradeResult = await _membershipService.ChangeSubscriptionPlanAsync(
-                                context.UserId.Value, context.OrgId.Value, context.PlanId.Value, context.AutoRenew, ct);
-                            response.MembershipUpdated = upgradeResult.HasValue;
+                            // Check if membership is already on the target plan (idempotency check)
+                            // This can happen if HandlePostPaymentWithStoredContextAsync already processed the upgrade
+                            var currentMembershipResult = await _membershipService.GetCurrentMembershipWithIncludesAsync(
+                                context.UserId.Value, context.OrgId.Value, ct);
+                            
+                            if (currentMembershipResult.HasValue && 
+                                currentMembershipResult.ValueOrDefault().PlanId == context.PlanId.Value)
+                            {
+                                // Membership is already on the target plan - upgrade was already processed
+                                Console.WriteLine($"ProcessSuccessfulPaymentAsync - Membership already on plan {context.PlanId.Value}. Treating as success (idempotency).");
+                                response.MembershipUpdated = true;
+                                response.Message = "Payment processed successfully. Membership was already upgraded.";
+                            }
+                            else
+                            {
+                                // Try to upgrade
+                                Console.WriteLine($"ProcessSuccessfulPaymentAsync - Attempting to upgrade to plan {context.PlanId.Value}.");
+                                var upgradeResult = await _membershipService.ChangeSubscriptionPlanAsync(
+                                    context.UserId.Value, context.OrgId.Value, context.PlanId.Value, context.AutoRenew, ct);
+                                
+                                if (upgradeResult.HasValue)
+                                {
+                                    Console.WriteLine($"ProcessSuccessfulPaymentAsync - Upgrade successful.");
+                                    response.MembershipUpdated = true;
+                                }
+                                else
+                                {
+                                    // Check if the error is "SamePlan" - this means upgrade was already processed
+                                    // Extract error code to check
+                                    var errorCode = upgradeResult.Match(
+                                        some: _ => string.Empty,
+                                        none: err => err.Code
+                                    );
+                                    
+                                    Console.WriteLine($"ProcessSuccessfulPaymentAsync - Upgrade failed with error code: {errorCode}");
+                                    
+                                    if (errorCode == "Membership.SamePlan")
+                                    {
+                                        // Membership is already on target plan - upgrade was already processed
+                                        // This is expected when HandlePostPaymentWithStoredContextAsync already upgraded
+                                        Console.WriteLine("ProcessSuccessfulPaymentAsync - SamePlan error detected. Treating as success (idempotency).");
+                                        response.MembershipUpdated = true;
+                                        response.Message = "Payment processed successfully. Membership was already upgraded.";
+                                    }
+                                    else
+                                    {
+                                        // Real error - membership update failed
+                                        Console.WriteLine($"ProcessSuccessfulPaymentAsync - Real error: {errorCode}. Membership update failed.");
+                                        response.MembershipUpdated = false;
+                                    }
+                                }
+                            }
                         }
                         break;
 
@@ -345,8 +425,8 @@ public class SubscriptionService : ISubscriptionService
                     Membership = membership != null ? new
                     {
                         MembershipId = membership.MembershipId,
-                        StartDate = membership.StartDate,
-                        EndDate = membership.EndDate,
+                        BillingCycleStartDate = membership.BillingCycleStartDate,
+                        BillingCycleEndDate = membership.BillingCycleEndDate,
                         Status = membership.Status.ToString(),
                         AutoRenew = membership.AutoRenew,
                         Plan = plan != null ? new
@@ -377,57 +457,5 @@ public class SubscriptionService : ISubscriptionService
         }
     }
 
-    private decimal CalculateProRatedAmount(DomainMembership.Membership currentMembership, DomainMembership.Plan newPlan)
-    {
-        var currentPlan = currentMembership.Plan;
-        if (currentPlan == null)
-        {
-            // If no current plan, charge full price for new plan
-            return newPlan.PriceMonthly ?? 0;
-        }
-
-        var currentPlanPrice = currentPlan.PriceMonthly ?? 0;
-        var newPlanPrice = newPlan.PriceMonthly ?? 0;
-
-        // If same price or downgrade, no additional charge (or return 0)
-        if (newPlanPrice <= currentPlanPrice)
-        {
-            return 0; // No charge for downgrade or same price
-        }
-
-        // For upgrade: calculate price difference based on remaining time
-        var now = DateTime.UtcNow;
-        var currentEndDate = currentMembership.EndDate ?? now;
-
-        // If subscription expired or no end date, charge full difference
-        if (currentEndDate <= now || !currentMembership.EndDate.HasValue)
-        {
-            return Math.Max(0, newPlanPrice - currentPlanPrice);
-        }
-
-        // Calculate remaining time in the current subscription
-        var remainingDays = Math.Max(0, (currentEndDate - now).Days);
-        var currentPlanDurationDays = currentPlan.DurationMonths * 30; // Approximate: 30 days per month
-
-        if (currentPlanDurationDays <= 0)
-        {
-            // If duration is 0 or invalid, charge full difference
-            return Math.Max(0, newPlanPrice - currentPlanPrice);
-        }
-
-        // Calculate the ratio of remaining time to total time
-        var remainingTimeRatio = (decimal)remainingDays / (decimal)currentPlanDurationDays;
-
-        // Calculate the value of remaining time in current plan
-        var remainingValueInCurrentPlan = currentPlanPrice * remainingTimeRatio;
-
-        // Calculate the value of remaining time in new plan (proportionally)
-        var remainingValueInNewPlan = newPlanPrice * remainingTimeRatio;
-
-        // Price difference = (value of remaining time in new plan) - (value of remaining time in current plan)
-        var priceDifference = remainingValueInNewPlan - remainingValueInCurrentPlan;
-
-        return Math.Max(0, priceDifference);
-    }
 
 }

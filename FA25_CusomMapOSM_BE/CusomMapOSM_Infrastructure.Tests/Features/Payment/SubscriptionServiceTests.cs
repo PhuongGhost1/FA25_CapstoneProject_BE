@@ -4,6 +4,7 @@ using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
+using CusomMapOSM_Application.Services.Billing;
 using CusomMapOSM_Application.Models.DTOs.Features.Payment;
 using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Domain.Entities.Memberships;
@@ -35,6 +36,7 @@ public class SubscriptionServiceTests
     private readonly Mock<ITransactionRepository> _mockTransactionRepository;
     private readonly Mock<IMembershipRepository> _mockMembershipRepository;
     private readonly Mock<IPaymentGatewayRepository> _mockPaymentGatewayRepository;
+    private readonly Mock<IProrationService> _mockProrationService;
     private readonly SubscriptionService _subscriptionService;
     private readonly Faker _faker;
 
@@ -48,6 +50,7 @@ public class SubscriptionServiceTests
         _mockTransactionRepository = new Mock<ITransactionRepository>();
         _mockMembershipRepository = new Mock<IMembershipRepository>();
         _mockPaymentGatewayRepository = new Mock<IPaymentGatewayRepository>();
+        _mockProrationService = new Mock<IProrationService>();
 
         _subscriptionService = new SubscriptionService(
             _mockTransactionService.Object,
@@ -57,7 +60,8 @@ public class SubscriptionServiceTests
             _mockOrganizationRepository.Object,
             _mockTransactionRepository.Object,
             _mockMembershipRepository.Object,
-            _mockPaymentGatewayRepository.Object
+            _mockPaymentGatewayRepository.Object,
+            _mockProrationService.Object
         );
         _faker = new Faker();
     }
@@ -227,7 +231,7 @@ public class SubscriptionServiceTests
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, currentPlanId)
             .RuleFor(m => m.Plan, currentPlan)
-            .RuleFor(m => m.EndDate, DateTime.UtcNow.AddDays(15))
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow.AddDays(15))
             .Generate();
 
         var approvalResponse = new ApprovalUrlResponse

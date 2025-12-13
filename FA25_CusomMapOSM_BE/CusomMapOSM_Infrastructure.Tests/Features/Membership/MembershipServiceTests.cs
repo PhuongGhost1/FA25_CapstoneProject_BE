@@ -65,8 +65,8 @@ public class MembershipServiceTests
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, 2) // Basic plan
-            .RuleFor(m => m.StartDate, DateTime.UtcNow.AddDays(-15))
-            .RuleFor(m => m.EndDate, DateTime.UtcNow.AddDays(15))
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow.AddDays(-15))
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow.AddDays(15))
             .RuleFor(m => m.AutoRenew, true)
             .Generate();
 
@@ -144,7 +144,7 @@ public class MembershipServiceTests
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, 3) // Pro plan
-            .RuleFor(m => m.StartDate, DateTime.UtcNow.AddDays(-15))
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow.AddDays(-15))
             .RuleFor(m => m.AutoRenew, true)
             .Generate();
 
@@ -436,8 +436,8 @@ public class MembershipServiceTests
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, planId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow)
-            .RuleFor(m => m.EndDate, DateTime.UtcNow.AddMonths(1))
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow.AddDays(30))
             .Generate();
 
         var newUsage = new Faker<DomainMembership.MembershipUsage>()
@@ -488,8 +488,8 @@ public class MembershipServiceTests
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, planId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow.AddMonths(-1))
-            .RuleFor(m => m.EndDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow.AddMonths(-1))
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow)
             .Generate();
 
         _mockMembershipRepository.Setup(x => x.GetByUserOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))
@@ -506,7 +506,7 @@ public class MembershipServiceTests
 
         // Assert
         result.HasValue.Should().BeTrue();
-        existingMembership.EndDate.Should().BeAfter(DateTime.UtcNow);
+        existingMembership.BillingCycleEndDate.Should().BeAfter(DateTime.UtcNow);
         existingMembership.AutoRenew.Should().Be(autoRenew);
     }
 
@@ -558,7 +558,7 @@ public class MembershipServiceTests
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
             .RuleFor(m => m.PlanId, currentPlanId)
-            .RuleFor(m => m.EndDate, DateTime.UtcNow.AddDays(30)) // 30 days remaining
+            .RuleFor(m => m.BillingCycleEndDate, DateTime.UtcNow.AddDays(30)) // 30 days remaining
             .Generate();
 
         _mockMembershipRepository.Setup(x => x.GetByUserOrgAsync(userId, orgId, It.IsAny<CancellationToken>()))

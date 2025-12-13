@@ -58,7 +58,7 @@ public class MembershipEndpointTests : IClassFixture<WebApplicationFactory<Cusom
             .RuleFor(m => m.UserId, request.UserId)
             .RuleFor(m => m.OrgId, request.OrgId)
             .RuleFor(m => m.PlanId, request.NewPlanId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow)
             .RuleFor(m => m.AutoRenew, request.AutoRenew)
             .Generate();
 
@@ -148,7 +148,7 @@ public class MembershipEndpointTests : IClassFixture<WebApplicationFactory<Cusom
             .RuleFor(m => m.UserId, request.UserId)
             .RuleFor(m => m.OrgId, request.OrgId)
             .RuleFor(m => m.PlanId, request.PlanId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow)
             .RuleFor(m => m.AutoRenew, request.AutoRenew)
             .Generate();
 
