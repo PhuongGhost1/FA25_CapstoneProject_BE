@@ -29,6 +29,7 @@ public class MembershipRepository : IMembershipRepository
     public async Task<DomainMembership?> GetByUserOrgWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
         return await _context.Memberships
+            .AsNoTracking()
             .Include(m => m.Organization)
             .Include(m => m.Plan)
             .OrderByDescending(m => m.StartDate)

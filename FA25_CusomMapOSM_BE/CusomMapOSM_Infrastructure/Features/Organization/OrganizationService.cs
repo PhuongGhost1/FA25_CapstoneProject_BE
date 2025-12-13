@@ -70,7 +70,8 @@ public class OrganizationService : IOrganizationService
         if (nameExists)
         {
             return Option.None<OrganizationResDto, Error>(
-                Error.Conflict("Organization.NameAlreadyExists", $"Organization name '{req.OrgName}' is already taken"));
+                Error.Conflict("Organization.NameAlreadyExists",
+                    $"Organization name '{req.OrgName}' is already taken"));
         }
 
         var newOrg = new CusomMapOSM_Domain.Entities.Organizations.Organization()
@@ -168,7 +169,7 @@ public class OrganizationService : IOrganizationService
         }
 
         return Option.Some<OrganizationResDto, Error>(new OrganizationResDto
-        { 
+        {
             Result = "Create Organization Success",
             OrgId = createdOrg.OrgId
         });
@@ -283,7 +284,7 @@ public class OrganizationService : IOrganizationService
         if (activeWorkspaces.Any())
         {
             return Option.None<DeleteOrganizationResDto, Error>(
-                Error.ValidationError("Organization.HasWorkspaces", 
+                Error.ValidationError("Organization.HasWorkspaces",
                     "Cannot delete organization while it contains active workspaces. Please delete or move all workspaces first."));
         }
 
@@ -315,34 +316,7 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.MemberTypeNotFound", "Invalid member type"));
         }
 
-        // Normalize email for comparison (case-insensitive)
         var normalizedInviteEmail = req.MemberEmail.Trim().ToLowerInvariant();
-
-        // Prevent self-invitation: Check if the invited email belongs to the current user
-        var currentUser = await _authenticationRepository.GetUserById(currentUserId.Value);
-        if (currentUser != null && !string.IsNullOrEmpty(currentUser.Email))
-        {
-            var normalizedCurrentEmail = currentUser.Email.Trim().ToLowerInvariant();
-
-            if (normalizedInviteEmail == normalizedCurrentEmail)
-            {
-                return Option.None<InviteMemberOrganizationResDto, Error>(
-                    Error.ValidationError("Organization.CannotInviteSelf",
-                        "You cannot invite yourself to the organization"));
-            }
-        }
-        else
-        {
-        }
-
-        // Additional check: If the invited user exists and is the same as current user, block invitation
-        var invitedUser = await _authenticationRepository.GetUserByEmail(req.MemberEmail);
-        if (invitedUser != null && invitedUser.UserId == currentUserId.Value)
-        {
-            return Option.None<InviteMemberOrganizationResDto, Error>(
-                Error.ValidationError("Organization.CannotInviteSelf",
-                    "You cannot invite yourself to the organization"));
-        }
 
         // Check if organization has active membership and quota available
         var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
@@ -351,33 +325,7 @@ public class OrganizationService : IOrganizationService
             return Option.None<InviteMemberOrganizationResDto, Error>(
                 Error.NotFound("Organization.NotFound", "Organization not found"));
         }
-
-        // Check if the invited email is already a member of the organization
-        // invitedUser is already fetched above for self-invitation check
-        if (invitedUser != null)
-        {
-            var existingMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(invitedUser.UserId, req.OrgId);
-            if (existingMember != null && existingMember.Status == MemberStatus.Active)
-            {
-                return Option.None<InviteMemberOrganizationResDto, Error>(
-                    Error.Conflict("Organization.AlreadyMember",
-                        "This user is already a member of the organization"));
-            }
-        }
-
-        // Check for any existing invitation (pending or otherwise) - prevent duplicate invitations
-        var existingInvitation = await _organizationRepository.GetInvitationByEmailAndOrg(req.MemberEmail, req.OrgId);
-        if (existingInvitation != null)
-        {
-            if (existingInvitation.Status == InvitationStatus.Pending)
-            {
-                return Option.None<InviteMemberOrganizationResDto, Error>(
-                    Error.Conflict("Organization.InvitationAlreadyExists",
-                        "An invitation has already been sent to this email for this organization"));
-            }
-        }
-
-        // Get organization owner's active membership (since memberships are tied to users, not orgs directly)
+                // Get organization owner's active membership and check quota
         var organizationOwner = await _organizationRepository.GetOrganizationMemberByUserAndOrg(organization.OwnerUserId, req.OrgId);
         if (organizationOwner == null)
         {
@@ -393,7 +341,6 @@ public class OrganizationService : IOrganizationService
         }
 
         var membership = activeMembership.Match(some: m => m, none: _ => null!);
-        // Get plan details from the membership
         var membershipWithPlan = await _membershipService.GetCurrentMembershipWithIncludesAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
         if (!membershipWithPlan.HasValue)
         {
@@ -408,41 +355,68 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
         }
 
-        // Check current user count and quota limits before sending invitation
+        // Check quota FIRST - before checking invitations
         var currentMembers = await _organizationRepository.GetOrganizationMembers(req.OrgId);
-        var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
+        var currentActiveMemberCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
+        var pendingInvitationsCount = await _organizationRepository.GetPendingInvitationsCountByOrg(req.OrgId);
+        var totalCountWithNewInvitation = currentActiveMemberCount + pendingInvitationsCount + 1;
 
-        // Check quota: current active members + pending invitations should not exceed limit
-        // We check if (currentUserCount + 1) would exceed, since we're about to add one invitation
         if (plan.MaxUsersPerOrg > 0)
         {
-            // Check quota using membership service directly
-            var quotaCheck = await _membershipService.GetOrCreateUsageAsync(membership.MembershipId, req.OrgId, CancellationToken.None);
-            if (quotaCheck.HasValue)
+            if (totalCountWithNewInvitation > plan.MaxUsersPerOrg)
             {
-                var usage = quotaCheck.Match(some: u => u, none: _ => null!);
-                if (usage != null)
-                {
-                    // Check if current usage + 1 would exceed the limit
-                    // Note: ActiveUsersInOrg tracks actual members, but we should also consider pending invitations
-                    // For now, we check if adding one more would exceed, which is conservative
-                    if (usage.ActiveUsersInOrg + 1 > plan.MaxUsersPerOrg)
-                    {
-                        return Option.None<InviteMemberOrganizationResDto, Error>(
-                            Error.Conflict("Organization.UserQuotaExceeded",
-                                $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users. Current: {usage.ActiveUsersInOrg}/{plan.MaxUsersPerOrg}"));
-                    }
-                }
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.Conflict("Organization.UserQuotaExceeded",
+                        $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users. Current: {currentActiveMemberCount} active members, {pendingInvitationsCount} pending invitations. Total would be: {totalCountWithNewInvitation}/{plan.MaxUsersPerOrg}"));
             }
-            else
+        }
+
+        // Check self-invitation and existing member in one place
+        var currentUser = await _authenticationRepository.GetUserById(currentUserId.Value);
+        var invitedUser = await _authenticationRepository.GetUserByEmail(req.MemberEmail);
+
+        // Check 1: Prevent self-invitation (by email or by user ID)
+        if (currentUser != null && !string.IsNullOrEmpty(currentUser.Email))
+        {
+            var normalizedCurrentEmail = currentUser.Email.Trim().ToLowerInvariant();
+            if (normalizedInviteEmail == normalizedCurrentEmail)
             {
-                // Fallback to simple count check if usage tracking fails
-                if (currentUserCount + 1 > plan.MaxUsersPerOrg)
-                {
-                    return Option.None<InviteMemberOrganizationResDto, Error>(
-                        Error.Conflict("Organization.UserQuotaExceeded",
-                            $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
-                }
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.ValidationError("Organization.CannotInviteSelf",
+                        "You cannot invite yourself to the organization"));
+            }
+        }
+
+        if (invitedUser != null && invitedUser.UserId == currentUserId.Value)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.ValidationError("Organization.CannotInviteSelf",
+                    "You cannot invite yourself to the organization"));
+        }
+
+        // Check 2: Check if user is already a member of the organization
+        if (invitedUser != null)
+        {
+            var existingMember =
+                await _organizationRepository.GetOrganizationMemberByUserAndOrg(invitedUser.UserId, req.OrgId);
+            if (existingMember != null && existingMember.Status == MemberStatus.Active)
+            {
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.Conflict("Organization.AlreadyMember",
+                        "This user is already a member of the organization"));
+            }
+        }
+
+
+        // Check for any existing invitation (pending or otherwise) - prevent duplicate invitations
+        var existingInvitation = await _organizationRepository.GetInvitationByEmailAndOrg(req.MemberEmail, req.OrgId);
+        if (existingInvitation != null)
+        {
+            if (existingInvitation.Status == InvitationStatus.Pending)
+            {
+                return Option.None<InviteMemberOrganizationResDto, Error>(
+                    Error.Conflict("Organization.InvitationAlreadyExists",
+                        "An invitation has already been sent to this email for this organization"));
             }
         }
 
@@ -535,14 +509,16 @@ public class OrganizationService : IOrganizationService
         }
 
         // Get organization owner's active membership (since memberships are tied to users, not orgs directly)
-        var organizationOwner = await _organizationRepository.GetOrganizationMemberByUserAndOrg(organization.OwnerUserId, invitation.OrgId);
+        var organizationOwner =
+            await _organizationRepository.GetOrganizationMemberByUserAndOrg(organization.OwnerUserId, invitation.OrgId);
         if (organizationOwner == null)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
                 Error.NotFound("Organization.OwnerNotFound", "Organization owner not found"));
         }
 
-        var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, invitation.OrgId, CancellationToken.None);
+        var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId,
+            invitation.OrgId, CancellationToken.None);
         if (!activeMembership.HasValue)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
@@ -551,7 +527,9 @@ public class OrganizationService : IOrganizationService
 
         var membership = activeMembership.Match(some: m => m, none: _ => null!);
         // Get plan details from the membership
-        var membershipWithPlan = await _membershipService.GetCurrentMembershipWithIncludesAsync(organization.OwnerUserId, invitation.OrgId, CancellationToken.None);
+        var membershipWithPlan =
+            await _membershipService.GetCurrentMembershipWithIncludesAsync(organization.OwnerUserId, invitation.OrgId,
+                CancellationToken.None);
         if (!membershipWithPlan.HasValue)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
@@ -578,11 +556,12 @@ public class OrganizationService : IOrganizationService
         }
 
         // Check if member already exists (even if removed/left)
-        var existingMember = await _organizationRepository.GetOrganizationMemberByUserAndOrgAnyStatus(user.UserId, invitation.OrgId);
-        
+        var existingMember =
+            await _organizationRepository.GetOrganizationMemberByUserAndOrgAnyStatus(user.UserId, invitation.OrgId);
+
         bool memberResult;
         bool isReactivation = existingMember != null;
-        
+
         if (existingMember != null)
         {
             // Member exists but was removed/left - reactivate them
@@ -597,9 +576,10 @@ public class OrganizationService : IOrganizationService
             if (!quotaResult.HasValue)
             {
                 return Option.None<AcceptInviteOrganizationResDto, Error>(
-                    Error.Failure("Organization.QuotaConsumptionFailed", "Failed to consume user quota for reactivated member"));
+                    Error.Failure("Organization.QuotaConsumptionFailed",
+                        "Failed to consume user quota for reactivated member"));
             }
-            
+
             // Update existing member record
             existingMember.Status = MemberStatus.Active;
             existingMember.Role = invitation.Role;
@@ -608,9 +588,9 @@ public class OrganizationService : IOrganizationService
             existingMember.JoinedAt = DateTime.UtcNow; // Update join date to now
             existingMember.LeftAt = null; // Clear left date
             existingMember.LeaveReason = null; // Clear leave reason
-            
+
             memberResult = await _organizationRepository.UpdateOrganizationMember(existingMember);
-            
+
             if (!memberResult)
             {
                 // Rollback quota if update fails
@@ -651,7 +631,7 @@ public class OrganizationService : IOrganizationService
             };
 
             memberResult = await _organizationRepository.AddMemberToOrganization(newMember);
-            
+
             if (!memberResult)
             {
                 // Rollback quota consumption if member addition fails
@@ -667,8 +647,10 @@ public class OrganizationService : IOrganizationService
         if (!memberResult)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
-                Error.Failure("Organization.MemberAddFailed", 
-                    isReactivation ? "Failed to reactivate member in organization" : "Failed to add member to organization"));
+                Error.Failure("Organization.MemberAddFailed",
+                    isReactivation
+                        ? "Failed to reactivate member in organization"
+                        : "Failed to add member to organization"));
         }
 
         invitation.Status = InvitationStatus.Accepted;
@@ -755,7 +737,8 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
 
-        var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
+        var currentUserRole =
+            await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
         if (currentUserRole is null || currentUserRole.Role.ToString() != "Owner")
         {
             return Option.None<UpdateMemberRoleResDto, Error>(
@@ -804,7 +787,9 @@ public class OrganizationService : IOrganizationService
             return Option.None<RemoveMemberResDto, Error>(
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
-        var currentUserRole = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
+
+        var currentUserRole =
+            await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, req.OrgId);
         if (currentUserRole is null || currentUserRole.Role.ToString() != "Owner")
         {
             return Option.None<RemoveMemberResDto, Error>(
@@ -834,7 +819,9 @@ public class OrganizationService : IOrganizationService
             var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
             if (organization != null)
             {
-                var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+                var activeMembership =
+                    await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId,
+                        CancellationToken.None);
                 if (activeMembership.HasValue)
                 {
                     var membership = activeMembership.Match(some: m => m, none: _ => null!);
@@ -850,7 +837,8 @@ public class OrganizationService : IOrganizationService
                     if (!quotaResult.HasValue)
                     {
                         // Log warning but don't fail the removal - quota release is secondary
-                        Console.WriteLine($"Failed to release user quota for organization {req.OrgId} when removing member {req.MemberId}");
+                        Console.WriteLine(
+                            $"Failed to release user quota for organization {req.OrgId} when removing member {req.MemberId}");
                     }
                 }
             }
@@ -865,7 +853,9 @@ public class OrganizationService : IOrganizationService
                 var organization = await _organizationRepository.GetOrganizationById(req.OrgId);
                 if (organization != null)
                 {
-                    var activeMembership = await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId, CancellationToken.None);
+                    var activeMembership =
+                        await _membershipService.GetMembershipByUserOrgAsync(organization.OwnerUserId, req.OrgId,
+                            CancellationToken.None);
                     if (activeMembership.HasValue)
                     {
                         var membership = activeMembership.Match(some: m => m, none: _ => null!);
@@ -1004,7 +994,8 @@ public class OrganizationService : IOrganizationService
         if (req.NewOwnerId == currentUserId.Value)
         {
             return Option.None<TransferOwnershipResDto, Error>(
-                Error.ValidationError("Organization.CannotTransferToSelf", "You cannot transfer ownership to yourself"));
+                Error.ValidationError("Organization.CannotTransferToSelf",
+                    "You cannot transfer ownership to yourself"));
         }
 
         var organization = await _organizationRepository.GetOrganizationById(orgId);
@@ -1021,10 +1012,12 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.NewOwnerNotMember", "New owner is not a member of this organization"));
         }
 
-        var currentOwnerMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, orgId);
+        var currentOwnerMember =
+            await _organizationRepository.GetOrganizationMemberByUserAndOrg(currentUserId.Value, orgId);
         if (currentOwnerMember is null || currentOwnerMember.Role.ToString() != "Owner")
         {
-            return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));
+            return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner",
+                "Only the current owner can transfer ownership"));
         }
 
         // Store original roles for rollback
@@ -1078,12 +1071,13 @@ public class OrganizationService : IOrganizationService
 
             // Transfer membership from old owner to new owner
             // Find membership owned by old owner for this organization
-            oldOwnerMembership = await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, orgId, CancellationToken.None);
+            oldOwnerMembership =
+                await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, orgId, CancellationToken.None);
             if (oldOwnerMembership != null)
             {
                 // Store original UserId for rollback
                 originalMembershipUserId = oldOwnerMembership.UserId;
-                
+
                 // Update membership to belong to new owner
                 oldOwnerMembership.UserId = req.NewOwnerId;
                 oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
@@ -1104,9 +1098,10 @@ public class OrganizationService : IOrganizationService
                 await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
                 organization.OwnerUserId = currentUserId.Value; // Restore original owner
                 await _organizationRepository.UpdateOrganization(organization);
-                
+
                 // Rollback membership transfer if it was changed
-                if (oldOwnerMembership != null && originalMembershipUserId.HasValue && oldOwnerMembership.UserId != originalMembershipUserId.Value)
+                if (oldOwnerMembership != null && originalMembershipUserId.HasValue &&
+                    oldOwnerMembership.UserId != originalMembershipUserId.Value)
                 {
                     oldOwnerMembership.UserId = originalMembershipUserId.Value;
                     oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
@@ -1123,10 +1118,10 @@ public class OrganizationService : IOrganizationService
             return Option.None<TransferOwnershipResDto, Error>(
                 Error.Failure("Organization.TransferOwnershipFailed", "An error occurred during ownership transfer"));
         }
-
     }
-    
-    public async Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile, BulkCreateStudentsRequest request)
+
+    public async Task<Option<BulkCreateStudentsResponse, Error>> BulkCreateStudents(IFormFile excelFile,
+        BulkCreateStudentsRequest request)
     {
         try
         {
@@ -1177,7 +1172,8 @@ public class OrganizationService : IOrganizationService
                  currentUserMember.Role != OrganizationMemberTypeEnum.Admin))
             {
                 return Option.None<BulkCreateStudentsResponse, Error>(
-                    Error.Forbidden("Organization.NotAuthorized", "Only organization owners and admins can bulk create student accounts"));
+                    Error.Forbidden("Organization.NotAuthorized",
+                        "Only organization owners and admins can bulk create student accounts"));
             }
 
             // Check organization membership quota
@@ -1219,7 +1215,8 @@ public class OrganizationService : IOrganizationService
                     if (worksheet == null || worksheet.Dimension == null)
                     {
                         return Option.None<BulkCreateStudentsResponse, Error>(
-                            Error.ValidationError("File.NoWorksheet", "Excel file must contain at least one worksheet"));
+                            Error.ValidationError("File.NoWorksheet",
+                                "Excel file must contain at least one worksheet"));
                     }
 
                     // Find header row (assume first row is headers)
@@ -1255,7 +1252,9 @@ public class OrganizationService : IOrganizationService
                     for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
                     {
                         var name = worksheet.Cells[row, nameColumnIndex].Text?.Trim();
-                        var studentClass = classColumnIndex > 0 ? worksheet.Cells[row, classColumnIndex].Text?.Trim() : null;
+                        var studentClass = classColumnIndex > 0
+                            ? worksheet.Cells[row, classColumnIndex].Text?.Trim()
+                            : null;
 
                         if (string.IsNullOrWhiteSpace(name))
                         {
@@ -1276,7 +1275,8 @@ public class OrganizationService : IOrganizationService
             if (students.Count > maxStudents)
             {
                 return Option.None<BulkCreateStudentsResponse, Error>(
-                    Error.ValidationError("File.TooManyStudents", $"Maximum {maxStudents} students allowed per upload. Found {students.Count}"));
+                    Error.ValidationError("File.TooManyStudents",
+                        $"Maximum {maxStudents} students allowed per upload. Found {students.Count}"));
             }
 
             if (students.Count == 0)
@@ -1445,7 +1445,8 @@ public class OrganizationService : IOrganizationService
         }
     }
 
-    public async Task<Option<ValidateOrganizationNameResDto, Error>> ValidateOrganizationName(string orgName, Guid? excludeOrgId = null)
+    public async Task<Option<ValidateOrganizationNameResDto, Error>> ValidateOrganizationName(string orgName,
+        Guid? excludeOrgId = null)
     {
         try
         {
@@ -1456,12 +1457,12 @@ public class OrganizationService : IOrganizationService
             }
 
             var exists = await _organizationRepository.IsOrganizationNameExists(orgName, excludeOrgId);
-            
+
             return Option.Some<ValidateOrganizationNameResDto, Error>(new ValidateOrganizationNameResDto
             {
                 IsAvailable = !exists,
-                Message = exists 
-                    ? $"Organization name '{orgName}' is already taken" 
+                Message = exists
+                    ? $"Organization name '{orgName}' is already taken"
                     : $"Organization name '{orgName}' is available"
             });
         }
