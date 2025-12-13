@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Domain.Entities.Organizations;
+using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using Microsoft.EntityFrameworkCore;
@@ -183,5 +183,11 @@ public class OrganizationRepository : IOrganizationRepository
         }
         
         return await query.AnyAsync();
+    }
+
+    public async Task<int> GetPendingInvitationsCountByOrg(Guid orgId)
+    {
+        return await _context.OrganizationInvitations
+            .CountAsync(x => x.OrgId == orgId && x.Status == InvitationStatus.Pending && x.ExpiresAt > DateTime.UtcNow);
     }
 }
