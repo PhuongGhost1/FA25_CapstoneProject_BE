@@ -42,7 +42,7 @@ public class MembershipService : IMembershipService
 
         if (existing is null)
         {
-            // New membership - create with EndDate based on plan duration
+            // New membership - create with billing cycle dates
             var now = DateTime.UtcNow;
             var newMembership = new DomainMembership
             {
@@ -50,8 +50,8 @@ public class MembershipService : IMembershipService
                 UserId = userId,
                 OrgId = orgId,
                 PlanId = planId,
-                StartDate = now,
-                EndDate = now.AddMonths(plan.DurationMonths), // Set EndDate based on plan duration
+                BillingCycleStartDate = now,
+                BillingCycleEndDate = now.AddDays(30), // 30-day billing cycle
                 Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active,
                 AutoRenew = autoRenew,
                 CurrentUsage = null,
@@ -95,48 +95,34 @@ public class MembershipService : IMembershipService
             // If same plan: extend subscription time (only time is different)
             if (existing.PlanId == planId)
             {
-                // Get the current end date or start from now if expired
-                var currentEndDate = existing.EndDate ?? now;
-                if (currentEndDate < now)
-                {
-                    currentEndDate = now; // If expired, start from now
-                }
-
-                // Extend subscription by adding plan duration months
-                existing.EndDate = currentEndDate.AddMonths(plan.DurationMonths);
+                // On renewal, reset billing cycle dates
                 existing.AutoRenew = autoRenew;
                 existing.UpdatedAt = now;
                 existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
+                
+                // Reset billing cycle dates on renewal
+                existing.BillingCycleStartDate = now;
+                existing.BillingCycleEndDate = now.AddDays(30); // 30-day billing cycle
 
                 return Option.Some<DomainMembership, ErrorCustom.Error>(await _membershipRepository.UpsertAsync(existing, ct));
             }
             else
             {
                 // Different plan: Handle upgrade/downgrade (Plan 1 <-> Plan 2)
-                // Determine if this is an upgrade or downgrade
-                bool isUpgrade = (plan.PriceMonthly ?? 0) > (currentPlan.PriceMonthly ?? 0);
-                bool isDowngrade = (plan.PriceMonthly ?? 0) < (currentPlan.PriceMonthly ?? 0);
+            // Determine if this is an upgrade or downgrade
+            bool isUpgrade = (plan.PriceMonthly ?? 0) > (currentPlan.PriceMonthly ?? 0);
+            bool isDowngrade = (plan.PriceMonthly ?? 0) < (currentPlan.PriceMonthly ?? 0);
 
-                // Calculate remaining time in the current subscription
-                var currentEndDate = existing.EndDate ?? now;
-                if (currentEndDate < now)
-                {
-                    currentEndDate = now; // If expired, treat as 0 remaining time
-                }
-
-                var remainingDays = Math.Max(0, (currentEndDate - now).Days);
-
-                // For downgrade: Only allow if within 7 days of expiration
-                if (isDowngrade && remainingDays > 7)
-                {
-                    // User must wait until subscription expires or is within 7 days of expiration
-                    var daysUntilCanDowngrade = remainingDays - 7;
-                    return Option.None<DomainMembership, ErrorCustom.Error>(
-                        new ErrorCustom.Error(
-                            "Membership.Downgrade.NotAllowed",
-                            $"Cannot downgrade yet. Your current plan expires in {remainingDays} days. Please wait until {daysUntilCanDowngrade} more days (7 days before expiration) or until your subscription expires.",
-                            ErrorCustom.ErrorType.Validation));
-                }
+            // Policy: Downgrades are NOT allowed during billing cycle
+            // If users don't renew their subscription, it automatically downgrades to the free plan
+            if (isDowngrade)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error(
+                        "Membership.DowngradeNotAllowed",
+                        $"Downgrades are not allowed during billing cycle. Your current plan expires on {existing.BillingCycleEndDate:yyyy-MM-dd}. If you don't renew, your plan will automatically downgrade to the free plan.",
+                        ErrorCustom.ErrorType.Validation));
+            }
 
                 // For upgrade: Allow immediately
                 // Update membership to new plan
@@ -145,11 +131,12 @@ public class MembershipService : IMembershipService
                 existing.UpdatedAt = now;
                 existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
 
-                // Calculate new EndDate based on plan type
+                // For upgrade: Keep billing cycle dates unchanged (for proration)
                 if (isUpgrade)
                 {
-                    // For upgrade: extend subscription from current end date by new plan duration
-                    existing.EndDate = currentEndDate.AddMonths(plan.DurationMonths);
+                    // CRITICAL: When upgrading, KEEP the same billing cycle dates
+                    // DO NOT reset BillingCycleStartDate or BillingCycleEndDate
+                    // This is KEY for Option C proration - billing cycle dates remain unchanged
 
                     // Reset usage cycle to give immediate access to higher quotas
                     existing.LastResetDate = now;
@@ -161,31 +148,6 @@ public class MembershipService : IMembershipService
                         usage.ActiveUsersInOrg = 0;
                         usage.CycleStartDate = now;
                         usage.CycleEndDate = now.AddMonths(1);
-                        usage.UpdatedAt = now;
-                        await _membershipRepository.UpsertUsageAsync(usage, ct);
-                    }
-                }
-                else if (isDowngrade)
-                {
-                    // For downgrade: Keep current end date (user keeps time they paid for)
-                    existing.EndDate = currentEndDate;
-
-                    // Cap usage to new plan limits
-                    var usage = await _membershipRepository.GetUsageAsync(existing.MembershipId, orgId, ct);
-                    if (usage != null)
-                    {
-                        if (plan.MaxMapsPerMonth > 0 && usage.MapsCreatedThisCycle > plan.MaxMapsPerMonth)
-                        {
-                            usage.MapsCreatedThisCycle = plan.MaxMapsPerMonth;
-                        }
-                        if (plan.ExportQuota > 0 && usage.ExportsThisCycle > plan.ExportQuota)
-                        {
-                            usage.ExportsThisCycle = plan.ExportQuota;
-                        }
-                        if (plan.MaxUsersPerOrg > 0 && usage.ActiveUsersInOrg > plan.MaxUsersPerOrg)
-                        {
-                            usage.ActiveUsersInOrg = plan.MaxUsersPerOrg;
-                        }
                         usage.UpdatedAt = now;
                         await _membershipRepository.UpsertUsageAsync(usage, ct);
                     }
@@ -260,56 +222,29 @@ public class MembershipService : IMembershipService
             bool isUpgrade = (newPlan.PriceMonthly ?? 0) > (currentPlan.PriceMonthly ?? 0);
             bool isDowngrade = (newPlan.PriceMonthly ?? 0) < (currentPlan.PriceMonthly ?? 0);
 
-            // Calculate remaining time in the current subscription
-            var currentEndDate = currentMembership.EndDate ?? now;
-            if (currentEndDate < now)
+            // Policy: Downgrades are NOT allowed during billing cycle
+            // If users don't renew their subscription, it automatically downgrades to the free plan
+            if (isDowngrade)
             {
-                currentEndDate = now; // If expired, treat as 0 remaining time
-            }
-
-            var remainingDays = Math.Max(0, (currentEndDate - now).Days);
-
-            // For downgrade: Only allow if within 7 days of expiration
-            if (isDowngrade && remainingDays > 7)
-            {
-                // User must wait until subscription expires or is within 7 days of expiration
-                var daysUntilCanDowngrade = remainingDays - 7;
                 return Option.None<DomainMembership, ErrorCustom.Error>(
                     new ErrorCustom.Error(
-                        "Membership.Downgrade.NotAllowed",
-                        $"Cannot downgrade yet. Your current plan expires in {remainingDays} days. Please wait until {daysUntilCanDowngrade} more days (7 days before expiration) or until your subscription expires.",
+                        "Membership.DowngradeNotAllowed",
+                        $"Downgrades are not allowed during billing cycle. Your current plan expires on {currentMembership.BillingCycleEndDate:yyyy-MM-dd}. If you don't renew, your plan will automatically downgrade to the free plan.",
                         ErrorCustom.ErrorType.Validation));
             }
-            var totalDaysInCurrentCycle = currentPlan.DurationMonths * 30; // Approximate: using 30 days per month
-            var remainingMonthsRatio = totalDaysInCurrentCycle > 0
-                ? (decimal)remainingDays / (decimal)totalDaysInCurrentCycle
-                : 0;
-
             // Update membership
             currentMembership.PlanId = newPlanId;
             currentMembership.AutoRenew = autoRenew;
             currentMembership.UpdatedAt = now;
 
-            // Calculate new EndDate based on remaining time and new plan duration
-            // If upgrade: extend time based on new plan duration
-            // If downgrade: calculate remaining time proportionally or keep current end date
+            // Use billing cycle end date for expiration checks
+            // Keep billing cycle dates unchanged on upgrade (for proration)
+            // Only update PlanId
             if (isUpgrade)
             {
-                // For upgrade: extend subscription from current end date by new plan duration
-                currentMembership.EndDate = currentEndDate.AddMonths(newPlan.DurationMonths);
-            }
-            else if (isDowngrade)
-            {
-                // For downgrade: calculate proportional remaining time or keep current end date
-                // Option 1: Keep current end date (simpler, user keeps time they paid for)
-                // Option 2: Calculate proportionally (more complex, adjusts based on price ratio)
-                // Using Option 1 for simplicity - user keeps their paid time
-                currentMembership.EndDate = currentEndDate;
-            }
-            else
-            {
-                // Same price tier - extend from current end date
-                currentMembership.EndDate = currentEndDate.AddMonths(newPlan.DurationMonths);
+                // CRITICAL: When upgrading, KEEP the same billing cycle dates
+                // DO NOT reset BillingCycleStartDate or BillingCycleEndDate
+                // This is KEY for Option C proration - billing cycle dates remain unchanged
             }
 
             // If upgrading, reset usage cycle to give immediate access to higher quotas
@@ -331,29 +266,6 @@ public class MembershipService : IMembershipService
                 }
             }
 
-            // If downgrading, keep current usage but ensure it doesn't exceed new plan limits
-            if (isDowngrade)
-            {
-                var usage = await _membershipRepository.GetUsageAsync(currentMembership.MembershipId, orgId, ct);
-                if (usage != null)
-                {
-                    // Cap usage to new plan limits
-                    if (newPlan.MaxMapsPerMonth > 0 && usage.MapsCreatedThisCycle > newPlan.MaxMapsPerMonth)
-                    {
-                        usage.MapsCreatedThisCycle = newPlan.MaxMapsPerMonth;
-                    }
-                    if (newPlan.ExportQuota > 0 && usage.ExportsThisCycle > newPlan.ExportQuota)
-                    {
-                        usage.ExportsThisCycle = newPlan.ExportQuota;
-                    }
-                    if (newPlan.MaxUsersPerOrg > 0 && usage.ActiveUsersInOrg > newPlan.MaxUsersPerOrg)
-                    {
-                        usage.ActiveUsersInOrg = newPlan.MaxUsersPerOrg;
-                    }
-                    usage.UpdatedAt = now;
-                    await _membershipRepository.UpsertUsageAsync(usage, ct);
-                }
-            }
 
             var updatedMembership = await _membershipRepository.UpsertAsync(currentMembership, ct);
             return Option.Some<DomainMembership, ErrorCustom.Error>(updatedMembership);

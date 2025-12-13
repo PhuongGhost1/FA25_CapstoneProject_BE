@@ -60,8 +60,8 @@ public record MembershipSummaryDto
     public required int PlanId { get; set; }
     public required string PlanName { get; set; }
     public required string Status { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateTime BillingCycleStartDate { get; set; }
+    public DateTime BillingCycleEndDate { get; set; }
     public bool AutoRenew { get; set; }
     public decimal MonthlyCost { get; set; }
     public DateTime CreatedAt { get; set; }

@@ -38,6 +38,9 @@ public record UpgradeResponse
     public required string Status { get; set; }
     public required string Message { get; set; }
     public decimal? ProRatedAmount { get; set; }
+    public decimal UnusedCredit { get; set; }
+    public decimal ProratedNewPlanCost { get; set; }
+    public int DaysRemaining { get; set; }
     public required PaymentGatewayEnum PaymentGateway { get; set; }
     public string? QrCode { get; set; }
     public string? OrderCode { get; set; }

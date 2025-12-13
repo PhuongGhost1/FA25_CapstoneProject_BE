@@ -11,8 +11,17 @@ public class Membership
     public Guid UserId { get; set; }
     public Guid OrgId { get; set; }
     public int PlanId { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime? EndDate { get; set; }
+    /// <summary>
+    /// Start date of the current billing cycle. 
+    /// Set when membership is created or renewed.
+    /// </summary>
+    public DateTime BillingCycleStartDate { get; set; }
+    
+    /// <summary>
+    /// End date of the current billing cycle.
+    /// Typically 30 days from BillingCycleStartDate.
+    /// </summary>
+    public DateTime BillingCycleEndDate { get; set; }
     public MembershipStatusEnum Status { get; set; } = MembershipStatusEnum.PendingPayment;
     public bool AutoRenew { get; set; }
     public string? CurrentUsage { get; set; } // Stored as JSON

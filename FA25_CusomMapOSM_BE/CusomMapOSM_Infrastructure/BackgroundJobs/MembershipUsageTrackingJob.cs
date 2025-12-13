@@ -40,7 +40,7 @@ public class MembershipUsageTrackingJob
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
                 .Include(m => m.Organization)
-                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active && m.EndDate > DateTime.UtcNow)
+                .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active && m.BillingCycleEndDate > DateTime.UtcNow)
                 .ToListAsync();
 
             var updatedCount = 0;

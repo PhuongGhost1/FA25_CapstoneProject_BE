@@ -118,6 +118,13 @@ public class Program
 
         app.UseHangfireDashboard();
 
+        // Register all recurring background jobs
+        using (var scope = app.Services.CreateScope())
+        {
+            var scheduler = scope.ServiceProvider.GetRequiredService<CusomMapOSM_Infrastructure.BackgroundJobs.BackgroundJobScheduler>();
+            scheduler.RegisterAllRecurringJobs();
+        }
+
         app.UseCors("FrontendCors");
         app.UseAuthentication();
         app.UseAuthorization();

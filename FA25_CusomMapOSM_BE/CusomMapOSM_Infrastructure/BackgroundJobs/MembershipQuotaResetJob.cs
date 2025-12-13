@@ -41,9 +41,9 @@ public class MembershipQuotaResetJob
                 .Include(m => m.Plan)
                 .Include(m => m.Status)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active &&
-                           m.EndDate > today && // Only active memberships
+                           m.BillingCycleEndDate > today && // Only active memberships
                            (m.LastResetDate == null ||
-                            ShouldResetQuota(m.LastResetDate.Value, m.StartDate, today)))
+                            ShouldResetQuota(m.LastResetDate.Value, m.BillingCycleStartDate, today)))
                 .ToListAsync();
 
             var resetCount = 0;

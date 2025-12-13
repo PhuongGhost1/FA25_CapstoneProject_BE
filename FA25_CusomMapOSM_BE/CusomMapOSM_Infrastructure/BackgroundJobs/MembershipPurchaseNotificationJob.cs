@@ -171,8 +171,8 @@ public class MembershipPurchaseNotificationJob
         CusomMapOSM_Domain.Entities.Memberships.Membership membership,
         CusomMapOSM_Domain.Entities.Transactions.Transactions transaction)
     {
-        var startDate = membership.StartDate.ToString("MMMM dd, yyyy");
-        var endDate = membership.EndDate?.ToString("MMMM dd, yyyy") ?? "Ongoing";
+        var startDate = membership.BillingCycleStartDate.ToString("MMMM dd, yyyy");
+        var endDate = membership.BillingCycleEndDate.ToString("MMMM dd, yyyy");
         var autoRenewal = membership.AutoRenew ? "Enabled" : "Disabled";
 
         return EmailTemplates.Membership.GetPurchaseConfirmationTemplate(
@@ -296,7 +296,7 @@ public class MembershipPurchaseNotificationJob
         CusomMapOSM_Domain.Entities.Memberships.Membership membership,
         CusomMapOSM_Domain.Entities.Transactions.Transactions transaction)
     {
-        var newEndDate = membership.EndDate?.ToString("MMMM dd, yyyy") ?? "Ongoing";
+        var newEndDate = membership.BillingCycleEndDate.ToString("MMMM dd, yyyy");
 
         return EmailTemplates.Membership.GetRenewalConfirmationTemplate(
             userName: membership.User!.FullName ?? membership.User.Email,

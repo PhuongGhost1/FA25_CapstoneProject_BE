@@ -33,14 +33,15 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
             .HasColumnName("plan_id")
             .IsRequired();
 
-        builder.Property(m => m.StartDate)
-            .HasColumnName("start_date")
+        builder.Property(m => m.BillingCycleStartDate)
+            .HasColumnName("billing_cycle_start_date")
             .HasColumnType("datetime")
             .IsRequired();
 
-        builder.Property(m => m.EndDate)
-            .HasColumnName("end_date")
-            .HasColumnType("datetime");
+        builder.Property(m => m.BillingCycleEndDate)
+            .HasColumnName("billing_cycle_end_date")
+            .HasColumnType("datetime")
+            .IsRequired();
 
         builder.Property(m => m.Status)
             .HasColumnName("status")

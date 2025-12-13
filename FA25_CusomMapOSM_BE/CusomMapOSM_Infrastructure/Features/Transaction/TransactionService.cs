@@ -164,6 +164,10 @@ public class TransactionService : ITransactionService
         ConfirmPaymentWithContextReq req,
         CancellationToken ct)
     {
+        _logger.LogInformation("=== ConfirmPaymentWithContextAsync START ===");
+        _logger.LogInformation("Purpose: {Purpose}, TransactionId: {TransactionId}, PaymentGateway: {PaymentGateway}, PaymentId: {PaymentId}, OrderCode: {OrderCode}",
+            req.Purpose, req.TransactionId, req.PaymentGateway, req.PaymentId, req.OrderCode);
+
         // 1. If we already have a TransactionId, reuse it
         Transactions transaction;
 
@@ -171,9 +175,14 @@ public class TransactionService : ITransactionService
         {
             var existingTransaction = await _transactionRepository.GetByIdAsync(req.TransactionId, ct);
             if (existingTransaction is null)
+            {
+                _logger.LogError("Transaction not found: {TransactionId}", req.TransactionId);
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Transaction.NotFound", "Transaction not found", ErrorCustom.ErrorType.NotFound));
+            }
 
+            _logger.LogInformation("Found existing transaction: {TransactionId}, Purpose: {Purpose}", 
+                existingTransaction.TransactionId, existingTransaction.Purpose);
             transaction = existingTransaction;
         }
         else
@@ -207,6 +216,9 @@ public class TransactionService : ITransactionService
         var paymentService = GetPaymentService(req.PaymentGateway);
 
         // 3. Confirm payment
+        _logger.LogInformation("Confirming payment with PayOS - PaymentId: {PaymentId}, OrderCode: {OrderCode}", 
+            req.PaymentId, req.OrderCode);
+        
         var confirmed = await paymentService.ConfirmPaymentAsync(new ConfirmPaymentReq
         {
             PaymentGateway = req.PaymentGateway,
@@ -222,13 +234,19 @@ public class TransactionService : ITransactionService
         return await confirmed.Match(
             some: async _ =>
             {
+                _logger.LogInformation("Payment confirmed successfully, updating transaction status");
                 await UpdateTransactionStatusAsync(transaction.TransactionId, "success", ct);
 
                 // 4. Post-payment fulfillment logic using stored context
-                return await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("Processing post-payment fulfillment for purpose: {Purpose}", req.Purpose);
+                var fulfillmentResult = await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("=== ConfirmPaymentWithContextAsync SUCCESS ===");
+                return fulfillmentResult;
             },
             none: async err =>
             {
+                _logger.LogError("Payment confirmation failed: {ErrorCode} - {ErrorMessage}", 
+                    err.Code, err);
                 await UpdateTransactionStatusAsync(transaction.TransactionId, "failed", ct);
                 return Option.None<object, ErrorCustom.Error>(err);
             }
@@ -268,8 +286,8 @@ public class TransactionService : ITransactionService
                         PlanName = plan?.PlanName ?? "Unknown Plan",
                         MembershipId = m.MembershipId,
                         Amount = transaction.Amount,
-                        StartDate = m.StartDate,
-                        EndDate = m.EndDate,
+                        BillingCycleStartDate = m.BillingCycleStartDate,
+                        BillingCycleEndDate = m.BillingCycleEndDate,
                         ProcessedAt = DateTime.UtcNow
                     });
 
@@ -300,6 +318,31 @@ public class TransactionService : ITransactionService
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Context.Invalid", "Missing upgrade context", ErrorCustom.ErrorType.Validation));
 
+            // Check if membership is already on the target plan (idempotency check)
+            // This can happen if this method is called multiple times for the same transaction
+            var currentMembership = await _membershipService.GetCurrentMembershipWithIncludesAsync(
+                context.UserId.Value, context.OrgId.Value, ct);
+            
+            if (currentMembership.HasValue && currentMembership.ValueOrDefault().PlanId == context.PlanId.Value)
+            {
+                // Membership is already on the target plan - upgrade was already processed
+                _logger.LogInformation("Upgrade already processed - membership is already on plan {PlanId}. Returning success (idempotency).", context.PlanId.Value);
+                
+                // Update transaction with existing membership ID if not already set
+                if (!transaction.MembershipId.HasValue && currentMembership.HasValue)
+                {
+                    transaction.MembershipId = currentMembership.ValueOrDefault().MembershipId;
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+                }
+                
+                return Option.Some<object, ErrorCustom.Error>(new
+                {
+                    MembershipId = currentMembership.ValueOrDefault().MembershipId,
+                    TransactionId = transaction.TransactionId,
+                    Message = "Upgrade already processed"
+                });
+            }
+
             var membership = await _membershipService.ChangeSubscriptionPlanAsync(
                 context.UserId.Value,
                 context.OrgId.Value,
@@ -323,8 +366,8 @@ public class TransactionService : ITransactionService
                         PlanName = plan?.PlanName ?? "Unknown Plan",
                         MembershipId = m.MembershipId,
                         Amount = transaction.Amount,
-                        StartDate = m.StartDate,
-                        EndDate = m.EndDate,
+                        BillingCycleStartDate = m.BillingCycleStartDate,
+                        BillingCycleEndDate = m.BillingCycleEndDate,
                         ProcessedAt = DateTime.UtcNow
                     });
 
@@ -344,7 +387,35 @@ public class TransactionService : ITransactionService
                         TransactionId = transaction.TransactionId
                     });
                 },
-                none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
+                none: async err =>
+                {
+                    // Check if error is "SamePlan" - this means upgrade was already processed
+                    if (err.Code == "Membership.SamePlan")
+                    {
+                        _logger.LogInformation("Upgrade failed with SamePlan error - membership is already on target plan. Treating as success (idempotency).");
+                        
+                        // Get current membership to return its ID
+                        if (currentMembership.HasValue)
+                        {
+                            var m = currentMembership.ValueOrDefault();
+                            if (!transaction.MembershipId.HasValue)
+                            {
+                                transaction.MembershipId = m.MembershipId;
+                                await _transactionRepository.UpdateAsync(transaction, ct);
+                            }
+                            
+                            return Option.Some<object, ErrorCustom.Error>(new
+                            {
+                                MembershipId = m.MembershipId,
+                                TransactionId = transaction.TransactionId,
+                                Message = "Upgrade already processed"
+                            });
+                        }
+                    }
+                    
+                    // Real error - return it
+                    return Option.None<object, ErrorCustom.Error>(err);
+                }
             );
         }
 
