@@ -76,6 +76,34 @@ public class ExportRepository : IExportRepository
             .ToListAsync();
     }
 
+    public async Task<(List<Export> Exports, int TotalCount)> GetAllExportsAsync(int page, int pageSize, CusomMapOSM_Domain.Entities.Exports.Enums.ExportStatusEnum? status = null)
+    {
+        var query = _context.Exports
+            .Include(e => e.User)
+            .Include(e => e.Map)
+            .Include(e => e.Membership)
+                .ThenInclude(m => m!.Organization)
+            .AsQueryable();
+
+        // Filter by status if provided
+        if (status.HasValue)
+        {
+            query = query.Where(e => e.Status == status.Value);
+        }
+
+        // Get total count before pagination
+        var totalCount = await query.CountAsync();
+
+        // Apply pagination and ordering
+        var exports = await query
+            .OrderByDescending(e => e.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (exports, totalCount);
+    }
+
     public async Task<Export> CreateAsync(Export export)
     {
         _context.Exports.Add(export);

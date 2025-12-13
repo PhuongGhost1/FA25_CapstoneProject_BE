@@ -52,5 +52,8 @@ public record ExportListResponse
 {
     public required List<ExportResponse> Exports { get; set; }
     public required int Total { get; set; }
+    public int? Page { get; set; }
+    public int? PageSize { get; set; }
+    public int? TotalPages { get; set; }
 }
 

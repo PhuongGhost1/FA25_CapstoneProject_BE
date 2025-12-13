@@ -12,6 +12,7 @@ public interface IExportRepository
     Task<List<Export>> GetByOrganizationIdAsync(Guid organizationId);
     Task<List<Export>> GetPendingExportsAsync();
     Task<List<Export>> GetPendingApprovalExportsAsync();
+    Task<(List<Export> Exports, int TotalCount)> GetAllExportsAsync(int page, int pageSize, ExportStatusEnum? status = null);
     Task<Export> CreateAsync(Export export);
     Task<bool> UpdateAsync(Export export);
     Task<bool> DeleteAsync(int exportId);

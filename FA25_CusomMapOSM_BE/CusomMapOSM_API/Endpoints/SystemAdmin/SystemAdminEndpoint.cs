@@ -228,6 +228,11 @@ public class SystemAdminEndpoint : IEndpoint
             .WithSummary("Get pending approval exports")
             .WithDescription("Retrieve all exports pending admin approval");
 
+        group.MapGet("/exports", GetAllExportsBySystemAdmin)
+            .WithName("GetAllExportsBySystemAdmin")
+            .WithSummary("Get all exports with pagination and filter")
+            .WithDescription("Retrieve all exports (pending, approved, rejected) with pagination and optional status filter");
+
         group.MapPost("/exports/{exportId:int}/approve", ApproveExportBySystemAdmin)
             .WithName("ApproveExportBySystemAdmin")
             .WithSummary("Approve export")
@@ -897,6 +902,36 @@ public class SystemAdminEndpoint : IEndpoint
             return Results.Forbid();
 
         var result = await exportService.GetPendingApprovalExportsAsync();
+        return result.Match(
+            some: data => Results.Ok(data),
+            none: error => error.ToProblemDetailsResult()
+        );
+    }
+
+    private static async Task<IResult> GetAllExportsBySystemAdmin(
+        [FromServices] IExportService exportService,
+        [FromQuery] int page,
+        [FromQuery] int pageSize,
+        [FromQuery] int? status,
+        ClaimsPrincipal user,
+        ISystemAdminService systemAdminService,
+        CancellationToken ct)
+    {
+        if (!await IsSystemAdmin(user, systemAdminService, ct))
+            return Results.Forbid();
+
+        // Set defaults
+        if (page <= 0) page = 1;
+        if (pageSize <= 0 || pageSize > 100) pageSize = 20;
+
+        // Convert status int to enum if provided
+        CusomMapOSM_Domain.Entities.Exports.Enums.ExportStatusEnum? statusEnum = null;
+        if (status.HasValue && Enum.IsDefined(typeof(CusomMapOSM_Domain.Entities.Exports.Enums.ExportStatusEnum), status.Value))
+        {
+            statusEnum = (CusomMapOSM_Domain.Entities.Exports.Enums.ExportStatusEnum)status.Value;
+        }
+
+        var result = await exportService.GetAllExportsAsync(page, pageSize, statusEnum);
         return result.Match(
             some: data => Results.Ok(data),
             none: error => error.ToProblemDetailsResult()

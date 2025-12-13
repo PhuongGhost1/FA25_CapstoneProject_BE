@@ -420,7 +420,6 @@ public class SystemAdminService : ISystemAdminService
                 Description = request.Description,
                 PriceMonthly = request.PriceMonthly,
                 DurationMonths = 12,
-                MaxOrganizations = 10,
                 MaxLocationsPerOrg = 10,
                 MaxMapsPerMonth = request.MapsLimit,
                 MaxUsersPerOrg = 10,
