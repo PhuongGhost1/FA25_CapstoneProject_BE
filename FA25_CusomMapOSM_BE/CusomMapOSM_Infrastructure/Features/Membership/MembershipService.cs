@@ -554,7 +554,7 @@ public class MembershipService : IMembershipService
             {
                 PlanName = plan.PlanName,
                 PriceMonthly = plan.PriceMonthly ?? 0,
-                OrganizationMax = ToNullableInt(plan.MaxOrganizations),
+                OrganizationMax = null,
                 LocationMax = ToNullableInt(plan.MaxLocationsPerOrg),
                 ViewsMonthly = ToNullableInt(plan.MaxInteractionsPerMap),
                 MapsMax = ToNullableInt(plan.MaxMapsPerMonth),

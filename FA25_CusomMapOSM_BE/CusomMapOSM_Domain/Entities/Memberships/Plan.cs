@@ -9,7 +9,6 @@ public class Plan
     public string? Description { get; set; }
     public decimal? PriceMonthly { get; set; }
     public int DurationMonths { get; set; }
-    public int MaxOrganizations { get; set; }
     public int MaxLocationsPerOrg { get; set; }
     public int MaxMapsPerMonth { get; set; }
     public int MaxUsersPerOrg { get; set; }

@@ -40,10 +40,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
             .HasColumnName("duration_months")
             .IsRequired();
 
-        builder.Property(p => p.MaxOrganizations)
-            .HasColumnName("max_organizations")
-            .IsRequired();
-
         builder.Property(p => p.MaxLocationsPerOrg)
             .HasColumnName("max_locations_per_org")
             .IsRequired();
@@ -104,8 +100,7 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 Description = "Perfect for getting started. Explore basic mapping features at no cost.",
                 PriceMonthly = 0.00m,
                 DurationMonths = 1,
-                MaxOrganizations = 1,
-                MaxLocationsPerOrg = 5, 
+                MaxLocationsPerOrg = 5,
                 MaxMapsPerMonth = 10, 
                 MaxUsersPerOrg = 3, 
                 MapQuota = 20, 
@@ -124,7 +119,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 Description = "Ideal for small teams and individual professionals who need more features.",
                 PriceMonthly = 9.99m,
                 DurationMonths = 1,
-                MaxOrganizations = 2,
                 MaxLocationsPerOrg = 10,
                 MaxMapsPerMonth = 50,
                 MaxUsersPerOrg = 10,
@@ -144,7 +138,6 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 Description = "Advanced features for growing businesses and professional teams.",
                 PriceMonthly = 29.99m,
                 DurationMonths = 1,
-                MaxOrganizations = 10,
                 MaxLocationsPerOrg = 50,
                 MaxMapsPerMonth = 200,
                 MaxUsersPerOrg = 50,
@@ -162,9 +155,8 @@ internal class MembershipPlanConfiguration : IEntityTypeConfiguration<Plan>
                 PlanId = 4,
                 PlanName = MembershipPlanTypeEnum.Enterprise.ToString(),
                 Description = "Full-featured solution with unlimited resources for large organizations.",
-                PriceMonthly = 149.99m, 
+                PriceMonthly = 149.99m,
                 DurationMonths = 1,
-                MaxOrganizations = -1, 
                 MaxLocationsPerOrg = -1, 
                 MaxMapsPerMonth = -1, 
                 MaxUsersPerOrg = -1, 
