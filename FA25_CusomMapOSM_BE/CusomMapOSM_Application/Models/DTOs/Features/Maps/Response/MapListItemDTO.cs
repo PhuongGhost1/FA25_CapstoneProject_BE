@@ -19,8 +19,10 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Response
         public Guid OwnerId { get; set; }
         public string OwnerName { get; set; }
         public bool IsOwner { get; set; }
-        
+
         public string? WorkspaceName { get; set; }
+
+        public int? Views { get; set; }
     }
 }
 

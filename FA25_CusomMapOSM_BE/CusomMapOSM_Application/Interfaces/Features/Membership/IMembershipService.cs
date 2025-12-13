@@ -1,3 +1,4 @@
+using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using DomainMembershipUsage = CusomMapOSM_Domain.Entities.Memberships.MembershipUsage;
 using Optional;
@@ -20,4 +21,10 @@ public interface IMembershipService
 
     // Method to get current membership with all related data
     Task<Option<DomainMembership, ErrorCustom.Error>> GetCurrentMembershipWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct);
+
+    // Method to get membership by ID
+    Task<Option<DomainMembership, ErrorCustom.Error>> GetMembershipByIdAsync(Guid membershipId, CancellationToken ct = default);
+
+    // Method to get plan limits by plan ID
+    Task<Option<PlanLimitsResponse, ErrorCustom.Error>> GetPlanLimitsAsync(int planId, CancellationToken ct = default);
 }
