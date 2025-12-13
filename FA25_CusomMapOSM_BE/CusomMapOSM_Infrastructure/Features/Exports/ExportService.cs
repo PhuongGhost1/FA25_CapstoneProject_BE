@@ -9,6 +9,7 @@ using CusomMapOSM_Application.Models.DTOs.Features.Exports;
 using CusomMapOSM_Domain.Entities.Exports;
 using CusomMapOSM_Domain.Entities.Exports.Enums;
 using CusomMapOSM_Domain.Entities.Memberships.Enums;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Exports;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
@@ -23,8 +24,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 
 namespace CusomMapOSM_Infrastructure.Features.Exports;
 
@@ -55,6 +58,7 @@ public class ExportService : IExportService
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IMapFeatureStore _mapFeatureStore;
     private readonly ILayerDataStore _layerDataStore;
+    private readonly IOrganizationRepository _organizationRepository;
     private readonly ILogger<ExportService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
 
@@ -72,7 +76,7 @@ public class ExportService : IExportService
         IMapFeatureStore mapFeatureStore,
         ILayerDataStore layerDataStore,
         ILogger<ExportService> logger,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory, IOrganizationRepository organizationRepository)
     {
         _exportRepository = exportRepository;
         _currentUserService = currentUserService;
@@ -88,6 +92,7 @@ public class ExportService : IExportService
         _layerDataStore = layerDataStore;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        _organizationRepository = organizationRepository;
     }
 
     public async Task<Option<ExportResponse, Error>> CreateExportAsync(CreateExportRequest request)
@@ -446,19 +451,30 @@ public class ExportService : IExportService
                     Error.Unauthorized("Export.Unauthorized", "User must be authenticated"));
             }
 
-            // Verify user is a member of the organization
-            var membership = await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, organizationId, CancellationToken.None);
-            if (membership == null)
+            // Verify user is an active member of the organization
+            var members = await _organizationRepository.GetOrganizationMembers(organizationId);
+            var currentUserMember = members?.FirstOrDefault(m => m.UserId == currentUserId.Value && m.Status == MemberStatus.Active);
+
+            if (currentUserMember == null)
             {
                 return Option.None<ExportListResponse, Error>(
-                    Error.NotFound("Membership.NotFound", "User is not a member of this organization"));
+                    Error.NotFound("Member.NotFound", "User is not an active member of this organization"));
             }
 
-            // Check membership status is Active
-            if (membership.Status != MembershipStatusEnum.Active)
+            // Get the organization to check owner's membership
+            var organization = await _organizationRepository.GetOrganizationById(organizationId);
+            if (organization == null)
             {
                 return Option.None<ExportListResponse, Error>(
-                    Error.Forbidden("Membership.Inactive", "Membership is not active"));
+                    Error.NotFound("Organization.NotFound", "Organization not found"));
+            }
+
+            // Check if the organization has an active membership (through the owner)
+            var organizationMembership = await _membershipRepository.GetByUserOrgAsync(organization.OwnerUserId, organizationId, CancellationToken.None);
+            if (organizationMembership == null || organizationMembership.Status != MembershipStatusEnum.Active)
+            {
+                return Option.None<ExportListResponse, Error>(
+                    Error.Forbidden("Organization.Membership.Inactive", "Organization does not have an active membership"));
             }
 
             // Get all exports for the organization

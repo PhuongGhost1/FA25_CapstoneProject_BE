@@ -13,7 +13,7 @@ public class ExceptionMiddleware(ILogger<ExceptionMiddleware> logger, IHostEnvir
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception occurred while processing {Path}", context.Request.Path);
+            logger.LogError(ex, "Unhandled exception occurred while processing {Path} : {ex}", context.Request.Path,ex.Message);
 
             context.Response.Clear();
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

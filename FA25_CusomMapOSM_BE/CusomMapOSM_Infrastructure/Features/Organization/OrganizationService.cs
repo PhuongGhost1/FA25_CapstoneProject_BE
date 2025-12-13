@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Organization;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Services.User;
@@ -14,6 +14,7 @@ using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using Optional;
@@ -35,12 +36,13 @@ public class OrganizationService : IOrganizationService
     private readonly IMembershipService _membershipService;
     private readonly IJwtService _jwtService;
     private readonly IWorkspaceRepository _workspaceRepository;
+    private readonly IMembershipRepository _membershipRepository;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
         ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService,
         IMembershipService membershipService, IJwtService jwtService,
-        IWorkspaceRepository workspaceRepository)
+        IWorkspaceRepository workspaceRepository, IMembershipRepository membershipRepository)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
@@ -50,6 +52,7 @@ public class OrganizationService : IOrganizationService
         _membershipService = membershipService;
         _jwtService = jwtService;
         _workspaceRepository = workspaceRepository;
+        _membershipRepository = membershipRepository;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -134,7 +137,6 @@ public class OrganizationService : IOrganizationService
                 some: _ => (Error)null!,
                 none: err => err
             );
-            Console.WriteLine($"Failed to create free membership for user {currentUserId} in organization {createdOrg.OrgId}: {error?.Description}");
         }
 
         // Auto-create default workspace for the organization
@@ -299,6 +301,7 @@ public class OrganizationService : IOrganizationService
     public async Task<Option<InviteMemberOrganizationResDto, Error>> InviteMember(InviteMemberOrganizationReqDto req)
     {
         var currentUserId = _currentUserService.GetUserId();
+
         if (currentUserId is null)
         {
             return Option.None<InviteMemberOrganizationResDto, Error>(
@@ -320,12 +323,25 @@ public class OrganizationService : IOrganizationService
         if (currentUser != null && !string.IsNullOrEmpty(currentUser.Email))
         {
             var normalizedCurrentEmail = currentUser.Email.Trim().ToLowerInvariant();
+
             if (normalizedInviteEmail == normalizedCurrentEmail)
             {
                 return Option.None<InviteMemberOrganizationResDto, Error>(
                     Error.ValidationError("Organization.CannotInviteSelf",
                         "You cannot invite yourself to the organization"));
             }
+        }
+        else
+        {
+        }
+
+        // Additional check: If the invited user exists and is the same as current user, block invitation
+        var invitedUser = await _authenticationRepository.GetUserByEmail(req.MemberEmail);
+        if (invitedUser != null && invitedUser.UserId == currentUserId.Value)
+        {
+            return Option.None<InviteMemberOrganizationResDto, Error>(
+                Error.ValidationError("Organization.CannotInviteSelf",
+                    "You cannot invite yourself to the organization"));
         }
 
         // Check if organization has active membership and quota available
@@ -337,7 +353,7 @@ public class OrganizationService : IOrganizationService
         }
 
         // Check if the invited email is already a member of the organization
-        var invitedUser = await _authenticationRepository.GetUserByEmail(req.MemberEmail);
+        // invitedUser is already fetched above for self-invitation check
         if (invitedUser != null)
         {
             var existingMember = await _organizationRepository.GetOrganizationMemberByUserAndOrg(invitedUser.UserId, req.OrgId);
@@ -984,6 +1000,13 @@ public class OrganizationService : IOrganizationService
                 Error.Unauthorized("Organization.Unauthorized", "User not authenticated"));
         }
 
+        // Prevent self-transfer
+        if (req.NewOwnerId == currentUserId.Value)
+        {
+            return Option.None<TransferOwnershipResDto, Error>(
+                Error.ValidationError("Organization.CannotTransferToSelf", "You cannot transfer ownership to yourself"));
+        }
+
         var organization = await _organizationRepository.GetOrganizationById(orgId);
         if (organization is null)
         {
@@ -1004,22 +1027,102 @@ public class OrganizationService : IOrganizationService
             return Option.None<TransferOwnershipResDto, Error>(Error.Forbidden("Organization.NotOwner", "Only the current owner can transfer ownership"));
         }
 
-        // Update new owner's role to Owner
-        newOwnerMember.Role = OrganizationMemberTypeEnum.Owner;
-        var updateNewOwnerResult = await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
+        // Store original roles for rollback
+        var originalNewOwnerRole = newOwnerMember.Role;
+        var originalCurrentOwnerRole = currentOwnerMember.Role;
+        DomainMembership? oldOwnerMembership = null;
+        Guid? originalMembershipUserId = null;
 
-        if (!updateNewOwnerResult)
+        // Use transaction-like approach to ensure atomicity
+        try
         {
-            return Option.None<TransferOwnershipResDto, Error>(
-                Error.Failure("Organization.TransferOwnershipFailed", "Failed to transfer ownership"));
+            // Update new owner's role to Owner
+            newOwnerMember.Role = OrganizationMemberTypeEnum.Owner;
+            var updateNewOwnerResult = await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
+
+            if (!updateNewOwnerResult)
+            {
+                return Option.None<TransferOwnershipResDto, Error>(
+                    Error.Failure("Organization.TransferOwnershipFailed", "Failed to update new owner role"));
+            }
+
+            // Demote current owner to Admin (keep them as admin for continued access)
+            currentOwnerMember.Role = OrganizationMemberTypeEnum.Admin;
+            var updateCurrentOwnerResult = await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
+
+            if (!updateCurrentOwnerResult)
+            {
+                // Rollback new owner role change
+                newOwnerMember.Role = originalNewOwnerRole;
+                await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
+
+                return Option.None<TransferOwnershipResDto, Error>(
+                    Error.Failure("Organization.TransferOwnershipFailed", "Failed to update current owner role"));
+            }
+
+            // Update organization owner
+            organization.OwnerUserId = req.NewOwnerId;
+            var updateOrganizationResult = await _organizationRepository.UpdateOrganization(organization);
+
+            if (!updateOrganizationResult)
+            {
+                // Rollback member role changes
+                newOwnerMember.Role = originalNewOwnerRole;
+                await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
+                currentOwnerMember.Role = originalCurrentOwnerRole;
+                await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
+
+                return Option.None<TransferOwnershipResDto, Error>(
+                    Error.Failure("Organization.TransferOwnershipFailed", "Failed to update organization owner"));
+            }
+
+            // Transfer membership from old owner to new owner
+            // Find membership owned by old owner for this organization
+            oldOwnerMembership = await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, orgId, CancellationToken.None);
+            if (oldOwnerMembership != null)
+            {
+                // Store original UserId for rollback
+                originalMembershipUserId = oldOwnerMembership.UserId;
+                
+                // Update membership to belong to new owner
+                oldOwnerMembership.UserId = req.NewOwnerId;
+                oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
+                await _membershipRepository.UpsertAsync(oldOwnerMembership, CancellationToken.None);
+            }
+
+            return Option.Some<TransferOwnershipResDto, Error>(
+                new TransferOwnershipResDto { Result = "Ownership transferred successfully" });
         }
+        catch (Exception ex)
+        {
+            // Attempt rollback on exception
+            try
+            {
+                newOwnerMember.Role = originalNewOwnerRole;
+                await _organizationRepository.UpdateOrganizationMember(newOwnerMember);
+                currentOwnerMember.Role = originalCurrentOwnerRole;
+                await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
+                organization.OwnerUserId = currentUserId.Value; // Restore original owner
+                await _organizationRepository.UpdateOrganization(organization);
+                
+                // Rollback membership transfer if it was changed
+                if (oldOwnerMembership != null && originalMembershipUserId.HasValue && oldOwnerMembership.UserId != originalMembershipUserId.Value)
+                {
+                    oldOwnerMembership.UserId = originalMembershipUserId.Value;
+                    oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
+                    await _membershipRepository.UpsertAsync(oldOwnerMembership, CancellationToken.None);
+                }
+            }
+            catch
+            {
+                // Log that rollback failed but don't throw
+                Console.WriteLine("Failed to rollback ownership transfer changes");
+            }
 
-        // Demote current owner to Admin
-        currentOwnerMember.Role = OrganizationMemberTypeEnum.Admin;
-        await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
-
-        return Option.Some<TransferOwnershipResDto, Error>(
-            new TransferOwnershipResDto { Result = "Ownership transferred successfully" });
+            Console.WriteLine($"Error during ownership transfer: {ex.Message}");
+            return Option.None<TransferOwnershipResDto, Error>(
+                Error.Failure("Organization.TransferOwnershipFailed", "An error occurred during ownership transfer"));
+        }
 
     }
     

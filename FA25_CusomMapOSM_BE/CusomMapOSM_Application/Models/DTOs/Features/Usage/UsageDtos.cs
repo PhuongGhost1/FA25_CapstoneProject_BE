@@ -46,3 +46,21 @@ public record CheckQuotaResponse
     public required int RemainingQuota { get; set; }
     public required string Message { get; set; }
 }
+
+public record PlanLimitsResponse
+{
+    public required string PlanName { get; set; }
+    public required decimal PriceMonthly { get; set; }
+    public int? OrganizationMax { get; set; }
+    public int? LocationMax { get; set; }
+    public int? ViewsMonthly { get; set; }
+    public int? MapsMax { get; set; }
+    public int? MembersMax { get; set; }
+    public int? MapQuota { get; set; }
+    public int? ExportQuota { get; set; }
+    public int? MaxLayer { get; set; }
+    public int? TokenMonthly { get; set; }
+    public long? MediaFileMax { get; set; }
+    public long? VideoFileMax { get; set; }
+    public long? AudioFileMax { get; set; }
+}

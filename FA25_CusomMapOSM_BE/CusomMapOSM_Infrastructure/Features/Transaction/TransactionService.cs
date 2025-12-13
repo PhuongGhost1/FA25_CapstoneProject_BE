@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Commons.Constant;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
@@ -111,8 +112,8 @@ public class TransactionService : ITransactionService
         _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
-        var returnUrl = $"http://localhost:3000/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
-        var cancelUrl = $"http://localhost:3000/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
+        var returnUrl = $"{FrontendConstant.FRONTEND_BASE_URL}/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"{FrontendConstant.FRONTEND_BASE_URL}/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
 
         _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
 

@@ -3,6 +3,7 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Features.Membership;
 using FluentAssertions;
 using Moq;
@@ -16,6 +17,7 @@ public class MembershipServiceTests
 {
     private readonly Mock<IMembershipRepository> _mockMembershipRepository;
     private readonly Mock<IMembershipPlanRepository> _mockMembershipPlanRepository;
+    private readonly Mock<IOrganizationRepository> _mockOrganizationRepository;
     private readonly MembershipService _membershipService;
     private readonly Faker _faker;
 
@@ -23,7 +25,8 @@ public class MembershipServiceTests
     {
         _mockMembershipRepository = new Mock<IMembershipRepository>();
         _mockMembershipPlanRepository = new Mock<IMembershipPlanRepository>();
-        _membershipService = new MembershipService(_mockMembershipRepository.Object, _mockMembershipPlanRepository.Object);
+        _mockOrganizationRepository = new Mock<IOrganizationRepository>();
+        _membershipService = new MembershipService(_mockMembershipRepository.Object, _mockMembershipPlanRepository.Object, _mockOrganizationRepository.Object);
         _faker = new Faker();
     }
 

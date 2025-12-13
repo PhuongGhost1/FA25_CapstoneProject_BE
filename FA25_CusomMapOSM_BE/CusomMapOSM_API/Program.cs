@@ -86,12 +86,6 @@ public class Program
         builder.Services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "ready" });
 
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.Configuration = RedisConstant.REDIS_CONNECTION_STRING;
-            options.InstanceName = "IMOS:";
-        });
-        
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("FrontendCors", policy =>

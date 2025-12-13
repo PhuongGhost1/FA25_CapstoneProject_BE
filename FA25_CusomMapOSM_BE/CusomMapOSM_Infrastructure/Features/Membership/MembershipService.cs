@@ -1,8 +1,12 @@
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
+using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using DomainMembershipUsage = CusomMapOSM_Domain.Entities.Memberships.MembershipUsage;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
+using CusomMapOSM_Domain.Entities.Memberships;
 using Microsoft.EntityFrameworkCore;
 using Optional;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
@@ -14,13 +18,16 @@ public class MembershipService : IMembershipService
 {
     private readonly IMembershipRepository _membershipRepository;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly IOrganizationRepository _organizationRepository;
 
     public MembershipService(
         IMembershipRepository membershipRepository,
-        IMembershipPlanRepository membershipPlanRepository)
+        IMembershipPlanRepository membershipPlanRepository,
+        IOrganizationRepository organizationRepository)
     {
         _membershipRepository = membershipRepository;
         _membershipPlanRepository = membershipPlanRepository;
+        _organizationRepository = organizationRepository;
     }
 
     public async Task<Option<DomainMembership, ErrorCustom.Error>> CreateOrRenewMembershipAsync(Guid userId, Guid orgId, int planId, bool autoRenew, CancellationToken ct)
@@ -194,6 +201,21 @@ public class MembershipService : IMembershipService
     {
         try
         {
+            // Get the organization to verify ownership
+            var organization = await _organizationRepository.GetOrganizationById(orgId);
+            if (organization == null)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Organization.NotFound", "Organization not found", ErrorCustom.ErrorType.NotFound));
+            }
+
+            // Only organization owner can change subscription plans
+            if (organization.OwnerUserId != userId)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotOwner", "Only the organization owner can change subscription plans", ErrorCustom.ErrorType.Forbidden));
+            }
+
             // Validate the new plan exists and is active
             var newPlan = await _membershipPlanRepository.GetPlanByIdAsync(newPlanId, ct);
             if (newPlan == null)
@@ -202,12 +224,12 @@ public class MembershipService : IMembershipService
                     new ErrorCustom.Error("Membership.PlanNotFound", "New plan not found or inactive", ErrorCustom.ErrorType.NotFound));
             }
 
-            // Get current membership
+            // Get current membership (organization's membership owned by the owner)
             var currentMembership = await _membershipRepository.GetByUserOrgAsync(userId, orgId, ct);
             if (currentMembership == null)
             {
                 return Option.None<DomainMembership, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Membership.NotFound", "No active membership found for user and organization", ErrorCustom.ErrorType.NotFound));
+                    new ErrorCustom.Error("Membership.NotFound", "No active membership found for organization", ErrorCustom.ErrorType.NotFound));
             }
 
             // Check if it's the same plan
@@ -459,15 +481,99 @@ public class MembershipService : IMembershipService
     {
         try
         {
+            // First try to get the user's individual membership
             var membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(userId, orgId, ct);
-            return membership != null
-                ? Option.Some<DomainMembership, ErrorCustom.Error>(membership)
-                : Option.None<DomainMembership, ErrorCustom.Error>(new ErrorCustom.Error("Membership.NotFound", "No active membership found for user and organization", ErrorCustom.ErrorType.NotFound));
+            if (membership != null)
+            {
+                return Option.Some<DomainMembership, ErrorCustom.Error>(membership);
+            }
+
+            // If no individual membership found, check if user is a member of an organization
+            // and return the organization's membership (owned by the organization owner)
+            var organization = await _organizationRepository.GetOrganizationById(orgId);
+            if (organization != null)
+            {
+                // Check if the user is an active member of this organization
+                var members = await _organizationRepository.GetOrganizationMembers(orgId);
+                var userMember = members?.FirstOrDefault(m => m.UserId == userId && m.Status == CusomMapOSM_Domain.Entities.Organizations.Enums.MemberStatus.Active);
+
+                if (userMember != null)
+                {
+                    // User is a member, get the organization's membership (owner's membership)
+                    var orgMembership = await _membershipRepository.GetByUserOrgWithIncludesAsync(organization.OwnerUserId, orgId, ct);
+                    if (orgMembership != null)
+                    {
+                        return Option.Some<DomainMembership, ErrorCustom.Error>(orgMembership);
+                    }
+                }
+            }
+
+            return Option.None<DomainMembership, ErrorCustom.Error>(new ErrorCustom.Error("Membership.NotFound", "No active membership found", ErrorCustom.ErrorType.NotFound));
         }
         catch (Exception ex)
         {
             return Option.None<DomainMembership, ErrorCustom.Error>(
                 new ErrorCustom.Error("Membership.GetFailed", $"Failed to get current membership: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    public async Task<Option<DomainMembership, ErrorCustom.Error>> GetMembershipByIdAsync(Guid membershipId, CancellationToken ct = default)
+    {
+        try
+        {
+            var membership = await _membershipRepository.GetByIdAsync(membershipId, ct);
+            if (membership == null)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotFound", "Membership not found", ErrorCustom.ErrorType.NotFound));
+            }
+            return Option.Some<DomainMembership, ErrorCustom.Error>(membership);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<DomainMembership, ErrorCustom.Error>(
+                new ErrorCustom.Error("Membership.GetFailed", $"Failed to get membership: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    public async Task<Option<PlanLimitsResponse, ErrorCustom.Error>> GetPlanLimitsAsync(int planId, CancellationToken ct = default)
+    {
+        try
+        {
+            var plan = await _membershipPlanRepository.GetPlanByIdAsync(planId, ct);
+            if (plan == null)
+            {
+                return Option.None<PlanLimitsResponse, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Plan.NotFound", $"Plan with ID '{planId}' not found", ErrorCustom.ErrorType.NotFound));
+            }
+
+            static int? ToNullableInt(int value) => value == -1 ? null : value;
+            static long? ToNullableLong(long value) => value == -1 ? null : value;
+
+            var response = new PlanLimitsResponse
+            {
+                PlanName = plan.PlanName,
+                PriceMonthly = plan.PriceMonthly ?? 0,
+                OrganizationMax = ToNullableInt(plan.MaxOrganizations),
+                LocationMax = ToNullableInt(plan.MaxLocationsPerOrg),
+                ViewsMonthly = ToNullableInt(plan.MaxInteractionsPerMap),
+                MapsMax = ToNullableInt(plan.MaxMapsPerMonth),
+                MembersMax = ToNullableInt(plan.MaxUsersPerOrg),
+                MapQuota = ToNullableInt(plan.MapQuota),
+                ExportQuota = ToNullableInt(plan.ExportQuota),
+                MaxLayer = ToNullableInt(plan.MaxCustomLayers),
+                TokenMonthly = ToNullableInt(plan.MonthlyTokens),
+                MediaFileMax = ToNullableLong(plan.MaxMediaFileSizeBytes),
+                VideoFileMax = ToNullableLong(plan.MaxVideoFileSizeBytes),
+                AudioFileMax = ToNullableLong(plan.MaxAudioFileSizeBytes)
+            };
+
+            return Option.Some<PlanLimitsResponse, ErrorCustom.Error>(response);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<PlanLimitsResponse, ErrorCustom.Error>(
+                new ErrorCustom.Error("Plan.GetLimitsFailed", $"Failed to get plan limits: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }
     }
 }

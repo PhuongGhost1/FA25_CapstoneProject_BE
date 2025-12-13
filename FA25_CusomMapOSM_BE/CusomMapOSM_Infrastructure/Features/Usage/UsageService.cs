@@ -3,6 +3,7 @@ using CusomMapOSM_Application.Interfaces.Features.Notifications;
 using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships;
 using Optional;
 using CusomMapOSM_Application.Common.Errors;
@@ -163,6 +164,10 @@ public class UsageService : IUsageService
             var usage = usageResult.ValueOrDefault();
             var quotas = CreateUsageQuotas(usage, membership.Plan);
 
+            // Get total active members in the organization
+            var members = await _organizationRepository.GetOrganizationMembers(orgId);
+            var activeMembersCount = members?.Count(m => m.Status == CusomMapOSM_Domain.Entities.Organizations.Enums.MemberStatus.Active) ?? 0;
+
             return Option.Some<OrganizationUsageResponse, Error>(new OrganizationUsageResponse
             {
                 OrganizationId = orgId,
@@ -170,7 +175,7 @@ public class UsageService : IUsageService
                 MembershipId = membership.MembershipId,
                 PlanName = membership.Plan?.PlanName ?? "Unknown",
                 Quotas = quotas,
-                TotalMembers = 1, // This would need to be calculated from organization members
+                TotalMembers = activeMembersCount,
                 LastResetDate = usage.CycleStartDate,
                 NextResetDate = usage.CycleEndDate
             });

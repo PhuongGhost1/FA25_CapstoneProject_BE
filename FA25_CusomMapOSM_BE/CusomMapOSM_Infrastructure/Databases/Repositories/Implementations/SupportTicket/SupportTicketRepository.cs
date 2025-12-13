@@ -60,6 +60,7 @@ public class SupportTicketRepository : ISupportTicketRepository
     {
         var supportTickets = await _context.SupportTickets
             .Include(t => t.User)
+            .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
