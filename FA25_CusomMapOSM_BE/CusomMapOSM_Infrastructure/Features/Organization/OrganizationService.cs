@@ -1030,7 +1030,7 @@ public class OrganizationService : IOrganizationService
         // Store original roles for rollback
         var originalNewOwnerRole = newOwnerMember.Role;
         var originalCurrentOwnerRole = currentOwnerMember.Role;
-        DomainMembership? oldOwnerMembership = null;
+        CusomMapOSM_Domain.Entities.Memberships.Membership? oldOwnerMembership = null;
         Guid? originalMembershipUserId = null;
 
         // Use transaction-like approach to ensure atomicity

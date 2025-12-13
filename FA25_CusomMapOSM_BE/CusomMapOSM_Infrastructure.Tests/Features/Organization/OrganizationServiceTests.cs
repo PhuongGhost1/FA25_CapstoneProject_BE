@@ -12,6 +12,7 @@ using CusomMapOSM_Domain.Entities.Organizations.Enums;
 using DomainUser = CusomMapOSM_Domain.Entities.Users;
 using CusomMapOSM_Domain.Entities.Users.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
@@ -41,6 +42,7 @@ public class OrganizationServiceTests
     private readonly Mock<IMembershipService> _mockMembershipService;
     private readonly Mock<IJwtService> _mockJwtService;
     private readonly Mock<IWorkspaceRepository> _mockWorkspaceRepository;
+    private readonly Mock<IMembershipRepository> _mockMembershipRepository;
     private readonly OrganizationService _organizationService;
     private readonly Faker _faker;
 
@@ -62,7 +64,8 @@ public class OrganizationServiceTests
         _mockMembershipService = new Mock<IMembershipService>();
         _mockJwtService = new Mock<IJwtService>();
         _mockWorkspaceRepository = new Mock<IWorkspaceRepository>();
-
+        _mockMembershipRepository = new Mock<IMembershipRepository>();
+        
         _organizationService = new OrganizationService(
             _mockOrganizationRepository.Object,
             _mockAuthenticationRepository.Object,
@@ -71,7 +74,8 @@ public class OrganizationServiceTests
             _mockHangfireEmailService.Object,
             _mockMembershipService.Object,
             _mockJwtService.Object,
-            _mockWorkspaceRepository.Object
+            _mockWorkspaceRepository.Object,
+            _mockMembershipRepository.Object
         );
         _faker = new Faker();
     }
