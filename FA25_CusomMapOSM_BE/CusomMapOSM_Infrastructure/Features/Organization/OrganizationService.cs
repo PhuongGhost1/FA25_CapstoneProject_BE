@@ -14,6 +14,7 @@ using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Authentication;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Type;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using CusomMapOSM_Infrastructure.Services;
 using CusomMapOSM_Application.Interfaces.Services.Jwt;
 using Optional;
@@ -35,12 +36,13 @@ public class OrganizationService : IOrganizationService
     private readonly IMembershipService _membershipService;
     private readonly IJwtService _jwtService;
     private readonly IWorkspaceRepository _workspaceRepository;
+    private readonly IMembershipRepository _membershipRepository;
 
     public OrganizationService(IOrganizationRepository organizationRepository,
         IAuthenticationRepository authenticationRepository, ITypeRepository typeRepository,
         ICurrentUserService currentUserService, HangfireEmailService hangfireEmailService,
         IMembershipService membershipService, IJwtService jwtService,
-        IWorkspaceRepository workspaceRepository)
+        IWorkspaceRepository workspaceRepository, IMembershipRepository membershipRepository)
     {
         _organizationRepository = organizationRepository;
         _authenticationRepository = authenticationRepository;
@@ -50,6 +52,7 @@ public class OrganizationService : IOrganizationService
         _membershipService = membershipService;
         _jwtService = jwtService;
         _workspaceRepository = workspaceRepository;
+        _membershipRepository = membershipRepository;
     }
 
     public async Task<Option<OrganizationResDto, Error>> Create(OrganizationReqDto req)
@@ -1027,6 +1030,8 @@ public class OrganizationService : IOrganizationService
         // Store original roles for rollback
         var originalNewOwnerRole = newOwnerMember.Role;
         var originalCurrentOwnerRole = currentOwnerMember.Role;
+        DomainMembership? oldOwnerMembership = null;
+        Guid? originalMembershipUserId = null;
 
         // Use transaction-like approach to ensure atomicity
         try
@@ -1071,6 +1076,20 @@ public class OrganizationService : IOrganizationService
                     Error.Failure("Organization.TransferOwnershipFailed", "Failed to update organization owner"));
             }
 
+            // Transfer membership from old owner to new owner
+            // Find membership owned by old owner for this organization
+            oldOwnerMembership = await _membershipRepository.GetByUserOrgAsync(currentUserId.Value, orgId, CancellationToken.None);
+            if (oldOwnerMembership != null)
+            {
+                // Store original UserId for rollback
+                originalMembershipUserId = oldOwnerMembership.UserId;
+                
+                // Update membership to belong to new owner
+                oldOwnerMembership.UserId = req.NewOwnerId;
+                oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
+                await _membershipRepository.UpsertAsync(oldOwnerMembership, CancellationToken.None);
+            }
+
             return Option.Some<TransferOwnershipResDto, Error>(
                 new TransferOwnershipResDto { Result = "Ownership transferred successfully" });
         }
@@ -1085,6 +1104,14 @@ public class OrganizationService : IOrganizationService
                 await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
                 organization.OwnerUserId = currentUserId.Value; // Restore original owner
                 await _organizationRepository.UpdateOrganization(organization);
+                
+                // Rollback membership transfer if it was changed
+                if (oldOwnerMembership != null && originalMembershipUserId.HasValue && oldOwnerMembership.UserId != originalMembershipUserId.Value)
+                {
+                    oldOwnerMembership.UserId = originalMembershipUserId.Value;
+                    oldOwnerMembership.UpdatedAt = DateTime.UtcNow;
+                    await _membershipRepository.UpsertAsync(oldOwnerMembership, CancellationToken.None);
+                }
             }
             catch
             {

@@ -1075,7 +1075,7 @@ public class MapEndpoints : IEndpoint
                 statusCode: 500
             );
         }
-
         
+
     }
 }

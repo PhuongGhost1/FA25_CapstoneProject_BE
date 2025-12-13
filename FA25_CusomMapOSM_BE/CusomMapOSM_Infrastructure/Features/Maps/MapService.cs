@@ -2,6 +2,7 @@ using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Common.Mappers;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
 using CusomMapOSM_Application.Interfaces.Features.SystemAdmin;
+using CusomMapOSM_Application.Interfaces.Features.Usage;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
@@ -42,6 +43,7 @@ public class MapService : IMapService
     private readonly IOrganizationPermissionService _organizationPermissionService;
     private readonly ISessionRepository _sessionRepository;
     private readonly ISystemAdminService _systemAdminService;
+    private readonly IUsageService _usageService;
 
     public MapService(
         IMapRepository mapRepository,
@@ -54,7 +56,8 @@ public class MapService : IMapService
         IRedisCacheService cacheService,
         IOrganizationPermissionService organizationPermissionService,
         ISessionRepository sessionRepository,
-        ISystemAdminService systemAdminService)
+        ISystemAdminService systemAdminService,
+        IUsageService usageService)
     {
         _mapRepository = mapRepository;
         _currentUserService = currentUserService;
@@ -67,6 +70,7 @@ public class MapService : IMapService
         _organizationPermissionService = organizationPermissionService;
         _sessionRepository = sessionRepository;
         _systemAdminService = systemAdminService;
+        _usageService = usageService;
     }
 
     public async Task<Option<CreateMapFromTemplateResponse, Error>> CreateFromTemplate(CreateMapFromTemplateRequest req)
@@ -91,6 +95,25 @@ public class MapService : IMapService
         return await workspaceResult.Match<Task<Option<CreateMapFromTemplateResponse, Error>>>(
             async workspaceId =>
             {
+                // Get workspace to check organization
+                var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+                Guid? orgId = workspace?.OrgId;
+
+                // If workspace belongs to an organization, check quota
+                if (orgId.HasValue)
+                {
+                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                    if (quotaCheck.HasValue)
+                    {
+                        var quota = quotaCheck.ValueOrDefault();
+                        if (!quota.IsAllowed)
+                        {
+                            return Option.None<CreateMapFromTemplateResponse, Error>(
+                                Error.Forbidden("Map.QuotaExceeded", $"Map quota exceeded. {quota.Message}"));
+                        }
+                    }
+                }
+
                 var newMap = new Map
                 {
                     MapName = req.CustomName ?? template.MapName,
@@ -126,6 +149,12 @@ public class MapService : IMapService
                 template.UsageCount++;
                 await _mapRepository.UpdateMapTemplate(template);
 
+                // Consume quota after successful map creation
+                if (orgId.HasValue)
+                {
+                    await _usageService.ConsumeOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                }
+
                 return Option.Some<CreateMapFromTemplateResponse, Error>(new CreateMapFromTemplateResponse
                 {
                     MapId = newMap.MapId,
@@ -154,6 +183,25 @@ public class MapService : IMapService
         return await workspaceResult.Match<Task<Option<CreateMapResponse, Error>>>(
             async workspaceId =>
             {
+                // Get workspace to check organization
+                var workspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+                Guid? orgId = workspace?.OrgId;
+
+                // If workspace belongs to an organization, check quota
+                if (orgId.HasValue)
+                {
+                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                    if (quotaCheck.HasValue)
+                    {
+                        var quota = quotaCheck.ValueOrDefault();
+                        if (!quota.IsAllowed)
+                        {
+                            return Option.None<CreateMapResponse, Error>(
+                                Error.Forbidden("Map.QuotaExceeded", $"Map quota exceeded. {quota.Message}"));
+                        }
+                    }
+                }
+
                 var newMap = new Map
                 {
                     MapName = req.Name,
@@ -193,6 +241,12 @@ public class MapService : IMapService
                 await _layerDataStore.SetDataAsync(defaultLayer,
                     JsonSerializer.Serialize(new { type = "FeatureCollection", features = Array.Empty<object>() }));
                 await _mapRepository.CreateLayer(defaultLayer);
+
+                // Consume quota after successful map creation
+                if (orgId.HasValue)
+                {
+                    await _usageService.ConsumeOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                }
 
                 return Option.Some<CreateMapResponse, Error>(new CreateMapResponse
                 {
@@ -338,7 +392,8 @@ public class MapService : IMapService
                 OwnerId = map.UserId,
                 OwnerName = map.User?.FullName ?? "Unknown",
                 IsOwner = currentUserId.Value == map.UserId,
-                WorkspaceName = map.Workspace?.WorkspaceName
+                WorkspaceName = map.Workspace?.WorkspaceName,
+                Views = map.UsageCount
             });
         }
 
