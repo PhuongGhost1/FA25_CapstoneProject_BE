@@ -39,7 +39,6 @@ public class MembershipQuotaResetJob
             var today = DateTime.UtcNow.Date;
             var membershipsToReset = await dbContext.Memberships
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active &&
                            m.BillingCycleEndDate > today && // Only active memberships
                            (m.LastResetDate == null ||
@@ -175,7 +174,6 @@ public class MembershipQuotaResetJob
 
             var membership = await dbContext.Memberships
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .FirstOrDefaultAsync(m => m.MembershipId == membershipId);
 
             if (membership == null)

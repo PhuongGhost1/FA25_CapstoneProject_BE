@@ -49,7 +49,6 @@ public class MembershipPurchaseNotificationJob
                 .Include(m => m.User)
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .FirstOrDefaultAsync(m => m.MembershipId == membershipId);
 
             if (membership == null)
@@ -248,7 +247,6 @@ public class MembershipPurchaseNotificationJob
                 .Include(m => m.User)
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .FirstOrDefaultAsync(m => m.MembershipId == membershipId);
 
             if (membership == null)
