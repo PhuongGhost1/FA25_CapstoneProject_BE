@@ -64,8 +64,15 @@ public class SupportTicketService : ISupportTicketService
 
     public async Task<Option<SupportTicketListResponse, Error>> GetSupportTickets(int page = 1, int pageSize = 20)
     {
-        var supportTickets = await _supportTicketRepository.GetSupportTickets(page, pageSize);
-        var totalCount = await _supportTicketRepository.GetSupportTicketsCount();
+        var userId = _currentUserService.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Option.None<SupportTicketListResponse, Error>(Error.Unauthorized("User.NotAuthenticated",
+                "User is not authenticated"));
+        }
+
+        var supportTickets = await _supportTicketRepository.GetSupportTicketsByUserId(userId.Value, page, pageSize);
+        var totalCount = await _supportTicketRepository.GetSupportTicketsCountByUserId(userId.Value);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         return Option.Some<SupportTicketListResponse, Error>(new SupportTicketListResponse
@@ -92,11 +99,25 @@ public class SupportTicketService : ISupportTicketService
 
     public async Task<Option<SupportTicketDto, Error>> GetSupportTicketById(int ticketId)
     {
+        var userId = _currentUserService.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Option.None<SupportTicketDto, Error>(Error.Unauthorized("User.NotAuthenticated",
+                "User is not authenticated"));
+        }
+
         var supportTicket = await _supportTicketRepository.GetSupportTicketById(ticketId);
         if (supportTicket == null)
         {
             return Option.None<SupportTicketDto, Error>(Error.NotFound("SupportTicket.NotFound",
                 "Support ticket not found"));
+        }
+
+        // Kiểm tra user có quyền xem ticket này không (chỉ owner mới được xem)
+        if (supportTicket.UserId != userId.Value)
+        {
+            return Option.None<SupportTicketDto, Error>(Error.Forbidden("SupportTicket.AccessDenied",
+                "You do not have permission to view this ticket"));
         }
 
         var supportTicketMessages = await _supportTicketRepository.GetSupportTicketMessages(ticketId);
@@ -125,11 +146,25 @@ public class SupportTicketService : ISupportTicketService
     public async Task<Option<ResponseSupportTicketResponse, Error>> ResponseToSupportTicket(int ticketId,
         ResponseSupportTicketRequest request)
     {
+        var userId = _currentUserService.GetUserId();
+        if (!userId.HasValue)
+        {
+            return Option.None<ResponseSupportTicketResponse, Error>(Error.Unauthorized("User.NotAuthenticated",
+                "User is not authenticated"));
+        }
+
         var supportTicket = await _supportTicketRepository.GetSupportTicketById(ticketId);
         if (supportTicket == null)
         {
             return Option.None<ResponseSupportTicketResponse, Error>(Error.NotFound("SupportTicket.NotFound",
                 "Support ticket not found"));
+        }
+
+        // Kiểm tra user có quyền response ticket này không (chỉ owner mới được response)
+        if (supportTicket.UserId != userId.Value)
+        {
+            return Option.None<ResponseSupportTicketResponse, Error>(Error.Forbidden("SupportTicket.AccessDenied",
+                "You do not have permission to respond to this ticket"));
         }
 
         if (supportTicket.Status == TicketStatusEnum.Closed)
