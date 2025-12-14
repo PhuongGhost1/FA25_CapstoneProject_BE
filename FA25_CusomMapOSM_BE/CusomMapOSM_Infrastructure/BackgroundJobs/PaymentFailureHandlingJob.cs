@@ -46,7 +46,6 @@ public class PaymentFailureHandlingJob
                 .Include(m => m.User)
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.PendingPayment &&
                            m.UpdatedAt <= threeDaysAgo) // Failed payment for 3+ days
                 .ToListAsync();
@@ -236,7 +235,6 @@ public class PaymentFailureHandlingJob
                 .Include(m => m.User)
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.PendingPayment &&
                            m.UpdatedAt <= twoDaysAgo &&
                            m.UpdatedAt > DateTime.UtcNow.AddDays(-3)) // Between 2-3 days old
@@ -339,7 +337,6 @@ public class PaymentFailureHandlingJob
                 .Include(m => m.User)
                 .Include(m => m.Organization)
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .FirstOrDefaultAsync(m => m.MembershipId == membershipId);
 
             if (membership == null)

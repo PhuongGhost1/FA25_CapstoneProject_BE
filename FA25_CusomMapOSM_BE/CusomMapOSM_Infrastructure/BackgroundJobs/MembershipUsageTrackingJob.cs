@@ -38,7 +38,6 @@ public class MembershipUsageTrackingJob
 
             var activeMemberships = await dbContext.Memberships
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .Include(m => m.Organization)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active && m.BillingCycleEndDate > DateTime.UtcNow)
                 .ToListAsync();
@@ -264,7 +263,6 @@ public class MembershipUsageTrackingJob
 
             var membership = await dbContext.Memberships
                 .Include(m => m.Plan)
-                .Include(m => m.Status)
                 .FirstOrDefaultAsync(m => m.MembershipId == membershipId);
 
             if (membership == null)

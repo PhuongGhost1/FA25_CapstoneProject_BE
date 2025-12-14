@@ -58,7 +58,6 @@ public class MembershipExpirationNotificationJob
                     .Include(m => m.User)
                     .Include(m => m.Organization)
                     .Include(m => m.Plan)
-                    .Include(m => m.Status)
                     .Where(m => m.BillingCycleEndDate.Date == expirationDate &&
                                m.Status! == MembershipStatusEnum.Active &&
                                m.User != null)
