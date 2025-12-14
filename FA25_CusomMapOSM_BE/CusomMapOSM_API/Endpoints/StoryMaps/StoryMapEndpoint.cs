@@ -438,6 +438,9 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
+                // Ensure mapId and segmentId are set from URL parameters
+                request.MapId = mapId;
+                request.SegmentId = segmentId.ToString();
                 var result = await service.CreateLocationAsync(request, ct);
                 return result.Match<IResult>(
                     location => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/locations/{location.LocationId}", location),
@@ -463,6 +466,11 @@ public class StoryMapEndpoint : IEndpoint
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
+                // Ensure segmentId is preserved from URL if not provided in request
+                if (string.IsNullOrEmpty(request.SegmentId))
+                {
+                    request.SegmentId = segmentId.ToString();
+                }
                 var result = await service.UpdateLocationAsync(locationId, request, ct);
                 return result.Match<IResult>(
                     location => Results.Ok(location),
