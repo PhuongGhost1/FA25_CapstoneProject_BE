@@ -466,29 +466,29 @@ Based on the current `.env` file, ensure the following are properly configured:
 
 ```bash
 # Database (Production)
-DATABASE_CONNECTION_STRING=Server=103.157.205.191;Port=3306;User ID=root;Password=[PRODUCTION_PASSWORD];Database=imos;
+DATABASE_CONNECTION_STRING=
 
 # MongoDB Atlas
-MONGO_CONNECTION_STRING=mongodb+srv://imosmongo:[PASSWORD]@imoscluster.akqslsi.mongodb.net/imos
+MONGO_CONNECTION_STRING=
 
 # Redis (Local with auth)
 REDIS_CONNECTION_STRING=localhost:6379,password=superSecretRedisPassword,ssl=false,abortConnect=false
 
 # Firebase
-FIREBASE_STORAGE_BUCKET=diamondvaluation-1718484187119.appspot.com
+FIREBASE_STORAGE_BUCKET=
 FIREBASE_CREDENTIALS_PATH=/app/firebase-service-account.json
 
 # Payment Gateways (Test Environment)
 STRIPE_SECRET=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-PAYOS_CLIENT_ID=8545c865-eb28-4f6b-940d-a2d59bd65c8a
-PAYOS_API_KEY=7ee2f458-4de6-4c6c-b5a4-5acc39389937
-PAYOS_CHECKSUM_KEY=d4baaa299bde0a8daebf6c96984fec211bef79435e7bed24ece5bafbcc40c2d9
+PAYOS_CLIENT_ID=
+PAYOS_API_KEY=
+PAYOS_CHECKSUM_KEY=
 
 # Email
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=trngphng94@gmail.com
+SMTP_USER=
 SMTP_PASS=[APP_PASSWORD]
 
 # Frontend
@@ -558,4 +558,4 @@ For support and questions:
 
 ---
 
-**Last Updated**: December 2024
+**Last Updated**: December 2025
