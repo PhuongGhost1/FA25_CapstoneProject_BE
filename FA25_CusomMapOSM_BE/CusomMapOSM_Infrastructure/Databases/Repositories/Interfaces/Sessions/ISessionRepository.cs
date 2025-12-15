@@ -10,6 +10,7 @@ public interface ISessionRepository
     Task<Session?> GetSessionById(Guid sessionId);
     Task<Session?> GetSessionByCode(string sessionCode);
     Task<List<Session>> GetSessionsByHostUserId(Guid hostUserId);
+    Task<List<Session>> GetSessionsByOrganizationId(Guid organizationId);
     Task<List<Session>> GetSessionsByMapId(Guid mapId);
     Task<List<Session>> GetSessionsByStatus(SessionStatusEnum status);
     Task<bool> UpdateSession(Session session);

@@ -106,7 +106,7 @@ public class WorkspaceService : IWorkspaceService
         });
     }
 
-    public async Task<Option<UpdateWorkspaceResDto, Error>> Update(Guid id, WorkspaceReqDto req)
+    public async Task<Option<UpdateWorkspaceResDto, Error>> Update(Guid id, UpdateWorkspaceReqDto req)
     {
         var workspace = await _workspaceRepository.GetByIdAsync(id);
         if (workspace == null)
@@ -130,30 +130,36 @@ public class WorkspaceService : IWorkspaceService
 
     public async Task<Option<DeleteWorkspaceResDto, Error>> Delete(Guid id)
     {
-        var exists = await _workspaceRepository.ExistsAsync(id);
-        if (!exists)
+        var workspace = await _workspaceRepository.GetByIdAsync(id);
+        if (workspace == null)
         {
             return Option.None<DeleteWorkspaceResDto, Error>(Error.NotFound("Workspace.NotFound", WorkspaceErrors.WorkspaceNotFound));
         }
 
-        // Check if workspace has active maps
-        var maps = await _mapRepository.GetByWorkspaceIdAsync(id);
-        var activeMaps = maps.Where(m => m.IsActive).ToList();
-        if (activeMaps.Any())
+        // Check if current user owns the workspace
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null || workspace.CreatedBy != currentUserId.Value)
         {
             return Option.None<DeleteWorkspaceResDto, Error>(
-                Error.ValidationError("Workspace.HasActiveMaps", 
-                    "Cannot delete workspace while it contains active maps. Please delete or move all maps first."));
+                Error.Forbidden("Workspace.NotOwner", "Bạn không có quyền xóa workspace này."));
         }
 
-        // Check if workspace has question banks
-        var questionBanks = await _questionBankRepository.GetQuestionBanksByWorkspaceId(id);
-        var activeQuestionBanks = questionBanks.Where(qb => qb.IsActive).ToList();
-        if (activeQuestionBanks.Any())
+        // Soft delete all maps in this workspace
+        var maps = await _mapRepository.GetByWorkspaceIdAsync(id);
+        foreach (var map in maps)
         {
-            return Option.None<DeleteWorkspaceResDto, Error>(
-                Error.ValidationError("Workspace.HasQuestionBanks", 
-                    "Cannot delete workspace while it contains question banks. Please delete or move all question banks first."));
+            map.IsActive = false;
+            map.UpdatedAt = DateTime.UtcNow;
+            await _mapRepository.UpdateMap(map);
+        }
+
+        // Soft delete all question banks in this workspace
+        var questionBanks = await _questionBankRepository.GetQuestionBanksByWorkspaceId(id);
+        foreach (var qb in questionBanks)
+        {
+            qb.IsActive = false;
+            qb.UpdatedAt = DateTime.UtcNow;
+            await _questionBankRepository.UpdateQuestionBank(qb);
         }
 
         await _workspaceRepository.DeleteAsync(id);

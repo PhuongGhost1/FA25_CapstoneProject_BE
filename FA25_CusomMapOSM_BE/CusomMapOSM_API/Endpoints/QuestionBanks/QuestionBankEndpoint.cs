@@ -74,6 +74,55 @@ public class QuestionBankEndpoint : IEndpoint
             .WithDescription("Get all public question banks")
             .Produces(200);
 
+        // Get My Question Banks by Organization
+        group.MapGet("/organization/{orgId:guid}/my", async (
+                [FromRoute] Guid orgId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetMyQuestionBanksByOrganization(orgId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetMyQuestionBanksByOrganization")
+            .WithDescription("Get question banks owned by current user within a specific organization")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401);
+
+        // Get Public Question Banks by Organization
+        group.MapGet("/organization/{orgId:guid}/public", async (
+                [FromRoute] Guid orgId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.GetPublicQuestionBanksByOrganization(orgId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetPublicQuestionBanksByOrganization")
+            .WithDescription("Get public question banks within a specific organization")
+            .Produces(200);
+
+        // Duplicate Question Bank
+        group.MapPost("/{questionBankId:guid}/duplicate", async (
+                [FromRoute] Guid questionBankId,
+                [FromQuery] Guid targetWorkspaceId,
+                [FromServices] IQuestionBankService questionBankService) =>
+            {
+                var result = await questionBankService.DuplicateQuestionBank(questionBankId, targetWorkspaceId);
+                return result.Match(
+                    success => Results.Created($"/api/question-banks/{success.QuestionBankId}", success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("DuplicateQuestionBank")
+            .WithDescription("Create a copy of a question bank with all its questions into a target workspace")
+            .RequireAuthorization()
+            .Produces(201)
+            .Produces(400)
+            .Produces(401)
+            .Produces(404);
+
         group.MapPut("/{questionBankId:guid}", async (
                 [FromRoute] Guid questionBankId,
                 [FromBody] UpdateQuestionBankRequest req,

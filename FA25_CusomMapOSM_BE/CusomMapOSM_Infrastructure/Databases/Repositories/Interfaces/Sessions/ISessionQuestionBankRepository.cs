@@ -9,5 +9,6 @@ public interface ISessionQuestionBankRepository
     Task<bool> AddQuestionBank(SessionQuestionBank sessionQuestionBank);
     Task<bool> RemoveQuestionBank(SessionQuestionBank sessionQuestionBank);
     Task<bool> CheckQuestionBankAttached(Guid sessionId, Guid questionBankId);
+    Task<List<Guid>> GetSessionsWithQuestionBanks(List<Guid> sessionIds);
 }
 

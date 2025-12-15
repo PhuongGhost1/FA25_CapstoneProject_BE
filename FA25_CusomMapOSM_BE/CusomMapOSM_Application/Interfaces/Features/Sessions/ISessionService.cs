@@ -11,7 +11,10 @@ public interface ISessionService
     Task<Option<CreateSessionResponse, Error>> CreateSession(CreateSessionRequest request);
     Task<Option<GetSessionResponse, Error>> GetSessionById(Guid sessionId);
     Task<Option<GetSessionResponse, Error>> GetSessionByCode(string sessionCode);
-    Task<Option<List<GetSessionResponse>, Error>> GetMySessionsAsHost();
+    Task<Option<List<GetSessionResponse>, Error>> GetMySessionsAsHost(Guid? organizationId = null, 
+        string? sortBy = null, string? order = null);
+    Task<Option<List<GetSessionResponse>, Error>> GetAllSessionsByOrganization(Guid organizationId,
+        string? sortBy = null, string? order = null, Guid? hostId = null, string? status = null, bool? hasQuestionBanks = null);
     Task<Option<bool, Error>> DeleteSession(Guid sessionId);
 
     // Session Control

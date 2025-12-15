@@ -63,18 +63,44 @@ public class SessionEndpoint : IEndpoint
 
         // Get My Sessions (as Host/Teacher)
         group.MapGet("/my", async (
+                [FromQuery] Guid? orgId,
+                [FromQuery] string? sortBy,
+                [FromQuery] string? order,
                 [FromServices] ISessionService sessionService) =>
             {
-                var result = await sessionService.GetMySessionsAsHost();
+                var result = await sessionService.GetMySessionsAsHost(orgId, sortBy, order);
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("GetMySessions")
-            .WithDescription("Get all sessions where current user is the host")
+            .WithDescription("Get all sessions where current user is the host (optionally filtered by organization)")
             .RequireAuthorization()
             .Produces(200)
             .Produces(401);
+
+        // Get All Sessions By Organization (Owner/Admin only)
+        group.MapGet("/organizations/{organizationId:guid}/all", async (
+                [FromRoute] Guid organizationId,
+                [FromQuery] string? sortBy,
+                [FromQuery] string? order,
+                [FromQuery] Guid? hostId,
+                [FromQuery] string? status,
+                [FromQuery] bool? hasQuestionBanks,
+                [FromServices] ISessionService sessionService) =>
+            {
+                var result = await sessionService.GetAllSessionsByOrganization(organizationId, sortBy, order, hostId, status, hasQuestionBanks);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetAllSessionsByOrganization")
+            .WithDescription("Get all sessions for an organization (owner/admin only) with optional sorting and filtering")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
 
         // Start Session
         group.MapPost("/{sessionId:guid}/start", async (

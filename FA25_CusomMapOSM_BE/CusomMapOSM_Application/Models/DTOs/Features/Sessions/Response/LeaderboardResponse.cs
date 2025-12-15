@@ -3,6 +3,7 @@
 public class LeaderboardResponse
 {
     public Guid SessionId { get; set; }
+    public string SessionName { get; set; } = string.Empty;
     public List<LeaderboardEntry> Leaderboard { get; set; } = new();
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

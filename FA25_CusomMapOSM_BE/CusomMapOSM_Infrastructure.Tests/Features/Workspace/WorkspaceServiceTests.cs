@@ -226,9 +226,8 @@ public class WorkspaceServiceTests
             .RuleFor(w => w.Access, WorkspaceAccessEnum.AllMembers)
             .Generate();
 
-        var request = new WorkspaceReqDto
+        var request = new UpdateWorkspaceReqDto
         {
-            OrgId = Guid.NewGuid(),
             WorkspaceName = "New Name",
             Description = "New Description",
             Icon = "new-icon.png",
@@ -256,9 +255,8 @@ public class WorkspaceServiceTests
     {
         // Arrange
         var workspaceId = Guid.NewGuid();
-        var request = new WorkspaceReqDto
+        var request = new UpdateWorkspaceReqDto
         {
-            OrgId = Guid.NewGuid(),
             WorkspaceName = "New Name"
         };
 

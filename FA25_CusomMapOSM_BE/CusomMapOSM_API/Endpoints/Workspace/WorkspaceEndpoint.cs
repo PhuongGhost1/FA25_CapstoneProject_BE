@@ -64,7 +64,7 @@ public class WorkspaceEndpoint : IEndpoint
         // Update Workspace
         group.MapPut(Routes.WorkspaceEndpoints.Update, async (
                 [FromRoute] Guid id,
-                [FromBody] WorkspaceReqDto req,
+                [FromBody] UpdateWorkspaceReqDto req,
                 [FromServices] IWorkspaceService workspaceService) =>
             {
                 var result = await workspaceService.Update(id, req);

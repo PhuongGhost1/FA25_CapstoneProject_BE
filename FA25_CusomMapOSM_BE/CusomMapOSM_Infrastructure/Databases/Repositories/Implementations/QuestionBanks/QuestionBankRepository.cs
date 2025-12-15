@@ -124,4 +124,30 @@ public class QuestionBankRepository : IQuestionBankRepository
         questionBank.UpdatedAt = DateTime.UtcNow;
         return await _context.SaveChangesAsync() > 0;
     }
+
+    public async Task<List<QuestionBank>> GetQuestionBanksByUserIdAndWorkspaceIds(Guid userId, List<Guid> workspaceIds)
+    {
+        if (workspaceIds == null || !workspaceIds.Any())
+            return new List<QuestionBank>();
+
+        return await _context.QuestionBanks
+            .Include(qb => qb.Workspace)
+            .Where(qb => qb.UserId == userId && qb.IsActive && qb.WorkspaceId.HasValue && workspaceIds.Contains(qb.WorkspaceId.Value))
+            .OrderByDescending(qb => qb.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<QuestionBank>> GetPublicQuestionBanksByWorkspaceIds(List<Guid> workspaceIds)
+    {
+        if (workspaceIds == null || !workspaceIds.Any())
+            return new List<QuestionBank>();
+
+        return await _context.QuestionBanks
+            .Include(qb => qb.User)
+            .Include(qb => qb.Workspace)
+            .Where(qb => qb.IsPublic && qb.IsActive && qb.WorkspaceId.HasValue && workspaceIds.Contains(qb.WorkspaceId.Value))
+            .OrderByDescending(qb => qb.TotalQuestions)
+            .ThenByDescending(qb => qb.CreatedAt)
+            .ToListAsync();
+    }
 }

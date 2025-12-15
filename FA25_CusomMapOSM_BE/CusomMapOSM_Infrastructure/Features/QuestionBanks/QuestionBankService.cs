@@ -145,6 +145,153 @@ public class QuestionBankService : IQuestionBankService
         return Option.Some<List<QuestionBankDTO>, Error>(result);
     }
 
+    public async Task<Option<List<QuestionBankDTO>, Error>> GetMyQuestionBanksByOrganization(Guid orgId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null)
+        {
+            return Option.None<List<QuestionBankDTO>, Error>(
+                Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
+        }
+
+        // Get all workspaces in this organization
+        var workspaces = await _workspaceRepository.GetByOrganizationIdAsync(orgId);
+        var workspaceIds = workspaces.Select(w => w.WorkspaceId).ToList();
+
+        if (!workspaceIds.Any())
+        {
+            return Option.Some<List<QuestionBankDTO>, Error>(new List<QuestionBankDTO>());
+        }
+
+        // Get question banks created by this user in these workspaces
+        var questionBanks = await _questionBankRepository.GetQuestionBanksByUserIdAndWorkspaceIds(currentUserId.Value, workspaceIds);
+        var result = questionBanks.Select(qb => qb.ToDto()).ToList();
+
+        return Option.Some<List<QuestionBankDTO>, Error>(result);
+    }
+
+    public async Task<Option<List<QuestionBankDTO>, Error>> GetPublicQuestionBanksByOrganization(Guid orgId)
+    {
+        // Get all workspaces in this organization
+        var workspaces = await _workspaceRepository.GetByOrganizationIdAsync(orgId);
+        var workspaceIds = workspaces.Select(w => w.WorkspaceId).ToList();
+
+        if (!workspaceIds.Any())
+        {
+            return Option.Some<List<QuestionBankDTO>, Error>(new List<QuestionBankDTO>());
+        }
+
+        // Get public question banks in these workspaces
+        var questionBanks = await _questionBankRepository.GetPublicQuestionBanksByWorkspaceIds(workspaceIds);
+        var result = questionBanks.Select(qb => qb.ToDto()).ToList();
+
+        return Option.Some<List<QuestionBankDTO>, Error>(result);
+    }
+
+    public async Task<Option<QuestionBankDTO, Error>> DuplicateQuestionBank(Guid questionBankId, Guid targetWorkspaceId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.Unauthorized("QuestionBank.Unauthorized", "User not authenticated"));
+        }
+
+        // Get the source question bank
+        var sourceBank = await _questionBankRepository.GetQuestionBankById(questionBankId);
+        if (sourceBank == null)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.NotFound("QuestionBank.NotFound", "Question bank not found"));
+        }
+
+        // Verify target workspace exists
+        var targetWorkspace = await _workspaceRepository.GetByIdAsync(targetWorkspaceId);
+        if (targetWorkspace == null)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.NotFound("Workspace.NotFound", "Target workspace not found"));
+        }
+
+        // Create new question bank as a copy
+        var newBank = new QuestionBank
+        {
+            QuestionBankId = Guid.NewGuid(),
+            UserId = currentUserId.Value,
+            WorkspaceId = targetWorkspaceId,
+            BankName = $"{sourceBank.BankName} (Copy)",
+            Description = sourceBank.Description,
+            Category = sourceBank.Category,
+            Tags = sourceBank.Tags,
+            IsTemplate = false, // New copy is not a template
+            IsPublic = false,   // New copy is private
+            IsActive = true,
+            TotalQuestions = 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var created = await _questionBankRepository.CreateQuestionBank(newBank);
+        if (!created)
+        {
+            return Option.None<QuestionBankDTO, Error>(
+                Error.Failure("QuestionBank.DuplicateFailed", "Failed to create duplicate question bank"));
+        }
+
+        // Copy all questions from source bank
+        var sourceQuestions = await _questionRepository.GetQuestionsByQuestionBankId(questionBankId);
+        foreach (var sourceQuestion in sourceQuestions)
+        {
+            var newQuestion = new Question
+            {
+                QuestionId = Guid.NewGuid(),
+                QuestionBankId = newBank.QuestionBankId,
+                LocationId = sourceQuestion.LocationId,
+                QuestionType = sourceQuestion.QuestionType,
+                QuestionText = sourceQuestion.QuestionText,
+                QuestionImageUrl = sourceQuestion.QuestionImageUrl,
+                QuestionAudioUrl = sourceQuestion.QuestionAudioUrl,
+                Points = sourceQuestion.Points,
+                TimeLimit = sourceQuestion.TimeLimit,
+                CorrectAnswerText = sourceQuestion.CorrectAnswerText,
+                CorrectLatitude = sourceQuestion.CorrectLatitude,
+                CorrectLongitude = sourceQuestion.CorrectLongitude,
+                AcceptanceRadiusMeters = sourceQuestion.AcceptanceRadiusMeters,
+                HintText = sourceQuestion.HintText,
+                Explanation = sourceQuestion.Explanation,
+                DisplayOrder = sourceQuestion.DisplayOrder,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _questionRepository.CreateQuestion(newQuestion);
+
+            // Copy options for this question
+            var sourceOptions = await _questionOptionRepository.GetQuestionOptionsByQuestionId(sourceQuestion.QuestionId);
+            foreach (var sourceOption in sourceOptions)
+            {
+                var newOption = new QuestionOption
+                {
+                    QuestionOptionId = Guid.NewGuid(),
+                    QuestionId = newQuestion.QuestionId,
+                    OptionText = sourceOption.OptionText,
+                    OptionImageUrl = sourceOption.OptionImageUrl,
+                    IsCorrect = sourceOption.IsCorrect,
+                    DisplayOrder = sourceOption.DisplayOrder,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _questionOptionRepository.CreateQuestionOption(newOption);
+            }
+        }
+
+        // Update question count
+        await _questionBankRepository.UpdateQuestionCount(newBank.QuestionBankId);
+
+        // Reload to get updated data
+        var result = await _questionBankRepository.GetQuestionBankById(newBank.QuestionBankId);
+        return Option.Some<QuestionBankDTO, Error>(result!.ToDto());
+    }
+
     public async Task<Option<QuestionBankDTO, Error>> UpdateQuestionBank(Guid questionBankId, UpdateQuestionBankRequest request)
     {
         var currentUserId = _currentUserService.GetUserId();
@@ -209,6 +356,8 @@ public class QuestionBankService : IQuestionBankService
 
         // Check if question bank is being used in active sessions
         var sessionsUsingBank = await _sessionQuestionBankRepository.GetSessions(questionBankId);
+        
+        // Filter for actual active sessions (not null session reference and active status)
         var activeSessions = sessionsUsingBank
             .Where(sqb => sqb.Session != null && 
                 (sqb.Session.Status == SessionStatusEnum.WAITING || 
@@ -218,9 +367,19 @@ public class QuestionBankService : IQuestionBankService
         
         if (activeSessions.Any())
         {
+            var sessionNames = string.Join(", ", activeSessions
+                .Select(s => s.Session!.SessionName)
+                .Take(3));
             return Option.None<bool, Error>(
                 Error.ValidationError("QuestionBank.HasActiveSessions", 
-                    "Cannot delete question bank while it is being used in active sessions. Please end or cancel all active sessions first."));
+                    $"Không thể xóa ngân hàng câu hỏi khi đang được sử dụng trong phiên hoạt động: {sessionNames}. Vui lòng kết thúc hoặc hủy tất cả phiên hoạt động trước."));
+        }
+        
+        // Clean up orphan SessionQuestionBank records (sessions that no longer exist)
+        var orphanRecords = sessionsUsingBank.Where(sqb => sqb.Session == null).ToList();
+        foreach (var orphan in orphanRecords)
+        {
+            await _sessionQuestionBankRepository.RemoveQuestionBank(orphan);
         }
 
         await _questionRepository.DeleteQuestionsByBankId(questionBankId);

@@ -23,14 +23,17 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
     // Usage Data
     public async Task<Dictionary<string, int>> GetOrganizationUsageStatsAsync(Guid orgId, CancellationToken ct = default)
     {
+        // Count actual maps created in all workspaces belonging to this organization
+        var totalMaps = await _context.Maps
+            .Where(m => m.Workspace != null && m.Workspace.OrgId == orgId && m.IsActive)
+            .CountAsync(ct);
+
+        // Count exports this month (if there's an export tracking table, use it)
+        // For now, we'll use the membership usage data as fallback
+        var totalExports = 0;
         var memberships = await _context.Memberships
             .Where(m => m.OrgId == orgId && m.Status == MembershipStatusEnum.Active)
             .ToListAsync(ct);
-
-        var totalMaps = 0;
-        var totalExports = 0;
-        var totalCustomLayers = 0;
-        var totalTokens = 0;
 
         foreach (var membership in memberships)
         {
@@ -41,9 +44,37 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
                     var usage = JsonSerializer.Deserialize<Dictionary<string, int>>(membership.CurrentUsage);
                     if (usage != null)
                     {
-                        totalMaps += usage.GetValueOrDefault("maps", 0);
                         totalExports += usage.GetValueOrDefault("exports", 0);
-                        totalCustomLayers += usage.GetValueOrDefault("customLayers", 0);
+                    }
+                }
+                catch
+                {
+                    // Ignore JSON parsing errors
+                }
+            }
+        }
+
+        // Count custom layers (map layers/features belonging to organization's maps)
+        var totalCustomLayers = await _context.MapFeatures
+            .Where(mf => mf.Map != null && mf.Map.Workspace != null && mf.Map.Workspace.OrgId == orgId && mf.IsVisible)
+            .CountAsync(ct);
+
+        // Count question banks as well (useful for this platform)
+        var totalQuestionBanks = await _context.QuestionBanks
+            .Where(qb => qb.Workspace != null && qb.Workspace.OrgId == orgId && qb.IsActive)
+            .CountAsync(ct);
+
+        // Tokens usage from membership data
+        var totalTokens = 0;
+        foreach (var membership in memberships)
+        {
+            if (!string.IsNullOrEmpty(membership.CurrentUsage))
+            {
+                try
+                {
+                    var usage = JsonSerializer.Deserialize<Dictionary<string, int>>(membership.CurrentUsage);
+                    if (usage != null)
+                    {
                         totalTokens += usage.GetValueOrDefault("tokens", 0);
                     }
                 }
@@ -59,6 +90,7 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
             { "maps", totalMaps },
             { "exports", totalExports },
             { "customLayers", totalCustomLayers },
+            { "questionBanks", totalQuestionBanks },
             { "tokens", totalTokens }
         };
     }
@@ -72,31 +104,10 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
 
     public async Task<int> GetTotalMapsCreatedAsync(Guid orgId, CancellationToken ct = default)
     {
-        var memberships = await _context.Memberships
-            .Where(m => m.OrgId == orgId && m.Status == MembershipStatusEnum.Active)
-            .ToListAsync(ct);
-
-        var totalMaps = 0;
-        foreach (var membership in memberships)
-        {
-            if (!string.IsNullOrEmpty(membership.CurrentUsage))
-            {
-                try
-                {
-                    var usage = JsonSerializer.Deserialize<Dictionary<string, int>>(membership.CurrentUsage);
-                    if (usage != null)
-                    {
-                        totalMaps += usage.GetValueOrDefault("maps", 0);
-                    }
-                }
-                catch
-                {
-                    // Ignore JSON parsing errors
-                }
-            }
-        }
-
-        return totalMaps;
+        // Count actual maps created in all workspaces belonging to this organization
+        return await _context.Maps
+            .Where(m => m.Workspace != null && m.Workspace.OrgId == orgId && m.IsActive)
+            .CountAsync(ct);
     }
 
     public async Task<int> GetTotalExportsThisMonthAsync(Guid orgId, CancellationToken ct = default)

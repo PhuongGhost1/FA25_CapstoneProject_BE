@@ -13,7 +13,6 @@ public record WorkspaceReqDto
 
 public record UpdateWorkspaceReqDto
 {
-    public required Guid WorkspaceId { get; set; }
     public required string WorkspaceName { get; set; }
     public string? Description { get; set; }
     public string? Icon { get; set; }

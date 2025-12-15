@@ -238,7 +238,8 @@ public class SessionService : ISessionService
         return await GetSessionById(session.SessionId);
     }
 
-    public async Task<Option<List<GetSessionResponse>, Error>> GetMySessionsAsHost()
+    public async Task<Option<List<GetSessionResponse>, Error>> GetMySessionsAsHost(Guid? organizationId = null,
+        string? sortBy = null, string? order = null)
     {
         var currentUserId = _currentUserService.GetUserId();
         if (currentUserId == null)
@@ -249,6 +250,83 @@ public class SessionService : ISessionService
 
         var sessions = await _sessionRepository.GetSessionsByHostUserId(currentUserId.Value);
 
+        // Filter by organization if provided
+        if (organizationId.HasValue)
+        {
+            sessions = sessions.Where(s => s.Map?.Workspace?.OrgId == organizationId.Value).ToList();
+        }
+
+        // Apply sorting
+        sessions = ApplySorting(sessions, sortBy, order);
+
+        var response = await MapSessionsToResponses(sessions);
+        return Option.Some<List<GetSessionResponse>, Error>(response);
+    }
+
+    public async Task<Option<List<GetSessionResponse>, Error>> GetAllSessionsByOrganization(Guid organizationId,
+        string? sortBy = null, string? order = null, Guid? hostId = null, string? status = null, bool? hasQuestionBanks = null)
+    {
+        var sessions = await _sessionRepository.GetSessionsByOrganizationId(organizationId);
+
+        // Filter by host if provided
+        if (hostId.HasValue)
+        {
+            sessions = sessions.Where(s => s.HostUserId == hostId.Value).ToList();
+        }
+
+        // Filter by status if provided
+        if (!string.IsNullOrEmpty(status))
+        {
+            if (Enum.TryParse<SessionStatusEnum>(status, true, out var statusEnum))
+            {
+                sessions = sessions.Where(s => s.Status == statusEnum).ToList();
+            }
+        }
+
+        // Filter by question banks existence if provided
+        if (hasQuestionBanks.HasValue)
+        {
+            var sessionIds = sessions.Select(s => s.SessionId).ToList();
+            var sessionsWithQB = await _sessionQuestionBankRepository.GetSessionsWithQuestionBanks(sessionIds);
+            
+            if (hasQuestionBanks.Value)
+            {
+                sessions = sessions.Where(s => sessionsWithQB.Contains(s.SessionId)).ToList();
+            }
+            else
+            {
+                sessions = sessions.Where(s => !sessionsWithQB.Contains(s.SessionId)).ToList();
+            }
+        }
+
+        // Apply sorting
+        sessions = ApplySorting(sessions, sortBy, order);
+
+        var response = await MapSessionsToResponses(sessions);
+        return Option.Some<List<GetSessionResponse>, Error>(response);
+    }
+
+    private List<Session> ApplySorting(List<Session> sessions, string? sortBy, string? order)
+    {
+        var isDescending = order?.ToLower() == "desc";
+
+        return (sortBy?.ToLower()) switch
+        {
+            "name" => isDescending
+                ? sessions.OrderByDescending(s => s.SessionName).ToList()
+                : sessions.OrderBy(s => s.SessionName).ToList(),
+            "status" => isDescending
+                ? sessions.OrderByDescending(s => s.Status).ToList()
+                : sessions.OrderBy(s => s.Status).ToList(),
+            "createdat" or null => isDescending
+                ? sessions.OrderByDescending(s => s.CreatedAt).ToList()
+                : sessions.OrderBy(s => s.CreatedAt).ToList(),
+            _ => sessions
+        };
+    }
+
+    private async Task<List<GetSessionResponse>> MapSessionsToResponses(List<Session> sessions)
+    {
         var response = new List<GetSessionResponse>();
         foreach (var s in sessions)
         {
@@ -285,7 +363,7 @@ public class SessionService : ISessionService
             });
         }
 
-        return Option.Some<List<GetSessionResponse>, Error>(response);
+        return response;
     }
 
     public async Task<Option<bool, Error>> DeleteSession(Guid sessionId)
@@ -476,11 +554,15 @@ public class SessionService : ISessionService
                 Error.ValidationError("Session.LateJoinDisabled", "Late join is not allowed for this session"));
         }
 
-        // Check max participants
-        if (session.MaxParticipants > 0 && session.TotalParticipants >= session.MaxParticipants)
+        // Check max participants - get fresh count to avoid race conditions
+        if (session.MaxParticipants > 0)
         {
-            return Option.None<JoinSessionResponse, Error>(
-                Error.ValidationError("Session.Full", "Session has reached maximum participants"));
+            var currentParticipantCount = await _participantRepository.GetActiveParticipantCount(session.SessionId);
+            if (currentParticipantCount >= session.MaxParticipants)
+            {
+                return Option.None<JoinSessionResponse, Error>(
+                    Error.ValidationError("Session.Full", $"Phiên đã đạt số lượng người tham gia tối đa ({session.MaxParticipants} người)"));
+            }
         }
 
         var currentUserId = _currentUserService.GetUserId();
@@ -489,12 +571,29 @@ public class SessionService : ISessionService
         if (currentUserId != null)
         {
             participantKey = GenerateParticipantKeyForUser(currentUserId.Value, session.SessionId);
-            var alreadyJoined =
-                await _participantRepository.CheckParticipantKeyExistsInSession(session.SessionId, participantKey);
-            if (alreadyJoined)
+            var existingParticipant =
+                await _participantRepository.GetParticipantBySessionAndParticipantKey(session.SessionId, participantKey);
+            if (existingParticipant != null)
             {
-                return Option.None<JoinSessionResponse, Error>(
-                    Error.Conflict("Session.AlreadyJoined", "You have already joined this session"));
+                // Allow rejoin - reactivate participant if inactive and return existing info
+                if (!existingParticipant.IsActive)
+                {
+                    existingParticipant.IsActive = true;
+                    existingParticipant.JoinedAt = DateTime.UtcNow;
+                    await _participantRepository.UpdateParticipant(existingParticipant);
+                    await _sessionRepository.UpdateParticipantCount(session.SessionId);
+                }
+                
+                // Return existing participant info for rejoin
+                return Option.Some<JoinSessionResponse, Error>(new JoinSessionResponse
+                {
+                    SessionParticipantId = existingParticipant.SessionParticipantId,
+                    SessionId = session.SessionId,
+                    SessionName = session.SessionName,
+                    DisplayName = existingParticipant.DisplayName,
+                    Message = "Rejoined session successfully",
+                    JoinedAt = existingParticipant.JoinedAt
+                });
             }
         }
         else
@@ -589,8 +688,8 @@ public class SessionService : ISessionService
 
     public async Task<Option<LeaderboardResponse, Error>> GetLeaderboard(Guid sessionId, int limit = 10)
     {
-        var sessionExists = await _sessionRepository.CheckSessionExists(sessionId);
-        if (!sessionExists)
+        var session = await _sessionRepository.GetSessionById(sessionId);
+        if (session == null)
         {
             return Option.None<LeaderboardResponse, Error>(
                 Error.NotFound("Session.NotFound", "Session not found"));
@@ -623,6 +722,7 @@ public class SessionService : ISessionService
         return Option.Some<LeaderboardResponse, Error>(new LeaderboardResponse
         {
             SessionId = sessionId,
+            SessionName = session.SessionName,
             Leaderboard = leaderboard,
             UpdatedAt = DateTime.UtcNow
         });

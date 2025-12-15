@@ -46,5 +46,13 @@ public class SessionQuestionBankRepository : ISessionQuestionBankRepository
         return await _context.SessionQuestionBanks
             .AnyAsync(sqb => sqb.SessionId == sessionId && sqb.QuestionBankId == questionBankId);
     }
-}
 
+    public async Task<List<Guid>> GetSessionsWithQuestionBanks(List<Guid> sessionIds)
+    {
+        return await _context.SessionQuestionBanks
+            .Where(sqb => sessionIds.Contains(sqb.SessionId))
+            .Select(sqb => sqb.SessionId)
+            .Distinct()
+            .ToListAsync();
+    }
+}

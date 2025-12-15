@@ -10,7 +10,7 @@ public interface IWorkspaceService
     Task<Option<WorkspaceResDto, Error>> Create(WorkspaceReqDto req);
     Task<Option<GetAllWorkspacesResDto, Error>> GetAll();
     Task<Option<GetWorkspaceByIdResDto, Error>> GetById(Guid id);
-    Task<Option<UpdateWorkspaceResDto, Error>> Update(Guid id, WorkspaceReqDto req);
+    Task<Option<UpdateWorkspaceResDto, Error>> Update(Guid id, UpdateWorkspaceReqDto req);
     Task<Option<DeleteWorkspaceResDto, Error>> Delete(Guid id);
     Task<Option<GetWorkspacesByOrganizationResDto, Error>> GetByOrganization(Guid orgId);
     Task<Option<GetMyWorkspacesResDto, Error>> GetMyWorkspaces();

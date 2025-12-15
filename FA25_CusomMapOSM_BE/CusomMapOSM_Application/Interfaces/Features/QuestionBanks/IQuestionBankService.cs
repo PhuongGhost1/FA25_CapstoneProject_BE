@@ -18,6 +18,11 @@ public interface IQuestionBankService
     Task<Option<QuestionBankDTO, Error>> AddQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request);
     Task<Option<QuestionBankDTO, Error>> ReplaceQuestionBankTags(Guid questionBankId, UpdateQuestionBankTagsRequest request);
 
+    // Organization-based Question Banks
+    Task<Option<List<QuestionBankDTO>, Error>> GetMyQuestionBanksByOrganization(Guid orgId);
+    Task<Option<List<QuestionBankDTO>, Error>> GetPublicQuestionBanksByOrganization(Guid orgId);
+    Task<Option<QuestionBankDTO, Error>> DuplicateQuestionBank(Guid questionBankId, Guid targetWorkspaceId);
+
     // Question CRUD
     Task<Option<Guid, Error>> CreateQuestion(CreateQuestionRequest request);
     Task<Option<List<QuestionDTO>, Error>> GetQuestionsByQuestionBankId(Guid questionBankId);
