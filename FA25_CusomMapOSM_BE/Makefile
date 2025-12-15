@@ -17,7 +17,8 @@ release:
 	docker build --build-arg APP_VERSION=$(version) -t imos_server -f ./CusomMapOSM_API/Dockerfile .
 	docker tag imos_server:latest imosregistry.azurecr.io/imos_server:$(version)
 	docker push imosregistry.azurecr.io/imos_server:$(version)
-
+deploy:
+	@powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1
 new-migration:
 	dotnet ef migrations add $(name) --project CusomMapOSM_Infrastructure --startup-project CusomMapOSM_API --verbose
 
