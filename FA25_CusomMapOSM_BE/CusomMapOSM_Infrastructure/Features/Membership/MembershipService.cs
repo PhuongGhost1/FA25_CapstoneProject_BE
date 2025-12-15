@@ -1,9 +1,12 @@
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
+using CusomMapOSM_Application.Models.DTOs.Features.Usage;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using DomainMembershipUsage = CusomMapOSM_Domain.Entities.Memberships.MembershipUsage;
-using DomainMembershipAddon = CusomMapOSM_Domain.Entities.Memberships.MembershipAddon;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
+using CusomMapOSM_Domain.Entities.Organizations.Enums;
+using CusomMapOSM_Domain.Entities.Memberships;
 using Microsoft.EntityFrameworkCore;
 using Optional;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
@@ -15,20 +18,31 @@ public class MembershipService : IMembershipService
 {
     private readonly IMembershipRepository _membershipRepository;
     private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly IOrganizationRepository _organizationRepository;
 
     public MembershipService(
         IMembershipRepository membershipRepository,
-        IMembershipPlanRepository membershipPlanRepository)
+        IMembershipPlanRepository membershipPlanRepository,
+        IOrganizationRepository organizationRepository)
     {
         _membershipRepository = membershipRepository;
         _membershipPlanRepository = membershipPlanRepository;
+        _organizationRepository = organizationRepository;
     }
 
     public async Task<Option<DomainMembership, ErrorCustom.Error>> CreateOrRenewMembershipAsync(Guid userId, Guid orgId, int planId, bool autoRenew, CancellationToken ct)
     {
         var existing = await _membershipRepository.GetByUserOrgAsync(userId, orgId, ct);
+        var plan = await _membershipPlanRepository.GetPlanByIdAsync(planId, ct);
+        if (plan == null)
+        {
+            return Option.None<DomainMembership, ErrorCustom.Error>(
+                new ErrorCustom.Error("Membership.PlanNotFound", "Plan not found", ErrorCustom.ErrorType.NotFound));
+        }
+
         if (existing is null)
         {
+            // New membership - create with billing cycle dates
             var now = DateTime.UtcNow;
             var newMembership = new DomainMembership
             {
@@ -36,9 +50,9 @@ public class MembershipService : IMembershipService
                 UserId = userId,
                 OrgId = orgId,
                 PlanId = planId,
-                StartDate = now,
-                EndDate = null,
-                StatusId = SeedDataConstants.ActiveMembershipStatusId, // Use the correct active status ID
+                BillingCycleStartDate = now,
+                BillingCycleEndDate = now.AddDays(30), // 30-day billing cycle
+                Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active,
                 AutoRenew = autoRenew,
                 CurrentUsage = null,
                 LastResetDate = now,
@@ -68,10 +82,80 @@ public class MembershipService : IMembershipService
         }
         else
         {
-            existing.PlanId = planId;
-            existing.AutoRenew = autoRenew;
-            existing.UpdatedAt = DateTime.UtcNow;
-            return Option.Some<DomainMembership, ErrorCustom.Error>(await _membershipRepository.UpsertAsync(existing, ct));
+            // Existing membership - check if same plan or different plan
+            var currentPlan = await _membershipPlanRepository.GetPlanByIdAsync(existing.PlanId, ct);
+            if (currentPlan == null)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.CurrentPlanNotFound", "Current plan not found", ErrorCustom.ErrorType.NotFound));
+            }
+
+            var now = DateTime.UtcNow;
+
+            // If same plan: extend subscription time (only time is different)
+            if (existing.PlanId == planId)
+            {
+                // On renewal, reset billing cycle dates
+                existing.AutoRenew = autoRenew;
+                existing.UpdatedAt = now;
+                existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
+                
+                // Reset billing cycle dates on renewal
+                existing.BillingCycleStartDate = now;
+                existing.BillingCycleEndDate = now.AddDays(30); // 30-day billing cycle
+
+                return Option.Some<DomainMembership, ErrorCustom.Error>(await _membershipRepository.UpsertAsync(existing, ct));
+            }
+            else
+            {
+                // Different plan: Handle upgrade/downgrade (Plan 1 <-> Plan 2)
+            // Determine if this is an upgrade or downgrade
+            bool isUpgrade = (plan.PriceMonthly ?? 0) > (currentPlan.PriceMonthly ?? 0);
+            bool isDowngrade = (plan.PriceMonthly ?? 0) < (currentPlan.PriceMonthly ?? 0);
+
+            // Policy: Downgrades are NOT allowed during billing cycle
+            // If users don't renew their subscription, it automatically downgrades to the free plan
+            if (isDowngrade)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error(
+                        "Membership.DowngradeNotAllowed",
+                        $"Downgrades are not allowed during billing cycle. Your current plan expires on {existing.BillingCycleEndDate:yyyy-MM-dd}. If you don't renew, your plan will automatically downgrade to the free plan.",
+                        ErrorCustom.ErrorType.Validation));
+            }
+
+                // For upgrade: Allow immediately
+                // Update membership to new plan
+                existing.PlanId = planId;
+                existing.AutoRenew = autoRenew;
+                existing.UpdatedAt = now;
+                existing.Status = CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active;
+
+                // For upgrade: Keep billing cycle dates unchanged (for proration)
+                if (isUpgrade)
+                {
+                    // CRITICAL: When upgrading, KEEP the same billing cycle dates
+                    // DO NOT reset BillingCycleStartDate or BillingCycleEndDate
+                    // This is KEY for Option C proration - billing cycle dates remain unchanged
+
+                    // Reset usage cycle to give immediate access to higher quotas
+                    existing.LastResetDate = now;
+                    var usage = await _membershipRepository.GetUsageAsync(existing.MembershipId, orgId, ct);
+                    if (usage != null)
+                    {
+                        usage.MapsCreatedThisCycle = 0;
+                        usage.ExportsThisCycle = 0;
+                        usage.ActiveUsersInOrg = 0;
+                        usage.CycleStartDate = now;
+                        usage.CycleEndDate = now.AddMonths(1);
+                        usage.UpdatedAt = now;
+                        await _membershipRepository.UpsertUsageAsync(usage, ct);
+                    }
+                }
+
+                var updatedMembership = await _membershipRepository.UpsertAsync(existing, ct);
+                return Option.Some<DomainMembership, ErrorCustom.Error>(updatedMembership);
+            }
         }
     }
 
@@ -79,6 +163,21 @@ public class MembershipService : IMembershipService
     {
         try
         {
+            // Get the organization to verify ownership
+            var organization = await _organizationRepository.GetOrganizationById(orgId);
+            if (organization == null)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Organization.NotFound", "Organization not found", ErrorCustom.ErrorType.NotFound));
+            }
+
+            // Only organization owner can change subscription plans
+            if (organization.OwnerUserId != userId)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotOwner", "Only the organization owner can change subscription plans", ErrorCustom.ErrorType.Forbidden));
+            }
+
             // Validate the new plan exists and is active
             var newPlan = await _membershipPlanRepository.GetPlanByIdAsync(newPlanId, ct);
             if (newPlan == null)
@@ -87,12 +186,12 @@ public class MembershipService : IMembershipService
                     new ErrorCustom.Error("Membership.PlanNotFound", "New plan not found or inactive", ErrorCustom.ErrorType.NotFound));
             }
 
-            // Get current membership
+            // Get current membership (organization's membership owned by the owner)
             var currentMembership = await _membershipRepository.GetByUserOrgAsync(userId, orgId, ct);
             if (currentMembership == null)
             {
                 return Option.None<DomainMembership, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Membership.NotFound", "No active membership found for user and organization", ErrorCustom.ErrorType.NotFound));
+                    new ErrorCustom.Error("Membership.NotFound", "No active membership found for organization", ErrorCustom.ErrorType.NotFound));
             }
 
             // Check if it's the same plan
@@ -115,7 +214,7 @@ public class MembershipService : IMembershipService
             // Business Rules for Plan Changes:
             // 1. Allow immediate plan changes
             // 2. Update membership with new plan
-            // 3. Keep the same start date for billing continuity
+            // 3. Calculate price difference based on remaining time
             // 4. Update auto-renewal setting
             // 5. Reset usage cycle if upgrading to higher tier
 
@@ -123,10 +222,30 @@ public class MembershipService : IMembershipService
             bool isUpgrade = (newPlan.PriceMonthly ?? 0) > (currentPlan.PriceMonthly ?? 0);
             bool isDowngrade = (newPlan.PriceMonthly ?? 0) < (currentPlan.PriceMonthly ?? 0);
 
+            // Policy: Downgrades are NOT allowed during billing cycle
+            // If users don't renew their subscription, it automatically downgrades to the free plan
+            if (isDowngrade)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error(
+                        "Membership.DowngradeNotAllowed",
+                        $"Downgrades are not allowed during billing cycle. Your current plan expires on {currentMembership.BillingCycleEndDate:yyyy-MM-dd}. If you don't renew, your plan will automatically downgrade to the free plan.",
+                        ErrorCustom.ErrorType.Validation));
+            }
             // Update membership
             currentMembership.PlanId = newPlanId;
             currentMembership.AutoRenew = autoRenew;
             currentMembership.UpdatedAt = now;
+
+            // Use billing cycle end date for expiration checks
+            // Keep billing cycle dates unchanged on upgrade (for proration)
+            // Only update PlanId
+            if (isUpgrade)
+            {
+                // CRITICAL: When upgrading, KEEP the same billing cycle dates
+                // DO NOT reset BillingCycleStartDate or BillingCycleEndDate
+                // This is KEY for Option C proration - billing cycle dates remain unchanged
+            }
 
             // If upgrading, reset usage cycle to give immediate access to higher quotas
             if (isUpgrade)
@@ -147,29 +266,6 @@ public class MembershipService : IMembershipService
                 }
             }
 
-            // If downgrading, keep current usage but ensure it doesn't exceed new plan limits
-            if (isDowngrade)
-            {
-                var usage = await _membershipRepository.GetUsageAsync(currentMembership.MembershipId, orgId, ct);
-                if (usage != null)
-                {
-                    // Cap usage to new plan limits
-                    if (newPlan.MaxMapsPerMonth > 0 && usage.MapsCreatedThisCycle > newPlan.MaxMapsPerMonth)
-                    {
-                        usage.MapsCreatedThisCycle = newPlan.MaxMapsPerMonth;
-                    }
-                    if (newPlan.ExportQuota > 0 && usage.ExportsThisCycle > newPlan.ExportQuota)
-                    {
-                        usage.ExportsThisCycle = newPlan.ExportQuota;
-                    }
-                    if (newPlan.MaxUsersPerOrg > 0 && usage.ActiveUsersInOrg > newPlan.MaxUsersPerOrg)
-                    {
-                        usage.ActiveUsersInOrg = newPlan.MaxUsersPerOrg;
-                    }
-                    usage.UpdatedAt = now;
-                    await _membershipRepository.UpsertUsageAsync(usage, ct);
-                }
-            }
 
             var updatedMembership = await _membershipRepository.UpsertAsync(currentMembership, ct);
             return Option.Some<DomainMembership, ErrorCustom.Error>(updatedMembership);
@@ -228,13 +324,6 @@ public class MembershipService : IMembershipService
         return await usageResult.Match(
             some: async usage =>
             {
-                // Fetch addons to extend quotas if available
-                var addons = await _membershipRepository.GetActiveAddonsAsync(membershipId, orgId, DateTime.UtcNow, ct);
-
-                int GetAddonExtra(string key)
-                {
-                    return addons.Where(a => a.AddonKey == $"extra_{key}").Sum(a => a.Quantity ?? 0);
-                }
 
                 switch (resourceKey)
                 {
@@ -272,10 +361,7 @@ public class MembershipService : IMembershipService
     public async Task<Option<bool, ErrorCustom.Error>> HasFeatureAsync(Guid membershipId, Guid orgId, string featureKey, CancellationToken ct)
     {
         var usage = await GetOrCreateUsageAsync(membershipId, orgId, ct);
-        var addons = await _membershipRepository.GetActiveAddonsAsync(membershipId, orgId, DateTime.UtcNow, ct);
-
-        // Check feature flags in usage or addons
-        bool fromAddon = addons.Any(a => a.AddonKey == $"feature_{featureKey}");
+        // Check feature flags in usage
         bool fromUsage = false;
         if (!string.IsNullOrWhiteSpace(usage.Match(
             some: u => u.FeatureFlags,
@@ -284,10 +370,13 @@ public class MembershipService : IMembershipService
         {
             try
             {
-                using var doc = JsonDocument.Parse(usage.Match(
+                var featureFlagsJson = usage.Match(
                     some: u => u.FeatureFlags,
-                    none: _ => null
-                ));
+                    none: _ => null);
+                if (string.IsNullOrWhiteSpace(featureFlagsJson))
+                    return Option.Some<bool, ErrorCustom.Error>(false);
+
+                using var doc = JsonDocument.Parse(featureFlagsJson);
                 if (doc.RootElement.TryGetProperty(featureKey, out var val) && val.ValueKind == JsonValueKind.True)
                     fromUsage = true;
             }
@@ -296,41 +385,107 @@ public class MembershipService : IMembershipService
                 // ignore invalid JSON
             }
         }
-        return Option.Some<bool, ErrorCustom.Error>(fromAddon || fromUsage);
+        return Option.Some<bool, ErrorCustom.Error>(fromUsage);
     }
 
-    public async Task<Option<DomainMembershipAddon, ErrorCustom.Error>> AddAddonAsync(Guid membershipId, Guid orgId, string addonKey, int? quantity, bool effectiveImmediately, CancellationToken ct)
-    {
-        var addon = new DomainMembershipAddon
-        {
-            AddonId = Guid.NewGuid(),
-            MembershipId = membershipId,
-            OrgId = orgId,
-            AddonKey = addonKey,
-            Quantity = quantity,
-            FeaturePayload = null,
-            PurchasedAt = DateTime.UtcNow,
-            EffectiveFrom = effectiveImmediately ? DateTime.UtcNow : null,
-            EffectiveUntil = null,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-        return Option.Some<DomainMembershipAddon, ErrorCustom.Error>(await _membershipRepository.AddAddonAsync(addon, ct));
-    }
 
     public async Task<Option<DomainMembership, ErrorCustom.Error>> GetCurrentMembershipWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
         try
         {
+            // First try to get the user's individual membership
             var membership = await _membershipRepository.GetByUserOrgWithIncludesAsync(userId, orgId, ct);
-            return membership != null
-                ? Option.Some<DomainMembership, ErrorCustom.Error>(membership)
-                : Option.None<DomainMembership, ErrorCustom.Error>(new ErrorCustom.Error("Membership.NotFound", "No active membership found for user and organization", ErrorCustom.ErrorType.NotFound));
+            if (membership != null)
+            {
+                return Option.Some<DomainMembership, ErrorCustom.Error>(membership);
+            }
+
+            // If no individual membership found, check if user is a member of an organization
+            // and return the organization's membership (owned by the organization owner)
+            var organization = await _organizationRepository.GetOrganizationById(orgId);
+            if (organization != null)
+            {
+                // Check if the user is an active member of this organization
+                var members = await _organizationRepository.GetOrganizationMembers(orgId);
+                var userMember = members?.FirstOrDefault(m => m.UserId == userId && m.Status == CusomMapOSM_Domain.Entities.Organizations.Enums.MemberStatus.Active);
+
+                if (userMember != null)
+                {
+                    // User is a member, get the organization's membership (owner's membership)
+                    var orgMembership = await _membershipRepository.GetByUserOrgWithIncludesAsync(organization.OwnerUserId, orgId, ct);
+                    if (orgMembership != null)
+                    {
+                        return Option.Some<DomainMembership, ErrorCustom.Error>(orgMembership);
+                    }
+                }
+            }
+
+            return Option.None<DomainMembership, ErrorCustom.Error>(new ErrorCustom.Error("Membership.NotFound", "No active membership found", ErrorCustom.ErrorType.NotFound));
         }
         catch (Exception ex)
         {
             return Option.None<DomainMembership, ErrorCustom.Error>(
                 new ErrorCustom.Error("Membership.GetFailed", $"Failed to get current membership: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    public async Task<Option<DomainMembership, ErrorCustom.Error>> GetMembershipByIdAsync(Guid membershipId, CancellationToken ct = default)
+    {
+        try
+        {
+            var membership = await _membershipRepository.GetByIdAsync(membershipId, ct);
+            if (membership == null)
+            {
+                return Option.None<DomainMembership, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Membership.NotFound", "Membership not found", ErrorCustom.ErrorType.NotFound));
+            }
+            return Option.Some<DomainMembership, ErrorCustom.Error>(membership);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<DomainMembership, ErrorCustom.Error>(
+                new ErrorCustom.Error("Membership.GetFailed", $"Failed to get membership: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    public async Task<Option<PlanLimitsResponse, ErrorCustom.Error>> GetPlanLimitsAsync(int planId, CancellationToken ct = default)
+    {
+        try
+        {
+            var plan = await _membershipPlanRepository.GetPlanByIdAsync(planId, ct);
+            if (plan == null)
+            {
+                return Option.None<PlanLimitsResponse, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Plan.NotFound", $"Plan with ID '{planId}' not found", ErrorCustom.ErrorType.NotFound));
+            }
+
+            static int? ToNullableInt(int value) => value == -1 ? null : value;
+            static long? ToNullableLong(long value) => value == -1 ? null : value;
+
+            var response = new PlanLimitsResponse
+            {
+                PlanName = plan.PlanName,
+                PriceMonthly = plan.PriceMonthly ?? 0,
+                OrganizationMax = null,
+                LocationMax = ToNullableInt(plan.MaxLocationsPerOrg),
+                ViewsMonthly = ToNullableInt(plan.MaxInteractionsPerMap),
+                MapsMax = ToNullableInt(plan.MaxMapsPerMonth),
+                MembersMax = ToNullableInt(plan.MaxUsersPerOrg),
+                MapQuota = ToNullableInt(plan.MapQuota),
+                ExportQuota = ToNullableInt(plan.ExportQuota),
+                MaxLayer = ToNullableInt(plan.MaxCustomLayers),
+                TokenMonthly = ToNullableInt(plan.MonthlyTokens),
+                MediaFileMax = ToNullableLong(plan.MaxMediaFileSizeBytes),
+                VideoFileMax = ToNullableLong(plan.MaxVideoFileSizeBytes),
+                AudioFileMax = ToNullableLong(plan.MaxAudioFileSizeBytes)
+            };
+
+            return Option.Some<PlanLimitsResponse, ErrorCustom.Error>(response);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<PlanLimitsResponse, ErrorCustom.Error>(
+                new ErrorCustom.Error("Plan.GetLimitsFailed", $"Failed to get plan limits: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }
     }
 }

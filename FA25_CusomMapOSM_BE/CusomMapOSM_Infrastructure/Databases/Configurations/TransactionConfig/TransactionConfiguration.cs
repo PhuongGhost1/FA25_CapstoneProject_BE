@@ -48,7 +48,7 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transactions>
               builder.Property(t => t.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.Property(t => t.MembershipId)
                      .HasColumnName("membership_id");
@@ -60,6 +60,10 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transactions>
                      .HasColumnName("purpose")
                      .HasColumnType("text")
                      .IsRequired();
+
+              builder.Property(t => t.Content)
+                     .HasColumnName("content")
+                     .HasColumnType("text");
 
               // Relationships
               builder.HasOne(t => t.PaymentGateway)

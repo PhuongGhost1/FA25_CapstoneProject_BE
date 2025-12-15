@@ -5,13 +5,20 @@ using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Domain.Entities.Transactions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using Optional;
+using Optional.Unsafe;
 using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Domain.Entities.Transactions.Enums;
-using CusomMapOSM_Infrastructure.Services.Payment;
 using Microsoft.Extensions.DependencyInjection;
 using CusomMapOSM_Application.Common.Errors;
+using CusomMapOSM_Application.Interfaces.Features.Notifications;
+using CusomMapOSM_Infrastructure.Services;
+using Microsoft.Extensions.Logging;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.User;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using CusomMapOSM_Infrastructure.Databases;
+using CusomMapOSM_Commons.Constant;
 
 namespace CusomMapOSM_Infrastructure.Features.Transaction;
 
@@ -22,8 +29,6 @@ public class TransactionContext
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
     public Guid? MembershipId { get; set; }
-    public string? AddonKey { get; set; }
-    public int? Quantity { get; set; }
 }
 
 public class TransactionService : ITransactionService
@@ -31,34 +36,63 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentService _paymentService;
     private readonly IMembershipService _membershipService;
-    private readonly IUserAccessToolService _userAccessToolService;
     private readonly IServiceProvider _serviceProvider;
     private readonly IPaymentGatewayRepository _paymentGatewayRepository;
-    public TransactionService(ITransactionRepository transactionRepository, IPaymentService paymentService, IMembershipService membershipService, IUserAccessToolService userAccessToolService, IServiceProvider serviceProvider, IPaymentGatewayRepository paymentGatewayRepository)
+    private readonly HangfireEmailService _hangfireEmailService;
+    private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IUserRepository _userRepository;
+    private readonly IMembershipRepository _membershipRepository;
+    private readonly IMembershipPlanRepository _membershipPlanRepository;
+    private readonly ILogger<TransactionService> _logger;
+
+    public TransactionService(
+        ITransactionRepository transactionRepository,
+        IPaymentService paymentService,
+        IMembershipService membershipService,
+        IServiceProvider serviceProvider,
+        IPaymentGatewayRepository paymentGatewayRepository,
+        HangfireEmailService hangfireEmailService,
+        IEmailNotificationService emailNotificationService,
+        IUserRepository userRepository,
+        IMembershipRepository membershipRepository,
+        IMembershipPlanRepository membershipPlanRepository, ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _paymentService = paymentService;
         _membershipService = membershipService;
-        _userAccessToolService = userAccessToolService;
         _serviceProvider = serviceProvider;
         _paymentGatewayRepository = paymentGatewayRepository;
+        _hangfireEmailService = hangfireEmailService;
+        _emailNotificationService = emailNotificationService;
+        _userRepository = userRepository;
+        _membershipRepository = membershipRepository;
+        _membershipPlanRepository = membershipPlanRepository;
+        _logger = logger;
     }
 
     public async Task<Option<ApprovalUrlResponse, ErrorCustom.Error>> ProcessPaymentAsync(ProcessPaymentReq request, CancellationToken ct)
     {
+        _logger.LogInformation("=== TransactionService.ProcessPaymentAsync START ===");
+        _logger.LogInformation("Request Details: Total={Total}, PaymentGateway={PaymentGateway}, Purpose={Purpose}, UserId={UserId}, OrgId={OrgId}, PlanId={PlanId}",
+            request.Total, request.PaymentGateway, request.Purpose, request.UserId, request.OrgId, request.PlanId);
+
         // 1. Get Gateway ID
-        var gatewayIdResult = await GetPaymentGatewayIdAsync(request.PaymentGateway, ct);
+        var gatewayIdResult = GetPaymentGatewayId(request.PaymentGateway);
         if (!gatewayIdResult.HasValue)
+        {
+            _logger.LogError("Payment gateway not found: {PaymentGateway}", request.PaymentGateway);
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
+        }
 
         var gatewayId = gatewayIdResult.ValueOr(default(Guid));
+        _logger.LogInformation("Gateway ID found: {GatewayId}", gatewayId);
 
         // 2. Create pending transaction with business context
         var pendingTransactionResult = await CreateTransactionRecordAsync(
             gatewayId,
             request.Total,
             request.Purpose,
-            request.MembershipId, // This will be null for new memberships, which is correct
+            null, // MembershipId - will be set after membership creation
             null, // ExportId
             "pending",
             ct
@@ -67,26 +101,38 @@ public class TransactionService : ITransactionService
         if (!pendingTransactionResult.HasValue)
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Transaction.Create.Failed", "Failed to create transaction", ErrorCustom.ErrorType.Failure));
 
-        var pendingTransaction = pendingTransactionResult.ValueOr(default(Transactions));
+        var pendingTransaction = pendingTransactionResult.ValueOrDefault()!;
 
         // 3. Store business context in transaction metadata for later retrieval
         await StoreTransactionContextAsync(pendingTransaction.TransactionId, request, ct);
 
         // 4. Get PaymentService
+        _logger.LogInformation("Getting payment service for gateway: {PaymentGateway}", request.PaymentGateway);
         var paymentService = GetPaymentService(request.PaymentGateway);
+        _logger.LogInformation("Payment service obtained: {ServiceType}", paymentService.GetType().Name);
 
         // 5. Create checkout with full request context for multi-item support
+        var returnUrl = $"{FrontendConstant.FRONTEND_BASE_URL}/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
+        var cancelUrl = $"{FrontendConstant.FRONTEND_BASE_URL}/profile/settings/plans?transactionId={pendingTransaction.TransactionId}";
+
+        _logger.LogInformation("Creating checkout with URLs - ReturnUrl: {ReturnUrl}, CancelUrl: {CancelUrl}", returnUrl, cancelUrl);
+
         var checkoutResult = await paymentService.CreateCheckoutAsync(
             request,
-            $"http://localhost:5233/transaction/confirm-payment-with-context?transactionId={pendingTransaction.TransactionId}",
-            $"http://localhost:5233/transaction/cancel-payment?transactionId={pendingTransaction.TransactionId}",
+            returnUrl,
+            cancelUrl,
             ct
         );
 
         if (!checkoutResult.HasValue)
+        {
+            _logger.LogError("Checkout creation failed for transaction: {TransactionId}", pendingTransaction.TransactionId);
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Checkout.Failed", "Failed to create checkout", ErrorCustom.ErrorType.Failure));
+        }
 
-        var approval = checkoutResult.ValueOr(default(ApprovalUrlResponse));
+        var approval = checkoutResult.ValueOrDefault()!;
+        _logger.LogInformation("Checkout created successfully - SessionId: {SessionId}, ApprovalUrl: {ApprovalUrl}",
+            approval.SessionId, approval.ApprovalUrl);
 
         // 6. Save gateway session/payment ID
         await UpdateTransactionGatewayInfoAsync(
@@ -95,6 +141,7 @@ public class TransactionService : ITransactionService
             ct
         );
 
+        _logger.LogInformation("=== TransactionService.ProcessPaymentAsync SUCCESS ===");
         return Option.Some<ApprovalUrlResponse, ErrorCustom.Error>(approval);
     }
 
@@ -106,15 +153,7 @@ public class TransactionService : ITransactionService
         // Find the service that matches the requested gateway
         foreach (var service in paymentServices)
         {
-            // Test the service by trying to create a minimal checkout to see which gateway it supports
-            // This is a simple way to identify which service handles which gateway
             if (service is PayOSPaymentService && gateway == PaymentGatewayEnum.PayOS)
-                return service;
-            if (service is VNPayPaymentService && gateway == PaymentGatewayEnum.VNPay)
-                return service;
-            if (service is StripePaymentService && gateway == PaymentGatewayEnum.Stripe)
-                return service;
-            if (service is PaypalPaymentService && gateway == PaymentGatewayEnum.PayPal)
                 return service;
         }
 
@@ -125,6 +164,10 @@ public class TransactionService : ITransactionService
         ConfirmPaymentWithContextReq req,
         CancellationToken ct)
     {
+        _logger.LogInformation("=== ConfirmPaymentWithContextAsync START ===");
+        _logger.LogInformation("Purpose: {Purpose}, TransactionId: {TransactionId}, PaymentGateway: {PaymentGateway}, PaymentId: {PaymentId}, OrderCode: {OrderCode}",
+            req.Purpose, req.TransactionId, req.PaymentGateway, req.PaymentId, req.OrderCode);
+
         // 1. If we already have a TransactionId, reuse it
         Transactions transaction;
 
@@ -132,15 +175,20 @@ public class TransactionService : ITransactionService
         {
             var existingTransaction = await _transactionRepository.GetByIdAsync(req.TransactionId, ct);
             if (existingTransaction is null)
+            {
+                _logger.LogError("Transaction not found: {TransactionId}", req.TransactionId);
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Transaction.NotFound", "Transaction not found", ErrorCustom.ErrorType.NotFound));
+            }
 
+            _logger.LogInformation("Found existing transaction: {TransactionId}, Purpose: {Purpose}", 
+                existingTransaction.TransactionId, existingTransaction.Purpose);
             transaction = existingTransaction;
         }
         else
         {
             // Fallback: Create a new transaction if none exists
-            var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
+            var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
             if (!gatewayIdResult.HasValue)
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
@@ -161,13 +209,16 @@ public class TransactionService : ITransactionService
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Transaction.Create.Failed", "Failed to create transaction", ErrorCustom.ErrorType.Failure));
 
-            transaction = initialTransactionResult.ValueOr(default(Transactions));
+            transaction = initialTransactionResult.ValueOrDefault()!;
         }
 
         // 2. Get correct payment service
         var paymentService = GetPaymentService(req.PaymentGateway);
 
         // 3. Confirm payment
+        _logger.LogInformation("Confirming payment with PayOS - PaymentId: {PaymentId}, OrderCode: {OrderCode}", 
+            req.PaymentId, req.OrderCode);
+        
         var confirmed = await paymentService.ConfirmPaymentAsync(new ConfirmPaymentReq
         {
             PaymentGateway = req.PaymentGateway,
@@ -183,13 +234,19 @@ public class TransactionService : ITransactionService
         return await confirmed.Match(
             some: async _ =>
             {
+                _logger.LogInformation("Payment confirmed successfully, updating transaction status");
                 await UpdateTransactionStatusAsync(transaction.TransactionId, "success", ct);
 
                 // 4. Post-payment fulfillment logic using stored context
-                return await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("Processing post-payment fulfillment for purpose: {Purpose}", req.Purpose);
+                var fulfillmentResult = await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("=== ConfirmPaymentWithContextAsync SUCCESS ===");
+                return fulfillmentResult;
             },
             none: async err =>
             {
+                _logger.LogError("Payment confirmation failed: {ErrorCode} - {ErrorMessage}", 
+                    err.Code, err);
                 await UpdateTransactionStatusAsync(transaction.TransactionId, "failed", ct);
                 return Option.None<object, ErrorCustom.Error>(err);
             }
@@ -217,52 +274,148 @@ public class TransactionService : ITransactionService
             return await membership.Match(
                 some: async m =>
                 {
-                    // Grant access tools based on the membership plan
-                    var accessToolResult = await _userAccessToolService.UpdateAccessToolsForMembershipAsync(
-                        context.UserId.Value,
-                        context.PlanId.Value,
-                        m.EndDate ?? DateTime.UtcNow.AddMonths(1), // Default to 1 month if no end date
-                        ct
-                    );
+                    // Update transaction with the created membership ID and content
+                    transaction.MembershipId = m.MembershipId;
 
-                    accessToolResult.Match(
-                        some: _ => { /* Success - do nothing */ },
-                        none: error => Console.WriteLine($"Failed to grant access tools: {error?.Description ?? "Unknown error"}")
-                    );
+                    // Save transaction content when transaction completes
+                    var plan = await _membershipPlanRepository.GetPlanByIdAsync(context.PlanId.Value, ct);
+                    transaction.Content = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Purpose = purpose,
+                        PlanId = context.PlanId.Value,
+                        PlanName = plan?.PlanName ?? "Unknown Plan",
+                        MembershipId = m.MembershipId,
+                        Amount = transaction.Amount,
+                        BillingCycleStartDate = m.BillingCycleStartDate,
+                        BillingCycleEndDate = m.BillingCycleEndDate,
+                        ProcessedAt = DateTime.UtcNow
+                    });
+
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+
+
+                    // Send purchase confirmation notification
+                    var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+                    await _emailNotificationService.SendTransactionCompletedNotificationAsync(
+                        user?.Email ?? "unknown@example.com",
+                        user?.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
 
                     return Option.Some<object, ErrorCustom.Error>(new
                     {
                         MembershipId = m.MembershipId,
-                        TransactionId = transaction.TransactionId,
-                        AccessToolsGranted = accessToolResult.HasValue
+                        TransactionId = transaction.TransactionId
                     });
                 },
                 none: err => Task.FromResult(Option.None<object, ErrorCustom.Error>(err))
             );
         }
 
-        if (string.Equals(purpose, "addon", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(purpose, "upgrade", StringComparison.OrdinalIgnoreCase))
         {
-            if (context?.MembershipId is null || context?.OrgId is null || string.IsNullOrWhiteSpace(context?.AddonKey))
+            if (context?.UserId is null || context?.OrgId is null || context?.PlanId is null)
                 return Option.None<object, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.Context.Invalid", "Missing addon context", ErrorCustom.ErrorType.Validation));
+                    new ErrorCustom.Error("Payment.Context.Invalid", "Missing upgrade context", ErrorCustom.ErrorType.Validation));
 
-            var addon = await _membershipService.AddAddonAsync(
-                context.MembershipId.Value,
+            // Check if membership is already on the target plan (idempotency check)
+            // This can happen if this method is called multiple times for the same transaction
+            var currentMembership = await _membershipService.GetCurrentMembershipWithIncludesAsync(
+                context.UserId.Value, context.OrgId.Value, ct);
+            
+            if (currentMembership.HasValue && currentMembership.ValueOrDefault().PlanId == context.PlanId.Value)
+            {
+                // Membership is already on the target plan - upgrade was already processed
+                _logger.LogInformation("Upgrade already processed - membership is already on plan {PlanId}. Returning success (idempotency).", context.PlanId.Value);
+                
+                // Update transaction with existing membership ID if not already set
+                if (!transaction.MembershipId.HasValue && currentMembership.HasValue)
+                {
+                    transaction.MembershipId = currentMembership.ValueOrDefault().MembershipId;
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+                }
+                
+                return Option.Some<object, ErrorCustom.Error>(new
+                {
+                    MembershipId = currentMembership.ValueOrDefault().MembershipId,
+                    TransactionId = transaction.TransactionId,
+                    Message = "Upgrade already processed"
+                });
+            }
+
+            var membership = await _membershipService.ChangeSubscriptionPlanAsync(
+                context.UserId.Value,
                 context.OrgId.Value,
-                context.AddonKey,
-                context.Quantity,
-                true,
+                context.PlanId.Value,
+                context.AutoRenew,
                 ct
             );
 
-            return addon.Match(
-                some: a => Option.Some<object, ErrorCustom.Error>(new
+            return await membership.Match(
+                some: async m =>
                 {
-                    AddonId = a.AddonId,
-                    TransactionId = transaction.TransactionId
-                }),
-                none: err => Option.None<object, ErrorCustom.Error>(err)
+                    // Update transaction with the updated membership ID and content
+                    transaction.MembershipId = m.MembershipId;
+
+                    // Save transaction content when transaction completes
+                    var plan = await _membershipPlanRepository.GetPlanByIdAsync(context.PlanId.Value, ct);
+                    transaction.Content = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        Purpose = purpose,
+                        PlanId = context.PlanId.Value,
+                        PlanName = plan?.PlanName ?? "Unknown Plan",
+                        MembershipId = m.MembershipId,
+                        Amount = transaction.Amount,
+                        BillingCycleStartDate = m.BillingCycleStartDate,
+                        BillingCycleEndDate = m.BillingCycleEndDate,
+                        ProcessedAt = DateTime.UtcNow
+                    });
+
+                    await _transactionRepository.UpdateAsync(transaction, ct);
+
+                    // Send upgrade confirmation notification
+                    var user = await _userRepository.GetUserByIdAsync(context.UserId.Value, ct);
+                    await _emailNotificationService.SendTransactionCompletedNotificationAsync(
+                        user?.Email ?? "unknown@example.com",
+                        user?.FullName ?? "User",
+                        transaction.Amount,
+                        m.Plan?.PlanName ?? "Unknown Plan");
+
+                    return Option.Some<object, ErrorCustom.Error>(new
+                    {
+                        MembershipId = m.MembershipId,
+                        TransactionId = transaction.TransactionId
+                    });
+                },
+                none: async err =>
+                {
+                    // Check if error is "SamePlan" - this means upgrade was already processed
+                    if (err.Code == "Membership.SamePlan")
+                    {
+                        _logger.LogInformation("Upgrade failed with SamePlan error - membership is already on target plan. Treating as success (idempotency).");
+                        
+                        // Get current membership to return its ID
+                        if (currentMembership.HasValue)
+                        {
+                            var m = currentMembership.ValueOrDefault();
+                            if (!transaction.MembershipId.HasValue)
+                            {
+                                transaction.MembershipId = m.MembershipId;
+                                await _transactionRepository.UpdateAsync(transaction, ct);
+                            }
+                            
+                            return Option.Some<object, ErrorCustom.Error>(new
+                            {
+                                MembershipId = m.MembershipId,
+                                TransactionId = transaction.TransactionId,
+                                Message = "Upgrade already processed"
+                            });
+                        }
+                    }
+                    
+                    // Real error - return it
+                    return Option.None<object, ErrorCustom.Error>(err);
+                }
             );
         }
 
@@ -273,13 +426,27 @@ public class TransactionService : ITransactionService
         });
     }
 
-    public async Task<Option<Guid, ErrorCustom.Error>> GetPaymentGatewayIdAsync(PaymentGatewayEnum paymentGateway, CancellationToken ct)
+    public Option<Guid, ErrorCustom.Error> GetPaymentGatewayId(PaymentGatewayEnum paymentGateway)
     {
-        var gateway = await _paymentGatewayRepository.GetByIdAsync(paymentGateway, ct);
-        if (gateway == null)
+        // Use the predefined GUIDs from PaymentGatewayConfiguration instead of database lookup
+        var gatewayId = GetPaymentGatewayIdInternal(paymentGateway);
+        if (gatewayId == Guid.Empty)
             return Option.None<Guid, ErrorCustom.Error>(new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
 
-        return Option.Some<Guid, ErrorCustom.Error>(gateway.GatewayId);
+        return Option.Some<Guid, ErrorCustom.Error>(gatewayId);
+    }
+
+    private static Guid GetPaymentGatewayIdInternal(PaymentGatewayEnum paymentGateway)
+    {
+        return paymentGateway switch
+        {
+            PaymentGatewayEnum.VNPay => SeedDataConstants.VnPayPaymentGatewayId,
+            PaymentGatewayEnum.PayPal => SeedDataConstants.PayPalPaymentGatewayId,
+            PaymentGatewayEnum.Stripe => SeedDataConstants.StripePaymentGatewayId,
+            PaymentGatewayEnum.BankTransfer => SeedDataConstants.BankTransferPaymentGatewayId,
+            PaymentGatewayEnum.PayOS => SeedDataConstants.PayOSPaymentGatewayId,
+            _ => Guid.Empty
+        };
     }
 
     public async Task<Option<Transactions, ErrorCustom.Error>> CreateTransactionRecordAsync(Guid paymentGatewayId, decimal amount, string purpose, Guid? membershipId, int? exportId, string status, CancellationToken ct)
@@ -327,7 +494,7 @@ public class TransactionService : ITransactionService
     public async Task<Option<CancelPaymentResponse, ErrorCustom.Error>> CancelPaymentWithContextAsync(CancelPaymentWithContextReq req, CancellationToken ct)
     {
         // 1. Get gateway ID
-        var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
+        var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
 
         return await gatewayIdResult.Match(
             some: async gatewayId =>
@@ -400,8 +567,6 @@ public class TransactionService : ITransactionService
                 OrgId = request.OrgId,
                 PlanId = request.PlanId,
                 AutoRenew = request.AutoRenew,
-                AddonKey = request.AddonKey,
-                Quantity = request.Quantity
             };
 
             // Store the purpose and context as JSON with a separator
@@ -439,7 +604,7 @@ public class TransactionService : ITransactionService
             {
                 Console.WriteLine($"No separator found or empty purpose, returning: ({transaction.Purpose}, null)");
                 Console.WriteLine($"=== End Parsing Transaction Context ===");
-                return (transaction.Purpose, null);
+                return (transaction.Purpose ?? string.Empty, null);
             }
 
             var parts = transaction.Purpose.Split('|', 2);
@@ -449,7 +614,7 @@ public class TransactionService : ITransactionService
             {
                 Console.WriteLine($"Invalid parts count, returning: ({transaction.Purpose}, null)");
                 Console.WriteLine($"=== End Parsing Transaction Context ===");
-                return (transaction.Purpose, null);
+                return (transaction.Purpose ?? string.Empty, null);
             }
 
             var purpose = parts[0];
@@ -471,4 +636,73 @@ public class TransactionService : ITransactionService
             return (transaction.Purpose, null);
         }
     }
+
+    public async Task<Option<object, ErrorCustom.Error>> HandleWebhookAsync(PaymentGatewayEnum gateway, string gatewayReference, string? orderCode = null, CancellationToken ct = default)
+    {
+        _logger.LogInformation("=== TransactionService.HandleWebhookAsync START ===");
+        _logger.LogInformation("Gateway: {Gateway}, GatewayReference: {GatewayReference}, OrderCode: {OrderCode}", gateway, gatewayReference, orderCode);
+
+        // 1. Find transaction by gateway reference (TransactionReference field)
+        var transaction = await _transactionRepository.GetByTransactionReferenceAsync(gatewayReference, ct);
+        if (transaction == null)
+        {
+            _logger.LogWarning("Transaction not found for gateway reference: {GatewayReference}", gatewayReference);
+            return Option.None<object, ErrorCustom.Error>(
+                new ErrorCustom.Error("Transaction.NotFound", "Transaction not found for the given gateway reference", ErrorCustom.ErrorType.NotFound));
+        }
+
+        _logger.LogInformation("Transaction found: {TransactionId}, Status: {Status}", transaction.TransactionId, transaction.Status);
+
+        // 2. Check if transaction is already processed
+        if (transaction.Status == "success")
+        {
+            _logger.LogInformation("Transaction already processed successfully: {TransactionId}", transaction.TransactionId);
+            return Option.Some<object, ErrorCustom.Error>(new
+            {
+                TransactionId = transaction.TransactionId,
+                Status = "success",
+                Message = "Transaction already processed"
+            });
+        }
+
+        // 3. Get payment service and verify payment status
+        var paymentService = GetPaymentService(gateway);
+        
+        // Extract payment details based on gateway
+        // For PayOS, OrderCode is required and should be passed from webhook
+        var confirmRequest = new ConfirmPaymentReq
+        {
+            PaymentGateway = gateway,
+            PaymentId = gatewayReference,
+            OrderCode = orderCode // PayOS requires this, other gateways can ignore it
+        };
+
+        var confirmed = await paymentService.ConfirmPaymentAsync(confirmRequest, ct);
+
+        return await confirmed.Match(
+            some: async _ =>
+            {
+                // 4. Update transaction status
+                await UpdateTransactionStatusAsync(transaction.TransactionId, "success", ct);
+
+                // 5. Handle post-payment fulfillment
+                var fulfillmentResult = await HandlePostPaymentWithStoredContextAsync(transaction, ct);
+                _logger.LogInformation("=== TransactionService.HandleWebhookAsync SUCCESS ===");
+                return fulfillmentResult;
+            },
+            none: async err =>
+            {
+                // Update transaction status to failed if payment verification failed
+                if (transaction.Status == "pending")
+                {
+                    await UpdateTransactionStatusAsync(transaction.TransactionId, "failed", ct);
+                }
+                return Option.None<object, ErrorCustom.Error>(err);
+            }
+        );
+    }
+
+
+
+
 }

@@ -1,11 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CusomMapOSM_Domain.Entities.Layers;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
-using CusomMapOSM_Domain.Entities.Organizations;
 using CusomMapOSM_Domain.Entities.Users;
+using CusomMapOSM_Domain.Entities.Workspaces;
+using CusomMapOSM_Domain.Entities.QuestionBanks;
 
 namespace CusomMapOSM_Domain.Entities.Maps;
 
@@ -13,7 +15,7 @@ public class Map
 {
     public Guid MapId { get; set; }
     public Guid UserId { get; set; }
-    public Guid? OrgId { get; set; }
+    public Guid? WorkspaceId { get; set; }
     public string MapName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? PreviewImage { get; set; }
@@ -27,9 +29,12 @@ public class Map
     public string? ViewState { get; set; }
     public bool IsPublic { get; set; } = false;
     public bool IsActive { get; set; } = true;
+    public MapStatusEnum Status { get; set; } = MapStatusEnum.Draft;
+    public bool IsStoryMap { get; set; } = false;
+    public DateTime? PublishedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public User? User { get; set; }
-    public Organization? Organization { get; set; }
+    public Workspace? Workspace { get; set; }
     public Map? ParentMap { get; set; }
 }

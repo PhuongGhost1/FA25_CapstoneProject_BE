@@ -6,4 +6,5 @@ namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transacti
 public interface IPaymentGatewayRepository
 {
     Task<PaymentGateway?> GetByIdAsync(PaymentGatewayEnum name, CancellationToken ct);
+    Task<PaymentGateway?> GetByGatewayIdAsync(Guid gatewayId, CancellationToken ct);
 }

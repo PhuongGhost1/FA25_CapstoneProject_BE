@@ -1,21 +1,24 @@
 using System.Security.Claims;
+using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Features.Membership;
 using CusomMapOSM_Application.Models.DTOs.Features.User;
+using Microsoft.AspNetCore.Mvc;
+using ErrorCustom = CusomMapOSM_Application.Common.Errors;
 
 namespace CusomMapOSM_API.Endpoints.User;
 
 public class UserEndpoint : IEndpoint
 {
-    private const string API_PREFIX = "user";
-
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup(API_PREFIX).RequireAuthorization();
+        var group = app.MapGroup(Routes.Prefix.User)
+            .WithTags(Tags.User)
+            .RequireAuthorization();
 
-        group.MapGet("/me", async (
+        group.MapGet(Routes.UserEndpoints.GetMe, async (
             ClaimsPrincipal user,
             IUserService userService,
             CancellationToken ct) =>
@@ -25,7 +28,7 @@ public class UserEndpoint : IEndpoint
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 return Results.BadRequest("Invalid user ID");
 
-            var userResult = await userService.GetUserByIdAsync(userId, ct);
+            var userResult = await userService.GetUserByIdAsync(userId);
             return userResult.Match(
                 some: userEntity => Results.Ok(new GetUserInfoResponse
                 {
@@ -35,8 +38,8 @@ public class UserEndpoint : IEndpoint
                         Email = userEntity.Email,
                         FullName = userEntity.FullName,
                         Phone = userEntity.Phone,
-                        Role = userEntity.Role?.Name ?? "Unknown",
-                        AccountStatus = userEntity.AccountStatus?.Name ?? "Unknown",
+                        Role = userEntity.Role.ToString(),
+                        AccountStatus = userEntity.AccountStatus.ToString(),
                         CreatedAt = userEntity.CreatedAt,
                         LastLogin = userEntity.LastLogin
                     }
@@ -46,10 +49,9 @@ public class UserEndpoint : IEndpoint
         })
         .WithName("GetUserInfo")
         .WithDescription("Get current user information")
-        .WithTags(Tags.User)
         .Produces<GetUserInfoResponse>();
 
-        group.MapGet("/me/membership/{orgId:guid}", async (
+        group.MapGet(Routes.UserEndpoints.GetMyMembership, async (
             ClaimsPrincipal user,
             Guid orgId,
             IMembershipService membershipService,
@@ -72,9 +74,9 @@ public class UserEndpoint : IEndpoint
                         OrgName = membership.Organization?.OrgName ?? "Unknown",
                         PlanId = membership.PlanId,
                         PlanName = membership.Plan?.PlanName ?? "Unknown",
-                        StartDate = membership.StartDate,
-                        EndDate = membership.EndDate,
-                        Status = membership.Status?.Name ?? "Unknown",
+                        BillingCycleStartDate = membership.BillingCycleStartDate,
+                        BillingCycleEndDate = membership.BillingCycleEndDate,
+                        Status = membership.Status.ToString() ?? "Unknown",
                         AutoRenew = membership.AutoRenew,
                         LastResetDate = membership.LastResetDate,
                         CreatedAt = membership.CreatedAt,
@@ -86,7 +88,31 @@ public class UserEndpoint : IEndpoint
         })
         .WithName("GetCurrentMembership")
         .WithDescription("Get current membership for user in specific organization")
-        .WithTags(Tags.User)
         .Produces<GetCurrentMembershipResponse>();
+
+        // Update user personal information
+        group.MapPut(Routes.UserEndpoints.UpdatePersonalInfo, async (
+                ClaimsPrincipal user,
+                [FromBody] UpdateUserPersonalInfoRequest request,
+                IUserService userService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Results.BadRequest("Invalid user ID");
+
+                var updateResult = await userService.UpdateUserPersonalInfoAsync(userId, request, ct);
+                return updateResult.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("UpdateUserPersonalInfo")
+            .WithDescription("Update user personal information (name and phone)")
+            .Produces<UpdateUserPersonalInfoResponse>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
     }
 }

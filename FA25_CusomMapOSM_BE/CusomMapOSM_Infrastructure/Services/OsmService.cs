@@ -2,12 +2,15 @@ using CusomMapOSM_Application.Interfaces.Services.OSM;
 using CusomMapOSM_Application.Models.DTOs.Services.OSM;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace CusomMapOSM_Infrastructure.Services
 {
@@ -31,43 +34,96 @@ namespace CusomMapOSM_Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<OsmElementDTO>> SearchByNameAsync(string query, double lat, double lon, double radius)
+        public async Task<IEnumerable<OsmSearchResultDTO>> SearchByNameAsync(string query, double? lat = null, double? lon = null, double? radiusMeters = null, int limit = 10)
         {
-            var cacheKey = $"osm:search:{query}:{lat}:{lon}:{radius}";
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Array.Empty<OsmSearchResultDTO>();
+            }
+
+            var trimmedQuery = query.Trim();
+            limit = Math.Clamp(limit, 1, 25);
+                        var cacheKey = $"osm_search_v3_{trimmedQuery}_{lat}_{lon}_{radiusMeters}_{limit}";
             var cachedResult = await _cache.GetStringAsync(cacheKey);
             
             if (!string.IsNullOrEmpty(cachedResult))
             {
-                return JsonConvert.DeserializeObject<List<OsmElementDTO>>(cachedResult);
+                return JsonSerializer.Deserialize<List<OsmSearchResultDTO>>(cachedResult);
             }
 
             try
             {
-                var nominatimUrl = $"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(query)}&format=json&addressdetails=1" +
-                                  $"&limit=10&lat={lat}&lon={lon}&radius={radius}";
+                // Request with polygon_geojson to get geometry data
+                var nominatimUrl = new StringBuilder($"{NOMINATIM_API_URL}/search?q={Uri.EscapeDataString(trimmedQuery)}&format=json&addressdetails=1&polygon_geojson=1&limit={limit}");
                 
-                var response = await _httpClient.GetAsync(nominatimUrl);
+                if (lat.HasValue && lon.HasValue)
+                {
+                    nominatimUrl.Append($"&lat={lat.Value.ToString(CultureInfo.InvariantCulture)}");
+                    nominatimUrl.Append($"&lon={lon.Value.ToString(CultureInfo.InvariantCulture)}");
+
+                    if (radiusMeters.HasValue && radiusMeters.Value > 0)
+                    {
+                        var boundedRadius = Math.Clamp(radiusMeters.Value, 100, 100000);
+                        nominatimUrl.Append($"&radius={boundedRadius.ToString("F0", CultureInfo.InvariantCulture)}");
+                    }
+                }
+                
+                _logger.LogInformation("Sending request to Nominatim API: {Url}", nominatimUrl.ToString());
+                var response = await _httpClient.GetAsync(nominatimUrl.ToString());
+                _logger.LogInformation("Nominatim API response status: {StatusCode}", response.StatusCode);
                 response.EnsureSuccessStatusCode();
                 
                 var content = await response.Content.ReadAsStringAsync();
-                var results = JsonConvert.DeserializeObject<List<NominatimResultDTO>>(content);
+                _logger.LogInformation("Nominatim URL: {Url}", nominatimUrl.ToString());
+                _logger.LogInformation("Nominatim raw response sample: {Content}", content.Substring(0, Math.Min(500, content.Length)));
                 
-                var osmElements = MapNominatimToOsmElements(results);
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var results = JsonSerializer.Deserialize<List<NominatimResultDTO>>(content, jsonOptions);
+                
+                if (results == null || !results.Any())
+                {
+                    _logger.LogWarning("Nominatim returned no results for query: {Query}", trimmedQuery);
+                    return new List<OsmSearchResultDTO>();
+                }
+                
+                var firstResult = results[0];
+                _logger.LogInformation("First result AFTER deserialize - OsmType: {OsmType}, OsmId: {OsmId}, DisplayName: {DisplayName}, PlaceRank: {PlaceRank}", 
+                    firstResult.OsmType ?? "NULL", firstResult.OsmId, firstResult.DisplayName ?? "NULL", firstResult.PlaceRank?.ToString() ?? "NULL");
+                
+                var osmSearchResults = MapNominatimToSearchResults(results);
                 
                 await _cache.SetStringAsync(
                     cacheKey,
-                    JsonConvert.SerializeObject(osmElements),
+                    JsonSerializer.Serialize(osmSearchResults),
                     new DistributedCacheEntryOptions
                     {
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(CACHE_MINUTES)
                     });
                 
-                return osmElements;
+                return osmSearchResults;
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+            {
+                _logger.LogError(ex, "Timeout occurred while searching OSM elements for query: {Query}. The request took longer than the configured timeout.", trimmedQuery);
+                return new List<OsmSearchResultDTO>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Request was canceled while searching OSM elements for query: {Query}", trimmedQuery);
+                return new List<OsmSearchResultDTO>();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "HTTP request error while searching OSM elements for query: {Query}. Status: {StatusCode}", trimmedQuery, ex.StatusCode);
+                return new List<OsmSearchResultDTO>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching OSM elements by name");
-                return new List<OsmElementDTO>();
+                _logger.LogError(ex, "Unexpected error searching OSM elements by name for query: {Query}", trimmedQuery);
+                return new List<OsmSearchResultDTO>();
             }
         }
 
@@ -374,23 +430,158 @@ namespace CusomMapOSM_Infrastructure.Services
 
         // Implement remaining methods...
 
+        private IEnumerable<OsmSearchResultDTO> MapNominatimToSearchResults(List<NominatimResultDTO> results)
+        {
+            var searchResults = new List<OsmSearchResultDTO>();
+            
+            foreach (var result in results)
+            {
+                double[] boundingBox = null;
+                if (result.BoundingBox != null && result.BoundingBox.Length == 4)
+                {
+                    // Parse string array to double array
+                    boundingBox = new double[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (double.TryParse(result.BoundingBox[i], NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+                        {
+                            boundingBox[i] = value;
+                        }
+                    }
+                }
+
+                // Convert GeoJSON to string
+                string geoJsonString = null;
+                if (result.GeoJson != null)
+                {
+                    try
+                    {
+                        geoJsonString = JsonSerializer.Serialize(result.GeoJson);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to serialize GeoJSON for OSM {Type} {Id}", result.OsmType, result.OsmId);
+                    }
+                }
+                
+                // If no GeoJSON, create a Point from lat/lon
+                if (string.IsNullOrEmpty(geoJsonString))
+                {
+                    geoJsonString = JsonSerializer.Serialize(new
+                    {
+                        type = "Point",
+                        coordinates = new[] { result.Lon, result.Lat }
+                    });
+                }
+
+                // Map address details
+                OsmAddressDTO addressDetails = null;
+                if (result.Address != null)
+                {
+                    addressDetails = new OsmAddressDTO
+                    {
+                        Road = result.Address.Road ?? string.Empty,
+                        Suburb = result.Address.Suburb ?? string.Empty,
+                        City = result.Address.City ?? string.Empty,
+                        District = result.Address.District ?? string.Empty,
+                        State = result.Address.State ?? string.Empty,
+                        Postcode = result.Address.Postcode ?? string.Empty,
+                        Country = result.Address.Country ?? string.Empty,
+                        CountryCode = result.Address.CountryCode ?? string.Empty
+                    };
+                }
+
+                // Try to extract admin_level from tags (if available)
+                int? adminLevel = null;
+                if (result.Class == "boundary" && result.Type == "administrative")
+                {
+                    // Estimate admin level based on place_rank
+                    if (result.PlaceRank.HasValue)
+                    {
+                        adminLevel = EstimateAdminLevelFromPlaceRank(result.PlaceRank.Value);
+                    }
+                }
+
+                searchResults.Add(new OsmSearchResultDTO
+                {
+                    OsmType = result.OsmType,
+                    OsmId = result.OsmId,
+                    DisplayName = result.DisplayName,
+                    Lat = result.Lat,
+                    Lon = result.Lon,
+                    BoundingBox = boundingBox,
+                    Category = result.Class ?? string.Empty,
+                    Type = result.Type ?? string.Empty,
+                    Importance = result.Importance,
+                    GeoJson = geoJsonString,
+                    AddressDetails = addressDetails,
+                    PlaceRank = result.PlaceRank,
+                    AdminLevel = adminLevel
+                });
+            }
+            
+            return searchResults;
+        }
+        
+        private int? EstimateAdminLevelFromPlaceRank(int placeRank)
+        {
+            // Nominatim place_rank to OSM admin_level mapping (approximate)
+            return placeRank switch
+            {
+                <= 4 => 2,   // Country
+                <= 8 => 4,   // Province/State
+                <= 12 => 6,  // District
+                <= 16 => 8,  // Ward/Commune
+                <= 18 => 9,  // Sub-district
+                _ => 10      // Lowest level
+            };
+        }
+
         private IEnumerable<OsmElementDTO> MapNominatimToOsmElements(List<NominatimResultDTO> results)
         {
             var elements = new List<OsmElementDTO>();
             
             foreach (var result in results)
             {
+                var tags = new Dictionary<string, string>();
+                if (!string.IsNullOrWhiteSpace(result.DisplayName))
+                {
+                    tags["name"] = result.DisplayName;
+                    tags["display_name"] = result.DisplayName;
+                }
+                if (!string.IsNullOrWhiteSpace(result.Class))
+                {
+                    tags["class"] = result.Class;
+                }
+                if (!string.IsNullOrWhiteSpace(result.Type))
+                {
+                    tags["type"] = result.Type;
+                }
+                if (result.Address != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(result.Address.Road))
+                        tags["road"] = result.Address.Road;
+                    if (!string.IsNullOrWhiteSpace(result.Address.City))
+                        tags["city"] = result.Address.City;
+                    if (!string.IsNullOrWhiteSpace(result.Address.State))
+                        tags["state"] = result.Address.State;
+                    if (!string.IsNullOrWhiteSpace(result.Address.Postcode))
+                        tags["postcode"] = result.Address.Postcode;
+                    if (!string.IsNullOrWhiteSpace(result.Address.Country))
+                        tags["country"] = result.Address.Country;
+                    if (!string.IsNullOrWhiteSpace(result.Address.CountryCode))
+                        tags["country_code"] = result.Address.CountryCode;
+                }
+                tags["lat"] = result.Lat.ToString(CultureInfo.InvariantCulture);
+                tags["lon"] = result.Lon.ToString(CultureInfo.InvariantCulture);
+
                 elements.Add(new OsmElementDTO
                 {
                     Id = result.OsmId.ToString(),
                     Type = result.OsmType,
-                    Tags = new Dictionary<string, string>
-                    {
-                        { "name", result.DisplayName },
-                        { "lat", result.Lat.ToString() },
-                        { "lon", result.Lon.ToString() },
-                        // Add other properties...
-                    }
+                    Lat = result.Lat,
+                    Lon = result.Lon,
+                    Tags = tags
                 });
             }
             
@@ -419,5 +610,223 @@ namespace CusomMapOSM_Infrastructure.Services
             
             return elements;
         }
+
+        private static string FormatCoordinate(double? value) =>
+            value?.ToString("F4", CultureInfo.InvariantCulture) ?? "na";
+
+        private static string FormatRadius(double? value) =>
+            value?.ToString("F0", CultureInfo.InvariantCulture) ?? "na";
+
+        public async Task<string> GetRouteBetweenPointsAsync(double fromLat, double fromLon, double toLat, double toLon, string routeType = "road")
+        {
+            // If route type is "straight" or "plane", return straight line
+            if (routeType?.ToLowerInvariant() == "straight" || routeType?.ToLowerInvariant() == "plane")
+            {
+                return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+            }
+
+            // For road routes, use OSRM
+            var cacheKey = $"osm:route:road:{fromLat}:{fromLon}:{toLat}:{toLon}";
+            var cachedResult = await _cache.GetStringAsync(cacheKey);
+            
+            if (!string.IsNullOrEmpty(cachedResult))
+            {
+                return cachedResult;
+            }
+
+            try
+            {
+                // Use OSRM public API for routing (HTTP only, as HTTPS may have SSL issues)
+                // Format: /route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson
+                var osrmUrl = $"http://router.project-osrm.org/route/v1/driving/{fromLon.ToString(CultureInfo.InvariantCulture)},{fromLat.ToString(CultureInfo.InvariantCulture)};{toLon.ToString(CultureInfo.InvariantCulture)},{toLat.ToString(CultureInfo.InvariantCulture)}?overview=full&geometries=geojson";
+                
+                _logger.LogInformation("Requesting route from OSRM: {Url}", osrmUrl);
+                
+                // Create a request with timeout
+                using var request = new HttpRequestMessage(HttpMethod.Get, osrmUrl);
+                request.Headers.Add("User-Agent", "CustomMapOSM_Application/1.0");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cts.Token);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM API returned status {StatusCode} for route request", response.StatusCode);
+                    // Return a simple straight line as fallback
+                    return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var osrmResult = JsonConvert.DeserializeObject<OsmRouteResponseDTO>(content);
+                
+                if (osrmResult?.Routes == null || osrmResult.Routes.Count == 0)
+                {
+                    _logger.LogWarning("OSRM returned no routes");
+                    return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                var route = osrmResult.Routes[0];
+                string geoJson;
+                
+                // OSRM with geometries=geojson returns geometry as GeoJSON LineString
+                if (route.Geometry != null && route.Geometry.Coordinates != null && route.Geometry.Coordinates.Length > 0)
+                {
+                    geoJson = JsonSerializer.Serialize(new
+                    {
+                        type = "LineString",
+                        coordinates = route.Geometry.Coordinates
+                    });
+                }
+                else
+                {
+                    // Fallback to straight line if geometry is missing
+                    geoJson = CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+                }
+                
+                await _cache.SetStringAsync(
+                    cacheKey,
+                    geoJson,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Cache routes for 24 hours
+                    });
+                
+                return geoJson;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting route between points ({FromLat}, {FromLon}) to ({ToLat}, {ToLon})", fromLat, fromLon, toLat, toLon);
+                // Return a simple straight line as fallback
+                return CreateStraightLineGeoJson(fromLat, fromLon, toLat, toLon);
+            }
+        }
+
+        public async Task<string> GetRouteWithWaypointsAsync(List<(double lat, double lon)> waypoints, string routeType = "road")
+        {
+            if (waypoints == null || waypoints.Count < 2)
+            {
+                throw new ArgumentException("At least 2 waypoints are required", nameof(waypoints));
+            }
+
+            // If route type is "straight" or "plane", return straight line through all waypoints
+            if (routeType?.ToLowerInvariant() == "straight" || routeType?.ToLowerInvariant() == "plane")
+            {
+                return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+            }
+
+            // For road routes, use OSRM with waypoints
+            // Build cache key from all waypoints
+            var cacheKeyParts = waypoints.SelectMany(w => new[] { w.lat.ToString(CultureInfo.InvariantCulture), w.lon.ToString(CultureInfo.InvariantCulture) });
+            var cacheKey = $"osm:route:road:waypoints:{string.Join(":", cacheKeyParts)}";
+            var cachedResult = await _cache.GetStringAsync(cacheKey);
+            
+            if (!string.IsNullOrEmpty(cachedResult))
+            {
+                return cachedResult;
+            }
+
+            try
+            {
+                // OSRM format: /route/v1/driving/{lon1},{lat1};{lon2},{lat2};{lon3},{lat3}?overview=full&geometries=geojson
+                var waypointsStr = string.Join(";", waypoints.Select(w => $"{w.lon.ToString(CultureInfo.InvariantCulture)},{w.lat.ToString(CultureInfo.InvariantCulture)}"));
+                var osrmUrl = $"http://router.project-osrm.org/route/v1/driving/{waypointsStr}?overview=full&geometries=geojson";
+                
+                _logger.LogInformation("Requesting route with waypoints from OSRM: {Url}", osrmUrl);
+                
+                using var request = new HttpRequestMessage(HttpMethod.Get, osrmUrl);
+                request.Headers.Add("User-Agent", "CustomMapOSM_Application/1.0");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)); // Longer timeout for multi-point routes
+                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cts.Token);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("OSRM API returned status {StatusCode} for waypoints route request", response.StatusCode);
+                    return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                var content = await response.Content.ReadAsStringAsync();
+                var osrmResult = JsonConvert.DeserializeObject<OsmRouteResponseDTO>(content);
+                
+                if (osrmResult?.Routes == null || osrmResult.Routes.Count == 0)
+                {
+                    _logger.LogWarning("OSRM returned no routes for waypoints");
+                    return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                var route = osrmResult.Routes[0];
+                string geoJson;
+                
+                if (route.Geometry != null && route.Geometry.Coordinates != null && route.Geometry.Coordinates.Length > 0)
+                {
+                    geoJson = JsonSerializer.Serialize(new
+                    {
+                        type = "LineString",
+                        coordinates = route.Geometry.Coordinates
+                    });
+                }
+                else
+                {
+                    geoJson = CreateStraightLineGeoJsonFromWaypoints(waypoints);
+                }
+                
+                await _cache.SetStringAsync(
+                    cacheKey,
+                    geoJson,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    });
+                
+                return geoJson;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting route with waypoints");
+                return CreateStraightLineGeoJsonFromWaypoints(waypoints);
+            }
+        }
+
+        private string CreateStraightLineGeoJson(double fromLat, double fromLon, double toLat, double toLon)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                type = "LineString",
+                coordinates = new[]
+                {
+                    new[] { fromLon, fromLat },
+                    new[] { toLon, toLat }
+                }
+            });
+        }
+
+        private string CreateStraightLineGeoJsonFromWaypoints(List<(double lat, double lon)> waypoints)
+        {
+            var coordinates = waypoints.Select(w => new[] { w.lon, w.lat }).ToArray();
+            return JsonSerializer.Serialize(new
+            {
+                type = "LineString",
+                coordinates = coordinates
+            });
+        }
+    }
+
+    // DTOs for OSRM API response
+    public class OsmRouteResponseDTO
+    {
+        [JsonProperty("routes")]
+        public List<OsmRouteDTO> Routes { get; set; }
+    }
+
+    public class OsmRouteDTO
+    {
+        [JsonProperty("geometry")]
+        public OsmRouteGeometryDTO Geometry { get; set; }
+    }
+
+    public class OsmRouteGeometryDTO
+    {
+        [JsonProperty("coordinates")]
+        public double[][] Coordinates { get; set; }
     }
 }

@@ -10,5 +10,19 @@ internal static class Tags
     internal const string User = "User";
     internal const string Authentication = "Authentication";
     internal const string Transaction = "Transaction";
-    internal const string UserAccessTool = "UserAccessTool";
+    internal const string Notification = "Notification";
+    internal const string Animations = "Animations";
+    internal const string SupportTicket = "SupportTicket";
+    internal const string Usage = "Usage";
+    internal const string Payment = "Payment";
+    internal const string FAQ = "FAQ";
+    internal const string OrganizationAdmin = "OrganizationAdmin";
+    internal const string SystemAdmin = "SystemAdmin";
+    internal const string StoryMaps = "StoryMaps";
+    internal const string Locations = "Location";
+    internal const string Osm = "OSM";
+    internal const string Workspace = "Workspace";
+    internal const string Home = "Home";
+    internal const string Comments = "Comments";
+    internal const string Bookmarks = "Bookmarks";
 }

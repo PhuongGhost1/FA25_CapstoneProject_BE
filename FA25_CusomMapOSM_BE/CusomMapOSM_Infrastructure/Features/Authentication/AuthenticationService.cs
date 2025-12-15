@@ -23,17 +23,14 @@ public class AuthenticationService : IAuthenticationService
     private readonly IJwtService _jwtService;
     private readonly IRedisCacheService _redisCacheService;
     private readonly HangfireEmailService _hangfireEmailService;
-    private readonly IUserAccessToolService _userAccessToolService;
     public AuthenticationService(IAuthenticationRepository authenticationRepository, IJwtService jwtService,
-        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService,
-        IUserAccessToolService userAccessToolService)
+        IRedisCacheService redisCacheService, ITypeRepository typeRepository, HangfireEmailService hangfireEmailService)
     {
         _authenticationRepository = authenticationRepository;
         _jwtService = jwtService;
         _redisCacheService = redisCacheService;
         _typeRepository = typeRepository;
         _hangfireEmailService = hangfireEmailService;
-        _userAccessToolService = userAccessToolService;
     }
 
     public async Task<Option<LoginResDto, Error>> Login(LoginReqDto req)
@@ -58,9 +55,8 @@ public class AuthenticationService : IAuthenticationService
         if (user is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.Inactive);
-
-        user.AccountStatusId = accountStatus.StatusId;
+        user.Role = UserRoleEnum.RegisteredUser;
+        user.AccountStatus = AccountStatusEnum.Inactive;
 
         await _authenticationRepository.UpdateUser(user);
 
@@ -78,25 +74,18 @@ public class AuthenticationService : IAuthenticationService
         if (isEmailExists)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
-        var userRole = await _typeRepository.GetUserRoleById(UserRoleEnum.RegisteredUser);
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.PendingVerification);
-
-        var user = new DomainUser.User
-        {
-            Email = req.Email,
-            PasswordHash = _jwtService.HashObject<string>(req.Password),
-            FullName = $"{req.FirstName} {req.LastName}",
-            Phone = req.Phone,
-            RoleId = userRole.RoleId,
-            AccountStatusId = accountStatus.StatusId,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        await _authenticationRepository.Register(user);
-
         var otp = new Random().Next(100000, 999999).ToString();
+        var passwordHash = _jwtService.HashObject<string>(req.Password);
 
-        await _redisCacheService.Set(otp, new RegisterVerifyOtpResDto { Email = req.Email, Otp = otp }, TimeSpan.FromMinutes(10));
+        await _redisCacheService.Set(otp, new RegisterVerifyOtpResDto 
+        { 
+            Email = req.Email, 
+            Otp = otp,
+            PasswordHash = passwordHash,
+            FirstName = req.FirstName,
+            LastName = req.LastName,
+            Phone = req.Phone
+        }, TimeSpan.FromMinutes(10));
 
         var mail = new MailRequest
         {
@@ -115,36 +104,35 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrEmpty(req.Otp))
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        var otp = await _redisCacheService.Get<RegisterVerifyOtpResDto>(req.Otp);
-        if (otp is null)
+        var otpData = await _redisCacheService.Get<RegisterVerifyOtpResDto>(req.Otp);
+        if (otpData is null)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        if (otp.Otp != req.Otp)
+        if (otpData.Otp != req.Otp)
             return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP", ErrorType.Validation));
 
-        var user = await _authenticationRepository.GetUserByEmail(otp.Email);
-        if (user is null)
-            return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
+        // Check if user already exists (in case of race condition or duplicate registration attempts)
+        var existingUser = await _authenticationRepository.GetUserByEmail(otpData.Email);
+        if (existingUser is not null)
+            return Option.None<RegisterResDto, Error>(new Error("Authentication.EmailAlreadyExists", "Email already exists", ErrorType.Validation));
 
-        var accountStatus = await _typeRepository.GetAccountStatusById(AccountStatusEnum.Active);
+        // Validate that registration data exists (should not be null for registration flow)
+        if (string.IsNullOrEmpty(otpData.PasswordHash) || string.IsNullOrEmpty(otpData.FirstName) || string.IsNullOrEmpty(otpData.LastName))
+            return Option.None<RegisterResDto, Error>(new Error("Authentication.InvalidOtp", "Invalid OTP data", ErrorType.Validation));
 
-        user.AccountStatusId = accountStatus.StatusId;
-        await _authenticationRepository.UpdateUser(user);
-
-        // Grant default Free membership access tools (IDs 1-11)
-        var freeAccessToolIds = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
-        var expiryDate = DateTime.UtcNow.AddYears(1); // Free access tools expire in 1 year
-
-        var grantResult = await _userAccessToolService.GrantAccessToToolsAsync(user.UserId, freeAccessToolIds, expiryDate, CancellationToken.None);
-        if (!grantResult.HasValue)
+        // Create user in database only after OTP verification
+        var user = new DomainUser.User
         {
-            // Log the error but don't fail the registration process
-            var error = grantResult.Match(
-                some: _ => (Error)null!,
-                none: err => err
-            );
-            Console.WriteLine($"Failed to grant default access tools for user {user.UserId}: {error?.Description}");
-        }
+            Email = otpData.Email,
+            PasswordHash = otpData.PasswordHash,
+            FullName = $"{otpData.FirstName} {otpData.LastName}",
+            Phone = otpData.Phone,
+            Role = UserRoleEnum.RegisteredUser,
+            AccountStatus = AccountStatusEnum.Active,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        await _authenticationRepository.Register(user);
 
         await _redisCacheService.Remove(req.Otp);
 
@@ -196,6 +184,7 @@ public class AuthenticationService : IAuthenticationService
             return Option.None<RegisterResDto, Error>(new Error("Authentication.UserNotFound", "User not found", ErrorType.NotFound));
 
         user.PasswordHash = _jwtService.HashObject<string>(req.NewPassword);
+        user.AccountStatus = AccountStatusEnum.Active;
         await _authenticationRepository.UpdateUser(user);
 
         await _redisCacheService.Remove(otp.Otp);

@@ -1,6 +1,5 @@
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using DomainMembershipUsage = CusomMapOSM_Domain.Entities.Memberships.MembershipUsage;
-using DomainMembershipAddon = CusomMapOSM_Domain.Entities.Memberships.MembershipAddon;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,17 +22,17 @@ public class MembershipRepository : IMembershipRepository
     public async Task<DomainMembership?> GetByUserOrgAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
         return await _context.Memberships
-            .OrderByDescending(m => m.StartDate)
+            .OrderByDescending(m => m.BillingCycleStartDate)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
 
     public async Task<DomainMembership?> GetByUserOrgWithIncludesAsync(Guid userId, Guid orgId, CancellationToken ct)
     {
         return await _context.Memberships
+            .AsNoTracking()
             .Include(m => m.Organization)
             .Include(m => m.Plan)
-            .Include(m => m.Status)
-            .OrderByDescending(m => m.StartDate)
+            .OrderByDescending(m => m.BillingCycleStartDate)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId, ct);
     }
 
@@ -72,19 +71,4 @@ public class MembershipRepository : IMembershipRepository
         return usage;
     }
 
-    public async Task<IReadOnlyList<DomainMembershipAddon>> GetActiveAddonsAsync(Guid membershipId, Guid orgId, DateTime asOf, CancellationToken ct)
-    {
-        return await _context.MembershipAddons
-            .Where(a => a.MembershipId == membershipId && a.OrgId == orgId
-                        && (a.EffectiveFrom == null || a.EffectiveFrom <= asOf)
-                        && (a.EffectiveUntil == null || a.EffectiveUntil >= asOf))
-            .ToListAsync(ct);
-    }
-
-    public async Task<DomainMembershipAddon> AddAddonAsync(DomainMembershipAddon addon, CancellationToken ct)
-    {
-        await _context.MembershipAddons.AddAsync(addon, ct);
-        await _context.SaveChangesAsync(ct);
-        return addon;
-    }
 }

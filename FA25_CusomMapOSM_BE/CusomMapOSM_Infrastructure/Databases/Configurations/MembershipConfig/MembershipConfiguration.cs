@@ -33,17 +33,19 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
             .HasColumnName("plan_id")
             .IsRequired();
 
-        builder.Property(m => m.StartDate)
-            .HasColumnName("start_date")
+        builder.Property(m => m.BillingCycleStartDate)
+            .HasColumnName("billing_cycle_start_date")
             .HasColumnType("datetime")
             .IsRequired();
 
-        builder.Property(m => m.EndDate)
-            .HasColumnName("end_date")
-            .HasColumnType("datetime");
+        builder.Property(m => m.BillingCycleEndDate)
+            .HasColumnName("billing_cycle_end_date")
+            .HasColumnType("datetime")
+            .IsRequired();
 
-        builder.Property(m => m.StatusId)
-            .HasColumnName("status_id")
+        builder.Property(m => m.Status)
+            .HasColumnName("status")
+            .HasConversion<int>()
             .IsRequired();
 
         builder.Property(m => m.AutoRenew)
@@ -66,7 +68,7 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
         builder.Property(m => m.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(m => m.UpdatedAt)
             .HasColumnName("updated_at")
@@ -87,9 +89,5 @@ internal class MembershipConfiguration : IEntityTypeConfiguration<Membership>
             .HasForeignKey(m => m.PlanId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(m => m.Status)
-            .WithMany()
-            .HasForeignKey(m => m.StatusId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

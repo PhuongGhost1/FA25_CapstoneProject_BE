@@ -7,7 +7,6 @@ public enum GeometryTypeEnum
     Point = 0,
     LineString = 1,
     Polygon = 2,
-    Circle = 3
+    Circle = 3,
+    Rectangle = 4
 }
-
-

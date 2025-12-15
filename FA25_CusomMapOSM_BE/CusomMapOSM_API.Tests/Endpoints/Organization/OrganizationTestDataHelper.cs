@@ -187,11 +187,10 @@ public static class OrganizationTestDataHelper
         };
     }
 
-    public static TransferOwnershipReqDto CreateTransferOwnershipRequest(Guid? orgId = null, Guid? newOwnerId = null)
+    public static TransferOwnershipReqDto CreateTransferOwnershipRequest(Guid? newOwnerId = null)
     {
         return new TransferOwnershipReqDto
         {
-            OrgId = orgId ?? Guid.NewGuid(),
             NewOwnerId = newOwnerId ?? Guid.NewGuid()
         };
     }
@@ -213,9 +212,13 @@ public static class OrganizationTestDataHelper
     }
 
     // Response DTOs
-    public static OrganizationResDto CreateOrganizationResponse(string result = "Organization created successfully")
+    public static OrganizationResDto CreateOrganizationResponse(string result = "Organization created successfully", Guid? orgId = null)
     {
-        return new OrganizationResDto { Result = result };
+        return new OrganizationResDto 
+        { 
+            Result = result,
+            OrgId = orgId ?? Guid.NewGuid()
+        };
     }
 
     public static InviteMemberOrganizationResDto CreateInviteMemberResponse(string result = "Invitation sent successfully")

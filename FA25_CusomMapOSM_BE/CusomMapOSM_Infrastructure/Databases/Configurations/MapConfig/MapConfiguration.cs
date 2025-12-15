@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CusomMapOSM_Domain.Entities.Maps;
+using CusomMapOSM_Domain.Entities.Maps.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -25,8 +26,8 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .HasColumnName("user_id")
                      .IsRequired();
 
-              builder.Property(m => m.OrgId)
-                     .HasColumnName("org_id");
+              builder.Property(m => m.WorkspaceId)
+                     .HasColumnName("workspace_id");
 
               builder.Property(m => m.MapName)
                      .HasColumnName("map_name")
@@ -76,11 +77,24 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
               builder.Property(m => m.IsActive)
                      .HasColumnName("is_active")
                      .HasDefaultValue(true);
+              
+              builder.Property(m => m.Status)
+                     .HasColumnName("map_status")
+                     .HasConversion<int>()
+                     .HasDefaultValue(MapStatusEnum.Draft);
+              
+              builder.Property(m => m.IsStoryMap)
+                     .HasColumnName("is_storymap")
+                     .HasDefaultValue(false);
+              
+              builder.Property(m => m.PublishedAt)
+                     .HasColumnName("published_at")
+                     .HasColumnType("datetime");
 
               builder.Property(m => m.CreatedAt)
                      .HasColumnName("created_at")
                      .HasColumnType("datetime")
-                     .IsRequired();
+                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
               builder.Property(m => m.UpdatedAt)
                      .HasColumnName("updated_at")
@@ -91,12 +105,11 @@ internal class MapConfiguration : IEntityTypeConfiguration<Map>
                      .WithMany()
                      .HasForeignKey(m => m.UserId);
 
-              builder.HasOne(m => m.Organization)
+              builder.HasOne(m => m.Workspace)
                      .WithMany()
-                     .HasForeignKey(m => m.OrgId)
+                     .HasForeignKey(m => m.WorkspaceId)
                      .OnDelete(DeleteBehavior.SetNull);
               
-              // Self-referencing relationship for template cloning
               builder.HasOne(m => m.ParentMap)
                      .WithMany()
                      .HasForeignKey(m => m.ParentMapId)

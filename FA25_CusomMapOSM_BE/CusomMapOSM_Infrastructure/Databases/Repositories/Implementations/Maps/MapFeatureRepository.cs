@@ -25,8 +25,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -35,8 +34,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId && f.FeatureCategory == category)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -45,8 +43,7 @@ public class MapFeatureRepository : IMapFeatureRepository
         return await _dbContext.MapFeatures
             .AsNoTracking()
             .Where(f => f.MapId == mapId && f.LayerId == layerId)
-            .OrderBy(f => f.ZIndex)
-            .ThenBy(f => f.CreatedAt)
+            .OrderBy(f => f.ZIndex).ThenBy(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -70,6 +67,20 @@ public class MapFeatureRepository : IMapFeatureRepository
         if (existed == null) return false;
         _dbContext.MapFeatures.Remove(existed);
         return await _dbContext.SaveChangesAsync() > 0;
+    }
+
+    public async Task<int> DeleteByMap(Guid mapId)
+    {
+        var features = await _dbContext.MapFeatures.Where(f => f.MapId == mapId).ToListAsync();
+        if (features.Count == 0) return 0;
+        _dbContext.MapFeatures.RemoveRange(features);
+        return await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<int> AddRange(IEnumerable<MapFeature> features)
+    {
+        await _dbContext.MapFeatures.AddRangeAsync(features);
+        return await _dbContext.SaveChangesAsync();
     }
 }
 

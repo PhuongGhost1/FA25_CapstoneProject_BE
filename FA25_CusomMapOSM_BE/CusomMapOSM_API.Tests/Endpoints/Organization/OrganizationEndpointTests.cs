@@ -60,7 +60,12 @@ public class OrganizationEndpointTests : IClassFixture<WebApplicationFactory<Cus
             .RuleFor(r => r.Address, f => f.Address.FullAddress())
             .Generate();
 
-        var response = new OrganizationResDto { Result = "Organization created successfully" };
+        var testOrgId = Guid.NewGuid();
+        var response = new OrganizationResDto 
+        { 
+            Result = "Organization created successfully",
+            OrgId = testOrgId
+        };
 
         _mockOrganizationService.Setup(x => x.Create(request))
             .ReturnsAsync(Option.Some<OrganizationResDto, Error>(response));
@@ -73,6 +78,7 @@ public class OrganizationEndpointTests : IClassFixture<WebApplicationFactory<Cus
         var result = await httpResponse.Content.ReadFromJsonAsync<OrganizationResDto>();
         result.Should().NotBeNull();
         result!.Result.Should().Be("Organization created successfully");
+        result!.OrgId.Should().Be(testOrgId);
     }
 
     [Fact]
@@ -526,19 +532,19 @@ public class OrganizationEndpointTests : IClassFixture<WebApplicationFactory<Cus
     {
         // Arrange
         var client = CreateAuthenticatedClient();
+        var orgId = Guid.NewGuid();
         var request = new TransferOwnershipReqDto
         {
-            OrgId = Guid.NewGuid(),
             NewOwnerId = Guid.NewGuid()
         };
 
         var response = new TransferOwnershipResDto { Result = "Ownership transferred successfully" };
 
-        _mockOrganizationService.Setup(x => x.TransferOwnership(request))
+        _mockOrganizationService.Setup(x => x.TransferOwnership(orgId, request))
             .ReturnsAsync(Option.Some<TransferOwnershipResDto, Error>(response));
 
         // Act
-        var httpResponse = await client.PostAsJsonAsync("/organizations/transfer-ownership", request);
+        var httpResponse = await client.PostAsJsonAsync($"/api/v1/organizations/{orgId}/ownership", request);
 
         // Assert
         httpResponse.StatusCode.Should().Be(HttpStatusCode.OK);

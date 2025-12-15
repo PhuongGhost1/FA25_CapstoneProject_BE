@@ -1,4 +1,4 @@
-﻿using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
+using CusomMapOSM_Application.Models.DTOs.Features.Organization.Request;
 using CusomMapOSM_Domain.Entities.Organizations;
 
 namespace CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
@@ -33,6 +33,8 @@ public interface IOrganizationRepository
     
     Task<OrganizationMember?> GetOrganizationMemberByUserAndOrg(Guid userId, Guid orgId);
     
+    Task<OrganizationMember?> GetOrganizationMemberByUserAndOrgAnyStatus(Guid userId, Guid orgId);
+
     Task<bool> UpdateOrganizationMember(OrganizationMember member);
     
     Task<bool> RemoveOrganizationMember(Guid memberId);
@@ -40,4 +42,7 @@ public interface IOrganizationRepository
     Task<bool> DeleteInvitation(Guid invitationId);
     
     Task<List<OrganizationMember>> GetUserOrganizations(Guid userId);
+    Task<int> GetTotalOrganizationCount();
+    Task<bool> IsOrganizationNameExists(string orgName, Guid? excludeOrgId = null);
+    Task<int> GetPendingInvitationsCountByOrg(Guid orgId);
 }

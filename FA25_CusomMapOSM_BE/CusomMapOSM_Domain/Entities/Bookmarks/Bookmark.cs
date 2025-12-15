@@ -16,7 +16,6 @@ public class Bookmark
     public string? Name { get; set; } = string.Empty;
     public string? ViewState { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    public Map Map { get; set; } = new();
-    public User User { get; set; } = new();
+    public Map? Map { get; set; }
+    public User? User { get; set; }
 }

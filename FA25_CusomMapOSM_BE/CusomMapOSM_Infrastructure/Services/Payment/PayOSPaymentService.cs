@@ -9,6 +9,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CusomMapOSM_Application.Interfaces.Features.Membership;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
+using CusomMapOSM_Domain.Entities.Transactions;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Membership;
+using Microsoft.AspNetCore.Http;
 
 // PayOS API Response Models
 public class PayOSPaymentResponse
@@ -106,14 +111,27 @@ public class PayOSPaymentDetailData
     [JsonPropertyName("qrCode")]
     public string QrCode { get; set; } = string.Empty;
 }
+public class MembershipPurposeContext
+{
+    public string UserId { get; set; }
+    public string OrgId { get; set; }
+    public int PlanId { get; set; }
+    public bool AutoRenew { get; set; }
+    public string? MembershipId { get; set; }
+}
+
 
 public class PayOSPaymentService : IPaymentService
 {
     private readonly HttpClient _httpClient;
+    private readonly ITransactionRepository _transactionRepository;
+    private readonly IMembershipRepository _membershipRepository;
 
-    public PayOSPaymentService(HttpClient httpClient)
+    public PayOSPaymentService(HttpClient httpClient, ITransactionRepository transactionRepository, IMembershipRepository membershipRepository)
     {
         _httpClient = httpClient;
+        _transactionRepository = transactionRepository;
+        _membershipRepository = membershipRepository;
         _httpClient.BaseAddress = new Uri("https://api-merchant.payos.vn");
     }
 
@@ -150,35 +168,7 @@ public class PayOSPaymentService : IPaymentService
             string description;
             object[] items;
 
-            if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey) && request.Quantity.HasValue && request.Quantity.Value > 1)
-            {
-                // Multi-quantity addon purchase
-                description = $"Addon: {request.AddonKey} x{request.Quantity}";
-                items = new[]
-                {
-                    new
-                    {
-                        name = $"CustomMapOSM Addon: {request.AddonKey}",
-                        quantity = request.Quantity.Value,
-                        price = amountInVND / request.Quantity.Value // Price per unit
-                    }
-                };
-            }
-            else if (request.Purpose?.ToLower() == "addon" && !string.IsNullOrEmpty(request.AddonKey))
-            {
-                // Single addon purchase
-                description = $"Addon: {request.AddonKey}";
-                items = new[]
-                {
-                    new
-                    {
-                        name = $"CustomMapOSM Addon: {request.AddonKey}",
-                        quantity = request.Quantity ?? 1,
-                        price = amountInVND / (request.Quantity ?? 1)
-                    }
-                };
-            }
-            else
+            if (request.Purpose?.ToLower() == "membership")
             {
                 // Membership purchase (default)
                 description = "CustomMapOSM Membership";
@@ -187,6 +177,20 @@ public class PayOSPaymentService : IPaymentService
                     new
                     {
                         name = "CustomMapOSM Membership",
+                        quantity = 1,
+                        price = amountInVND
+                    }
+                };
+            }
+            else
+            {
+                // Default case for other purposes
+                description = "CustomMapOSM Service";
+                items = new[]
+                {
+                    new
+                    {
+                        name = "CustomMapOSM Service",
                         quantity = 1,
                         price = amountInVND
                     }
@@ -347,11 +351,6 @@ public class PayOSPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"=== PayOS CreateCheckoutAsync EXCEPTION ===");
-            Console.WriteLine($"Exception Type: {ex.GetType().Name}");
-            Console.WriteLine($"Exception Message: {ex.Message}");
-            Console.WriteLine($"Exception Stack Trace: {ex.StackTrace}");
-            Console.WriteLine($"=== End PayOS CreateCheckoutAsync EXCEPTION ===");
 
             return Option.None<ApprovalUrlResponse, ErrorCustom.Error>(
                 new ErrorCustom.Error("Payment.PayOS.Exception", $"Exception occurred: {ex.Message}", ErrorCustom.ErrorType.Failure));
@@ -362,89 +361,56 @@ public class PayOSPaymentService : IPaymentService
     {
         try
         {
-            if (string.IsNullOrEmpty(req.OrderCode))
+            // PayOS webhook can send either orderCode or paymentLinkId (session id)
+            if (string.IsNullOrEmpty(req.OrderCode) && string.IsNullOrEmpty(req.PaymentId))
             {
                 return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.MissingOrderCode", "Order code is required for PayOS", ErrorCustom.ErrorType.Validation));
+                    new ErrorCustom.Error("Payment.PayOS.MissingIdentifiers", "Order code or payment id is required for PayOS", ErrorCustom.ErrorType.Validation));
             }
 
-            // Get payment details from PayOS
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("x-client-id", PayOsConstant.PAYOS_CLIENT_ID);
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", PayOsConstant.PAYOS_API_KEY);
+            Transactions? paymentDetails = null;
 
-            var response = await _httpClient.GetAsync($"/v2/payment-requests/{req.PaymentId}", ct);
-            var responseContent = await response.Content.ReadAsStringAsync(ct);
+            if (!string.IsNullOrEmpty(req.OrderCode))
+            {
+                paymentDetails = await _transactionRepository.GetByTransactionReferenceAsync(req.OrderCode, ct);
+            }
 
-            Console.WriteLine($"=== PayOS Confirm Payment Response ===");
-            Console.WriteLine($"Status: {response.StatusCode}");
-            Console.WriteLine($"Content: {responseContent}");
-            Console.WriteLine($"=== End PayOS Confirm Payment Response ===");
+            // Fallback to payment id (paymentLinkId) when orderCode is absent or not found
+            if (paymentDetails == null && !string.IsNullOrEmpty(req.PaymentId))
+            {
+                paymentDetails = await _transactionRepository.GetByTransactionReferenceAsync(req.PaymentId, ct);
+            }
 
-            if (!response.IsSuccessStatusCode)
+            if (paymentDetails == null)
             {
                 return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.GetFailed", $"Failed to get payment details: {responseContent}", ErrorCustom.ErrorType.Failure));
+                    new ErrorCustom.Error("Payment.PayOS.TransactionNotFound", "Transaction not found", ErrorCustom.ErrorType.Validation));
             }
 
-            PayOSPaymentDetails? paymentDetails;
-            try
-            {
-                Console.WriteLine($"=== PayOS Confirm Payment JSON Deserialization ===");
-                Console.WriteLine($"Attempting to deserialize: {responseContent}");
+            paymentDetails.Status = "paid";
+            
+            var raw = paymentDetails.Purpose;
+            var jsonPart = raw.Split('|')[1];
 
-                paymentDetails = JsonSerializer.Deserialize<PayOSPaymentDetails>(responseContent);
+            var purpose = JsonSerializer.Deserialize<MembershipPurposeContext>(jsonPart);
 
-                Console.WriteLine($"Deserialization successful: {paymentDetails != null}");
-                if (paymentDetails != null)
-                {
-                    Console.WriteLine($"Code: {paymentDetails.Code}");
-                    Console.WriteLine($"Desc: {paymentDetails.Desc}");
-                    Console.WriteLine($"Data: {paymentDetails.Data != null}");
-                    if (paymentDetails.Data != null)
-                    {
-                        Console.WriteLine($"Status: {paymentDetails.Data.Status}");
-                        Console.WriteLine($"Amount: {paymentDetails.Data.Amount}");
-                        Console.WriteLine($"OrderCode: {paymentDetails.Data.OrderCode}");
-                    }
-                }
-                Console.WriteLine($"=== End PayOS Confirm Payment JSON Deserialization ===");
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine($"=== PayOS Confirm Payment JSON Deserialization ERROR ===");
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine($"Response: {responseContent}");
-                Console.WriteLine($"=== End PayOS Confirm Payment JSON Deserialization ERROR ===");
+            var orgId = Guid.Parse(purpose.OrgId);
+            var userId = Guid.Parse(purpose.UserId);
+            var planId = purpose.PlanId;
 
-                return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.JsonParseError", $"Failed to parse PayOS response: {ex.Message}. Response: {responseContent}", ErrorCustom.ErrorType.Failure));
-            }
 
-            if (paymentDetails?.Data == null)
-            {
-                return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.InvalidResponse", $"Invalid response from PayOS: {responseContent}", ErrorCustom.ErrorType.Failure));
-            }
-
-            // Check if payment is successful
-            Console.WriteLine($"=== PayOS Payment Status Check ===");
-            Console.WriteLine($"Current Status: '{paymentDetails.Data.Status}'");
-            Console.WriteLine($"Expected Status: 'PAID'");
-            Console.WriteLine($"Status Match: {paymentDetails.Data.Status == "PAID"}");
-            Console.WriteLine($"=== End PayOS Payment Status Check ===");
-
-            if (paymentDetails.Data.Status != "PAID")
-            {
-                return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.NotPaid", $"Payment is not completed. Current status: '{paymentDetails.Data.Status}'. Expected status: 'PAID'. Please complete the payment on PayOS gateway first.", ErrorCustom.ErrorType.Validation));
-            }
+            var membership = await _membershipRepository.GetByUserOrgAsync(userId, orgId, ct);
+            
+            membership.PlanId = purpose.PlanId;
+            
+            
+            await _transactionRepository.UpdateAsync(paymentDetails, ct);
 
             return Option.Some<ConfirmPaymentResponse, ErrorCustom.Error>(new ConfirmPaymentResponse
             {
-                PaymentId = req.PaymentId,
+                PaymentId = paymentDetails.TransactionId.ToString(),
                 PaymentGateway = PaymentGatewayEnum.PayOS,
-                OrderCode = req.OrderCode,
+                OrderCode = paymentDetails.TransactionReference,
                 Signature = req.Signature
             });
         }
@@ -452,6 +418,53 @@ public class PayOSPaymentService : IPaymentService
         {
             return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
                 new ErrorCustom.Error("Payment.PayOS.Exception", $"Exception occurred: {ex.Message}", ErrorCustom.ErrorType.Failure));
+        }
+    }
+
+    public async Task<Option<ConfirmPaymentResponse, ErrorCustom.Error>> ConfirmPaymentAsync(HttpRequest req, CancellationToken ct)
+    {
+        try
+        {
+            req.EnableBuffering();
+            using var reader = new StreamReader(req.Body, Encoding.UTF8, leaveOpen: true);
+            var rawBody = await reader.ReadToEndAsync(ct);
+            req.Body.Position = 0;
+
+            Console.WriteLine("=== PayOS Webhook Body ===");
+            Console.WriteLine(rawBody);
+            Console.WriteLine("=== End PayOS Webhook Body ===");
+
+            var payload = JsonDocument.Parse(rawBody).RootElement;
+
+            var data = payload.TryGetProperty("data", out var d) ? d : default;
+            var orderCode = data.ValueKind != JsonValueKind.Undefined && data.TryGetProperty("orderCode", out var oc)
+                ? oc.ToString()
+                : payload.TryGetProperty("orderCode", out var ocRoot) ? ocRoot.ToString() : null;
+
+            var paymentId = data.ValueKind != JsonValueKind.Undefined && data.TryGetProperty("paymentLinkId", out var pid)
+                ? pid.GetString()
+                : payload.TryGetProperty("paymentLinkId", out var pidRoot) ? pidRoot.GetString() : null;
+
+            var signature = payload.TryGetProperty("signature", out var sig) ? sig.GetString() : null;
+
+            var confirmReq = new ConfirmPaymentReq
+            {
+                PaymentGateway = PaymentGatewayEnum.PayOS,
+                PaymentId = paymentId ?? string.Empty,
+                OrderCode = orderCode ?? string.Empty,
+                Signature = signature
+            };
+
+            return await ConfirmPaymentAsync(confirmReq, ct);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("=== PayOS Webhook Handling ERROR ===");
+            Console.WriteLine(ex);
+            Console.WriteLine("=== End PayOS Webhook Handling ERROR ===");
+
+            return Option.None<ConfirmPaymentResponse, ErrorCustom.Error>(
+                new ErrorCustom.Error("Payment.PayOS.WebhookError", $"Failed to handle webhook: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }
     }
 
@@ -464,34 +477,12 @@ public class PayOSPaymentService : IPaymentService
                 return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.PayOS.MissingOrderCode", "Order code is required for PayOS", ErrorCustom.ErrorType.Validation));
             }
-
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("x-client-id", PayOsConstant.PAYOS_CLIENT_ID);
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", PayOsConstant.PAYOS_API_KEY);
-
-            var response = await _httpClient.GetAsync($"/v2/payment-requests/{req.PaymentId}", ct);
-            var responseContent = await response.Content.ReadAsStringAsync(ct);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.GetFailed", $"Failed to get payment details: {responseContent}", ErrorCustom.ErrorType.Failure));
-            }
-
-            var paymentDetails = JsonSerializer.Deserialize<PayOSPaymentDetails>(responseContent);
-
-            if (paymentDetails?.Data == null)
-            {
-                return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.InvalidResponse", "Invalid response from PayOS", ErrorCustom.ErrorType.Failure));
-            }
-
-            // Check if payment is in a cancellable state
-            if (paymentDetails.Data.Status == "PAID")
-            {
-                return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.AlreadyPaid", "Payment has already been completed and cannot be cancelled", ErrorCustom.ErrorType.Validation));
-            }
+                        // Get payment details from PayOS
+            var paymentDetails = await _transactionRepository.GetByTransactionReferenceAsync(req.OrderCode, ct);
+            
+            paymentDetails.Status = "Cancelled";
+            await _transactionRepository.UpdateAsync(paymentDetails, ct);
+            
 
             // For PayOS, cancellation is typically handled by the user not completing the payment
             return Option.Some<CancelPaymentResponse, ErrorCustom.Error>(new CancelPaymentResponse(
@@ -529,7 +520,6 @@ public class PayOSPaymentService : IPaymentService
     // Format: SHA256(amount=$amount&cancelUrl=$cancelUrl&description=$description&orderCode=$orderCode&returnUrl=$returnUrl + checksumKey)
     private string GeneratePayOSSignatureComprehensive(long orderCode, long amount, string description, string returnUrl, string cancelUrl, string checksumKey)
     {
-        Console.WriteLine($"=== PayOS Official Signature Generation ===");
 
         // Create parameters dictionary and sort alphabetically
         var parameters = new Dictionary<string, string>
@@ -544,19 +534,11 @@ public class PayOSPaymentService : IPaymentService
         // Sort by key alphabetically and create query string
         var sortedParams = parameters.OrderBy(x => x.Key).ToList();
         var queryString = string.Join("&", sortedParams.Select(x => $"{x.Key}={x.Value}"));
-
-        Console.WriteLine($"Amount: {amount}");
-        Console.WriteLine($"Cancel URL: {cancelUrl}");
-        Console.WriteLine($"Description: {description}");
-        Console.WriteLine($"Order Code: {orderCode}");
-        Console.WriteLine($"Return URL: {returnUrl}");
-        Console.WriteLine($"Checksum Key: {checksumKey}");
-        Console.WriteLine($"Query String (sorted): {queryString}");
+        
 
         // Use HMAC-SHA256 with checksum key as the secret
         var signature = GenerateHMACSHA256(queryString, checksumKey);
-        Console.WriteLine($"Generated Signature: {signature}");
-        Console.WriteLine($"=== End PayOS Official Signature Generation ===");
+
 
         return signature;
     }

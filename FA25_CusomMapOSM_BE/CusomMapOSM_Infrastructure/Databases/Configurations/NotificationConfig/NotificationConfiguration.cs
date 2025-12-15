@@ -44,11 +44,20 @@ internal class NotificationConfiguration : IEntityTypeConfiguration<Notification
         builder.Property(n => n.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(n => n.SentAt)
             .HasColumnName("sent_at")
             .HasColumnType("datetime");
+
+        builder.Property(n => n.IsRead)
+            .HasColumnName("is_read")
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(n => n.Metadata)
+            .HasColumnName("metadata")
+            .HasColumnType("json");
 
         // Relationships
         builder.HasOne(n => n.User)

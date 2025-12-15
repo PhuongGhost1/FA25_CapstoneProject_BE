@@ -27,8 +27,8 @@ public record CurrentMembershipDto
     public required string OrgName { get; set; }
     public required int PlanId { get; set; }
     public required string PlanName { get; set; }
-    public required DateTime StartDate { get; set; }
-    public DateTime? EndDate { get; set; }
+    public required DateTime BillingCycleStartDate { get; set; }
+    public required DateTime BillingCycleEndDate { get; set; }
     public required string Status { get; set; }
     public required bool AutoRenew { get; set; }
     public DateTime? LastResetDate { get; set; }
@@ -39,4 +39,16 @@ public record CurrentMembershipDto
 public record GetCurrentMembershipResponse
 {
     public required CurrentMembershipDto Membership { get; set; }
+}
+
+public record UpdateUserPersonalInfoRequest
+{
+    public string? FullName { get; set; }
+    public string? Phone { get; set; }
+}
+
+public record UpdateUserPersonalInfoResponse
+{
+    public required string Result { get; set; }
+    public required UserInfoDto User { get; set; }
 }

@@ -47,18 +47,9 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
             .HasMaxLength(50)
             .HasColumnName("annotation_type");
 
-        builder.Property(mf => mf.Coordinates)
-            .HasColumnType("longtext")
-            .HasColumnName("coordinates")
-            .IsRequired();
-
-        builder.Property(mf => mf.Properties)
-            .HasColumnType("json")
-            .HasColumnName("properties");
-
-        builder.Property(mf => mf.Style)
-            .HasColumnType("json")
-            .HasColumnName("style");
+        builder.Property(mf => mf.MongoDocumentId)
+            .HasMaxLength(50)
+            .HasColumnName("mongo_document_id");
 
         builder.Property(mf => mf.CreatedBy)
             .HasColumnName("created_by")
@@ -67,7 +58,7 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
         builder.Property(mf => mf.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(mf => mf.UpdatedAt)
             .HasColumnName("updated_at")
@@ -100,20 +91,5 @@ internal class MapFeatureConfiguration : IEntityTypeConfiguration<MapFeature>
             .HasForeignKey(mf => mf.LayerId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Indexes for performance
-        builder.HasIndex(mf => mf.MapId)
-            .HasDatabaseName("ix_map_features_map_id");
-
-        builder.HasIndex(mf => mf.CreatedBy)
-            .HasDatabaseName("ix_map_features_created_by");
-
-        builder.HasIndex(mf => new { mf.MapId, mf.IsVisible })
-            .HasDatabaseName("ix_map_features_map_visible");
-
-        builder.HasIndex(mf => new { mf.MapId, mf.FeatureCategory, mf.AnnotationType })
-            .HasDatabaseName("ix_map_features_category_annotation");
-
-        builder.HasIndex(mf => mf.LayerId)
-            .HasDatabaseName("ix_map_features_layer_id");
     }
 }

@@ -14,10 +14,7 @@ public class MapFeature
     public FeatureCategoryEnum FeatureCategory { get; set; } = FeatureCategoryEnum.Data;
     public AnnotationTypeEnum? AnnotationType { get; set; }
     public GeometryTypeEnum GeometryType { get; set; } = GeometryTypeEnum.Point;
-    public string Coordinates { get; set; } = string.Empty;
-    public string? Properties { get; set; }
-    public string? Style { get; set; }
-    
+    public string? MongoDocumentId { get; set; }
     public Guid CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

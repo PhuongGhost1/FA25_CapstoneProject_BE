@@ -21,5 +21,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
 
         [Range(1, 20)]
         public int? CustomInitialZoom { get; set; }
+
+        public Guid? WorkspaceId { get; set; }
     }
 }

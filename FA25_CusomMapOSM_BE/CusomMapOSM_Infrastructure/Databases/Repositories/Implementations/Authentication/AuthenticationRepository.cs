@@ -19,7 +19,7 @@ public class AuthenticationRepository : IAuthenticationRepository
 
     public async Task<DomainUser.User?> GetUserById(Guid? userId)
     {
-        return await _context.Users.Include(x => x.Role).Include(x => x.AccountStatus).FirstOrDefaultAsync(x => x.UserId == userId);
+        return await _context.Users.FirstOrDefaultAsync(x => x.UserId == userId);
     }
 
     public async Task<bool> IsEmailExists(string email)
@@ -29,7 +29,28 @@ public class AuthenticationRepository : IAuthenticationRepository
 
     public async Task<DomainUser.User?> Login(string email, string pwd)
     {
-        return await _context.Users.FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
+        var user = await _context.Users
+            .FirstOrDefaultAsync(x => x.Email == email && x.PasswordHash == pwd);
+    
+        if (user != null)
+        {
+            if (user.LastLogin == null)
+            {
+                user.LastLogin = DateTime.MinValue;
+            }
+            else if (user.LastLogin == DateTime.MinValue)
+            {
+                user.LastLogin = DateTime.UtcNow;
+            }
+            else
+            {
+                user.LastLogin = DateTime.UtcNow;
+            }
+        
+            await _context.SaveChangesAsync();
+        }
+    
+        return user;
     }
 
     public async Task<bool> Register(DomainUser.User user)

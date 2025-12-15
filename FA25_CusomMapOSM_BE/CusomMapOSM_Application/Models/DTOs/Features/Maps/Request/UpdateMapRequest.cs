@@ -19,7 +19,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
         [Range(1, 20)]
         public int? InitialZoom { get; set; }
 
-        public string? BaseMapProvider { get; set; }
+        public string? BaseLayer { get; set; }
 
         public string? GeographicBounds { get; set; }
 

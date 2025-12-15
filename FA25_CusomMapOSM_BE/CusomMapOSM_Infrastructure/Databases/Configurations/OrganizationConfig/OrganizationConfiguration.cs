@@ -26,7 +26,7 @@ internal class OrganizationConfiguration : IEntityTypeConfiguration<Organization
         builder.Property(o => o.ContactPhone).HasColumnName("contact_phone").HasMaxLength(50);
         builder.Property(o => o.Address).HasColumnName("address");
         builder.Property(o => o.OwnerUserId).HasColumnName("owner_user_id").IsRequired();
-        builder.Property(o => o.CreatedAt).HasColumnName("created_at").HasColumnType("datetime").IsRequired();
+        builder.Property(o => o.CreatedAt).HasColumnName("created_at").HasColumnType("datetime").HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime");
         builder.Property(o => o.IsActive).HasColumnName("is_active");
 

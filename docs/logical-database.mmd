@@ -1,0 +1,510 @@
+erDiagram
+  USER {
+    GUID user_id PK
+    string email
+    string password_hash
+    string full_name
+    string phone
+    string role
+    int account_status
+    int monthly_token_usage
+    datetime last_token_reset
+    datetime created_at
+    datetime last_login
+  }
+
+  ORGANIZATION {
+    GUID org_id PK
+    string org_name
+    string abbreviation
+    string description
+    string logo_url
+    string contact_email
+    string contact_phone
+    string address
+    GUID owner_user_id FK
+    bool is_active
+    datetime created_at
+    datetime updated_at
+  }
+
+  WORKSPACE {
+    GUID workspace_id PK
+    GUID org_id FK
+    GUID created_by FK
+    string workspace_name
+    string description
+    string icon
+    int access
+    bool is_active
+    datetime created_at
+  }
+
+  MAP {
+    GUID map_id PK
+    GUID user_id FK
+    GUID workspace_id FK
+    string map_name
+    string description
+    string preview_image
+    bool is_template
+    GUID parent_map_id FK
+    string category
+    bool is_featured
+    int usage_count
+    string default_bounds
+    string base_layer
+    string view_state
+    bool is_public
+    bool is_active
+    datetime created_at
+    datetime updated_at
+  }
+
+  LAYER {
+    GUID layer_id PK
+    GUID map_id FK
+    GUID user_id FK
+    string layer_name
+    int layer_type_id
+    int source_id
+    string file_path
+    string data_store_key
+    longtext layer_data
+    longtext layer_style
+    bool is_public
+    bool is_visible
+    int z_index
+    int layer_order
+    int feature_count
+    decimal data_size_kb
+    text data_bounds
+    datetime created_at
+    datetime updated_at
+  }
+
+  MAP_FEATURE {
+    GUID feature_id PK
+    GUID map_id FK
+    GUID layer_id FK
+    string name
+    text description
+    string geometry_type
+    string feature_category
+    string annotation_type
+    string mongo_document_id
+    GUID created_by FK
+    bool is_visible
+    int z_index
+    datetime created_at
+    datetime updated_at
+  }
+
+  MAP_IMAGE {
+    GUID map_image_id PK
+    GUID map_id FK
+    string image_name
+    string image_url
+    longtext image_data
+    decimal latitude
+    decimal longitude
+    decimal width
+    decimal height
+    decimal rotation
+    int z_index
+    bool is_visible
+    string description
+    datetime created_at
+  }
+
+  MAP_HISTORY {
+    GUID history_id PK
+    int history_version
+    GUID map_id FK
+    GUID user_id FK
+    longtext snapshot_data
+    datetime created_at
+  }
+
+  BOOKMARK {
+    GUID bookmark_id PK
+    GUID map_id FK
+    GUID user_id FK
+    string name
+    json view_state
+    datetime created_at
+  }
+
+  COMMENT {
+    GUID comment_id PK
+    GUID map_id FK
+    GUID layer_id FK
+    GUID user_id FK
+    string content
+    string position
+    datetime created_at
+    datetime updated_at
+  }
+
+  SEGMENT {
+    GUID segment_id PK
+    GUID map_id FK
+    GUID created_by FK
+    string name
+    string summary
+    text story_content
+    int display_order
+    bool auto_fit_bounds
+    GUID entry_animation_preset_id FK
+    GUID exit_animation_preset_id FK
+    GUID default_layer_animation_preset_id FK
+    string playback_mode
+    GUID next_segment_id FK
+    datetime created_at
+    datetime updated_at
+  }
+
+  STORY_ELEMENT_LAYER {
+    GUID story_element_layer_id PK
+    GUID element_id FK
+    int element_type
+    GUID layer_id FK
+    GUID zone_id FK
+    bool expand_to_zone
+    bool highlight_zone_boundary
+    int display_order
+    int delay_ms
+    int fade_in_ms
+    int fade_out_ms
+    decimal start_opacity
+    decimal end_opacity
+    string easing
+    GUID animation_preset_id FK
+    bool auto_play_animation
+    int repeat_count
+    text animation_overrides
+    text override_style
+    text metadata
+    bool is_visible
+    decimal opacity
+    string display_mode
+    text style_override
+    datetime created_at
+    datetime updated_at
+  }
+
+  ZONE {
+    GUID zone_id PK
+    string external_id
+    string zone_code
+    string name
+    string admin_level
+    GUID parent_zone_id FK
+    text geometry
+    text simplified_geometry
+    text centroid
+    text bounding_box
+    datetime last_synced_at
+    bool is_active
+    string description
+    string zone_type
+    text focus_camera_state
+    int display_order
+    bool is_primary
+    datetime created_at
+    datetime updated_at
+  }
+
+  LOCATION {
+    GUID location_id PK
+    GUID map_id FK
+    GUID segment_id FK
+    GUID zone_id FK
+    string title
+    string subtitle
+    string location_type
+    text marker_geometry
+    text story_content
+    text media_resources
+    int display_order
+    bool highlight_on_enter
+    bool show_tooltip
+    text tooltip_content
+    string effect_type
+    bool open_slide_on_click
+    text slide_content
+    GUID linked_location_id FK
+    bool play_audio_on_click
+    string audio_url
+    string external_url
+    GUID associated_layer_id FK
+    GUID animation_preset_id FK
+    json animation_overrides
+    datetime created_at
+    datetime updated_at
+  }
+
+  TIMELINE_STEP {
+    GUID timeline_step_id PK
+    GUID map_id FK
+    GUID segment_id FK
+    string title
+    string subtitle
+    string description
+    int display_order
+    bool auto_advance
+    int duration_ms
+    string trigger_type
+    text camera_state
+    text overlay_content
+    datetime created_at
+  }
+
+  ADVERTISEMENT {
+    int advertisement_id PK
+    string advertisement_title
+    string advertisement_content
+    string image_url
+    datetime start_date
+    datetime end_date
+    bool is_active
+  }
+
+  FAQ {
+    int faq_id PK
+    string question
+    text answer
+    string category
+    datetime created_at
+  }
+
+  LAYER_ANIMATION_PRESET {
+    GUID animation_preset_id PK
+    string preset_key
+    string display_name
+    string animation_type
+    string default_easing
+    int default_duration_ms
+    string description
+    json config_schema
+    bool is_system_preset
+    bool is_active
+    datetime created_at
+    datetime updated_at
+  }
+
+  LAYER_ANIMATION {
+    GUID layer_animation_id PK
+    GUID layer_id FK
+    string name
+    string source_url
+    string coordinates
+    decimal rotation_deg
+    decimal scale
+    int z_index
+    bool is_active
+    datetime created_at
+    datetime updated_at
+  }
+
+  PLAN {
+    int plan_id PK
+    string plan_name
+    string description
+    decimal price_monthly
+    int duration_months
+    int max_organizations
+    int max_locations_per_org
+    int max_maps_per_month
+    int max_users_per_org
+    int map_quota
+    int export_quota
+    int max_custom_layers
+    int monthly_tokens
+    bool priority_support
+    json features
+    bool is_active
+    datetime created_at
+    datetime updated_at
+  }
+
+  MEMBERSHIP {
+    GUID membership_id PK
+    GUID user_id FK
+    GUID org_id FK
+    int plan_id FK
+    datetime start_date
+    datetime end_date
+    int status
+    bool auto_renew
+    json current_usage
+    datetime last_reset_date
+    datetime created_at
+    datetime updated_at
+  }
+
+  EXPORT {
+    GUID export_id PK
+    GUID user_id FK
+    GUID membership_id FK
+    GUID map_id FK
+    string file_path
+    long file_size
+    string quota_type
+    string export_type
+    datetime created_at
+  }
+
+  TRANSACTIONS {
+    GUID transaction_id PK
+    GUID payment_gateway_id FK
+    string transaction_reference
+    decimal amount
+    string status
+    datetime transaction_date
+    datetime created_at
+    GUID membership_id FK
+    GUID export_id FK
+    text purpose
+  }
+
+  PAYMENT_GATEWAY {
+    GUID gateway_id PK
+    string name
+  }
+
+  ORGANIZATION_MEMBER {
+    GUID member_id PK
+    GUID org_id FK
+    GUID user_id FK
+    string role
+    GUID invitation_id FK
+    GUID invited_by FK
+    string status
+    datetime joined_at
+    datetime left_at
+    string leave_reason
+  }
+
+  ORGANIZATION_INVITATION {
+    GUID invitation_id PK
+    GUID org_id FK
+    string email
+    GUID invited_by FK
+    string role
+    string status
+    string invitation_token
+    datetime invited_at
+    datetime expires_at
+    datetime responded_at
+    string message
+  }
+
+  NOTIFICATION {
+    GUID notification_id PK
+    GUID user_id FK
+    string type
+    string message
+    string status
+    datetime created_at
+    datetime sent_at
+    bool is_read
+    json metadata
+  }
+
+  SUPPORT_TICKET {
+    GUID ticket_id PK
+    GUID user_id FK
+    string subject
+    text message
+    int status
+    string priority
+    datetime created_at
+    datetime resolved_at
+  }
+
+  SUPPORT_TICKET_MESSAGE {
+    GUID message_id PK
+    GUID ticket_id FK
+    text message
+    bool is_from_user
+    datetime created_at
+  }
+
+  MEMBERSHIP_USAGE {
+    GUID usage_id PK
+    GUID membership_id FK
+    GUID org_id FK
+    int maps_created_this_cycle
+    int exports_this_cycle
+    int active_users_in_org
+    string feature_flags
+    datetime cycle_start_date
+    datetime cycle_end_date
+    datetime created_at
+    datetime updated_at
+  }
+
+  USER ||--o{ MAP : "creates"
+  USER ||--o{ LAYER : "owns"
+  USER ||--o{ COMMENT : "writes"
+  USER ||--o{ BOOKMARK : "saves"
+  USER ||--o{ SUPPORT_TICKET : "creates"
+  USER ||--o{ NOTIFICATION : "receives"
+
+  ORGANIZATION ||--o{ WORKSPACE : "has"
+  ORGANIZATION ||--o{ ORGANIZATION_MEMBER : "has"
+  ORGANIZATION ||--o{ ORGANIZATION_INVITATION : "sends"
+  ORGANIZATION ||--o{ MEMBERSHIP : "has"
+
+  WORKSPACE ||--o{ MAP : "contains"
+
+  MAP ||--o{ LAYER : "has"
+  MAP ||--o{ MAP_FEATURE : "has"
+  MAP ||--o{ MAP_IMAGE : "has"
+  MAP ||--o{ COMMENT : "has"
+  MAP ||--o{ BOOKMARK : "has"
+  MAP ||--o{ SEGMENT : "has"
+  MAP ||--o{ TIMELINE_STEP : "has"
+  MAP ||--o{ MAP_HISTORY : "snapshots"
+
+  LAYER ||--o{ STORY_ELEMENT_LAYER : "used in"
+  LAYER ||--o{ LAYER_ANIMATION : "animated_by"
+
+  SEGMENT ||--o{ STORY_ELEMENT_LAYER : "includes"
+  SEGMENT ||--o{ ZONE : "uses_zones"
+  SEGMENT ||--o{ LOCATION : "has_locations"
+  SEGMENT }o--|| MAP : "belongs to"
+  SEGMENT }o--|| USER : "created_by"
+  SEGMENT ||--o{ SEGMENT : "transitions_to"
+
+  ZONE ||--o{ STORY_ELEMENT_LAYER : "defines_area"
+  ZONE ||--o{ LOCATION : "contains"
+  ZONE ||--o{ ZONE : "parent_child"
+
+  TIMELINE_STEP ||--o{ STORY_ELEMENT_LAYER : "controls"
+  TIMELINE_STEP }o--o{ SEGMENT : "optional"
+
+  MEMBERSHIP ||--o{ EXPORT : "uses"
+  MEMBERSHIP ||--o{ TRANSACTIONS : "billed_by"
+  MEMBERSHIP ||--o{ MEMBERSHIP_USAGE : "tracks"
+
+  PAYMENT_GATEWAY ||--o{ TRANSACTIONS : "processes"
+
+  PLAN ||--o{ MEMBERSHIP : "subscribed_by"
+
+  ORGANIZATION_MEMBER }o--|| USER : "is"
+  ORGANIZATION_MEMBER }o--|| ORGANIZATION_INVITATION : "has_invitation"
+  ORGANIZATION_INVITATION }o--|| USER : "invited_by"
+
+  MAP_FEATURE }o--|| LAYER : "optional"
+  COMMENT }o--|| LAYER : "optional"
+
+  SUPPORT_TICKET ||--o{ SUPPORT_TICKET_MESSAGE : "has"
+  SUPPORT_TICKET }o--|| USER : "owned_by"
+
+  LOCATION }o--|| SEGMENT : "optional"
+  LOCATION }o--|| ZONE : "optional"
+
+  LAYER_ANIMATION_PRESET ||--o{ LAYER_ANIMATION : "used_by"
+  LAYER_ANIMATION_PRESET }o--|| SEGMENT : "defaults_for"

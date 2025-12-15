@@ -7,6 +7,6 @@ namespace CusomMapOSM_Application.Interfaces.Services.FileProcessors;
 public interface IFileProcessorService
 {
     Task<FileProcessingResult> ProcessUploadedFile(IFormFile file, string layerName);
-    LayerTypeEnum DetectFileType(string fileName);
+    LayerType DetectFileType(string fileName);
     bool IsSupported(string fileName);
 }

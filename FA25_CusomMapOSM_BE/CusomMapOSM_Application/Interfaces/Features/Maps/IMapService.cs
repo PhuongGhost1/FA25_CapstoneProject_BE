@@ -25,12 +25,27 @@ public interface IMapService
     Task<Option<AddLayerToMapResponse, Error>> AddLayerToMap(Guid mapId, AddLayerToMapRequest req);
     Task<Option<RemoveLayerFromMapResponse, Error>> RemoveLayerFromMap(Guid mapId, Guid layerId);
     Task<Option<UpdateMapLayerResponse, Error>> UpdateMapLayer(Guid mapId, Guid layerId, UpdateMapLayerRequest req);
-
-    // Map Collaboration
-    Task<Option<ShareMapResponse, Error>> ShareMap(ShareMapRequest req);
-    Task<Option<UnshareMapResponse, Error>> UnshareMap(UnshareMapRequest req);
     
     // Map Template Creation from GeoJSON
     Task<Option<CreateMapTemplateFromGeoJsonResponse, Error>> CreateMapTemplateFromGeoJson(CreateMapTemplateFromGeoJsonRequest req);
     Task<Option<string, Error>> GetLayerData(Guid templateId, Guid layerId);
+    
+    // Zone/Feature Operations
+    Task<Option<CopyFeatureToLayerResponse, Error>> CopyFeatureToLayer(Guid mapId, Guid sourceLayerId, CopyFeatureToLayerRequest req);
+    Task<Option<bool, Error>> DeleteFeatureFromLayer(Guid mapId, Guid layerId, int featureIndex);
+    Task<Option<UpdateLayerDataResponse, Error>> UpdateLayerData(Guid mapId, Guid layerId, UpdateLayerDataRequest req);
+    
+    // Layer Operations
+    Task<Option<List<LayerInfoResponse>, Error>> GetMapLayers(Guid mapId);
+    
+    // Map Publishing Operations
+    Task<Option<bool, Error>> PublishMap(Guid mapId);
+    Task<Option<bool, Error>> UnpublishMap(Guid mapId);
+    Task<Option<bool, Error>> ArchiveMap(Guid mapId);
+    Task<Option<bool, Error>> PrepareForEmbed(Guid mapId); // Auto publish and set public for embed
+    Task<Option<bool, Error>> RestoreMap(Guid mapId);
+
+    // Custom listings
+    Task<Option<GetMyMapsResponse, Error>> GetMyRecentMaps(int limit);
+    Task<Option<GetMyMapsResponse, Error>> GetMyDraftMaps();
 }

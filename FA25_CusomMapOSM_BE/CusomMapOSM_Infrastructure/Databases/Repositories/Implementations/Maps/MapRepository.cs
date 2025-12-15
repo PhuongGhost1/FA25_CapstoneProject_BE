@@ -26,7 +26,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .FirstOrDefaultAsync(m => m.MapId == mapId && m.IsActive);
     }
 
@@ -34,7 +34,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.UserId == userId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
@@ -44,8 +44,19 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
-            .Where(m => m.OrgId == orgId && m.IsActive)
+            .Include(m => m.Workspace)
+            .ThenInclude(w => w!.Organization)
+            .Where(m => m.Workspace != null && m.Workspace.Organization != null && m.Workspace.Organization.OrgId == orgId && m.IsActive)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<Map>> GetByWorkspaceIdAsync(Guid workspaceId)
+    {
+        return await _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.WorkspaceId == workspaceId && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
     }
@@ -54,7 +65,7 @@ public class MapRepository : IMapRepository
     {
         return await _context.Maps
             .Include(m => m.User)
-            .Include(m => m.Organization)
+            .Include(m => m.Workspace)
             .Where(m => m.IsPublic && m.IsActive)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
@@ -113,28 +124,26 @@ public class MapRepository : IMapRepository
         if (template == null)
             return null;
 
-        var mapLayersTask = GetTemplateLayers(templateId);
-        var mapImagesTask = GetTemplateImages(templateId);
-
-        await Task.WhenAll(mapLayersTask, mapImagesTask);
+        var layers = await GetTemplateLayers(templateId);
+        var mapImages = await GetTemplateImages(templateId);
 
         var templateWithDetails = new MapTemplateWithDetails
         {
             Map = template,
-            MapLayers = mapLayersTask.Result,
-            MapImages = mapImagesTask.Result
+            Layers = layers,
+            MapImages = mapImages
         };
 
         return templateWithDetails;
     }
     
     // Template Content operations
-    public async Task<List<MapLayer>> GetTemplateLayers(Guid mapId)
+    public async Task<List<Layer>> GetTemplateLayers(Guid mapId)
     {
-        return await _context.MapLayers
-            .Include(tl => tl.Layer) // Include Layer navigation property
-            .Where(tl => tl.MapId == mapId)
-            .OrderBy(tl => tl.LayerOrder)
+        return await _context.Layers
+            .Include(l => l.User) // Include User navigation property
+            .Where(l => l.MapId == mapId)
+            .OrderBy(l => l.CreatedAt)
             .ToListAsync();
     }
 
@@ -146,99 +155,6 @@ public class MapRepository : IMapRepository
             .Where(ti => ti.MapId == mapId)
             .OrderBy(ti => ti.CreatedAt)
             .ToListAsync();
-    }
-
-    public async Task<bool> CreateMapLayer(MapLayer templateLayer)
-    {
-        try
-        {
-            _context.MapLayers.Add(templateLayer);
-            
-            _context.Database.SetCommandTimeout(300);
-            
-            var result = await _context.SaveChangesAsync();
-            
-            // Reset timeout to default
-            _context.Database.SetCommandTimeout(30);
-            
-            return result > 0;
-        }
-        catch (Exception ex)
-        {
-            // Reset timeout on error
-            _context.Database.SetCommandTimeout(30);
-            
-            // Log the error for debugging
-            Console.WriteLine($"Error saving MapLayer: {ex.Message}");
-            throw;
-        }
-    }
-
-    public async Task<string?> GetLayerDataById(Guid mapId, Guid layerId)
-    {
-        // First try to find MapLayer by MapId and LayerId
-        var mapLayer = await _context.MapLayers
-            .Include(ml => ml.Layer)
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
-        
-        // If not found, try to find by MapId and check if layerId is actually a MapLayerId
-        if (mapLayer == null)
-        {
-            mapLayer = await _context.MapLayers
-                .Include(ml => ml.Layer)
-                .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.MapLayerId == layerId);
-        }
-        
-        if (mapLayer == null)
-        {
-            // Debug: Check what MapLayers exist for this map
-            var allMapLayers = await _context.MapLayers
-                .Where(ml => ml.MapId == mapId)
-                .Select(ml => new { ml.MapLayerId, ml.LayerId, ml.IsVisible, LayerName = ml.Layer != null ? ml.Layer.LayerName : "null" })
-                .ToListAsync();
-                
-            Console.WriteLine($"MapLayer not found for MapId: {mapId}, LayerId: {layerId}");
-            Console.WriteLine($"Available MapLayers for MapId {mapId}:");
-            foreach (var ml in allMapLayers)
-            {
-                Console.WriteLine($"  - MapLayerId:{ml.MapLayerId}, LayerId:{ml.LayerId}, Visible:{ml.IsVisible}, Name:{ml.LayerName}");
-            }
-            return null;
-        }
-        
-        if (mapLayer.Layer == null)
-        {
-            Console.WriteLine($"Layer entity is null for MapLayerId: {mapLayer.MapLayerId}");
-            return null;
-        }
-        
-        if (string.IsNullOrEmpty(mapLayer.Layer.LayerData))
-        {
-            Console.WriteLine($"LayerData is empty for LayerId: {mapLayer.LayerId}, LayerName: {mapLayer.Layer.LayerName}");
-            return null;
-        }
-        
-        Console.WriteLine($"Successfully found layer data for LayerId: {mapLayer.LayerId}, Size: {mapLayer.Layer.LayerData?.Length ?? 0} chars");
-        return mapLayer.Layer.LayerData;
-    }
-
-    // Template Management operations
-    public async Task<bool> CreateMapTemplate(Map template)
-    {
-        template.IsTemplate = true; // Ensure it's marked as template
-        _context.Maps.Add(template);
-        return await _context.SaveChangesAsync() > 0;
-    }
-
-    public async Task<bool> UpdateMapTemplate(Map template)
-    {
-        _context.Maps.Update(template);
-        return await _context.SaveChangesAsync() > 0;
-    }
-
-    public async Task<bool> CreateMapTemplateLayer(MapLayer templateLayer)
-    {
-        return await CreateMapLayer(templateLayer);
     }
 
     public async Task<bool> CreateLayer(Layer layer)
@@ -258,72 +174,194 @@ public class MapRepository : IMapRepository
         }
         catch (Exception ex)
         {
+            // Reset timeout on error then bubble up
             _context.Database.SetCommandTimeout(30);
-            Console.WriteLine($"Error saving Layer: {ex.Message}");
             throw;
         }
     }
-    public async Task<bool> AddLayerToMap(MapLayer mapLayer)
+
+    // Template Management operations
+    public async Task<bool> CreateMapTemplate(Map template)
     {
-        _context.MapLayers.Add(mapLayer);
+        template.IsTemplate = true; // Ensure it's marked as template
+        _context.Maps.Add(template);
         return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<bool> UpdateMapTemplate(Map template)
+    {
+        _context.Maps.Update(template);
+        return await _context.SaveChangesAsync() > 0;
+    }
+
+    public async Task<Layer?> GetLayerById(Guid layerId)
+    {
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .FirstOrDefaultAsync(l => l.LayerId == layerId);
     }
 
     public async Task<bool> RemoveLayerFromMap(Guid mapId, Guid layerId)
     {
-        var mapLayer = await _context.MapLayers
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
+        var layer = await _context.Layers
+            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
 
-        if (mapLayer == null)
+        if (layer == null)
             return false;
 
-        _context.MapLayers.Remove(mapLayer);
+        _context.Layers.Remove(layer);
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<bool> UpdateMapLayer(MapLayer mapLayer)
+    public async Task<bool> UpdateLayer(Layer layer)
     {
-        _context.MapLayers.Update(mapLayer);
+        _context.Layers.Update(layer);
         return await _context.SaveChangesAsync() > 0;
     }
 
-    public async Task<MapLayer?> GetMapLayer(Guid mapId, Guid layerId)
+    public async Task<Layer?> GetMapLayer(Guid mapId, Guid layerId)
     {
-        return await _context.MapLayers
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.User)
-            .FirstOrDefaultAsync(ml => ml.MapId == mapId && ml.LayerId == layerId);
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .FirstOrDefaultAsync(l => l.MapId == mapId && l.LayerId == layerId);
     }
 
-    public async Task<List<MapLayer>> GetMapLayers(Guid mapId)
+    public async Task<List<Layer>> GetMapLayers(Guid mapId)
     {
-        return await _context.MapLayers
-            .Include(ml => ml.Layer)
-                .ThenInclude(l => l.User)
-            .Where(ml => ml.MapId == mapId)
-            .OrderBy(ml => ml.LayerOrder)
+        return await _context.Layers
+            .Include(l => l.User)
+            .Include(l => l.Map)
+            .Where(l => l.MapId == mapId)
+            .OrderBy(l => l.CreatedAt)
             .ToListAsync();
     }
 
-    // Collaboration operations
-    public async Task<bool> ShareMap(Guid mapId, Guid userId, string permission)
+    public async Task<List<MapFeature>> GetMapFeatures(Guid mapId)
     {
-        // TODO: Implement collaboration logic when Collaboration entity is ready
-        // For now, return true to indicate success
-        return true;
+        return await _context.MapFeatures
+            .Where(f => f.MapId == mapId)
+            .OrderBy(f => f.ZIndex)
+            .ThenBy(f => f.CreatedAt)
+            .ToListAsync();
+    }
+    
+
+    public async Task<int> GetTotalMapsCount()
+    {
+        return await _context.Maps
+            .Where(m => !m.IsTemplate)
+            .CountAsync();
     }
 
-    public async Task<bool> UnshareMap(Guid mapId, Guid userId)
+    public async Task<int> GetMonthlyExportsCount()
     {
-        // TODO: Implement unshare logic when Collaboration entity is ready
-        // For now, return true to indicate success
-        return true;
+        // Get the first day of current month
+        var currentMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        
+        // Check if MapExports table exists and has data
+        // If you don't have MapExports tracking yet, return 0
+        try
+        {
+            // If you have a MapExports DbSet, uncomment this:
+            // return await _context.MapExports
+            //     .Where(e => e.CreatedAt >= currentMonth)
+            //     .CountAsync();
+            
+            // For now, return 0 until MapExports tracking is implemented
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
-    public async Task<List<Map>> GetSharedMaps(Guid userId)
+    // Custom listings
+    public async Task<List<Map>> GetUserDraftMaps(Guid userId)
     {
-        // TODO: Implement shared maps logic when Collaboration entity is ready
-        // For now, return empty list
-        return new List<Map>();
+        return await _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.UserId == userId && m.IsActive && m.Status == CusomMapOSM_Domain.Entities.Maps.Enums.MapStatusEnum.Draft)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<(Map Map, DateTime LastActivity)>> GetUserRecentMapsWithActivity(Guid userId, int limit)
+    {
+        var baseQuery = _context.Maps
+            .Include(m => m.User)
+            .Include(m => m.Workspace)
+            .Where(m => m.UserId == userId && m.IsActive && !m.IsTemplate);
+
+        var mapIds = await baseQuery.Select(m => m.MapId).ToListAsync();
+
+        if (mapIds.Count == 0) return new List<(Map, DateTime)>();
+
+        var layerMax = await _context.Layers
+            .Where(l => mapIds.Contains(l.MapId))
+            .GroupBy(l => l.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(l => l.UpdatedAt ?? l.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var historyMax = await _context.MapHistories
+            .Where(h => mapIds.Contains(h.MapId))
+            .GroupBy(h => h.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(h => h.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var imageMax = await _context.MapImages
+            .Where(i => mapIds.Contains(i.MapId))
+            .GroupBy(i => i.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(i => i.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var featureMax = await _context.MapFeatures
+            .Where(f => mapIds.Contains(f.MapId))
+            .GroupBy(f => f.MapId)
+            .Select(g => new { MapId = g.Key, MaxAt = g.Max(f => f.UpdatedAt ?? f.CreatedAt) })
+            .ToDictionaryAsync(x => x.MapId, x => x.MaxAt);
+
+        var maps = await baseQuery.ToListAsync();
+
+        var ordered = maps
+            .Select(m =>
+            {
+                var baseAt = m.UpdatedAt ?? m.CreatedAt;
+                var lAt = layerMax.TryGetValue(m.MapId, out var v1) ? v1 : DateTime.MinValue;
+                var hAt = historyMax.TryGetValue(m.MapId, out var v2) ? v2 : DateTime.MinValue;
+                var iAt = imageMax.TryGetValue(m.MapId, out var v3) ? v3 : DateTime.MinValue;
+                var fAt = featureMax.TryGetValue(m.MapId, out var v4) ? v4 : DateTime.MinValue;
+                var last = new[] { baseAt, lAt, hAt, iAt, fAt }.Max();
+                return (Map: m, LastActivity: last);
+            })
+            .OrderByDescending(x => x.LastActivity)
+            .Take(Math.Max(1, limit))
+            .ToList();
+
+        return ordered;
+    }
+    
+    public async Task<List<Map>> GetUserRecentMaps(Guid userId, int limit)
+    {
+        var results = await GetUserRecentMapsWithActivity(userId, limit);
+        return results.Select(x => x.Map).ToList();
+    }
+
+    public async Task<bool> CreateMapImage(MapImage image)
+    {
+        try
+        {
+            _context.MapImages.Add(image);
+            var result = await _context.SaveChangesAsync();
+            return result > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }
+

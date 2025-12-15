@@ -4,16 +4,20 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
 {
     public class AddLayerToMapRequest
     {
-        [Required]
-        public Guid LayerId { get; set; }
-
+        // Optional: If provided, will add existing layer to map
+        // If not provided (Guid.Empty), will create new layer with LayerName and LayerData
+        public Guid LayerId { get; set; } = Guid.Empty;
+        
+        public string? LayerName  { get; set; }
+        
+        public string? LayerData  { get; set; }
+        public string? LayerTypeId{ get; set; }
+        
+        public string? LayerStyle { get; set; }
+        
         public bool IsVisible { get; set; } = true;
-
-        [Range(0, 1000)]
+        
         public int ZIndex { get; set; } = 0;
 
-        public string? CustomStyle { get; set; }
-
-        public string? FilterConfig { get; set; }
     }
 }

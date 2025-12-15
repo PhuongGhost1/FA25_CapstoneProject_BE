@@ -5,7 +5,6 @@ using CusomMapOSM_Application.Models.DTOs.Features.Membership;
 using CusomMapOSM_API.Endpoints.Memberships;
 using CusomMapOSM_Domain.Entities.Memberships;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
-using DomainMembershipAddon = CusomMapOSM_Domain.Entities.Memberships.MembershipAddon;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -59,7 +58,7 @@ public class MembershipEndpointTests : IClassFixture<WebApplicationFactory<Cusom
             .RuleFor(m => m.UserId, request.UserId)
             .RuleFor(m => m.OrgId, request.OrgId)
             .RuleFor(m => m.PlanId, request.NewPlanId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow)
             .RuleFor(m => m.AutoRenew, request.AutoRenew)
             .Generate();
 
@@ -149,7 +148,7 @@ public class MembershipEndpointTests : IClassFixture<WebApplicationFactory<Cusom
             .RuleFor(m => m.UserId, request.UserId)
             .RuleFor(m => m.OrgId, request.OrgId)
             .RuleFor(m => m.PlanId, request.PlanId)
-            .RuleFor(m => m.StartDate, DateTime.UtcNow)
+            .RuleFor(m => m.BillingCycleStartDate, DateTime.UtcNow)
             .RuleFor(m => m.AutoRenew, request.AutoRenew)
             .Generate();
 
@@ -220,79 +219,6 @@ public class MembershipEndpointTests : IClassFixture<WebApplicationFactory<Cusom
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task PurchaseAddon_WithValidRequest_ShouldReturnSuccess()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        var request = new Faker<PurchaseAddonRequest>()
-            .RuleFor(r => r.MembershipId, Guid.NewGuid())
-            .RuleFor(r => r.OrgId, Guid.NewGuid())
-            .RuleFor(r => r.AddonKey, "extra_exports")
-            .RuleFor(r => r.Quantity, 10)
-            .RuleFor(r => r.EffectiveImmediately, true)
-            .Generate();
-
-        var addon = new Faker<DomainMembershipAddon>()
-            .RuleFor(a => a.AddonId, Guid.NewGuid())
-            .RuleFor(a => a.MembershipId, request.MembershipId)
-            .RuleFor(a => a.OrgId, request.OrgId)
-            .RuleFor(a => a.AddonKey, request.AddonKey)
-            .RuleFor(a => a.Quantity, request.Quantity)
-            .RuleFor(a => a.PurchasedAt, DateTime.UtcNow)
-            .Generate();
-
-        _mockMembershipService.Setup(x => x.AddAddonAsync(
-                request.MembershipId,
-                request.OrgId,
-                request.AddonKey,
-                request.Quantity,
-                request.EffectiveImmediately,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.Some<DomainMembershipAddon, Error>(addon));
-
-        // Act
-        var response = await client.PostAsJsonAsync("/membership/purchase-addon", request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var result = await response.Content.ReadFromJsonAsync<PurchaseAddonResponse>();
-        result.Should().NotBeNull();
-        result!.AddonId.Should().Be(addon.AddonId);
-        result.Status.Should().Be("purchased");
-    }
-
-    [Fact]
-    public async Task PurchaseAddon_WithServiceError_ShouldReturnBadRequest()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        var request = new Faker<PurchaseAddonRequest>()
-            .RuleFor(r => r.MembershipId, Guid.NewGuid())
-            .RuleFor(r => r.OrgId, Guid.NewGuid())
-            .RuleFor(r => r.AddonKey, "extra_exports")
-            .RuleFor(r => r.Quantity, 10)
-            .RuleFor(r => r.EffectiveImmediately, true)
-            .Generate();
-
-        var error = new Error("Membership.Addon.Failed", "Failed to purchase addon", ErrorType.Failure);
-
-        _mockMembershipService.Setup(x => x.AddAddonAsync(
-                request.MembershipId,
-                request.OrgId,
-                request.AddonKey,
-                request.Quantity,
-                request.EffectiveImmediately,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Option.None<DomainMembershipAddon, Error>(error));
-
-        // Act
-        var response = await client.PostAsJsonAsync("/membership/purchase-addon", request);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
 
     [Fact]
     public async Task TrackUsage_WithValidRequest_ShouldReturnSuccess()

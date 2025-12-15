@@ -14,8 +14,7 @@ internal class MapImageConfiguration : IEntityTypeConfiguration<MapImage>
 
         builder.Property(mi => mi.MapImageId)
                .HasColumnName("map_image_id")
-               .IsRequired()
-               .ValueGeneratedOnAdd();
+               .IsRequired();
 
         builder.Property(mi => mi.MapId)
                .HasColumnName("map_id")
@@ -68,7 +67,7 @@ internal class MapImageConfiguration : IEntityTypeConfiguration<MapImage>
         builder.Property(mi => mi.CreatedAt)
                .HasColumnName("created_at")
                .HasColumnType("datetime")
-               .IsRequired();
+               .HasDefaultValueSql("CURRENT_TIMESTAMP");
         
         builder.HasOne(mi => mi.Map)
                .WithMany()

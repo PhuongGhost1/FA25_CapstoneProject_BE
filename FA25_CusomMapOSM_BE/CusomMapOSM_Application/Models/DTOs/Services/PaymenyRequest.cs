@@ -13,7 +13,7 @@ public record ProcessPaymentReq
 {
     public required decimal Total { get; set; }
     public required PaymentGatewayEnum PaymentGateway { get; set; } = PaymentGatewayEnum.PayOS;
-    public required string Purpose { get; set; } = "membership"; // "membership" or "addon"
+    public required string Purpose { get; set; } = "membership";
 
     // Business context for membership creation (when Purpose = "membership")
     public Guid? UserId { get; set; }
@@ -21,10 +21,6 @@ public record ProcessPaymentReq
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
 
-    // Business context for addon purchase (when Purpose = "addon")
-    public Guid? MembershipId { get; set; } // Only used for addon purchases
-    public string? AddonKey { get; set; }
-    public int? Quantity { get; set; }
 }
 
 // PayPal specific payment request
@@ -59,6 +55,7 @@ public record ConfirmPaymentReq
     public string? Token { get; set; } // PayPal specific
     public string? PaymentIntentId { get; set; } // Stripe specific
     public string? ClientSecret { get; set; } // Stripe specific
+    public string? SessionId { get; set; } // Stripe specific
     public string? OrderCode { get; set; } // PayOS specific
     public string? Signature { get; set; } // PayOS specific
 }
@@ -72,7 +69,7 @@ public class ApprovalUrlResponse
     public string? OrderCode { get; set; } // PayOS specific - order code
 }
 
-public class ConfirmPaymentResponse
+public record ConfirmPaymentResponse
 {
     public required string PaymentId { get; set; }
     public required PaymentGatewayEnum PaymentGateway { get; set; }
@@ -80,6 +77,7 @@ public class ConfirmPaymentResponse
     public string? Token { get; set; } // PayPal specific
     public string? PaymentIntentId { get; set; } // Stripe specific
     public string? ClientSecret { get; set; } // Stripe specific
+    public string? SessionId { get; set; } // Stripe specific
     public string? OrderCode { get; set; } // PayOS specific
     public string? Signature { get; set; } // PayOS specific
 }
@@ -96,14 +94,12 @@ public record ConfirmPaymentWithContextReq
     public string? Signature { get; set; } // PayOS specific
 
     // Business context
-    public required string Purpose { get; set; } // e.g., "membership" or "addon"
+    public required string Purpose { get; set; } // e.g., "membership"
     public Guid TransactionId { get; set; }
     public Guid? UserId { get; set; }
     public Guid? OrgId { get; set; }
     public int? PlanId { get; set; }
     public bool AutoRenew { get; set; } = true;
-    public string? AddonKey { get; set; }
-    public int? Quantity { get; set; }
     public Guid? MembershipId { get; set; }
 }
 

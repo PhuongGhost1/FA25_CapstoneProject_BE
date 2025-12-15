@@ -54,14 +54,22 @@ internal class MembershipUsageConfiguration : IEntityTypeConfiguration<Membershi
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("datetime")
-            .IsRequired();
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
         builder.Property(u => u.UpdatedAt)
             .HasColumnName("updated_at")
             .HasColumnType("datetime");
+        
+        builder.HasOne(u => u.Organizations)
+            .WithMany()
+            .HasForeignKey(m => m.OrgId)
+            .OnDelete(DeleteBehavior.Restrict);
+        
+        builder.HasOne(u => u.Membership)
+            .WithMany()
+            .HasForeignKey(m => m.MembershipId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(u => new { u.MembershipId, u.OrgId })
-            .IsUnique();
     }
 }
 

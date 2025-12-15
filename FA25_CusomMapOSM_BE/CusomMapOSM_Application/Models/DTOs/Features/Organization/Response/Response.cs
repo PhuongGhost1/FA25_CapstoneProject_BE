@@ -3,6 +3,7 @@
 public record OrganizationResDto
 {
     public required string Result { get; set; }
+    public required Guid OrgId { get; set; }
 }
 
 public record InviteMemberOrganizationResDto
@@ -69,6 +70,7 @@ public record DeleteOrganizationResDto
 
 public record MemberDto
 {
+    public required Guid UserId { get; set; }
     public required Guid MemberId { get; set; }
     public required string Email { get; set; }
     public required string FullName { get; set; }
@@ -120,4 +122,10 @@ public record GetMyOrganizationsResDto
 public record TransferOwnershipResDto
 {
     public required string Result { get; set; }
+}
+
+public record ValidateOrganizationNameResDto
+{
+    public required bool IsAvailable { get; set; }
+    public required string Message { get; set; }
 }
