@@ -317,4 +317,41 @@ public class NotificationService : INotificationService
             return Option.None<bool, Error>(Error.Failure("Notification.TransactionFailed", $"Failed to create transaction completed notification: {ex.Message}"));
         }
     }
+
+    public async Task<Option<bool, Error>> CreateTransactionPendingNotificationAsync(
+        Guid userId,
+        Guid transactionId,
+        string planName,
+        string? planSummary,
+        string? paymentUrl,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var metadata = JsonSerializer.Serialize(new
+            {
+                transactionId,
+                status = "pending",
+                planName,
+                planSummary,
+                paymentUrl,
+                createdAt = DateTime.UtcNow
+            });
+
+            var message = $"You have a pending payment for plan \"{planName}\". Click to continue the payment process.";
+
+            return await CreateNotificationAsync(
+                userId,
+                NotificationTypeEnum.TransactionPending.ToString(),
+                message,
+                metadata,
+                ct);
+        }
+        catch (Exception ex)
+        {
+            return Option.None<bool, Error>(
+                Error.Failure("Notification.TransactionPendingFailed",
+                    $"Failed to create pending transaction notification: {ex.Message}"));
+        }
+    }
 }

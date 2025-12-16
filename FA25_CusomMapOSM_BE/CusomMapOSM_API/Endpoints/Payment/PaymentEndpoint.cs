@@ -4,6 +4,7 @@ using CusomMapOSM_API.Interfaces;
 using CusomMapOSM_Application.Interfaces.Features.Payment;
 using CusomMapOSM_Application.Interfaces.Features.Transaction;
 using CusomMapOSM_Application.Interfaces.Services.Payment;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Features.Payment;
 using CusomMapOSM_Application.Models.DTOs.Features.Transaction;
 using CusomMapOSM_Application.Models.DTOs.Services;
@@ -191,7 +192,156 @@ public class PaymentEndpoint : IEndpoint
             .Produces<object>(200)
             .ProducesProblem(401)
             .ProducesProblem(500);
-        
+
+        // Retry pending payment
+        group.MapPost("/retry", async (
+                ClaimsPrincipal user,
+                [FromBody] RetryPaymentRequest request,
+                [FromServices] ISubscriptionService subscriptionService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Results.Unauthorized();
+
+                var result = await subscriptionService.RetryPaymentAsync(userId, request.TransactionId, ct);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("RetryPayment")
+            .Produces<RetryPaymentResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
+
+        // Get pending payment for organization
+        group.MapGet("/pending-for-org/{orgId:guid}", async (
+                ClaimsPrincipal user,
+                Guid orgId,
+                [FromServices] ISubscriptionService subscriptionService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Results.Unauthorized();
+
+                var result = await subscriptionService.GetPendingPaymentForOrgAsync(userId, orgId, ct);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("GetPendingPaymentForOrg")
+            .WithDescription("Check if organization has pending payment")
+            .Produces<PendingPaymentCheckResponse>(200)
+            .ProducesProblem(401)
+            .ProducesProblem(403)
+            .ProducesProblem(404);
+
+        // Cancel payment with reason
+        group.MapPost("/cancel/{transactionId:guid}", async (
+                ClaimsPrincipal user,
+                Guid transactionId,
+                [FromBody] CancelPaymentRequest request,
+                [FromServices] ISubscriptionService subscriptionService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Results.Unauthorized();
+
+                var result = await subscriptionService.CancelPaymentWithReasonAsync(userId, transactionId, request, ct);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("CancelPaymentWithReason")
+            .WithDescription("Cancel a pending payment with cancellation reason")
+            .Produces<CusomMapOSM_Application.Models.DTOs.Features.Payment.CancelPaymentResponse>(200)
+            .ProducesProblem(400)
+            .ProducesProblem(401)
+            .ProducesProblem(403)
+            .ProducesProblem(404);
+
+        // Download receipt for completed transaction
+        group.MapGet("/receipt/{transactionId:guid}", async (
+                ClaimsPrincipal user,
+                Guid transactionId,
+                [FromServices] ITransactionRepository transactionRepository,
+                [FromServices] IReceiptService receiptService,
+                CancellationToken ct) =>
+            {
+                var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("userId");
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Results.Unauthorized();
+
+                // Fetch transaction with all related data
+                var transaction = await transactionRepository.GetByIdWithDetailsAsync(transactionId, ct);
+                if (transaction == null)
+                    return Results.Problem(
+                        statusCode: 404,
+                        title: "Transaction not found",
+                        detail: "The requested transaction does not exist"
+                    );
+
+                // Verify transaction belongs to the user via membership
+                if (transaction.Membership == null)
+                    return Results.Problem(
+                        statusCode: 400,
+                        title: "Invalid transaction",
+                        detail: "Transaction has no associated membership"
+                    );
+
+                // Check ownership through organization
+                if (transaction.Membership.Organization?.OwnerUserId != userId)
+                    return Results.Problem(
+                        statusCode: 403,
+                        title: "Unauthorized",
+                        detail: "You do not have permission to access this receipt"
+                    );
+
+                // Only allow receipt download for successful transactions
+                if (transaction.Status?.ToLower() != "success" && transaction.Status?.ToLower() != "paid")
+                    return Results.Problem(
+                        statusCode: 400,
+                        title: "Receipt unavailable",
+                        detail: "Receipt is only available for completed transactions"
+                    );
+
+                try
+                {
+                    // Generate PDF receipt
+                    var pdfBytes = receiptService.GenerateReceipt(transaction, transaction.Membership);
+
+                    // Return PDF file
+                    return Results.File(
+                        pdfBytes,
+                        contentType: "application/pdf",
+                        fileDownloadName: $"receipt-{transactionId}.pdf"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    return Results.Problem(
+                        statusCode: 500,
+                        title: "Receipt generation failed",
+                        detail: $"Failed to generate receipt: {ex.Message}"
+                    );
+                }
+            })
+            .WithName("DownloadReceipt")
+            .WithDescription("Download PDF receipt for a completed transaction")
+            .Produces(200, contentType: "application/pdf")
+            .ProducesProblem(400)
+            .ProducesProblem(401)
+            .ProducesProblem(403)
+            .ProducesProblem(404)
+            .ProducesProblem(500);
+
         group.MapPost("/webhook/payos", async (
                 HttpRequest request,
                 [FromServices] IPaymentService paymentService,

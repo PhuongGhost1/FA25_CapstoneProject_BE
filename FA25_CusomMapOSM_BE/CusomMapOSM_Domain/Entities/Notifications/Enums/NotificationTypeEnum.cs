@@ -6,6 +6,7 @@ public enum NotificationTypeEnum
     TransactionCompleted = 1,
     TransactionFailed = 2,
     PaymentProcessed = 3,
+    TransactionPending = 4,
 
     // Membership notifications
     MembershipCreated = 10,

@@ -17,4 +17,11 @@ public interface INotificationService
     Task<Option<bool, Error>> CreateQuotaWarningNotificationAsync(Guid userId, string quotaType, int currentUsage, int limit, int percentageUsed, CancellationToken ct = default);
     Task<Option<bool, Error>> CreateQuotaExceededNotificationAsync(Guid userId, string quotaType, int currentUsage, int limit, CancellationToken ct = default);
     Task<Option<bool, Error>> CreateTransactionCompletedNotificationAsync(Guid userId, decimal amount, string planName, CancellationToken ct = default);
+    Task<Option<bool, Error>> CreateTransactionPendingNotificationAsync(
+        Guid userId,
+        Guid transactionId,
+        string planName,
+        string? planSummary,
+        string? paymentUrl,
+        CancellationToken ct = default);
 }

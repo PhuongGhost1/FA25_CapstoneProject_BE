@@ -64,4 +64,46 @@ public record PaymentConfirmationResponse
     public required string Message { get; set; }
     public bool MembershipUpdated { get; set; }
     public bool NotificationSent { get; set; }
+    public int AutoCancelledTransactions { get; set; }
+}
+
+public record RetryPaymentRequest
+{
+    public Guid TransactionId { get; init; }
+}
+
+public record RetryPaymentResponse
+{
+    public Guid TransactionId { get; init; }
+    public string PaymentUrl { get; init; } = string.Empty;
+    public string Status { get; init; } = "pending";
+    public string? Message { get; init; }
+    public DateTime? ExpiresAt { get; init; }
+    public bool IsNewUrl { get; init; }
+}
+
+public record PendingTransactionDto
+{
+    public required string TransactionId { get; set; }
+    public required int PlanId { get; set; }
+    public required string PlanName { get; set; }
+    public required decimal Amount { get; set; }
+    public required string Currency { get; set; }
+    public required DateTime CreatedAt { get; set; }
+    public string? PaymentUrl { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public int ExpiresInMinutes { get; set; }
+    public required string Description { get; set; }
+}
+
+public record PendingPaymentCheckResponse
+{
+    public required bool HasPending { get; set; }
+    public PendingTransactionDto? Transaction { get; set; }
+}
+
+public record CancelPaymentRequest
+{
+    public required string Reason { get; set; }
+    public string? Notes { get; set; }
 }

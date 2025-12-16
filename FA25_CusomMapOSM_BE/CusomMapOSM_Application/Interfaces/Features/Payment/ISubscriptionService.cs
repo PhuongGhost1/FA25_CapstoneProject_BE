@@ -15,4 +15,23 @@ public interface ISubscriptionService
 
     // Payment history
     Task<Option<List<object>, Error>> GetPaymentHistoryAsync(Guid userId, int page = 1, int pageSize = 20, CancellationToken ct = default);
+
+    // Retry pending payment
+    Task<Option<RetryPaymentResponse, Error>> RetryPaymentAsync(
+        Guid userId,
+        Guid transactionId,
+        CancellationToken ct = default);
+
+    // Check pending payment for organization
+    Task<Option<PendingPaymentCheckResponse, Error>> GetPendingPaymentForOrgAsync(
+        Guid userId,
+        Guid orgId,
+        CancellationToken ct = default);
+
+    // Cancel payment with reason
+    Task<Option<CancelPaymentResponse, Error>> CancelPaymentWithReasonAsync(
+        Guid userId,
+        Guid transactionId,
+        CancelPaymentRequest request,
+        CancellationToken ct = default);
 }

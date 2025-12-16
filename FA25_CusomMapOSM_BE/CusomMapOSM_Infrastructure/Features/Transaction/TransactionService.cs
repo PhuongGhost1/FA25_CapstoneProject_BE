@@ -141,6 +141,67 @@ public class TransactionService : ITransactionService
             ct
         );
 
+        // 7. Store plan snapshot and payment info in transaction Content
+        if (request.PlanId.HasValue)
+        {
+            var plan = await _membershipPlanRepository.GetPlanByIdAsync(request.PlanId.Value, ct);
+            if (plan != null)
+            {
+                var planSnapshot = new
+                {
+                    PlanId = plan.PlanId,
+                    PlanName = plan.PlanName,
+                    Description = plan.Description,
+                    PriceMonthly = plan.PriceMonthly,
+                    DurationMonths = plan.DurationMonths,
+                    MaxLocationsPerOrg = plan.MaxLocationsPerOrg,
+                    MaxMapsPerMonth = plan.MaxMapsPerMonth,
+                    MaxUsersPerOrg = plan.MaxUsersPerOrg,
+                    MapQuota = plan.MapQuota,
+                    ExportQuota = plan.ExportQuota,
+                    MaxCustomLayers = plan.MaxCustomLayers,
+                    MonthlyTokens = plan.MonthlyTokens,
+                    PrioritySupport = plan.PrioritySupport,
+                    Features = plan.Features, // JSON string
+                    MaxInteractionsPerMap = plan.MaxInteractionsPerMap,
+                    MaxMediaFileSizeBytes = plan.MaxMediaFileSizeBytes,
+                    MaxVideoFileSizeBytes = plan.MaxVideoFileSizeBytes,
+                    MaxAudioFileSizeBytes = plan.MaxAudioFileSizeBytes,
+                    MaxConnectionsPerMap = plan.MaxConnectionsPerMap,
+                    Allow3DEffects = plan.Allow3DEffects,
+                    AllowVideoContent = plan.AllowVideoContent,
+                    AllowAudioContent = plan.AllowAudioContent,
+                    AllowAnimatedConnections = plan.AllowAnimatedConnections,
+                    IsActive = plan.IsActive,
+                    CreatedAt = plan.CreatedAt,
+                    UpdatedAt = plan.UpdatedAt
+                };
+
+                var transactionContent = new
+                {
+                    Purpose = request.Purpose,
+                    Context = new
+                    {
+                        UserId = request.UserId,
+                        OrgId = request.OrgId,
+                        PlanId = request.PlanId,
+                        AutoRenew = request.AutoRenew
+                    },
+                    PlanSnapshot = planSnapshot,
+                    PaymentInfo = new
+                    {
+                        Status = "pending",
+                        PaymentUrl = approval.ApprovalUrl,
+                        ReturnUrl = returnUrl,
+                        LastUpdatedAt = DateTime.UtcNow
+                    }
+                };
+
+                pendingTransaction.Content = System.Text.Json.JsonSerializer.Serialize(transactionContent);
+                await _transactionRepository.UpdateAsync(pendingTransaction, ct);
+            }
+        }
+
         _logger.LogInformation("=== TransactionService.ProcessPaymentAsync SUCCESS ===");
         return Option.Some<ApprovalUrlResponse, ErrorCustom.Error>(approval);
     }
