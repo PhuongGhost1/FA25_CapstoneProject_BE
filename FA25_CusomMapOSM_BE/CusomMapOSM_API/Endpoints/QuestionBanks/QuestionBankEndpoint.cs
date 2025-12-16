@@ -46,17 +46,26 @@ public class QuestionBankEndpoint : IEndpoint
             .Produces(200)
             .Produces(404);
 
-        // Get My Question Banks
         group.MapGet("/my", async (
+                [FromQuery] Guid? orgId,
                 [FromServices] IQuestionBankService questionBankService) =>
             {
+                if (orgId.HasValue)
+                {
+                    var orgResult = await questionBankService.GetMyQuestionBanksByOrganization(orgId.Value);
+                    return orgResult.Match(
+                        success => Results.Ok(success),
+                        error => error.ToProblemDetailsResult()
+                    );
+                }
+
                 var result = await questionBankService.GetMyQuestionBanks();
                 return result.Match(
                     success => Results.Ok(success),
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("GetMyQuestionBanks")
-            .WithDescription("Get all question banks owned by current user")
+            .WithDescription("Get question banks owned by current user; optionally provide orgId query to scope to an organization")
             .RequireAuthorization()
             .Produces(200)
             .Produces(401);

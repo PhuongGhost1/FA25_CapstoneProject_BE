@@ -37,13 +37,20 @@ public class MembershipQuotaResetJob
             var dbContext = scope.ServiceProvider.GetRequiredService<CustomMapOSMDbContext>();
 
             var today = DateTime.UtcNow.Date;
-            var membershipsToReset = await dbContext.Memberships
+            // First, fetch a narrowed candidate set that can be translated to SQL.
+            // We cannot call the local method ShouldResetQuota inside the EF expression because it can't be translated to SQL.
+            var candidateMemberships = await dbContext.Memberships
                 .Include(m => m.Plan)
                 .Where(m => m.Status == CusomMapOSM_Domain.Entities.Memberships.Enums.MembershipStatusEnum.Active &&
-                           m.BillingCycleEndDate > today && // Only active memberships
-                           (m.LastResetDate == null ||
-                            ShouldResetQuota(m.LastResetDate.Value, m.BillingCycleStartDate, today)))
+                           m.BillingCycleEndDate > today &&
+                           // Include memberships that never had a reset or had a reset at least 30 days ago.
+                           (m.LastResetDate == null || m.LastResetDate <= today.AddDays(-30)))
                 .ToListAsync();
+
+            // Apply the more precise anniversary logic in memory using ShouldResetQuota
+            var membershipsToReset = candidateMemberships
+                .Where(m => m.LastResetDate == null || ShouldResetQuota(m.LastResetDate.Value, m.BillingCycleStartDate, today))
+                .ToList();
 
             var resetCount = 0;
             foreach (var membership in membershipsToReset)
