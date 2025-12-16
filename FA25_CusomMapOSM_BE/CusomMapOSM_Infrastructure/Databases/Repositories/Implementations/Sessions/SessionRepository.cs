@@ -40,8 +40,20 @@ public class SessionRepository : ISessionRepository
     {
         return await _context.Sessions
             .Include(s => s.Map)
+                .ThenInclude(m => m.Workspace)
             .Include(s => s.HostUser)
             .Where(s => s.HostUserId == hostUserId)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<Session>> GetSessionsByHostUserIdAndOrganizationId(Guid hostUserId, Guid organizationId)
+    {
+        return await _context.Sessions
+            .Include(s => s.Map)
+                .ThenInclude(m => m.Workspace)
+            .Include(s => s.HostUser)
+            .Where(s => s.HostUserId == hostUserId && s.Map != null && s.Map.Workspace != null && s.Map.Workspace.OrgId == organizationId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
