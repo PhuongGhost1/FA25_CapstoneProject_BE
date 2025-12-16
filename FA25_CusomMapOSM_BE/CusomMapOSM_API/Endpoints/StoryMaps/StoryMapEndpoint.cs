@@ -462,7 +462,7 @@ public class StoryMapEndpoint : IEndpoint
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromRoute] Guid locationId,
-                [FromBody] UpdateLocationRequest request,
+                [FromForm] UpdateLocationRequest request,
                 [FromServices] ILocationService service,
                 CancellationToken ct) =>
             {
