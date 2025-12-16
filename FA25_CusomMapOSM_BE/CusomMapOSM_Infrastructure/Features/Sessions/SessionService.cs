@@ -11,7 +11,6 @@ using CusomMapOSM_Domain.Entities.Sessions.Enums;
 using CusomMapOSM_Domain.Entities.Maps.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.QuestionBanks;
-using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Sessions;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using CusomMapOSM_Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
@@ -248,12 +247,16 @@ public class SessionService : ISessionService
                 Error.Unauthorized("Session.Unauthorized", "User not authenticated"));
         }
 
-        var sessions = await _sessionRepository.GetSessionsByHostUserId(currentUserId.Value);
+        List<Session> sessions;
 
-        // Filter by organization if provided
+        // If organizationId provided, use repository method to ensure Workspace is included and filtering happens in the DB
         if (organizationId.HasValue)
         {
-            sessions = sessions.Where(s => s.Map?.Workspace?.OrgId == organizationId.Value).ToList();
+            sessions = await _sessionRepository.GetSessionsByHostUserIdAndOrganizationId(currentUserId.Value, organizationId.Value);
+        }
+        else
+        {
+            sessions = await _sessionRepository.GetSessionsByHostUserId(currentUserId.Value);
         }
 
         // Apply sorting

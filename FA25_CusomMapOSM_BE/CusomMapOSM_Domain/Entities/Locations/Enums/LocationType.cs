@@ -5,5 +5,6 @@ public enum LocationType
     PointOfInterest = 0,
     Landmark = 1,
     Route = 2,
-    Event = 3
+    Event = 3,
+    Custom = 4
 }
