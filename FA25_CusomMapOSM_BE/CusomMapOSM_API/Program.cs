@@ -140,8 +140,7 @@ public class Program
             .RequireCors("FrontendCors")
             .RequireAuthorization();
         api.MapHub<MapCollaborationHub>("/hubs/mapCollaboration")
-            .RequireCors("FrontendCors")
-            .RequireAuthorization();
+            .RequireCors("FrontendCors");
         api.MapHub<SessionHub>("/hubs/session")
             .RequireCors("FrontendCors");
         api.MapHub<GroupCollaborationHub>("/hubs/groupCollaboration")
