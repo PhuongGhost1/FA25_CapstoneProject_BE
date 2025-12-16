@@ -17,10 +17,20 @@ public class Transactions
     public string Status { get; set; } = "pending";
     public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
     public Guid? MembershipId { get; set; }
     public int? ExportId { get; set; }
     public required string Purpose { get; set; }
     public string? Content { get; set; } // Stores transaction content/details when transaction completes
+
+    // Payment URL persistence fields
+    public string? PaymentUrl { get; set; }
+    public DateTime? PaymentUrlCreatedAt { get; set; }
+    public DateTime? PaymentUrlExpiresAt { get; set; }
+    public string? PaymentGatewayOrderCode { get; set; }
+
+    // Cancellation tracking
+    public string? CancellationReason { get; set; }
 
     public PaymentGateway PaymentGateway { get; set; } = new();
     public Membership? Membership { get; set; }

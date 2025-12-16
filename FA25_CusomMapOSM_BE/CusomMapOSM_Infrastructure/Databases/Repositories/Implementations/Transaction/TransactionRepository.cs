@@ -24,6 +24,17 @@ public class TransactionRepository : ITransactionRepository
         return await _context.Transactions.FirstOrDefaultAsync(t => t.TransactionId == transactionId, ct);
     }
 
+    public async Task<Transactions?> GetByIdWithDetailsAsync(Guid transactionId, CancellationToken ct)
+    {
+        return await _context.Transactions
+            .Include(t => t.Membership)
+                .ThenInclude(m => m.Organization)
+            .Include(t => t.Membership)
+                .ThenInclude(m => m.Plan)
+            .Include(t => t.PaymentGateway)
+            .FirstOrDefaultAsync(t => t.TransactionId == transactionId, ct);
+    }
+
     public async Task<Transactions> UpdateAsync(Transactions transaction, CancellationToken ct)
     {
         _context.Transactions.Update(transaction);
@@ -43,5 +54,29 @@ public class TransactionRepository : ITransactionRepository
     {
         return await _context.Transactions
             .FirstOrDefaultAsync(t => t.TransactionReference == transactionReference, ct);
+    }
+
+    public async Task<Transactions?> GetPendingTransactionByOrgAsync(Guid orgId, CancellationToken ct)
+    {
+        return await _context.Transactions
+            .Include(t => t.Membership)
+            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && t.Status.ToLower() == "pending")
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<Transactions>> GetAllPendingTransactionsByOrgAsync(Guid orgId, CancellationToken ct)
+    {
+        return await _context.Transactions
+            .Include(t => t.Membership)
+            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && t.Status.ToLower() == "pending")
+            .OrderBy(t => t.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task UpdateRangeAsync(List<Transactions> transactions, CancellationToken ct)
+    {
+        _context.Transactions.UpdateRange(transactions);
+        await _context.SaveChangesAsync(ct);
     }
 }

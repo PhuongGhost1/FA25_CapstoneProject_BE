@@ -342,6 +342,7 @@ public static class DependencyInjections
         services.AddScoped<IMembershipPlanService, MembershipPlanService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<ISubscriptionService, SubscriptionService>();
+        services.AddScoped<IReceiptService, ReceiptService>();
         services.AddScoped<IUsageService, UsageService>();
         services.AddScoped<IExportQuotaService, ExportQuotaService>();
         services.AddScoped<IExportService, ExportService>();
