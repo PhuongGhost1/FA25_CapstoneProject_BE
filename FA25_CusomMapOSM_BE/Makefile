@@ -18,6 +18,7 @@ release:
 	docker tag imos_server:latest imosregistry.azurecr.io/imos_server:$(version)
 	docker push imosregistry.azurecr.io/imos_server:$(version)
 publish:
+	@powershell -Command "if (Test-Path 'publish') { Remove-Item 'publish' -Recurse -Force }"
 	dotnet publish -c Release -o ./publish
 deploy:
 	@powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1
