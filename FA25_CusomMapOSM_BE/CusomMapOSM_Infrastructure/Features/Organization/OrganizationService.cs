@@ -139,6 +139,27 @@ public class OrganizationService : IOrganizationService
                 none: err => err
             );
         }
+        else
+        {
+            // ✅ FIX: Track owner as first active user in organization
+            // This increments ActiveUsersInOrg from 0 to 1
+            var membership = membershipResult.Match(some: m => m, none: _ => null!);
+            if (membership != null)
+            {
+                var quotaResult = await _membershipService.TryConsumeQuotaAsync(
+                    membership.MembershipId,
+                    createdOrg.OrgId,
+                    "users",
+                    1, // Owner counts as 1 active user
+                    CancellationToken.None);
+
+                if (!quotaResult.HasValue)
+                {
+                    // Log warning but don't fail organization creation
+                    Console.WriteLine($"Failed to consume user quota for organization owner {createdOrg.OrgId}");
+                }
+            }
+        }
 
         // Auto-create default workspace for the organization
         try
@@ -355,21 +376,9 @@ public class OrganizationService : IOrganizationService
                 Error.NotFound("Organization.PlanNotFound", "Membership plan not found"));
         }
 
-        // Check quota FIRST - before checking invitations
-        var currentMembers = await _organizationRepository.GetOrganizationMembers(req.OrgId);
-        var currentActiveMemberCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
-        var pendingInvitationsCount = await _organizationRepository.GetPendingInvitationsCountByOrg(req.OrgId);
-        var totalCountWithNewInvitation = currentActiveMemberCount + pendingInvitationsCount + 1;
-
-        if (plan.MaxUsersPerOrg > 0)
-        {
-            if (totalCountWithNewInvitation > plan.MaxUsersPerOrg)
-            {
-                return Option.None<InviteMemberOrganizationResDto, Error>(
-                    Error.Conflict("Organization.UserQuotaExceeded",
-                        $"Cannot send invitation. Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users. Current: {currentActiveMemberCount} active members, {pendingInvitationsCount} pending invitations. Total would be: {totalCountWithNewInvitation}/{plan.MaxUsersPerOrg}"));
-            }
-        }
+        // ✅ REMOVED: No quota check at invitation time
+        // Owner can send unlimited invitations - quota is checked only when accepting
+        // This allows first-come-first-served behavior when multiple people are invited
 
         // Check self-invitation and existing member in one place
         var currentUser = await _authenticationRepository.GetUserById(currentUserId.Value);
@@ -548,11 +557,12 @@ public class OrganizationService : IOrganizationService
         var currentUserCount = currentMembers.Count(m => m.Status == MemberStatus.Active);
 
         // Check if adding this user would exceed quota (only if plan has user limits)
+        // This implements first-come-first-served: quota is checked at acceptance time, not invitation time
         if (plan.MaxUsersPerOrg > 0 && currentUserCount >= plan.MaxUsersPerOrg)
         {
             return Option.None<AcceptInviteOrganizationResDto, Error>(
                 Error.Conflict("Organization.UserQuotaExceeded",
-                    $"Organization has reached the maximum user limit of {plan.MaxUsersPerOrg} users"));
+                    $"Unable to accept invitation. Organization is now full - all {plan.MaxUsersPerOrg} member slots are occupied. Another member may have joined before you."));
         }
 
         // Check if member already exists (even if removed/left)
