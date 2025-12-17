@@ -23,6 +23,7 @@ using Xunit;
 using Optional.Unsafe;
 using DomainMembership = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using CusomMapOSM_Application.Models.DTOs.Services;
+using Microsoft.Extensions.Logging;
 
 namespace CusomMapOSM_Infrastructure.Tests.Features.Payment;
 
@@ -38,10 +39,12 @@ public class SubscriptionServiceTests
     private readonly Mock<IPaymentGatewayRepository> _mockPaymentGatewayRepository;
     private readonly Mock<IProrationService> _mockProrationService;
     private readonly SubscriptionService _subscriptionService;
+    private readonly ILogger<SubscriptionService> _logger;
     private readonly Faker _faker;
 
     public SubscriptionServiceTests()
     {
+        _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<SubscriptionService>.Instance;
         _mockTransactionService = new Mock<ITransactionService>();
         _mockMembershipService = new Mock<IMembershipService>();
         _mockNotificationService = new Mock<INotificationService>();
@@ -61,7 +64,8 @@ public class SubscriptionServiceTests
             _mockTransactionRepository.Object,
             _mockMembershipRepository.Object,
             _mockPaymentGatewayRepository.Object,
-            _mockProrationService.Object
+            _mockProrationService.Object,
+            _logger
         );
         _faker = new Faker();
     }
@@ -247,6 +251,20 @@ public class SubscriptionServiceTests
             .ReturnsAsync(Option.Some<DomainMembership, Error>(membership));
         _mockMembershipPlanRepository.Setup(x => x.GetPlanByIdAsync(newPlanId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(newPlan);
+
+        // Mock proration calculation to return a positive amount due for the upgrade
+        var prorationResult = new ProrationResult
+        {
+            AmountDue = 50m,
+            UnusedCredit = 0m,
+            ProratedNewPlanCost = 150m,
+            DaysRemaining = 15,
+            Message = "Test proration"
+        };
+        _mockProrationService.Setup(x => x.CalculateUpgradeProration(
+            It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+            .Returns(prorationResult);
+
         _mockTransactionService.Setup(x => x.ProcessPaymentAsync(It.IsAny<ProcessPaymentReq>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Option.Some<ApprovalUrlResponse, Error>(approvalResponse));
 
