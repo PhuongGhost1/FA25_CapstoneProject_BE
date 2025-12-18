@@ -325,7 +325,7 @@ public class MembershipService : IMembershipService
             some: async usage =>
             {
 
-                switch (resourceKey)
+                switch (resourceKey.ToLower())  // ✅ FIXED: Now case-insensitive
                 {
                     case "maps":
                         usage.MapsCreatedThisCycle += amount;

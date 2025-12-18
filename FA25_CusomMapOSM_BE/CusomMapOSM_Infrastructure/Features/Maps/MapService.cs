@@ -102,7 +102,7 @@ public class MapService : IMapService
                 // If workspace belongs to an organization, check quota
                 if (orgId.HasValue)
                 {
-                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "maps", 1);
                     if (quotaCheck.HasValue)
                     {
                         var quota = quotaCheck.ValueOrDefault();
@@ -190,7 +190,7 @@ public class MapService : IMapService
                 // If workspace belongs to an organization, check quota
                 if (orgId.HasValue)
                 {
-                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                    var quotaCheck = await _usageService.CheckOrganizationQuotaAsync(orgId.Value, "maps", 1);
                     if (quotaCheck.HasValue)
                     {
                         var quota = quotaCheck.ValueOrDefault();
@@ -245,7 +245,17 @@ public class MapService : IMapService
                 // Consume quota after successful map creation
                 if (orgId.HasValue)
                 {
-                    await _usageService.ConsumeOrganizationQuotaAsync(orgId.Value, "Maps", 1);
+                    var consumeResult = await _usageService.ConsumeOrganizationQuotaAsync(orgId.Value, "maps", 1);
+                    if (!consumeResult.HasValue || !consumeResult.ValueOrDefault())
+                    {
+                        // ✅ ROLLBACK: Quota tracking failed, delete the map
+                        await _mapRepository.DeleteMap(newMap.MapId);
+                        await _layerDataStore.DeleteDataAsync(defaultLayer);
+
+                        return Option.None<CreateMapResponse, Error>(
+                            Error.Failure("Map.QuotaTrackingFailed",
+                                "Failed to track quota usage. Map creation has been rolled back. Please try again."));
+                    }
                 }
 
                 return Option.Some<CreateMapResponse, Error>(new CreateMapResponse
@@ -503,6 +513,22 @@ public class MapService : IMapService
         {
             return Option.None<DeleteMapResponse, Error>(
                 Error.Failure("Map.DeleteFailed", "Failed to delete map"));
+        }
+
+        if (!map.WorkspaceId.HasValue)
+        {
+            return Option.None<DeleteMapResponse, Error>(
+                Error.Failure("Map.DeleteFailed", "WorkspaceId is required but was null."));
+        }
+
+        // ✅ NEW: Decrement quota after successful deletion
+        var workspace = await _workspaceRepository.GetByIdAsync(map.WorkspaceId.Value);
+        if (workspace?.OrgId != null)
+        {
+            // Decrement by passing -1 as amount (releases quota)
+            await _usageService.ConsumeOrganizationQuotaAsync(workspace.OrgId.Value, "maps", -1);
+            // Note: If quota release fails, we don't fail the deletion since the map is already deleted.
+            // The quota counter will be corrected on the next cycle reset or by manual DB update.
         }
 
         return Option.Some<DeleteMapResponse, Error>(new DeleteMapResponse());
