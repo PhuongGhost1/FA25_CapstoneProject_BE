@@ -477,6 +477,7 @@ public class StoryMapEndpoint : IEndpoint
                     err => err.ToProblemDetailsResult());
             })
             .RequireAuthorization()
+            .DisableAntiforgery()
             .WithName("UpdateStoryMapSegmentLocation")
             .WithDescription("Update a location (POI) in a segment")
             .WithTags(Tags.StoryMaps)
