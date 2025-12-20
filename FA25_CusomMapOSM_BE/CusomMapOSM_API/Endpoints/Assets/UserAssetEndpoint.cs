@@ -25,7 +25,10 @@ public class UserAssetEndpoint : IEndpoint
                 [FromQuery] int pageSize) =>
             {
                 var result = await assetService.GetUserAssetsAsync(orgId, type, page, pageSize);
-                return Results.Ok(result);
+                return result.Match(
+                    some: data => Results.Ok(data),
+                    none: error => Results.BadRequest(error)
+                );
             })
             .WithName("GetUserAssets")
             .RequireAuthorization()

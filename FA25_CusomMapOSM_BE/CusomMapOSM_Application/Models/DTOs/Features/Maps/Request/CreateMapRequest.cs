@@ -17,7 +17,7 @@ namespace CusomMapOSM_Application.Models.DTOs.Features.Maps.Request
         
         public string? ViewState { get; set; }       // JSON object {"center":[lat,lng],"zoom":zoom}
         
-        public string? BaseMapProvider { get; set; } = "osm";
+        public string? BaseMapProvider { get; set; } = "Satellite";
 
         public Guid? WorkspaceId { get; set; }
 

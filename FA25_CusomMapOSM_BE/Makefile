@@ -32,4 +32,4 @@ push-registries:
 	docker tag imosregistry.azurecr.io/imos_server:$(version)
 	docker push imosregistry.azurecr.io/imos_server:$(version)
 
-.PHONY: start build docker new-migration migration test release
+.PHONY: start build docker new-migration migration test release publish deploy

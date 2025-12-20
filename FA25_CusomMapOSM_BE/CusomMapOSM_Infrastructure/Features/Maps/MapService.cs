@@ -211,7 +211,7 @@ public class MapService : IMapService
                     WorkspaceId = workspaceId,
                     DefaultBounds = req.DefaultBounds,
                     ViewState = req.ViewState,
-                    BaseLayer = req.BaseMapProvider ?? "osm",
+                    BaseLayer = req.BaseMapProvider ?? "Satellite",
                     IsStoryMap = req.IsStoryMap,
                     CreatedAt = DateTime.UtcNow
                 };
