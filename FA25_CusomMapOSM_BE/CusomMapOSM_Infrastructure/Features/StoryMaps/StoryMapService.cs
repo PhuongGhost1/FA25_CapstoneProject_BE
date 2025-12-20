@@ -29,6 +29,7 @@ using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Locations;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Maps;
 using Optional;
+using CusomMapOSM_Application.Interfaces.Services.Firebase;
 
 namespace CusomMapOSM_Infrastructure.Features.StoryMaps;
 
@@ -42,10 +43,12 @@ public class StoryMapService : IStoryMapService
     private readonly ILayerDataStore _layerDataStore;
     private readonly IMapFeatureRepository _mapFeatureRepository;
     private readonly IMapFeatureStore _mapFeatureStore;
+    private readonly IFirebaseStorageService _firebaseStorageService;
 
     public StoryMapService(IStoryMapRepository repository, ICurrentUserService currentUserService,
         ILocationRepository locationRepository, IMapRepository mapRepository, IOsmService osmService,
-        ILayerDataStore layerDataStore, IMapFeatureRepository mapFeatureRepository, IMapFeatureStore mapFeatureStore)
+        ILayerDataStore layerDataStore, IMapFeatureRepository mapFeatureRepository, IMapFeatureStore mapFeatureStore,
+        IFirebaseStorageService firebaseStorageService)
     {
         _repository = repository;
         _currentUserService = currentUserService;
@@ -55,6 +58,7 @@ public class StoryMapService : IStoryMapService
         _layerDataStore = layerDataStore;
         _mapFeatureRepository = mapFeatureRepository;
         _mapFeatureStore = mapFeatureStore;
+        _firebaseStorageService = firebaseStorageService;
     }
 
 
@@ -2532,6 +2536,30 @@ public class StoryMapService : IStoryMapService
         {
             return Option.None<RouteAnimationDto, Error>(
                 Error.NotFound("RouteAnimation.NotFound", "Route animation not found"));
+        }
+
+        if (request.IconFile != null && request.IconFile.Length > 0)
+        {
+            try
+            {
+                using var stream = request.IconFile.OpenReadStream();
+                var newIconUrl = await _firebaseStorageService.UploadFileAsync(
+                    request.IconFile.FileName,
+                    stream,
+                    "route-icons");
+
+                routeAnimation.IconUrl = newIconUrl; 
+            }
+            catch (Exception ex)
+            {
+                return Option.None<RouteAnimationDto, Error>(
+                    Error.Failure("RouteAnimation.IconUpload.Failed",
+                        $"Failed to upload icon: {ex.Message}"));
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(request.IconUrl))
+        {
+            routeAnimation.IconUrl = request.IconUrl;
         }
 
         if (request.FromLat.HasValue) routeAnimation.FromLat = request.FromLat.Value;
