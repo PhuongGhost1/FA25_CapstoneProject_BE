@@ -3,6 +3,7 @@ using CusomMapOSM_Domain.Entities.Animations.Enums;
 using CusomMapOSM_Domain.Entities.Segments.Enums;
 using CusomMapOSM_Domain.Entities.Timeline.Enums;
 using CusomMapOSM_Domain.Entities.Zones.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace CusomMapOSM_Application.Models.DTOs.Features.StoryMaps;
 
@@ -210,74 +211,80 @@ public record GenerateTimelineTransitionRequest(
     Guid ToSegmentId);
 
 // ================== ROUTE ANIMATION ==================
-public record CreateRouteAnimationRequest(
-    Guid SegmentId,
-    double FromLat,
-    double FromLng,
-    string? FromName,
-    double ToLat,
-    double ToLng,
-    string? ToName,
-    Guid? ToLocationId, // Link to Location at destination point
-    string RoutePath, // GeoJSON LineString
-    string? Waypoints, // JSON array of waypoints for multi-point routes
-    string IconType, // car, walking, bike, plane, custom
-    string? IconUrl,
-    int? IconWidth,
-    int? IconHeight,
-    string? RouteColor,
-    string? VisitedColor,
-    int? RouteWidth,
-    int DurationMs,
-    int? StartDelayMs,
-    string? Easing, // linear, ease-in, ease-out, ease-in-out
-    bool? AutoPlay,
-    bool? Loop,
-    bool? IsVisible,
-    int? ZIndex,
-    int? DisplayOrder,
-    int? StartTimeMs,
-    int? EndTimeMs,
-    string? CameraStateBefore, // Camera state before route starts (JSON)
-    string? CameraStateAfter, // Camera state after route completes (JSON)
-    bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
-    int? LocationInfoDisplayDurationMs, // Duration to show location info popup
-    bool? FollowCamera, // Whether camera should follow the moving icon
-    int? FollowCameraZoom); // Zoom level when following (null = keep current zoom)
+public class CreateRouteAnimationRequest
+{
+    public Guid SegmentId { get; set; }
+    public double FromLat { get; set; }
+    public double FromLng { get; set; }
+    public string? FromName { get; set; }
+    public double ToLat { get; set; }
+    public double ToLng { get; set; }
+    public string? ToName { get; set; }
+    public Guid? ToLocationId { get; set; }
+    public string RoutePath { get; set; } = string.Empty;
+    public string? Waypoints { get; set; }
+    public string IconType { get; set; } = "car";
+    public IFormFile? IconFile { get; set; }
+    public string? IconUrl { get; set; }
+    public int? IconWidth { get; set; }
+    public int? IconHeight { get; set; }
+    public string? RouteColor { get; set; }
+    public string? VisitedColor { get; set; }
+    public int? RouteWidth { get; set; }
+    public int DurationMs { get; set; }
+    public int? StartDelayMs { get; set; }
+    public string? Easing { get; set; }
+    public bool? AutoPlay { get; set; }
+    public bool? Loop { get; set; }
+    public bool? IsVisible { get; set; }
+    public int? ZIndex { get; set; }
+    public int? DisplayOrder { get; set; }
+    public int? StartTimeMs { get; set; }
+    public int? EndTimeMs { get; set; }
+    public string? CameraStateBefore { get; set; }
+    public string? CameraStateAfter { get; set; }
+    public bool? ShowLocationInfoOnArrival { get; set; }
+    public int? LocationInfoDisplayDurationMs { get; set; }
+    public bool? FollowCamera { get; set; }
+    public int? FollowCameraZoom { get; set; }
+}
+    
 
-public record UpdateRouteAnimationRequest(
-    double? FromLat,
-    double? FromLng,
-    string? FromName,
-    double? ToLat,
-    double? ToLng,
-    string? ToName,
-    Guid? ToLocationId, // Link to Location at destination point
-    string? RoutePath,
-    string? Waypoints,
-    string? IconType,
-    string? IconUrl,
-    int? IconWidth,
-    int? IconHeight,
-    string? RouteColor,
-    string? VisitedColor,
-    int? RouteWidth,
-    int? DurationMs,
-    int? StartDelayMs,
-    string? Easing,
-    bool? AutoPlay,
-    bool? Loop,
-    bool? IsVisible,
-    int? ZIndex,
-    int? DisplayOrder,
-    int? StartTimeMs,
-    int? EndTimeMs,
-    string? CameraStateBefore, // Camera state before route starts (JSON)
-    string? CameraStateAfter, // Camera state after route completes (JSON)
-    bool? ShowLocationInfoOnArrival, // Auto-show location popup when route completes
-    int? LocationInfoDisplayDurationMs, // Duration to show location info popup
-    bool? FollowCamera, // Whether camera should follow the moving icon
-    int? FollowCameraZoom); // Zoom level when following (null = keep current zoom)
+public class UpdateRouteAnimationRequest {
+    public double? FromLat { get; set; }
+    public double? FromLng { get; set; }
+    public string? FromName { get; set; }
+    public double? ToLat { get; set; }
+    public double? ToLng { get; set; }
+    public string? ToName { get; set; }
+    public Guid? ToLocationId { get; set; }
+    public string RoutePath { get; set; } = string.Empty;
+    public string? Waypoints { get; set; }
+    public string? IconType { get; set; } = "car";
+    public IFormFile? IconFile { get; set; }
+    public string? IconUrl { get; set; }
+    public int? IconWidth { get; set; }
+    public int? IconHeight { get; set; }
+    public string? RouteColor { get; set; }
+    public string? VisitedColor { get; set; }
+    public int? RouteWidth { get; set; }
+    public int? DurationMs { get; set; }
+    public int? StartDelayMs { get; set; }
+    public string? Easing { get; set; }
+    public bool? AutoPlay { get; set; }
+    public bool? Loop { get; set; }
+    public bool? IsVisible { get; set; }
+    public int? ZIndex { get; set; }
+    public int? DisplayOrder { get; set; }
+    public int? StartTimeMs { get; set; }
+    public int? EndTimeMs { get; set; }
+    public string? CameraStateBefore { get; set; }
+    public string? CameraStateAfter { get; set; }
+    public bool? ShowLocationInfoOnArrival { get; set; }
+    public int? LocationInfoDisplayDurationMs { get; set; }
+    public bool? FollowCamera { get; set; }
+    public int? FollowCameraZoom { get; set; }
+}
 
 // ================== ANIMATED LAYER ==================
 public record CreateAnimatedLayerRequest(

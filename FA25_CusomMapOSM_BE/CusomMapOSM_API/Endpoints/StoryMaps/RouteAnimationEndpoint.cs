@@ -67,13 +67,13 @@ public class RouteAnimationEndpoint : IEndpoint
         group.MapPost(Routes.StoryMapEndpoints.CreateRouteAnimation, async (
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
-                [FromBody] CreateRouteAnimationRequest request,
+                [FromForm] CreateRouteAnimationRequest request,
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
-                // Ensure segmentId matches route parameter
-                var createRequest = request with { SegmentId = segmentId };
-                var result = await service.CreateRouteAnimationAsync(createRequest, ct);
+                request.SegmentId = segmentId;
+
+                var result = await service.CreateRouteAnimationAsync(request, ct);
                 return result.Match<IResult>(
                     animation => Results.Created($"/api/v1/storymaps/{mapId}/segments/{segmentId}/route-animations/{animation.RouteAnimationId}", animation),
                     err => err.ToProblemDetailsResult());
@@ -81,6 +81,7 @@ public class RouteAnimationEndpoint : IEndpoint
             .WithName("CreateRouteAnimation")
             .WithDescription("Create a new route animation")
             .WithTags(Tags.StoryMaps)
+            .DisableAntiforgery()
             .Produces<RouteAnimationDto>(201)
             .ProducesProblem(400)
             .ProducesProblem(404)
@@ -91,7 +92,7 @@ public class RouteAnimationEndpoint : IEndpoint
                 [FromRoute] Guid mapId,
                 [FromRoute] Guid segmentId,
                 [FromRoute] Guid routeAnimationId,
-                [FromBody] UpdateRouteAnimationRequest request,
+                [FromForm] UpdateRouteAnimationRequest request,
                 [FromServices] IStoryMapService service,
                 CancellationToken ct) =>
             {
@@ -103,6 +104,7 @@ public class RouteAnimationEndpoint : IEndpoint
             .WithName("UpdateRouteAnimation")
             .WithDescription("Update a route animation")
             .WithTags(Tags.StoryMaps)
+            .DisableAntiforgery()
             .Produces<RouteAnimationDto>(200)
             .ProducesProblem(400)
             .ProducesProblem(404)
