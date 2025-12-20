@@ -472,19 +472,43 @@ public class PayOSPaymentService : IPaymentService
     {
         try
         {
-            if (string.IsNullOrEmpty(req.OrderCode))
+            Console.WriteLine("=== PayOS CancelPaymentAsync START ===");
+            Console.WriteLine($"TransactionId: {req.TransactionId}");
+            Console.WriteLine($"OrderCode: {req.OrderCode}");
+            Console.WriteLine($"PaymentId: {req.PaymentId}");
+
+            // Verify transaction exists using TransactionId (primary method)
+            Transactions? paymentDetails = null;
+
+            if (req.TransactionId != Guid.Empty)
             {
-                return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
-                    new ErrorCustom.Error("Payment.PayOS.MissingOrderCode", "Order code is required for PayOS", ErrorCustom.ErrorType.Validation));
+                Console.WriteLine($"Attempting to find transaction by ID: {req.TransactionId}");
+                paymentDetails = await _transactionRepository.GetByIdAsync(req.TransactionId, ct);
+                Console.WriteLine($"Transaction found by ID: {paymentDetails != null}");
             }
-                        // Get payment details from PayOS
-            var paymentDetails = await _transactionRepository.GetByTransactionReferenceAsync(req.OrderCode, ct);
-            
-            paymentDetails.Status = "Cancelled";
-            await _transactionRepository.UpdateAsync(paymentDetails, ct);
-            
+
+            // Fallback: try to find by OrderCode if TransactionId lookup failed
+            if (paymentDetails == null && !string.IsNullOrEmpty(req.OrderCode))
+            {
+                Console.WriteLine($"Attempting to find transaction by OrderCode: {req.OrderCode}");
+                paymentDetails = await _transactionRepository.GetByTransactionReferenceAsync(req.OrderCode, ct);
+                Console.WriteLine($"Transaction found by OrderCode: {paymentDetails != null}");
+            }
+
+            if (paymentDetails == null)
+            {
+                Console.WriteLine("=== PayOS CancelPaymentAsync FAILED - Transaction Not Found ===");
+                return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
+                    new ErrorCustom.Error("Payment.PayOS.TransactionNotFound",
+                        "Transaction not found for the given transaction ID or order code",
+                        ErrorCustom.ErrorType.NotFound));
+            }
+
+            Console.WriteLine($"Transaction found: {paymentDetails.TransactionId}, Status: {paymentDetails.Status}");
+            Console.WriteLine("=== PayOS CancelPaymentAsync SUCCESS ===");
 
             // For PayOS, cancellation is typically handled by the user not completing the payment
+            // Status update will be handled by TransactionService.CancelPaymentWithContextAsync
             return Option.Some<CancelPaymentResponse, ErrorCustom.Error>(new CancelPaymentResponse(
                 "cancelled",
                 PaymentGatewayEnum.PayOS.ToString()
@@ -492,6 +516,9 @@ public class PayOSPaymentService : IPaymentService
         }
         catch (Exception ex)
         {
+            Console.WriteLine("=== PayOS CancelPaymentAsync ERROR ===");
+            Console.WriteLine(ex);
+            Console.WriteLine("=== End PayOS CancelPaymentAsync ERROR ===");
             return Option.None<CancelPaymentResponse, ErrorCustom.Error>(
                 new ErrorCustom.Error("Payment.PayOS.CancelFailed", $"Failed to cancel payment: {ex.Message}", ErrorCustom.ErrorType.Failure));
         }
