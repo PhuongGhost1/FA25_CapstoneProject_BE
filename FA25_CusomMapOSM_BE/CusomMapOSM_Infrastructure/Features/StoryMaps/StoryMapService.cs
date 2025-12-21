@@ -2271,6 +2271,9 @@ public class StoryMapService : IStoryMapService
             // Search for routes/highways between the two points
             var searchQuery = $"{from} to {to}";
             var osmResults = await _osmService.SearchByNameAsync(searchQuery,
+                null,
+                null,
+                null,
                 (fromGeocode.Lat + toGeocode.Lat) / 2,
                 (fromGeocode.Lon + toGeocode.Lon) / 2,
                 50000, // 50km radius

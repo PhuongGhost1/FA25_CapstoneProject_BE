@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
+using CusomMapOSM_Application.Interfaces.Features.User;
 
 namespace CusomMapOSM_Infrastructure.Hubs;
 
 public class SupportTicketHub : Hub
 {
     private readonly ILogger<SupportTicketHub> _logger;
+    private readonly IUserService _userService;
 
-    public SupportTicketHub(ILogger<SupportTicketHub> logger)
+    public SupportTicketHub(ILogger<SupportTicketHub> logger, IUserService userService)
     {
         _logger = logger;
+        _userService = userService;
     }
 
     public override async Task OnConnectedAsync()
@@ -18,10 +21,10 @@ public class SupportTicketHub : Hub
         try
         {
             var userId = GetUserId();
-            var role = GetUserRole();
 
             if (userId.HasValue)
             {
+                var role = await GetUserRoleAsync(userId.Value);
                 var userGroup = $"user_{userId.Value}";
                 await Groups.AddToGroupAsync(Context.ConnectionId, userGroup);
                 _logger.LogInformation("[SupportTicketHub] User {UserId} connected. ConnectionId: {ConnectionId}", 
@@ -135,17 +138,21 @@ public class SupportTicketHub : Hub
         return null;
     }
 
-    private string? GetUserRole()
+    private async Task<string?> GetUserRoleAsync(Guid userId)
     {
-        if (Context.User == null)
+        try
         {
+            var userResult = await _userService.GetUserByIdAsync(userId);
+            return userResult.Match(
+                user => user.Role.ToString(),
+                error => null
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[SupportTicketHub] Error getting user role for userId: {UserId}", userId);
             return null;
         }
-
-        var roleClaim = Context.User.FindFirst(ClaimTypes.Role) 
-            ?? Context.User.FindFirst("role");
-
-        return roleClaim?.Value;
     }
 }
 
