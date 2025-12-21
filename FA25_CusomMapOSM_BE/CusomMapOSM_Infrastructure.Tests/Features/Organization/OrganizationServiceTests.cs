@@ -589,7 +589,7 @@ public class OrganizationServiceTests
             .RuleFor(i => i.Email, f => f.Internet.Email())
             .RuleFor(i => i.Status, DomainOrganization.Enums.InvitationStatus.Pending)
             .RuleFor(i => i.ExpiresAt, DateTime.UtcNow.AddDays(7))
-            .RuleFor(i => i.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Viewer)
+            .RuleFor(i => i.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member)
             .Generate();
 
         var organization = new Faker<DomainOrganization.Organization>()
@@ -748,7 +748,7 @@ public class OrganizationServiceTests
         var members = new Faker<DomainOrganization.OrganizationMember>()
             .RuleFor(m => m.MemberId, f => f.Random.Guid())
             .RuleFor(m => m.OrgId, f => f.Random.Guid())
-            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Viewer)
+            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member)
             .RuleFor(m => m.Status, MemberStatus.Active)
             .RuleFor(m => m.JoinedAt, DateTime.UtcNow)
             .RuleFor(m => m.User, new DomainUser.User { Email = "member@test.com", FullName = "Member User" })
@@ -784,7 +784,7 @@ public class OrganizationServiceTests
         {
             OrgId = orgId,
             MemberId = memberId,
-            NewRole = "Admin"
+            NewRole = "Member"
         };
 
         var currentUserMember = new Faker<DomainOrganization.OrganizationMember>()
@@ -796,7 +796,7 @@ public class OrganizationServiceTests
         var member = new Faker<DomainOrganization.OrganizationMember>()
             .RuleFor(m => m.MemberId, f => f.Random.Guid())
             .RuleFor(m => m.OrgId, f => f.Random.Guid())
-            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Viewer)
+            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member)
             .Generate();
 
         _mockCurrentUserService.Setup(x => x.GetUserId()).Returns(userId);
@@ -814,7 +814,7 @@ public class OrganizationServiceTests
         result.HasValue.Should().BeTrue();
         var response = result.ValueOrFailure();
         response.Result.Should().Contain("successfully");
-        member.Role.Should().Be(OrganizationMemberTypeEnum.Admin);
+        member.Role.Should().Be(OrganizationMemberTypeEnum.Member);
     }
 
     [Fact]
@@ -833,7 +833,7 @@ public class OrganizationServiceTests
         var currentUserMember = new Faker<DomainOrganization.OrganizationMember>()
             .RuleFor(m => m.UserId, f => f.Random.Guid())
             .RuleFor(m => m.OrgId, f => f.Random.Guid())
-            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Viewer) // Not Owner
+            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member) // Not Owner
             .Generate();
 
         _mockCurrentUserService.Setup(x => x.GetUserId()).Returns(userId);
@@ -1028,7 +1028,7 @@ public class OrganizationServiceTests
         var userId = Guid.NewGuid();
         var members = new Faker<DomainOrganization.OrganizationMember>()
             .RuleFor(m => m.UserId, f => f.Random.Guid())
-            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Viewer)
+            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member)
             .RuleFor(m => m.JoinedAt, DateTime.UtcNow)
             .RuleFor(m => m.Organization, new DomainOrganization.Organization
             {
@@ -1076,7 +1076,7 @@ public class OrganizationServiceTests
         var newOwnerMember = new Faker<DomainOrganization.OrganizationMember>()
             .RuleFor(m => m.UserId, f => f.Random.Guid())
             .RuleFor(m => m.OrgId, f => f.Random.Guid())
-            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Admin)
+            .RuleFor(m => m.Role, DomainOrganization.Enums.OrganizationMemberTypeEnum.Member)
             .Generate();
 
         var currentOwnerMember = new Faker<DomainOrganization.OrganizationMember>()
@@ -1103,7 +1103,7 @@ public class OrganizationServiceTests
         var response = result.ValueOrFailure();
         response.Result.Should().Contain("successfully");
         newOwnerMember.Role.Should().Be(OrganizationMemberTypeEnum.Owner);
-        currentOwnerMember.Role.Should().Be(OrganizationMemberTypeEnum.Admin);
+        currentOwnerMember.Role.Should().Be(OrganizationMemberTypeEnum.Member);
     }
 
     [Fact]

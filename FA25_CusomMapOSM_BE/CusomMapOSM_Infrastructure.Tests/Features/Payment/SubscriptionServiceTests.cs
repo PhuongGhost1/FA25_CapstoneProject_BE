@@ -143,7 +143,7 @@ public class SubscriptionServiceTests
         var member = new Faker<OrganizationMember>()
             .RuleFor(m => m.UserId, userId)
             .RuleFor(m => m.OrgId, orgId)
-            .RuleFor(m => m.Role, OrganizationMemberTypeEnum.Viewer) // Not Owner
+            .RuleFor(m => m.Role, OrganizationMemberTypeEnum.Member) // Not Owner
             .Generate();
 
         _mockOrganizationRepository.Setup(x => x.GetOrganizationMemberByUserAndOrg(userId, orgId))

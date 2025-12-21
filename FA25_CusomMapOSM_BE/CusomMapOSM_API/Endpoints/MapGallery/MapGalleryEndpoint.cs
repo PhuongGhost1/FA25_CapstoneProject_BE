@@ -178,6 +178,47 @@ public class MapGalleryEndpoint : IEndpoint
             .ProducesProblem(400)
             .ProducesProblem(404);
 
+        // View and Like APIs
+        group.MapPost("/maps/{id}/view", async (
+                [FromServices] IMapGalleryService service,
+                [FromRoute] string id,
+                CancellationToken ct) =>
+            {
+                var result = await service.IncrementViewCountAsync(id, ct);
+                return result.Match(
+                    _ => Results.Ok(new { success = true }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("IncrementMapView")
+            .WithDescription("Tăng view count cho map")
+            .AllowAnonymous()
+            .Produces(200)
+            .ProducesProblem(404);
+
+        userGroup.MapPost("/maps/{id}/like", async (
+                [FromServices] IMapGalleryService service,
+                [FromServices] ICurrentUserService currentUserService,
+                [FromRoute] string id,
+                CancellationToken ct) =>
+            {
+                var userId = currentUserService.GetUserId();
+                if (userId == null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                var result = await service.ToggleLikeAsync(id, userId.Value, ct);
+                return result.Match(
+                    isLiked => Results.Ok(new { success = true, isLiked }),
+                    error => error.ToProblemDetailsResult()
+                );
+            })
+            .WithName("ToggleMapLike")
+            .WithDescription("Like/Unlike map")
+            .Produces(200)
+            .ProducesProblem(404);
+
         // Admin APIs
         var adminGroup = group.MapGroup("/admin")
             .RequireAuthorization();

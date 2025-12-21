@@ -1,6 +1,7 @@
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.SystemAdmin;
 using UserEntity = CusomMapOSM_Domain.Entities.Users.User;
 using OrganizationEntity = CusomMapOSM_Domain.Entities.Organizations.Organization;
+using OrganizationMemberEntity = CusomMapOSM_Domain.Entities.Organizations.OrganizationMember;
 using MembershipEntity = CusomMapOSM_Domain.Entities.Memberships.Membership;
 using TransactionEntity = CusomMapOSM_Domain.Entities.Transactions.Transactions;
 using CusomMapOSM_Domain.Entities.Transactions;
@@ -491,8 +492,14 @@ public class SystemAdminRepository : ISystemAdminRepository
 
     public async Task<decimal> GetRevenueByDateRangeAsync(DateTime startDate, DateTime endDate, CancellationToken ct = default)
     {
+        // Ensure we're comparing UTC dates consistently
+        var utcStart = startDate.Kind == DateTimeKind.Utc ? startDate : startDate.ToUniversalTime();
+        var utcEnd = endDate.Kind == DateTimeKind.Utc ? endDate : endDate.ToUniversalTime();
+        
         return await _context.Transactions
-            .Where(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .Where(t => t.TransactionDate >= utcStart 
+                && t.TransactionDate <= utcEnd 
+                && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
@@ -951,10 +958,13 @@ public class SystemAdminRepository : ISystemAdminRepository
             ["total_transactions"] = await _context.Transactions.CountAsync(t => t.TransactionDate >= startDate && t.TransactionDate <= endDate, ct)
         };
 
-        // --- Monthly series for last 12 months (inclusive) ---
-        var utcNow = DateTime.UtcNow;
-        var seriesStart = new DateTime(utcNow.Year, utcNow.Month, 1).AddMonths(-11);
-        var seriesEnd = utcNow;
+        // --- Use the provided date range for monthly series ---
+        // Normalize to first day of month
+        var seriesStart = new DateTime(startDate.Year, startDate.Month, 1);
+        var seriesEnd = endDate;
+
+        // Calculate number of months between start and end
+        int monthsBetween = ((seriesEnd.Year - seriesStart.Year) * 12) + seriesEnd.Month - seriesStart.Month + 1;
 
         // Preload data for grouping
         var users12 = await _context.Users
@@ -984,7 +994,7 @@ public class SystemAdminRepository : ISystemAdminRepository
         var monthlyExports = new List<object>();
         var monthlyRevenue = new List<object>();
 
-        for (var i = 0; i < 12; i++)
+        for (var i = 0; i < monthsBetween; i++)
         {
             var monthStart = new DateTime(seriesStart.Year, seriesStart.Month, 1).AddMonths(i);
             var monthEnd = monthStart.AddMonths(1);
@@ -1231,9 +1241,17 @@ public class SystemAdminRepository : ISystemAdminRepository
 
     public async Task<decimal> GetOrganizationTotalRevenueAsync(Guid orgId, CancellationToken ct = default)
     {
+        // Get all memberships for this organization
+        var membershipIds = await _context.Memberships
+            .Where(m => m.OrgId == orgId)
+            .Select(m => m.MembershipId)
+            .ToListAsync(ct);
+
+        // Sum transactions that belong to those memberships
         return await _context.Transactions
-            .Include(t => t.Membership)
-            .Where(t => t.Membership != null && t.Membership.OrgId == orgId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
+            .Where(t => t.MembershipId != null 
+                && membershipIds.Contains(t.MembershipId.Value)
+                && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
     }
 
@@ -1312,58 +1330,16 @@ public class SystemAdminRepository : ISystemAdminRepository
 
     public async Task<int> GetOrganizationTotalMapsAsync(Guid orgId, CancellationToken ct = default)
     {
-        var memberships = await _context.Memberships
-            .Where(m => m.OrgId == orgId && m.Status == MembershipStatusEnum.Active)
-            .ToListAsync(ct);
-
-        var totalMaps = 0;
-        foreach (var membership in memberships)
-        {
-            if (!string.IsNullOrEmpty(membership.CurrentUsage))
-            {
-                try
-                {
-                    var usage = JsonSerializer.Deserialize<Dictionary<string, int>>(membership.CurrentUsage);
-                    if (usage != null)
-                    {
-                        totalMaps += usage.GetValueOrDefault("maps", 0);
-                    }
-                }
-                catch
-                {
-                    // Ignore JSON parsing errors
-                }
-            }
-        }
-        return totalMaps;
+        // Count maps directly from Maps table through Workspaces
+        return await _context.Maps
+            .CountAsync(m => m.Workspace.OrgId == orgId, ct);
     }
 
     public async Task<int> GetOrganizationTotalExportsAsync(Guid orgId, CancellationToken ct = default)
     {
-        var memberships = await _context.Memberships
-            .Where(m => m.OrgId == orgId && m.Status == MembershipStatusEnum.Active)
-            .ToListAsync(ct);
-
-        var totalExports = 0;
-        foreach (var membership in memberships)
-        {
-            if (!string.IsNullOrEmpty(membership.CurrentUsage))
-            {
-                try
-                {
-                    var usage = JsonSerializer.Deserialize<Dictionary<string, int>>(membership.CurrentUsage);
-                    if (usage != null)
-                    {
-                        totalExports += usage.GetValueOrDefault("exports", 0);
-                    }
-                }
-                catch
-                {
-                    // Ignore JSON parsing errors
-                }
-            }
-        }
-        return totalExports;
+        // Count exports directly from Exports table
+        return await _context.Exports
+            .CountAsync(e => e.Map.Workspace.OrgId == orgId, ct);
     }
 
     public async Task<decimal> GetOrganizationTotalSpentAsync(Guid orgId, CancellationToken ct = default)
@@ -1372,5 +1348,80 @@ public class SystemAdminRepository : ISystemAdminRepository
             .Include(t => t.Membership)
             .Where(t => t.Membership != null && t.Membership.OrgId == orgId && (t.Status == "completed" || t.Status == "paid" || t.Status == "success"))
             .SumAsync(t => t.Amount, ct);
+    }
+
+    public async Task<List<OrganizationMemberEntity>> GetOrganizationMembersAsync(Guid orgId, CancellationToken ct = default)
+    {
+        return await _context.OrganizationMembers
+            .Include(m => m.User)
+            .Where(m => m.OrgId == orgId)
+            .OrderByDescending(m => m.JoinedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<MembershipEntity>> GetOrganizationMembershipsAsync(Guid orgId, CancellationToken ct = default)
+    {
+        var memberships = await _context.Memberships
+            .Where(m => m.OrgId == orgId)
+            .OrderByDescending(m => m.CreatedAt)
+            .ToListAsync(ct);
+
+        // Manually load related entities
+        foreach (var membership in memberships)
+        {
+            if (membership.UserId != Guid.Empty)
+            {
+                membership.User = await _context.Users
+                    .FirstOrDefaultAsync(u => u.UserId == membership.UserId, ct);
+            }
+
+            if (membership.PlanId > 0)
+            {
+                membership.Plan = await _context.Plans
+                    .FirstOrDefaultAsync(p => p.PlanId == membership.PlanId, ct);
+            }
+        }
+
+        return memberships;
+    }
+
+    public async Task<decimal> GetOrganizationTotalStorageUsedMBAsync(Guid orgId, CancellationToken ct = default)
+    {
+        var maps = await _context.Maps
+            .Include(m => m.Workspace)
+            .ThenInclude(w => w.Organization)
+            .Where(m => m.Workspace.OrgId == orgId)
+            .ToListAsync(ct);
+
+        decimal totalStorageMB = 0;
+        foreach (var map in maps)
+        {
+            if (!string.IsNullOrEmpty(map.PreviewImage))
+            {
+                totalStorageMB += 0.1m;
+            }
+            // Count layers, locations, etc. for rough estimate
+            var layersCount = await _context.Layers.CountAsync(l => l.MapId == map.MapId, ct);
+            var locationsCount = await _context.MapLocations.CountAsync(l => l.MapId == map.MapId, ct);
+            
+            // Rough estimate: 1KB per layer, 2KB per location
+            totalStorageMB += (layersCount * 0.001m) + (locationsCount * 0.002m);
+        }
+
+        return Math.Round(totalStorageMB, 2);
+    }
+
+    public async Task<List<TransactionEntity>> GetOrganizationRecentTransactionsAsync(Guid orgId, int count = 10, CancellationToken ct = default)
+    {
+        var transactions = await _context.Transactions
+            .Include(t => t.Membership)
+            .ThenInclude(m => m!.User)
+            .Include(t => t.PaymentGateway)
+            .Where(t => t.Membership != null && t.Membership.OrgId == orgId)
+            .OrderByDescending(t => t.TransactionDate)
+            .Take(count)
+            .ToListAsync(ct);
+
+        return transactions;
     }
 }

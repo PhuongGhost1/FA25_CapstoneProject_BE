@@ -67,6 +67,11 @@ public interface IMapGalleryService
         string id,
         CancellationToken ct = default);
 
+    Task<Option<bool, Error>> ToggleLikeAsync(
+        string id,
+        Guid userId,
+        CancellationToken ct = default);
+
     // Duplicate map from gallery
     Task<Option<MapGalleryDuplicateResponse, Error>> DuplicateMapFromGalleryAsync(
         Guid userId,
