@@ -407,6 +407,7 @@ public class StoryMapService : IStoryMapService
                 IconColor = originalLocation.IconColor,
                 IconSize = originalLocation.IconSize,
                 DisplayOrder = originalLocation.DisplayOrder,
+                Rotation = originalLocation.Rotation,
                 ShowTooltip = originalLocation.ShowTooltip,
                 TooltipContent = originalLocation.TooltipContent,
                 OpenPopupOnClick = originalLocation.OpenPopupOnClick,
