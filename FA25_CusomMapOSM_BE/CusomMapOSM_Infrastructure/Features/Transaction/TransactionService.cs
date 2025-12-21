@@ -77,7 +77,7 @@ public class TransactionService : ITransactionService
             request.Total, request.PaymentGateway, request.Purpose, request.UserId, request.OrgId, request.PlanId);
 
         // 1. Get Gateway ID
-        var gatewayIdResult = GetPaymentGatewayId(request.PaymentGateway);
+        var gatewayIdResult = await GetPaymentGatewayIdAsync(request.PaymentGateway, ct);
         if (!gatewayIdResult.HasValue)
         {
             _logger.LogError("Payment gateway not found: {PaymentGateway}", request.PaymentGateway);
@@ -249,7 +249,7 @@ public class TransactionService : ITransactionService
         else
         {
             // Fallback: Create a new transaction if none exists
-            var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
+            var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
             if (!gatewayIdResult.HasValue)
                 return Option.None<object, ErrorCustom.Error>(
                     new ErrorCustom.Error("Payment.Gateway.NotFound", "Payment gateway not found", ErrorCustom.ErrorType.NotFound));
@@ -497,6 +497,24 @@ public class TransactionService : ITransactionService
         return Option.Some<Guid, ErrorCustom.Error>(gatewayId);
     }
 
+    private async Task<Option<Guid, ErrorCustom.Error>> GetPaymentGatewayIdAsync(PaymentGatewayEnum paymentGateway, CancellationToken ct)
+    {
+        try
+        {
+            var gateway = await _paymentGatewayRepository.GetByIdAsync(paymentGateway, ct);
+            if (gateway != null)
+            {
+                return Option.Some<Guid, ErrorCustom.Error>(gateway.GatewayId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get payment gateway by name from DB. Falling back to hardcoded ID.");
+        }
+
+        return GetPaymentGatewayId(paymentGateway);
+    }
+
     private static Guid GetPaymentGatewayIdInternal(PaymentGatewayEnum paymentGateway)
     {
         return paymentGateway switch
@@ -555,7 +573,7 @@ public class TransactionService : ITransactionService
     public async Task<Option<CancelPaymentResponse, ErrorCustom.Error>> CancelPaymentWithContextAsync(CancelPaymentWithContextReq req, CancellationToken ct)
     {
         // 1. Get gateway ID
-        var gatewayIdResult = GetPaymentGatewayId(req.PaymentGateway);
+        var gatewayIdResult = await GetPaymentGatewayIdAsync(req.PaymentGateway, ct);
 
         return await gatewayIdResult.Match(
             some: async gatewayId =>

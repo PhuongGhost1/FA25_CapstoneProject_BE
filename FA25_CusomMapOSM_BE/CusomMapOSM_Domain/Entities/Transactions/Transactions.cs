@@ -32,7 +32,8 @@ public class Transactions
     // Cancellation tracking
     public string? CancellationReason { get; set; }
 
-    public PaymentGateway PaymentGateway { get; set; } = new();
+    // Navigation properties - DO NOT initialize to avoid EF Core creating new entities
+    public PaymentGateway? PaymentGateway { get; set; }
     public Membership? Membership { get; set; }
     public Export? Export { get; set; }
 }
