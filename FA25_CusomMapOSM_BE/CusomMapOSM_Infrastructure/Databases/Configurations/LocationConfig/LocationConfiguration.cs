@@ -85,6 +85,10 @@ internal class LocationConfiguration : IEntityTypeConfiguration<Location>
             .HasColumnName("display_order")
             .IsRequired()
             .HasDefaultValue(0);
+        
+        builder.Property(l => l.Rotation)
+            .HasColumnName("rotation")
+            .HasDefaultValue(0);
 
         builder.Property(l => l.ShowTooltip)
             .HasColumnName("show_tooltip")

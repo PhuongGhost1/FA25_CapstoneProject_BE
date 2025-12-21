@@ -237,6 +237,7 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         Description = request.Description,
         LocationType = request.LocationType,
         DisplayOrder = request.DisplayOrder,
+        Rotation = request.Rotation,
         MarkerGeometry = request.MarkerGeometry,
         IconType = request.IconType,
         IconUrl = iconUrl ?? request.IconUrl,
@@ -379,6 +380,7 @@ public async Task<Option<LocationDto, Error>> CreateLocationAsync(CreateLocation
         location.Description = request.Description;
         location.LocationType = request.LocationType;
         location.DisplayOrder = request.DisplayOrder;
+        location.Rotation = request.Rotation;
         location.MarkerGeometry = request.MarkerGeometry;
         location.IconType = request.IconType;
         location.IconColor = request.IconColor;
