@@ -10,8 +10,10 @@ public interface ISupportTicketRepository
     Task<SupportTicketEntity> UpdateSupportTicket(SupportTicketEntity supportTicket);
     Task<bool> DeleteSupportTicket(int ticketId);
     Task<List<SupportTicketEntity>> GetSupportTickets(int page = 1, int pageSize = 20);
+    Task<List<SupportTicketEntity>> GetAllSupportTickets(int page = 1, int pageSize = 20);
     Task<List<SupportTicketEntity>> GetSupportTicketsByUserId(Guid userId, int page = 1, int pageSize = 20);
     Task<int> GetSupportTicketsCount();
+    Task<int> GetAllSupportTicketsCount();
     Task<int> GetSupportTicketsCountByUserId(Guid userId);
     Task<List<SupportTicketMessage>> GetSupportTicketMessages(int ticketId);
     Task<SupportTicketMessage> GetSupportTicketMessageById(int messageId);

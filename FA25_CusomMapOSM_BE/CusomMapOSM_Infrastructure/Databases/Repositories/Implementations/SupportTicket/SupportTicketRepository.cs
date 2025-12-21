@@ -67,6 +67,11 @@ public class SupportTicketRepository : ISupportTicketRepository
         return supportTickets;
     }
 
+    public async Task<List<SupportTicketEntity>> GetAllSupportTickets(int page = 1, int pageSize = 20)
+    {
+        return await GetSupportTickets(page, pageSize);
+    }
+
     public async Task<List<SupportTicketEntity>> GetSupportTicketsByUserId(Guid userId, int page = 1, int pageSize = 20)
     {
         var supportTickets = await _context.SupportTickets
@@ -83,6 +88,11 @@ public class SupportTicketRepository : ISupportTicketRepository
     {
         var supportTicketsCount = await _context.SupportTickets.CountAsync();
         return supportTicketsCount;
+    }
+
+    public async Task<int> GetAllSupportTicketsCount()
+    {
+        return await GetSupportTicketsCount();
     }
 
     public async Task<int> GetSupportTicketsCountByUserId(Guid userId)

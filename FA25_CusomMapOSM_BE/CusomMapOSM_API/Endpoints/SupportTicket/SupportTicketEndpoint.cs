@@ -88,7 +88,7 @@ public class SupportTicketEndpoint : IEndpoint
         //Admin get support tickets
         group.MapGet("/admin", async ([FromServices] ISupportTicketService service, [FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
             {
-                var result = await service.GetSupportTickets(page, pageSize);
+                var result = await service.GetAllSupportTicketsForAdmin(page, pageSize);
                 return result.Match(
                     success => Results.Ok(success),
                     error => Results.BadRequest(new { error = error.Description })
@@ -106,7 +106,7 @@ public class SupportTicketEndpoint : IEndpoint
         group.MapGet("/admin/{ticketId}",
                 async ([FromServices] ISupportTicketService service, [FromRoute] int ticketId) =>
                 {
-                    var result = await service.GetSupportTicketById(ticketId);
+                    var result = await service.GetSupportTicketByIdForAdmin(ticketId);
                     return result.Match(
                     success => Results.Ok(success),
                     error => Results.NotFound(new { error = error.Description })
