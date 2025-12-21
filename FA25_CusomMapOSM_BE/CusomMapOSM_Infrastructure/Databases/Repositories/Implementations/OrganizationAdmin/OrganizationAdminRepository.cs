@@ -461,8 +461,7 @@ public class OrganizationAdminRepository : IOrganizationAdminRepository
 
         foreach (var member in organizationMembers)
         {
-            if (member.Role == OrganizationMemberTypeEnum.Admin || 
-                member.Role == OrganizationMemberTypeEnum.Owner)
+            if (member.Role == OrganizationMemberTypeEnum.Owner)
             {
                 return true;
             }

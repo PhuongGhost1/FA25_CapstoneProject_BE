@@ -106,4 +106,10 @@ public interface ISystemAdminRepository
     Task<int> GetOrganizationTotalMapsAsync(Guid orgId, CancellationToken ct = default);
     Task<int> GetOrganizationTotalExportsAsync(Guid orgId, CancellationToken ct = default);
     Task<decimal> GetOrganizationTotalSpentAsync(Guid orgId, CancellationToken ct = default);
+    
+    // Organization detail methods
+    Task<List<CusomMapOSM_Domain.Entities.Organizations.OrganizationMember>> GetOrganizationMembersAsync(Guid orgId, CancellationToken ct = default);
+    Task<List<MembershipEntity>> GetOrganizationMembershipsAsync(Guid orgId, CancellationToken ct = default);
+    Task<decimal> GetOrganizationTotalStorageUsedMBAsync(Guid orgId, CancellationToken ct = default);
+    Task<List<TransactionEntity>> GetOrganizationRecentTransactionsAsync(Guid orgId, int count = 10, CancellationToken ct = default);
 }

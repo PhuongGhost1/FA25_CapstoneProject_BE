@@ -39,6 +39,11 @@ public class MapGalleryDocument
     public bool IsFeatured { get; set; } = false;
     public int ViewCount { get; set; } = 0;
     public int LikeCount { get; set; } = 0;
+    
+    [BsonGuidRepresentation(MongoDB.Bson.GuidRepresentation.Standard)]
+    [BsonIgnoreIfNull]
+    public List<Guid>? LikedByUsers { get; set; } = new();
+    
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public DateTime? PublishedAt { get; set; }

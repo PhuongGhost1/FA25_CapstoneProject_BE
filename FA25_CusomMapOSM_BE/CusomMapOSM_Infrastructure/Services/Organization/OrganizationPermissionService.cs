@@ -74,7 +74,7 @@ public class OrganizationPermissionService : IOrganizationPermissionService
             return false;
         }
 
-        return commonOrganizations.Any(member => member.Role < OrganizationMemberTypeEnum.Viewer);
+        return commonOrganizations.Any(member => member.Role <= OrganizationMemberTypeEnum.Member);
     }
 
     private async Task<bool> HasWorkspaceEditPermission(Guid? workspaceId, Guid userId)
@@ -103,7 +103,7 @@ public class OrganizationPermissionService : IOrganizationPermissionService
         var member = await _organizationRepository
             .GetOrganizationMemberByUserAndOrg(userId, workspace.OrgId.Value);
 
-        return member is not null && member.Role < OrganizationMemberTypeEnum.Viewer;
+        return member is not null && member.Role < OrganizationMemberTypeEnum.Member;
     }
 }
 

@@ -47,11 +47,55 @@ public record UpdateUserStatusResponse
 }
 
 // System Organization Management DTOs
+public record SystemOrganizationMemberDto
+{
+    public required Guid MemberId { get; set; }
+    public required Guid UserId { get; set; }
+    public required string UserName { get; set; }
+    public required string UserEmail { get; set; }
+    public required string Role { get; set; }
+    public required string Status { get; set; }
+    public DateTime JoinedAt { get; set; }
+    public DateTime? LeftAt { get; set; }
+}
+
+public record SystemOrganizationMembershipDto
+{
+    public required Guid MembershipId { get; set; }
+    public required Guid UserId { get; set; }
+    public required string UserName { get; set; }
+    public required string UserEmail { get; set; }
+    public required int PlanId { get; set; }
+    public required string PlanName { get; set; }
+    public required string Status { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public bool AutoRenew { get; set; }
+    public decimal PriceMonthly { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public record SystemOrganizationTransactionDto
+{
+    public required Guid TransactionId { get; set; }
+    public required Guid MembershipId { get; set; }
+    public required string UserName { get; set; }
+    public required decimal Amount { get; set; }
+    public required string PaymentMethod { get; set; }
+    public required string Status { get; set; }
+    public DateTime TransactionDate { get; set; }
+}
+
 public record SystemOrganizationDto
 {
     public required Guid OrgId { get; set; }
     public required string Name { get; set; }
     public required string Description { get; set; }
+    public string? Abbreviation { get; set; }
+    public string? LogoUrl { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
+    public string? Address { get; set; }
     public required string Status { get; set; }
     public required Guid OwnerUserId { get; set; }
     public required string OwnerName { get; set; }
@@ -60,8 +104,16 @@ public record SystemOrganizationDto
     public DateTime? UpdatedAt { get; set; }
     public int TotalMembers { get; set; }
     public int TotalActiveMemberships { get; set; }
+    public int TotalMaps { get; set; }
+    public decimal TotalStorageUsedMB { get; set; }
     public decimal TotalRevenue { get; set; }
     public string PrimaryPlanName { get; set; } = string.Empty;
+    
+    // Detailed info
+    public List<SystemOrganizationMemberDto> Members { get; set; } = new();
+    public List<SystemOrganizationMembershipDto> ActiveMemberships { get; set; } = new();
+    public List<SystemOrganizationMembershipDto> ExpiredMemberships { get; set; } = new();
+    public List<SystemOrganizationTransactionDto> RecentTransactions { get; set; } = new();
 }
 
 public record SystemOrganizationListResponse

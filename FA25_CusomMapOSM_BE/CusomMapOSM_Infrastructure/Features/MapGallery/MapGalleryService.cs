@@ -405,6 +405,49 @@ public class MapGalleryService : IMapGalleryService
         return Option.Some<bool, Error>(true);
     }
 
+    public async Task<Option<bool, Error>> ToggleLikeAsync(
+        string id,
+        Guid userId,
+        CancellationToken ct = default)
+    {
+        var doc = await _collection
+            .Find(x => x.Id == id)
+            .FirstOrDefaultAsync(ct);
+
+        if (doc == null)
+        {
+            return Option.None<bool, Error>(
+                Error.NotFound("MapGallery.NotFound", "Submission không tồn tại"));
+        }
+
+        // Check if user already liked
+        var likedUsers = doc.LikedByUsers ?? new List<Guid>();
+        var isLiked = likedUsers.Contains(userId);
+
+        UpdateDefinition<MapGalleryDocument> update;
+        if (isLiked)
+        {
+            // Unlike: remove user and decrement
+            update = Builders<MapGalleryDocument>.Update
+                .Pull(x => x.LikedByUsers, userId)
+                .Inc(x => x.LikeCount, -1);
+        }
+        else
+        {
+            // Like: add user and increment
+            update = Builders<MapGalleryDocument>.Update
+                .AddToSet(x => x.LikedByUsers, userId)
+                .Inc(x => x.LikeCount, 1);
+        }
+
+        await _collection.UpdateOneAsync(
+            x => x.Id == id,
+            update,
+            cancellationToken: ct);
+
+        return Option.Some<bool, Error>(!isLiked); // Return true if now liked, false if unliked
+    }
+
     public async Task<Option<MapGalleryDuplicateResponse, Error>> DuplicateMapFromGalleryAsync(
         Guid userId,
         string galleryId,

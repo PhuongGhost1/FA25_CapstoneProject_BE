@@ -1050,7 +1050,7 @@ public class OrganizationService : IOrganizationService
             }
 
             // Demote current owner to Admin (keep them as admin for continued access)
-            currentOwnerMember.Role = OrganizationMemberTypeEnum.Admin;
+            currentOwnerMember.Role = OrganizationMemberTypeEnum.Member;
             var updateCurrentOwnerResult = await _organizationRepository.UpdateOrganizationMember(currentOwnerMember);
 
             if (!updateCurrentOwnerResult)
@@ -1179,7 +1179,7 @@ public class OrganizationService : IOrganizationService
                 currentUserId.Value, request.OrganizationId);
             if (currentUserMember == null ||
                 (currentUserMember.Role != OrganizationMemberTypeEnum.Owner &&
-                 currentUserMember.Role != OrganizationMemberTypeEnum.Admin))
+                 currentUserMember.Role != OrganizationMemberTypeEnum.Member))
             {
                 return Option.None<BulkCreateStudentsResponse, Error>(
                     Error.Forbidden("Organization.NotAuthorized",
@@ -1392,7 +1392,7 @@ public class OrganizationService : IOrganizationService
                         MemberId = Guid.NewGuid(),
                         OrgId = request.OrganizationId,
                         UserId = newUser.UserId,
-                        Role = OrganizationMemberTypeEnum.Viewer,
+                        Role = OrganizationMemberTypeEnum.Member,
                         InvitedBy = currentUserId.Value,
                         JoinedAt = DateTime.UtcNow,
                         Status = MemberStatus.Active

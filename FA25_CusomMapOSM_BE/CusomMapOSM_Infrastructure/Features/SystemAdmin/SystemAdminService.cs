@@ -239,16 +239,29 @@ public class SystemAdminService : ISystemAdminService
                 return Option.None<SystemOrganizationDto, Error>(Error.NotFound("Organization.NotFound", "Organization not found"));
             }
 
+            // Get basic statistics
             var totalMembers = await _systemAdminRepository.GetOrganizationMembersCountAsync(organization.OrgId, ct);
             var totalActiveMemberships = await _systemAdminRepository.GetOrganizationActiveMembershipsCountAsync(organization.OrgId, ct);
             var totalRevenue = await _systemAdminRepository.GetOrganizationTotalRevenueAsync(organization.OrgId, ct);
             var primaryPlanName = await _systemAdminRepository.GetOrganizationPrimaryPlanNameAsync(organization.OrgId, ct);
+            var totalMaps = await _systemAdminRepository.GetOrganizationTotalMapsAsync(organization.OrgId, ct);
+            var totalStorageMB = await _systemAdminRepository.GetOrganizationTotalStorageUsedMBAsync(organization.OrgId, ct);
+
+            // Get detailed data
+            var members = await _systemAdminRepository.GetOrganizationMembersAsync(organization.OrgId, ct);
+            var memberships = await _systemAdminRepository.GetOrganizationMembershipsAsync(organization.OrgId, ct);
+            var recentTransactions = await _systemAdminRepository.GetOrganizationRecentTransactionsAsync(organization.OrgId, 10, ct);
 
             var organizationDto = new SystemOrganizationDto
             {
                 OrgId = organization.OrgId,
                 Name = organization.OrgName,
-                Description = organization.Description,
+                Description = organization.Description ?? string.Empty,
+                Abbreviation = organization.Abbreviation,
+                LogoUrl = organization.LogoUrl,
+                ContactEmail = organization.ContactEmail,
+                ContactPhone = organization.ContactPhone,
+                Address = organization.Address,
                 Status = organization.Status.ToString(),
                 OwnerUserId = organization.OwnerUserId,
                 OwnerName = organization.Owner?.FullName ?? "Unknown",
@@ -257,8 +270,73 @@ public class SystemAdminService : ISystemAdminService
                 UpdatedAt = organization.UpdatedAt,
                 TotalMembers = totalMembers,
                 TotalActiveMemberships = totalActiveMemberships,
+                TotalMaps = totalMaps,
+                TotalStorageUsedMB = totalStorageMB,
                 TotalRevenue = totalRevenue,
-                PrimaryPlanName = primaryPlanName
+                PrimaryPlanName = primaryPlanName,
+                
+                // Map members
+                Members = members.Select(m => new SystemOrganizationMemberDto
+                {
+                    MemberId = m.MemberId,
+                    UserId = m.UserId,
+                    UserName = m.User?.FullName ?? "Unknown",
+                    UserEmail = m.User?.Email ?? "Unknown",
+                    Role = m.Role.ToString(),
+                    Status = m.Status.ToString(),
+                    JoinedAt = m.JoinedAt,
+                    LeftAt = m.LeftAt
+                }).ToList(),
+                
+                // Map active memberships
+                ActiveMemberships = memberships
+                    .Where(m => m.Status == MembershipStatusEnum.Active)
+                    .Select(m => new SystemOrganizationMembershipDto
+                    {
+                        MembershipId = m.MembershipId,
+                        UserId = m.UserId,
+                        UserName = m.User?.FullName ?? "Unknown",
+                        UserEmail = m.User?.Email ?? "Unknown",
+                        PlanId = m.PlanId,
+                        PlanName = m.Plan?.PlanName ?? "Unknown",
+                        Status = m.Status.ToString(),
+                        StartDate = m.BillingCycleStartDate,
+                        EndDate = m.BillingCycleEndDate,
+                        AutoRenew = m.AutoRenew,
+                        PriceMonthly = m.Plan?.PriceMonthly ?? 0,
+                        CreatedAt = m.CreatedAt
+                    }).ToList(),
+                
+                // Map expired memberships
+                ExpiredMemberships = memberships
+                    .Where(m => m.Status == MembershipStatusEnum.Expired)
+                    .Select(m => new SystemOrganizationMembershipDto
+                    {
+                        MembershipId = m.MembershipId,
+                        UserId = m.UserId,
+                        UserName = m.User?.FullName ?? "Unknown",
+                        UserEmail = m.User?.Email ?? "Unknown",
+                        PlanId = m.PlanId,
+                        PlanName = m.Plan?.PlanName ?? "Unknown",
+                        Status = m.Status.ToString(),
+                        StartDate = m.BillingCycleStartDate,
+                        EndDate = m.BillingCycleEndDate,
+                        AutoRenew = m.AutoRenew,
+                        PriceMonthly = m.Plan?.PriceMonthly ?? 0,
+                        CreatedAt = m.CreatedAt
+                    }).ToList(),
+                
+                // Map recent transactions
+                RecentTransactions = recentTransactions.Select(t => new SystemOrganizationTransactionDto
+                {
+                    TransactionId = t.TransactionId,
+                    MembershipId = t.MembershipId ?? Guid.Empty,
+                    UserName = t.Membership?.User?.FullName ?? "Unknown",
+                    Amount = t.Amount,
+                    PaymentMethod = t.PaymentGateway?.Name ?? "Unknown",
+                    Status = t.Status ?? "Unknown",
+                    TransactionDate = t.TransactionDate
+                }).ToList()
             };
 
             return Option.Some<SystemOrganizationDto, Error>(organizationDto);
@@ -903,14 +981,28 @@ public class SystemAdminService : ISystemAdminService
                 ? ((double)(totalUsers - usersAtLastMonthEnd) / usersAtLastMonthEnd) * 100
                 : (totalUsers > 0 ? 100.0 : 0.0);
 
-            var errors24h = 0;
-            var errorsPrevious24h = 0;
-            var errors24hChangePct = 0.0;
+            // Get support tickets count for last 24 hours and previous 24 hours
+            var now = DateTime.UtcNow;
+            var last24hStart = now.AddHours(-24);
+            var previous24hStart = now.AddHours(-48);
+            var previous24hEnd = last24hStart;
 
-            if (errorsPrevious24h > 0)
+            var allTickets = await _systemAdminRepository.GetAllSupportTicketsAsync(1, int.MaxValue, null, null, null, ct);
+            var errors24h = allTickets.Count(t => 
             {
-                errors24hChangePct = ((double)(errors24h - errorsPrevious24h) / errorsPrevious24h) * 100;
-            }
+                var ticketDto = t as SystemSupportTicketDto;
+                return ticketDto != null && ticketDto.CreatedAt >= last24hStart && ticketDto.CreatedAt < now;
+            });
+            
+            var errorsPrevious24h = allTickets.Count(t => 
+            {
+                var ticketDto = t as SystemSupportTicketDto;
+                return ticketDto != null && ticketDto.CreatedAt >= previous24hStart && ticketDto.CreatedAt < previous24hEnd;
+            });
+
+            var errors24hChangePct = errorsPrevious24h > 0
+                ? ((double)(errors24h - errorsPrevious24h) / errorsPrevious24h) * 100
+                : (errors24h > 0 ? 100.0 : 0.0);
 
             var dashboard = new FlattenedSystemDashboardDto
             {
