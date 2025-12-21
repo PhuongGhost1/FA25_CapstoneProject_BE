@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
+using CusomMapOSM_Application.Interfaces.Features.User;
 
 namespace CusomMapOSM_Infrastructure.Hubs;
 
 public class NotificationHub : Hub
 {
     private readonly ILogger<NotificationHub> _logger;
+    private readonly IUserService _userService;
 
-    public NotificationHub(ILogger<NotificationHub> logger)
+    public NotificationHub(ILogger<NotificationHub> logger, IUserService userService)
     {
         _logger = logger;
+        _userService = userService;
     }
 
     public override async Task OnConnectedAsync()
@@ -21,12 +24,12 @@ public class NotificationHub : Hub
         }
         
         var userId = GetUserId();
-        var role = GetUserRole();
         
         if (userId.HasValue)
         {
             try
             {
+                var role = await GetUserRoleAsync(userId.Value);
                 var groupName = $"user_{userId.Value}";
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
                 _logger.LogInformation("[NotificationHub] User {UserId} connected. ConnectionId: {ConnectionId}", 
@@ -59,12 +62,12 @@ public class NotificationHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userId = GetUserId();
-        var role = GetUserRole();
         
         if (userId.HasValue)
         {
             try
             {
+                var role = await GetUserRoleAsync(userId.Value);
                 var groupName = $"user_{userId.Value}";
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
                 
@@ -105,17 +108,21 @@ public class NotificationHub : Hub
         return null;
     }
 
-    private string? GetUserRole()
+    private async Task<string?> GetUserRoleAsync(Guid userId)
     {
-        if (Context.User == null)
+        try
         {
+            var userResult = await _userService.GetUserByIdAsync(userId);
+            return userResult.Match(
+                user => user.Role.ToString(),
+                error => null
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[NotificationHub] Error getting user role for userId: {UserId}", userId);
             return null;
         }
-
-        var roleClaim = Context.User.FindFirst(ClaimTypes.Role) 
-            ?? Context.User.FindFirst("role");
-
-        return roleClaim?.Value;
     }
 }
 
