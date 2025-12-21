@@ -96,6 +96,33 @@ public class SupportTicketService : ISupportTicketService
         });
     }
 
+    public async Task<Option<SupportTicketListResponse, Error>> GetAllSupportTicketsForAdmin(int page = 1, int pageSize = 20)
+    {
+        var supportTickets = await _supportTicketRepository.GetAllSupportTickets(page, pageSize);
+        var totalCount = await _supportTicketRepository.GetAllSupportTicketsCount();
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        return Option.Some<SupportTicketListResponse, Error>(new SupportTicketListResponse
+        {
+            Tickets = supportTickets.Select(s => new SupportTicketDto
+            {
+                TicketId = s.TicketId,
+                UserEmail = s.User.Email,
+                UserName = s.User.FullName,
+                Subject = s.Subject,
+                Message = s.Message,
+                Status = s.Status,
+                Priority = s.Priority,
+                CreatedAt = s.CreatedAt,
+                ResolvedAt = s.ResolvedAt,
+            }).ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        });
+    }
+
 
     public async Task<Option<SupportTicketDto, Error>> GetSupportTicketById(int ticketId)
     {
@@ -113,11 +140,43 @@ public class SupportTicketService : ISupportTicketService
                 "Support ticket not found"));
         }
 
-        // Kiểm tra user có quyền xem ticket này không (chỉ owner mới được xem)
+        // Check if ticket belongs to current user
         if (supportTicket.UserId != userId.Value)
         {
             return Option.None<SupportTicketDto, Error>(Error.Forbidden("SupportTicket.AccessDenied",
                 "You do not have permission to view this ticket"));
+        }
+
+        var supportTicketMessages = await _supportTicketRepository.GetSupportTicketMessages(ticketId);
+
+        return Option.Some<SupportTicketDto, Error>(new SupportTicketDto
+        {
+            TicketId = supportTicket.TicketId,
+            UserEmail = supportTicket.User.Email,
+            UserName = supportTicket.User.FullName,
+            Subject = supportTicket.Subject,
+            Message = supportTicket.Message,
+            Status = supportTicket.Status,
+            Priority = supportTicket.Priority,
+            CreatedAt = supportTicket.CreatedAt,
+            ResolvedAt = supportTicket.ResolvedAt,
+            Messages = supportTicketMessages.Select(m => new SupportTicketMessageDto
+            {
+                MessageId = m.MessageId,
+                Message = m.Message,
+                IsFromUser = m.IsFromUser,
+                CreatedAt = m.CreatedAt,
+            }).ToList(),
+        });
+    }
+
+    public async Task<Option<SupportTicketDto, Error>> GetSupportTicketByIdForAdmin(int ticketId)
+    {
+        var supportTicket = await _supportTicketRepository.GetSupportTicketById(ticketId);
+        if (supportTicket == null)
+        {
+            return Option.None<SupportTicketDto, Error>(Error.NotFound("SupportTicket.NotFound",
+                "Support ticket not found"));
         }
 
         var supportTicketMessages = await _supportTicketRepository.GetSupportTicketMessages(ticketId);
@@ -158,13 +217,6 @@ public class SupportTicketService : ISupportTicketService
         {
             return Option.None<ResponseSupportTicketResponse, Error>(Error.NotFound("SupportTicket.NotFound",
                 "Support ticket not found"));
-        }
-
-        // Kiểm tra user có quyền response ticket này không (chỉ owner mới được response)
-        if (supportTicket.UserId != userId.Value)
-        {
-            return Option.None<ResponseSupportTicketResponse, Error>(Error.Forbidden("SupportTicket.AccessDenied",
-                "You do not have permission to respond to this ticket"));
         }
 
         if (supportTicket.Status == TicketStatusEnum.Closed)
