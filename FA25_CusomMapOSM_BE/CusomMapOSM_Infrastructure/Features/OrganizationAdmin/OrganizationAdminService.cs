@@ -54,32 +54,29 @@ public class OrganizationAdminService : IOrganizationAdminService
             var usage = usageResult.ValueOrDefault();
             var plan = primaryMembership.Plan;
 
-            // Get aggregated usage stats
-            var usageStats = await _organizationAdminRepository.GetOrganizationUsageStatsAsync(orgId, ct);
+            // Get aggregated usage stats for active users count
             var totalActiveUsers = await _organizationAdminRepository.GetTotalActiveUsersAsync(orgId, ct);
-            var totalMapsCreated = await _organizationAdminRepository.GetTotalMapsCreatedAsync(orgId, ct);
-            var totalExportsThisMonth = await _organizationAdminRepository.GetTotalExportsThisMonthAsync(orgId, ct);
 
             // Convert usage stats to quota DTOs with actual plan limits
+            // IMPORTANT: Use usage.MapsCreatedThisCycle and usage.ExportsThisCycle from MembershipUsage table
+            // NOT from Memberships.CurrentUsage JSON field which may be stale after upgrades
             var aggregatedQuotas = new List<UsageQuotaDto>();
-            
+
             if (plan != null)
             {
-                // Maps quota
-                var mapsUsage = usageStats.GetValueOrDefault("maps", 0);
+                // Maps quota - use MembershipUsage.MapsCreatedThisCycle
                 aggregatedQuotas.Add(new UsageQuotaDto
                 {
                     ResourceType = "maps",
-                    CurrentUsage = mapsUsage,
+                    CurrentUsage = usage.MapsCreatedThisCycle,
                     Limit = plan.MapQuota == -1 ? int.MaxValue : plan.MapQuota
                 });
 
-                // Exports quota
-                var exportsUsage = usageStats.GetValueOrDefault("exports", 0);
+                // Exports quota - use MembershipUsage.ExportsThisCycle
                 aggregatedQuotas.Add(new UsageQuotaDto
                 {
                     ResourceType = "exports",
-                    CurrentUsage = exportsUsage,
+                    CurrentUsage = usage.ExportsThisCycle,
                     Limit = plan.ExportQuota == -1 ? int.MaxValue : plan.ExportQuota
                 });
 
@@ -91,21 +88,19 @@ public class OrganizationAdminService : IOrganizationAdminService
                     Limit = plan.MaxUsersPerOrg == -1 ? int.MaxValue : plan.MaxUsersPerOrg
                 });
 
-                // Custom Layers quota
-                var customLayersUsage = usageStats.GetValueOrDefault("customLayers", 0);
+                // Custom Layers quota - currently not tracked in MembershipUsage
                 aggregatedQuotas.Add(new UsageQuotaDto
                 {
                     ResourceType = "customLayers",
-                    CurrentUsage = customLayersUsage,
+                    CurrentUsage = 0, // TODO: Track custom layers in MembershipUsage
                     Limit = plan.MaxCustomLayers == -1 ? int.MaxValue : plan.MaxCustomLayers
                 });
 
-                // Tokens quota
-                var tokensUsage = usageStats.GetValueOrDefault("tokens", 0);
+                // Tokens quota - currently not tracked in MembershipUsage
                 aggregatedQuotas.Add(new UsageQuotaDto
                 {
                     ResourceType = "tokens",
-                    CurrentUsage = tokensUsage,
+                    CurrentUsage = 0, // TODO: Track tokens in MembershipUsage
                     Limit = plan.MonthlyTokens == -1 ? int.MaxValue : plan.MonthlyTokens
                 });
             }
@@ -120,8 +115,8 @@ public class OrganizationAdminService : IOrganizationAdminService
                 AggregatedQuotas = aggregatedQuotas,
                 UserUsageSummaries = userUsageSummaries,
                 TotalActiveUsers = totalActiveUsers,
-                TotalMapsCreated = totalMapsCreated,
-                TotalExportsThisMonth = totalExportsThisMonth,
+                TotalMapsCreated = usage.MapsCreatedThisCycle,
+                TotalExportsThisMonth = usage.ExportsThisCycle,
                 LastResetDate = usage.CycleStartDate,
                 NextResetDate = usage.CycleEndDate
             };
