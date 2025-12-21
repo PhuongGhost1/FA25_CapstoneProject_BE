@@ -26,20 +26,28 @@ public sealed class OsmEndpoint : IEndpoint
                 [AsParameters] OsmSearchQuery query,
                 [FromServices] IOsmService osmService) =>
             {
-                if (string.IsNullOrWhiteSpace(query.Query))
+                // Check if at least one search parameter is provided
+                if (string.IsNullOrWhiteSpace(query.Name) && 
+                    string.IsNullOrWhiteSpace(query.City) && 
+                    string.IsNullOrWhiteSpace(query.State) && 
+                    string.IsNullOrWhiteSpace(query.Country))
                 {
                     return Results.BadRequest(new ProblemDetails
                     {
                         Title = "Missing query",
-                        Detail = "Parameter 'query' is required to perform an OpenStreetMap search."
+                        Detail = "At least one search parameter (name, city, state, or country) is required to perform an OpenStreetMap search."
                     });
                 }
 
                 var limit = Math.Clamp(query.Limit ?? 8, 1, 25);
                 var sanitizedRadius = query.RadiusMeters is > 0 ? query.RadiusMeters : null;
 
+                // Pass individual parameters to the service
                 var results = await osmService.SearchByNameAsync(
-                    query.Query.Trim(),
+                    query.Name,
+                    query.City,
+                    query.State,
+                    query.Country,
                     query.Lat,
                     query.Lon,
                     sanitizedRadius,
@@ -142,7 +150,10 @@ public sealed class OsmEndpoint : IEndpoint
     }
 
     private sealed record OsmSearchQuery(
-        [property: FromQuery(Name = "query")] string Query,
+        [property: FromQuery(Name = "name")] string Name,
+        [property: FromQuery(Name = "city")] string City,
+        [property: FromQuery(Name = "state")] string State,
+        [property: FromQuery(Name = "country")] string Country,
         [property: FromQuery(Name = "lat")] double? Lat,
         [property: FromQuery(Name = "lon")] double? Lon,
         [property: FromQuery(Name = "radiusMeters")] double? RadiusMeters,

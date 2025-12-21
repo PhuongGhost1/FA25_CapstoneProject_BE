@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using CusomMapOSM_Application.Common.Errors;
 using CusomMapOSM_Application.Interfaces.Features.Maps;
+using CusomMapOSM_Application.Interfaces.Features.User;
 using CusomMapOSM_Application.Interfaces.Services.User;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Request;
 using CusomMapOSM_Application.Models.DTOs.Features.Maps.Response;
@@ -13,7 +14,7 @@ namespace CusomMapOSM_Infrastructure.Features.Maps;
 public class MapSelectionService : IMapSelectionService
 {
     private readonly IDistributedCache _redis;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserService _userService;
     private readonly ILogger<MapSelectionService> _logger;
     private static readonly string[] HighlightColors = new[]
     {
@@ -24,11 +25,11 @@ public class MapSelectionService : IMapSelectionService
     private const int UserInfoTtlSeconds = 3600; // 1 hour
     public MapSelectionService(
         IDistributedCache redis,
-        ICurrentUserService currentUserService,
+        IUserService userService,
         ILogger<MapSelectionService> logger)
     {
         _redis = redis;
-        _currentUserService = currentUserService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -192,7 +193,7 @@ public class MapSelectionService : IMapSelectionService
                     CurrentSelection = selectionResult.Match(
 
                         selection => selection,
-                        error => null
+                        error => null!
                     )
                 };
                 activeUsers.Add(activeUser);
@@ -326,11 +327,19 @@ public class MapSelectionService : IMapSelectionService
         {
             return JsonSerializer.Deserialize<UserInfoCache>(json)!;
         }
+        
+        // Fetch actual user from database
+        var userResult = await _userService.GetUserByIdAsync(userId);
+        var userName = userResult.Match(
+            user => user.FullName ?? user.Email ?? "Unknown User",
+            error => "Unknown User"
+        );
+        
         var userInfo = new UserInfoCache
         {
             UserId = userId,
-            UserName = _currentUserService.GetEmail() ?? "Unknown User",
-            UserAvatar = "", // Get from user service if available
+            UserName = userName,
+            UserAvatar = "", // Can be extended to get from user entity
             HighlightColor = AssignColorToUser(userId)
         };
         await _redis.SetStringAsync(

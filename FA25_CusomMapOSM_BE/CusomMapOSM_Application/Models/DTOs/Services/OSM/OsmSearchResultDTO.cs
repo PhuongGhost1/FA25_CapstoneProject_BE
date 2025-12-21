@@ -8,13 +8,13 @@ namespace CusomMapOSM_Application.Models.DTOs.Services.OSM
     public class OsmSearchResultDTO
     {
         [JsonPropertyName("osmType")]
-        public string OsmType { get; set; }
+        public string? OsmType { get; set; }
         
         [JsonPropertyName("osmId")]
         public long OsmId { get; set; }
         
         [JsonPropertyName("displayName")]
-        public string DisplayName { get; set; }
+        public string? DisplayName { get; set; }
         
         [JsonPropertyName("lat")]
         public double Lat { get; set; }
@@ -23,23 +23,23 @@ namespace CusomMapOSM_Application.Models.DTOs.Services.OSM
         public double Lon { get; set; }
         
         [JsonPropertyName("boundingBox")]
-        public double[] BoundingBox { get; set; }  // [minLat, maxLat, minLon, maxLon]
+        public double[]? BoundingBox { get; set; }  // [minLat, maxLat, minLon, maxLon]
         
         [JsonPropertyName("category")]
-        public string Category { get; set; }
+        public string? Category { get; set; }
         
         [JsonPropertyName("type")]
-        public string Type { get; set; }
+        public string? Type { get; set; }
         
         [JsonPropertyName("importance")]
         public double? Importance { get; set; }
         
         // Additional fields for Zone creation
         [JsonPropertyName("geoJson")]
-        public string GeoJson { get; set; }  // GeoJSON geometry (Point for nodes, LineString/Polygon for ways/relations)
+        public string? GeoJson { get; set; }  // GeoJSON geometry (Point for nodes, LineString/Polygon for ways/relations)
         
         [JsonPropertyName("addressDetails")]
-        public OsmAddressDTO AddressDetails { get; set; }
+        public OsmAddressDTO? AddressDetails { get; set; }
         
         [JsonPropertyName("placeRank")]
         public int? PlaceRank { get; set; }  // Helps determine administrative level
