@@ -252,6 +252,7 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureRepository, MapFeatureRepository>();
         services.AddScoped<IMapHistoryRepository, MapHistoryRepository>();
         services.AddScoped<IMapReportRepository, MapReportRepository>();
+        services.AddScoped<IMapLegendItemRepository, MapLegendItemRepository>();
         services.AddScoped<ILayerRepository, LayerRepository>();
 
         // Location & Content
@@ -331,6 +332,7 @@ public static class DependencyInjections
         services.AddScoped<IMapFeatureService, MapFeatureService>();
         services.AddScoped<IMapHistoryService, MapHistoryService>();
         services.AddScoped<IMapSelectionService, MapSelectionService>();
+        services.AddScoped<IMapLegendItemService, MapLegendItemService>();
         services.AddScoped<IGeoJsonService, GeoJsonService>();
         services.AddScoped<ILayerService, LayerService>();
         services.AddScoped<ILayerAnimationService, LayerAnimationService>();

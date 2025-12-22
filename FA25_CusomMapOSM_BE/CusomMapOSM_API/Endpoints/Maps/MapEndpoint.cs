@@ -1,3 +1,4 @@
+using System.Text.Json;
 using CusomMapOSM_API.Constants;
 using CusomMapOSM_API.Extensions;
 using CusomMapOSM_API.Interfaces;
@@ -74,7 +75,8 @@ public class MapEndpoints : IEndpoint
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("GetMyRecentMaps")
-            .WithDescription("Get recent maps owned by current user ordered by last activity (layers/features/images/history)")
+            .WithDescription(
+                "Get recent maps owned by current user ordered by last activity (layers/features/images/history)")
             .RequireAuthorization()
             .Produces<GetMyMapsResponse>(200);
 
@@ -217,7 +219,8 @@ public class MapEndpoints : IEndpoint
                     error => error.ToProblemDetailsResult()
                 );
             }).WithName("PublishMap")
-            .WithDescription("Publish a map. Set IsStoryMap=true to publish as storymap (can create sessions), false for view-only.")
+            .WithDescription(
+                "Publish a map. Set IsStoryMap=true to publish as storymap (can create sessions), false for view-only.")
             .RequireAuthorization()
             .Produces(200)
             .Produces(400)
@@ -355,7 +358,7 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Get all layers for a map")
             .RequireAuthorization()
             .Produces<List<LayerInfoResponse>>(200);
-        
+
         group.MapPost("/template", CreateTemplateHandler)
             .WithName("CreateMapTemplateFromGeoJson")
             .WithDescription("Create MapTemplate from uploaded GeoJSON file")
@@ -396,19 +399,16 @@ public class MapEndpoints : IEndpoint
                     });
                 }
 
-                var fileSizeMb = file.Length / (1024.0 * 1024.0);
                 if (file.Length > 100 * 1024 * 1024)
                 {
                     return Results.BadRequest(new
                     {
                         error = "File too large",
-                        message = "File size must be less than 100MB",
-                        currentSize = $"{fileSizeMb:F2} MB"
+                        message = "File size must be less than 100MB"
                     });
                 }
 
                 var processedData = await fileProcessorService.ProcessUploadedFile(file, layerName ?? "Uploaded Layer");
-                
                 if (!processedData.Success)
                 {
                     return Results.BadRequest(new
@@ -418,7 +418,6 @@ public class MapEndpoints : IEndpoint
                     });
                 }
 
-                // Add layer to map with the uploaded data
                 var addLayerResult = await mapService.AddLayerToMap(mapId, new AddLayerToMapRequest
                 {
                     LayerName = layerName ?? "Uploaded Layer",
@@ -429,339 +428,187 @@ public class MapEndpoints : IEndpoint
                 });
 
                 if (!addLayerResult.HasValue)
-                {
-                    return addLayerResult.Match(
-                        success => throw new InvalidOperationException("This should not happen"),
-                        error => error.ToProblemDetailsResult()
-                    );
-                }
+                    return addLayerResult.Match(_ => throw new InvalidOperationException(),
+                        e => e.ToProblemDetailsResult());
 
                 var success = addLayerResult.ValueOr(() => new AddLayerToMapResponse { MapLayerId = Guid.Empty });
                 if (success.MapLayerId == Guid.Empty)
-                {
-                    return addLayerResult.Match(
-                        success => throw new InvalidOperationException("This should not happen"),
-                        error => error.ToProblemDetailsResult()
-                    );
-                }
+                    return Results.Problem("Failed to create map layer");
 
-                // Extract features from GeoJSON and create Map_Feature records
-                // IMPORTANT: All features will be associated with the NEW layer, regardless of layerId in GeoJSON
                 var featuresCreated = 0;
                 var featuresFailed = 0;
                 var featuresSkipped = 0;
-                
-                // Track feature IDs from GeoJSON to prevent duplicates within the same upload
+
                 var processedFeatureIds = new HashSet<string>();
-                
-                // Get existing features for this map to avoid duplicates
                 var existingFeaturesResult = await featureService.GetByMap(mapId);
-                var existingFeatureIds = new HashSet<string>();
-                if (existingFeaturesResult.HasValue)
-                {
-                    var existingFeatures = existingFeaturesResult.Match(
-                        some: features => features,
-                        none: _ => new List<MapFeatureResponse>());
-                    foreach (var existingFeature in existingFeatures)
-                    {
-                        existingFeatureIds.Add(existingFeature.FeatureId.ToString());
-                    }
-                    logger.LogInformation("Found {Count} existing features for map {MapId}", existingFeatureIds.Count, mapId);
-                }
-                
-                // Store original layer data for feature extraction
-                string? originalLayerData = processedData.LayerData;
-                System.Text.Json.JsonDocument? geoJsonDocForFeatures = null;
-                
+                var existingFeatureIds = existingFeaturesResult.HasValue
+                    ? existingFeaturesResult.Match(s => s.Select(x => x.FeatureId.ToString()).ToHashSet(),
+                        _ => new HashSet<string>())
+                    : new HashSet<string>();
+
+                JsonDocument? geoJsonDoc = null;
+
                 try
                 {
-                    if (string.IsNullOrEmpty(processedData.LayerData))
+                    geoJsonDoc = JsonDocument.Parse(processedData.LayerData!);
+
+                    if (!geoJsonDoc.RootElement.TryGetProperty("features", out var features) ||
+                        features.ValueKind != JsonValueKind.Array)
                     {
-                        logger.LogWarning("LayerData is null or empty, skipping feature extraction");
+                        return Results.BadRequest("Invalid GeoJSON: missing features array");
                     }
-                    else
+
+                    foreach (var feature in features.EnumerateArray())
                     {
-                        geoJsonDocForFeatures = System.Text.Json.JsonDocument.Parse(processedData.LayerData);
-                        var geoJsonDoc = geoJsonDocForFeatures;
-                        if (geoJsonDoc.RootElement.TryGetProperty("features", out var features) && 
-                            features.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        try
                         {
-                            logger.LogInformation("Processing {Count} features from uploaded GeoJSON for layer {LayerId}", 
-                                features.GetArrayLength(), success.MapLayerId);
-                            
-                            foreach (var feature in features.EnumerateArray())
+                            string? featureId = feature.TryGetProperty("id", out var idEl)
+                                ? idEl.ToString()
+                                : null;
+
+                            if (!string.IsNullOrEmpty(featureId))
                             {
-                                try
+                                if (!processedFeatureIds.Add(featureId) || existingFeatureIds.Contains(featureId))
                                 {
-                                    // Extract feature ID from GeoJSON to check for duplicates
-                                    string? featureIdFromGeoJson = null;
-                                    if (feature.TryGetProperty("id", out var idElement))
-                                    {
-                                        if (idElement.ValueKind == System.Text.Json.JsonValueKind.String)
-                                        {
-                                            featureIdFromGeoJson = idElement.GetString();
-                                        }
-                                        else
-                                        {
-                                            featureIdFromGeoJson = idElement.GetRawText().Trim('"');
-                                        }
-                                    }
-                                    
-                                    // Skip if this feature ID was already processed in this upload
-                                    if (!string.IsNullOrEmpty(featureIdFromGeoJson))
-                                    {
-                                        if (processedFeatureIds.Contains(featureIdFromGeoJson))
-                                        {
-                                            logger.LogWarning("Skipping duplicate feature {FeatureId} in uploaded GeoJSON (already processed in this upload)", featureIdFromGeoJson);
-                                            featuresSkipped++;
-                                            continue;
-                                        }
-                                        
-                                        // Also check if this feature already exists in the database
-                                        if (existingFeatureIds.Contains(featureIdFromGeoJson))
-                                        {
-                                            logger.LogWarning("Skipping feature {FeatureId} - already exists in database", featureIdFromGeoJson);
-                                            featuresSkipped++;
-                                            continue;
-                                        }
-                                        
-                                        processedFeatureIds.Add(featureIdFromGeoJson);
-                                    }
-                                    
-                                    var properties = feature.TryGetProperty("properties", out var props) 
-                                        ? props 
-                                        : default;
-                                    
-                                    var geometry = feature.TryGetProperty("geometry", out var geom) 
-                                        ? geom 
-                                        : default;
-                                    
-                                    if (geometry.ValueKind == System.Text.Json.JsonValueKind.Null)
-                                    {
-                                        logger.LogWarning("Skipping feature with null geometry");
-                                        featuresFailed++;
-                                        continue;
-                                    }
-                                    
-                                    // Extract properties
-                                    var name = properties.TryGetProperty("name", out var nameProp) 
-                                        ? nameProp.GetString() ?? "Unnamed Feature" 
-                                        : "Unnamed Feature";
-                                    
-                                    var description = properties.TryGetProperty("description", out var descProp) 
-                                        ? descProp.GetString() ?? "" 
-                                        : "";
-                                    
-                                    var featureCategoryStr = properties.TryGetProperty("featureCategory", out var catProp) 
-                                        ? catProp.GetString() ?? "Data" 
-                                        : "Data";
-                                    
-                                    var annotationTypeStr = properties.TryGetProperty("annotationType", out var annTypeProp) 
-                                        ? annTypeProp.GetString() 
-                                        : null;
-                                    
-                                    // Skip Text annotations as they don't display correctly
-                                    if (!string.IsNullOrEmpty(annotationTypeStr) && 
-                                        annotationTypeStr.Equals("Text", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        logger.LogDebug("Skipping Text annotation feature from upload");
-                                        featuresSkipped++;
-                                        continue;
-                                    }
-                                    
-                                    var geometryTypeStr = properties.TryGetProperty("geometryType", out var geomTypeProp) 
-                                        ? geomTypeProp.GetString() ?? (geometry.TryGetProperty("type", out var geomType) ? geomType.GetString() ?? "Point" : "Point")
-                                        : (geometry.TryGetProperty("type", out var geomType2) ? geomType2.GetString() ?? "Point" : "Point");
-                                    
-                                    // Handle zIndex - can be int or double
-                                    var zIndex = 0;
-                                    if (properties.TryGetProperty("zIndex", out var zIndexProp))
-                                    {
-                                        if (zIndexProp.ValueKind == System.Text.Json.JsonValueKind.Number)
-                                        {
-                                            if (zIndexProp.TryGetInt32(out var zInt))
-                                                zIndex = zInt;
-                                            else if (zIndexProp.TryGetDouble(out var zDouble))
-                                                zIndex = (int)zDouble;
-                                        }
-                                    }
-
-                                    // Parse enums
-                                    var featureCategory = Enum.TryParse<CusomMapOSM_Domain.Entities.Maps.Enums.FeatureCategoryEnum>(featureCategoryStr, true, out var cat) 
-                                        ? cat 
-                                        : CusomMapOSM_Domain.Entities.Maps.Enums.FeatureCategoryEnum.Data;
-                                    
-                                    var annotationType = !string.IsNullOrEmpty(annotationTypeStr) && 
-                                        Enum.TryParse<CusomMapOSM_Domain.Entities.Maps.Enums.AnnotationTypeEnum>(annotationTypeStr, true, out var annType) 
-                                        ? annType 
-                                        : (CusomMapOSM_Domain.Entities.Maps.Enums.AnnotationTypeEnum?)null;
-                                    
-                                    var geometryType = Enum.TryParse<CusomMapOSM_Domain.Entities.Maps.Enums.GeometryTypeEnum>(geometryTypeStr, true, out var geomTypeEnum) 
-                                        ? geomTypeEnum 
-                                        : CusomMapOSM_Domain.Entities.Maps.Enums.GeometryTypeEnum.Point;
-
-                                    // Serialize geometry to coordinates string (full GeoJSON geometry object)
-                                    var coordinatesJson = geometry.GetRawText();
-                                    
-                                    // Build properties JSON (include text for Text annotations and other custom properties)
-                                    var featureProperties = new Dictionary<string, object>();
-                                    if (properties.ValueKind == System.Text.Json.JsonValueKind.Object)
-                                    {
-                                        foreach (var prop in properties.EnumerateObject())
-                                        {
-                                            // Skip metadata properties that are stored in Map_Feature table
-                                            if (prop.Name != "name" && prop.Name != "description" && 
-                                                prop.Name != "featureCategory" && prop.Name != "annotationType" && 
-                                                prop.Name != "geometryType" && prop.Name != "layerId" && 
-                                                prop.Name != "createdBy" && prop.Name != "createdAt" && 
-                                                prop.Name != "zIndex" && prop.Name != "layerName")
-                                            {
-                                                // Handle text property for Text annotations
-                                                if (prop.Name == "text" && prop.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                {
-                                                    featureProperties["text"] = prop.Value.GetString() ?? "";
-                                                }
-                                                else
-                                                {
-                                                    try
-                                                    {
-                                                        featureProperties[prop.Name] = System.Text.Json.JsonSerializer.Deserialize<object>(prop.Value.GetRawText()) ?? "";
-                                                    }
-                                                    catch
-                                                    {
-                                                        // If deserialization fails, store as string
-                                                        featureProperties[prop.Name] = prop.Value.GetRawText();
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    var propertiesJson = featureProperties.Count > 0 
-                                        ? System.Text.Json.JsonSerializer.Serialize(featureProperties) 
-                                        : null;
-
-                                    // Create feature - ALWAYS use the new layer ID, ignore layerId from GeoJSON
-                                    var createFeatureRequest = new CusomMapOSM_Application.Models.DTOs.Features.Maps.Request.CreateMapFeatureRequest
-                                    {
-                                        MapId = mapId,
-                                        LayerId = success.MapLayerId, // Always use the new layer ID
-                                        Name = name,
-                                        Description = description,
-                                        FeatureCategory = featureCategory,
-                                        AnnotationType = annotationType,
-                                        GeometryType = geometryType,
-                                        Coordinates = coordinatesJson,
-                                        Properties = propertiesJson,
-                                        IsVisible = true,
-                                        ZIndex = zIndex
-                                    };
-
-                                    var createResult = await featureService.Create(createFeatureRequest);
-                                    if (createResult.HasValue)
-                                    {
-                                        featuresCreated++;
-                                        logger.LogDebug("Created feature {Name} (Category: {Category}, Type: {Type}) for layer {LayerId}", 
-                                            name, featureCategory, geometryType, success.MapLayerId);
-                                    }
-                                    else
-                                    {
-                                        featuresFailed++;
-                                        var errorMsg = createResult.Match(
-                                            some: s => "Unknown error",
-                                            none: e => $"{e.Code}: {e.Description}");
-                                        logger.LogWarning("Failed to create feature {Name}: {Error}", name, errorMsg);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    featuresFailed++;
-                                    logger.LogError(ex, "Failed to create feature from GeoJSON: {Message}", ex.Message);
+                                    featuresSkipped++;
+                                    continue;
                                 }
                             }
-                            
-                            logger.LogInformation("Feature creation complete. Created: {Created}, Failed: {Failed}, Skipped: {Skipped}, Total in file: {Total}", 
-                                featuresCreated, featuresFailed, featuresSkipped, processedData.FeatureCount);
-                            
-                            // IMPORTANT: Remove features from layer data to prevent duplicate rendering
-                            // Features are now stored as Map_Feature records, so they shouldn't be in layer data
-                            // This prevents features from being rendered twice (once from MongoDB, once from layer data)
-                            if (featuresCreated > 0 && geoJsonDocForFeatures != null)
+
+                            if (!feature.TryGetProperty("geometry", out var geometry) ||
+                                geometry.ValueKind == JsonValueKind.Null)
                             {
-                                try
+                                featuresFailed++;
+                                continue;
+                            }
+
+                            if (!geometry.TryGetProperty("type", out var geomTypeEl) ||
+                                geomTypeEl.ValueKind != JsonValueKind.String)
+                            {
+                                throw new NotSupportedException("Geometry type missing");
+                            }
+
+                            var geomTypeStr = geomTypeEl.GetString()!.Trim().ToUpperInvariant();
+
+                            var geometryType = geomTypeStr switch
+                            {
+                                "POINT" => GeometryTypeEnum.Point,
+                                "MULTIPOINT" => GeometryTypeEnum.MultiPoint,
+                                "LINESTRING" => GeometryTypeEnum.LineString,
+                                "MULTILINESTRING" => GeometryTypeEnum.MultiLineString,
+                                "POLYGON" => GeometryTypeEnum.Polygon,
+                                "MULTIPOLYGON" => GeometryTypeEnum.MultiPolygon,
+                                _ => throw new NotSupportedException($"Unsupported geometry type: {geomTypeStr}")
+                            };
+
+                            var properties = feature.TryGetProperty("properties", out var p) ? p : default;
+
+                            var name = properties.TryGetProperty("name", out var n)
+                                ? n.GetString() ?? "Unnamed Feature"
+                                : "Unnamed Feature";
+                            var description = properties.TryGetProperty("description", out var d)
+                                ? d.GetString() ?? ""
+                                : "";
+
+                            var featureCategory = properties.TryGetProperty("featureCategory", out var fc) &&
+                                                  Enum.TryParse<FeatureCategoryEnum>(fc.GetString(), true, out var cat)
+                                ? cat
+                                : FeatureCategoryEnum.Data;
+
+                            var annotationType = properties.TryGetProperty("annotationType", out var at) &&
+                                                 Enum.TryParse<AnnotationTypeEnum>(at.GetString(), true, out var ann)
+                                ? ann
+                                : (AnnotationTypeEnum?)null;
+
+                            if (annotationType == AnnotationTypeEnum.Text)
+                            {
+                                featuresSkipped++;
+                                continue;
+                            }
+
+                            var zIndex = properties.TryGetProperty("zIndex", out var zi) && zi.TryGetInt32(out var z)
+                                ? z
+                                : 0;
+
+                            var extraProps = new Dictionary<string, object>();
+                            if (properties.ValueKind == JsonValueKind.Object)
+                            {
+                                foreach (var prop in properties.EnumerateObject())
                                 {
-                                    // Get the layer to update its data
-                                    using var scope = serviceScopeFactory.CreateScope();
-                                    var mapRepository = scope.ServiceProvider.GetRequiredService<IMapRepository>();
-                                    var layer = await mapRepository.GetMapLayer(mapId, success.MapLayerId);
-                                    
-                                    if (layer != null)
-                                    {
-                                        // Create a new GeoJSON with empty features array (only metadata)
-                                        var metadata = new Dictionary<string, object>();
-                                        if (geoJsonDocForFeatures.RootElement.TryGetProperty("metadata", out var metadataElement))
-                                        {
-                                            var metadataJson = metadataElement.GetRawText();
-                                            metadata = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(metadataJson) ?? new Dictionary<string, object>();
-                                        }
-                                        
-                                        // Also preserve other top-level properties if they exist
-                                        var cleanedGeoJson = new Dictionary<string, object>
-                                        {
-                                            ["type"] = "FeatureCollection",
-                                            ["features"] = new List<object>() // Empty features array
-                                        };
-                                        
-                                        if (metadata.Count > 0)
-                                        {
-                                            cleanedGeoJson["metadata"] = metadata;
-                                        }
-                                        
-                                        // Update layer data to remove features (they're now in MongoDB as Map_Feature records)
-                                        var cleanedLayerData = System.Text.Json.JsonSerializer.Serialize(cleanedGeoJson);
-                                        await layerDataStore.SetDataAsync(layer, cleanedLayerData);
-                                        logger.LogInformation("Removed features from layer {LayerId} data to prevent duplicate rendering. Features are now stored as Map_Feature records.", 
-                                            success.MapLayerId);
-                                    }
-                                }
-                                catch (Exception cleanEx)
-                                {
-                                    logger.LogWarning(cleanEx, "Failed to clean features from layer data, but features were created successfully");
+                                    if (prop.Name is "name" or "description" or "featureCategory" or "annotationType"
+                                        or "zIndex")
+                                        continue;
+
+                                    extraProps[prop.Name] =
+                                        JsonSerializer.Deserialize<object>(prop.Value.GetRawText()) ??
+                                        prop.Value.GetRawText();
                                 }
                             }
+
+                            var createResult = await featureService.Create(new CreateMapFeatureRequest
+                            {
+                                MapId = mapId,
+                                LayerId = success.MapLayerId,
+                                Name = name,
+                                Description = description,
+                                FeatureCategory = featureCategory,
+                                AnnotationType = annotationType,
+                                GeometryType = geometryType,
+                                Coordinates = geometry.GetRawText(),
+                                Properties = extraProps.Count > 0 ? JsonSerializer.Serialize(extraProps) : null,
+                                IsVisible = true,
+                                ZIndex = zIndex
+                            });
+
+                            if (createResult.HasValue)
+                                featuresCreated++;
+                            else
+                                featuresFailed++;
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            logger.LogWarning("GeoJSON does not contain a 'features' array or it's not an array");
+                            logger.LogWarning(ex, "Failed to create feature from GeoJSON: {GeometryType}", 
+                                feature.TryGetProperty("geometry", out var g) && g.TryGetProperty("type", out var t) 
+                                    ? t.GetString() 
+                                    : "unknown");
+                            featuresFailed++;
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to extract features from GeoJSON: {Message}", ex.Message);
+
+                    using var scope = serviceScopeFactory.CreateScope();
+                    var repo = scope.ServiceProvider.GetRequiredService<IMapRepository>();
+                    var layer = await repo.GetMapLayer(mapId, success.MapLayerId);
+
+                    if (layer != null)
+                    {
+                        var cleaned = JsonSerializer.Serialize(new
+                        {
+                            type = "FeatureCollection",
+                            features = Array.Empty<object>()
+                        });
+
+                        await layerDataStore.SetDataAsync(layer, cleaned);
+                    }
                 }
                 finally
                 {
-                    geoJsonDocForFeatures?.Dispose();
+                    geoJsonDoc?.Dispose();
                 }
 
                 return Results.Ok(new
                 {
                     layerId = success.MapLayerId,
-                    message = $"File uploaded and added to map successfully. Created {featuresCreated} features, skipped {featuresSkipped} duplicates.",
-                    featuresCreated = featuresCreated,
-                    featuresFailed = featuresFailed,
-                    featuresSkipped = featuresSkipped,
-                    totalFeaturesInFile = processedData.FeatureCount,
-                    dataSize = processedData.DataSizeKB
+                    featuresCreated,
+                    featuresFailed,
+                    featuresSkipped,
+                    totalFeaturesInFile = processedData.FeatureCount
                 });
             })
-            .WithName("UploadGeoJsonToMap")
-            .WithDescription("Upload a GeoJSON file to an existing map")
             .RequireAuthorization()
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .Produces(200);
+
 
         // Map Features endpoints
         group.MapPost("/{mapId:guid}/features", async (
@@ -822,7 +669,8 @@ public class MapEndpoints : IEndpoint
                 [FromServices] IMapHistoryService historyService,
                 [FromServices] IMapService mapService) =>
             {
-                var result = await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
+                var result =
+                    await historyService.Undo(mapId, Guid.Empty, steps); // userId not required for undo retrieval
                 return result.Match(
                     success => Results.Ok(new MapSnapshotResponse { Snapshot = success }),
                     error => error.ToProblemDetailsResult()
@@ -964,6 +812,22 @@ public class MapEndpoints : IEndpoint
             .WithDescription("Update layer's GeoJSON data")
             .RequireAuthorization()
             .Produces<UpdateLayerDataResponse>(200);
+
+        // Move Map to Workspace
+        group.MapPost("/{mapId:guid}/move-to-workspace/{workspaceId:guid}", async (
+                [FromRoute] Guid mapId,
+                [FromRoute] Guid workspaceId,
+                [FromServices] IMapService mapService) =>
+            {
+                var result = await mapService.MoveMapToWorkspace(mapId, workspaceId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("MoveMapToWorkspace")
+            .WithDescription("Move a map to a different workspace (required for creating sessions)")
+            .RequireAuthorization()
+            .Produces<MoveMapToWorkspaceResponse>(200);
     }
 
     private static async Task<IResult> CreateTemplateHandler(
@@ -1075,7 +939,5 @@ public class MapEndpoints : IEndpoint
                 statusCode: 500
             );
         }
-        
-
     }
 }

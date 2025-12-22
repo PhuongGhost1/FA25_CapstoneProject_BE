@@ -18,6 +18,7 @@ public static class LocationMappings
             null, // StoryContent - not in entity
             l.MediaUrls, // MediaResources mapped to MediaUrls
             l.DisplayOrder,
+            l.Rotation,
             
             // Icon configuration
             l.IconType,

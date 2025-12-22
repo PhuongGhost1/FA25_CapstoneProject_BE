@@ -46,6 +46,7 @@ public class MapGalleryService : IMapGalleryService
     private readonly IMapFeatureRepository _mapFeatureRepository;
     private readonly IMapFeatureStore _mapFeatureStore;
     private readonly IStoryMapRepository _storyMapRepository;
+    private readonly IMapLegendItemRepository _mapLegendItemRepository;
     private readonly IHubContext<NotificationHub> _hubContext;
 
     public MapGalleryService(
@@ -59,6 +60,7 @@ public class MapGalleryService : IMapGalleryService
         IMapFeatureRepository mapFeatureRepository,
         IMapFeatureStore mapFeatureStore,
         IStoryMapRepository storyMapRepository,
+        IMapLegendItemRepository mapLegendItemRepository,
         IHubContext<NotificationHub> hubContext)
     {
         _collection = database.GetCollection<MapGalleryDocument>("map_gallery");
@@ -71,6 +73,7 @@ public class MapGalleryService : IMapGalleryService
         _mapFeatureRepository = mapFeatureRepository;
         _mapFeatureStore = mapFeatureStore;
         _storyMapRepository = storyMapRepository;
+        _mapLegendItemRepository = mapLegendItemRepository;
         _hubContext = hubContext;
     }
 
@@ -78,6 +81,7 @@ public class MapGalleryService : IMapGalleryService
         MapTemplateCategoryEnum? category,
         string? searchTerm,
         bool? featuredOnly,
+        bool? isStoryMap,
         CancellationToken ct = default)
     {
         var filter = Builders<MapGalleryDocument>.Filter.Eq(x => x.Status, MapGalleryStatusEnum.Approved);
@@ -90,6 +94,11 @@ public class MapGalleryService : IMapGalleryService
         if (featuredOnly == true)
         {
             filter &= Builders<MapGalleryDocument>.Filter.Eq(x => x.IsFeatured, true);
+        }
+
+        if (isStoryMap.HasValue)
+        {
+            filter &= Builders<MapGalleryDocument>.Filter.Eq(x => x.IsStoryMap, isStoryMap.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -194,8 +203,9 @@ public class MapGalleryService : IMapGalleryService
             PreviewImage = request.PreviewImage,
             Category = request.Category,
             Tags = request.Tags,
-            AuthorName = userSubmit.FullName,
-            AuthorEmail = userSubmit.Email,
+            AuthorName = userSubmit?.FullName,
+            AuthorEmail = userSubmit?.Email,
+            IsStoryMap = map.IsStoryMap,
             Status = MapGalleryStatusEnum.Pending,
             CreatedAt = DateTime.UtcNow
         };
@@ -490,6 +500,8 @@ public class MapGalleryService : IMapGalleryService
             ViewState = sourceMap.ViewState,
             BaseLayer = sourceMap.BaseLayer,
             ParentMapId = sourceMap.MapId,
+            IsStoryMap = sourceMap.IsStoryMap,
+            Status = MapStatusEnum.Draft,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -521,13 +533,21 @@ public class MapGalleryService : IMapGalleryService
             layerIdMapping, 
             ct);
 
+        // Copy legend items
+        var legendItemsCreated = await CopyMapLegendItemsToMap(sourceMap.MapId, newMap.MapId, userId, ct);
+
         return Option.Some<MapGalleryDuplicateResponse, Error>(new MapGalleryDuplicateResponse
         {
             MapId = newMap.MapId,
             MapName = newMap.MapName,
             SourceMapName = sourceMap.MapName,
             LayersCreated = layersCreated,
+            FeaturesCreated = featuresCreated,
             ImagesCreated = imagesCreated,
+            SegmentsCreated = segmentsCreated,
+            LocationsCreated = locationIdMapping.Count,
+            LegendItemsCreated = legendItemsCreated,
+            IsStoryMap = sourceMap.IsStoryMap,
             CreatedAt = newMap.CreatedAt
         });
     }
@@ -776,6 +796,34 @@ public class MapGalleryService : IMapGalleryService
         var zoneIdMapping = new Dictionary<Guid, Guid>();
         int segmentsCreated = 0;
 
+        // 1. Copy MapZones (zones attached to map level, not segment level)
+        var sourceMapZones = await _storyMapRepository.GetMapZonesByMapAsync(sourceMapId, ct);
+        foreach (var sourceMapZone in sourceMapZones)
+        {
+            var newMapZone = new MapZone
+            {
+                MapZoneId = Guid.NewGuid(),
+                MapId = newMapId,
+                ZoneId = sourceMapZone.ZoneId, // Zone is global, no need to duplicate
+                DisplayOrder = sourceMapZone.DisplayOrder,
+                IsVisible = sourceMapZone.IsVisible,
+                ZIndex = sourceMapZone.ZIndex,
+                HighlightBoundary = sourceMapZone.HighlightBoundary,
+                BoundaryColor = sourceMapZone.BoundaryColor,
+                BoundaryWidth = sourceMapZone.BoundaryWidth,
+                FillZone = sourceMapZone.FillZone,
+                FillColor = sourceMapZone.FillColor,
+                FillOpacity = sourceMapZone.FillOpacity,
+                ShowLabel = sourceMapZone.ShowLabel,
+                LabelOverride = sourceMapZone.LabelOverride,
+                LabelStyle = sourceMapZone.LabelStyle,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _storyMapRepository.AddMapZoneAsync(newMapZone, ct);
+        }
+
+        // 2. Copy Segments
         var sourceSegments = await _storyMapRepository.GetSegmentsByMapAsync(sourceMapId, ct);
         foreach (var sourceSegment in sourceSegments.OrderBy(s => s.DisplayOrder))
         {
@@ -1058,6 +1106,35 @@ public class MapGalleryService : IMapGalleryService
         await _storyMapRepository.SaveChangesAsync(ct);
 
         return (segmentsCreated, segmentIdMapping, locationIdMapping);
+    }
+
+    private async Task<int> CopyMapLegendItemsToMap(Guid sourceMapId, Guid newMapId, Guid userId, CancellationToken ct)
+    {
+        var sourceLegendItems = await _mapLegendItemRepository.GetByMapIdAsync(sourceMapId, ct);
+        int count = 0;
+
+        foreach (var sourceItem in sourceLegendItems.OrderBy(x => x.DisplayOrder))
+        {
+            var newItem = new MapLegendItem
+            {
+                LegendItemId = Guid.NewGuid(),
+                MapId = newMapId,
+                CreatedBy = userId,
+                Label = sourceItem.Label,
+                Description = sourceItem.Description,
+                Emoji = sourceItem.Emoji,
+                IconUrl = sourceItem.IconUrl,
+                Color = sourceItem.Color,
+                DisplayOrder = sourceItem.DisplayOrder,
+                IsVisible = sourceItem.IsVisible,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _mapLegendItemRepository.CreateAsync(newItem, ct);
+            count++;
+        }
+
+        return count;
     }
 }
 

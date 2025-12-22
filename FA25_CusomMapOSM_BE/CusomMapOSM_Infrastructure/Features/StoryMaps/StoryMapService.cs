@@ -2194,6 +2194,7 @@ public class StoryMapService : IStoryMapService
                     IconUrl: null,
                     IconColor: null,
                     IconSize: 32,
+                    Rotation:null,
                     HighlightOnEnter: false,
                     ShowTooltip: true,
                     TooltipContent: osmResult.DisplayName,

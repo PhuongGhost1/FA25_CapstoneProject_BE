@@ -350,7 +350,10 @@ public class MapFeatureService : IMapFeatureService
                    || geometryType == GeometryTypeEnum.LineString
                    || geometryType == GeometryTypeEnum.Polygon
                    || geometryType == GeometryTypeEnum.Circle
-                   || geometryType == GeometryTypeEnum.Rectangle;
+                   || geometryType == GeometryTypeEnum.Rectangle
+                   || geometryType == GeometryTypeEnum.MultiPolygon
+                   || geometryType == GeometryTypeEnum.MultiLineString
+                   || geometryType == GeometryTypeEnum.MultiPoint;
         }
 
         if (annotationType == null) return false;

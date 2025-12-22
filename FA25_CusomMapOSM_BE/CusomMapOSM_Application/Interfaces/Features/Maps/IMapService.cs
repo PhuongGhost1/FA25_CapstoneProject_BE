@@ -48,4 +48,7 @@ public interface IMapService
     // Custom listings
     Task<Option<GetMyMapsResponse, Error>> GetMyRecentMaps(int limit);
     Task<Option<GetMyMapsResponse, Error>> GetMyDraftMaps();
+    
+    // Map Transfer
+    Task<Option<MoveMapToWorkspaceResponse, Error>> MoveMapToWorkspace(Guid mapId, Guid workspaceId);
 }

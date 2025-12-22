@@ -149,4 +149,10 @@ public class QuestionRepository : IQuestionRepository
 
         return await _context.SaveChangesAsync() > 0;
     }
+
+    public async Task<int> GetActiveQuestionCountByQuestionBankId(Guid questionBankId)
+    {
+        return await _context.Questions
+            .CountAsync(q => q.QuestionBankId == questionBankId && q.IsActive);
+    }
 }

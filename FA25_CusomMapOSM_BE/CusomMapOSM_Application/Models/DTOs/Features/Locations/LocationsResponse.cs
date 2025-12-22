@@ -17,6 +17,7 @@ public record LocationDto(
     string? StoryContent,
     string? MediaResources,
     int DisplayOrder,
+    string Rotation,
     
     // Icon configuration
     string? IconType,

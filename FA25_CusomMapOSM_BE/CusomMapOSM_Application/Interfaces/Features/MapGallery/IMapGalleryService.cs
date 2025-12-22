@@ -17,6 +17,7 @@ public interface IMapGalleryService
         MapTemplateCategoryEnum? category,
         string? searchTerm,
         bool? featuredOnly,
+        bool? isStoryMap,
         CancellationToken ct = default);
 
     Task<Option<MapGalleryDetailResponse, Error>> GetPublishedMapByIdAsync(

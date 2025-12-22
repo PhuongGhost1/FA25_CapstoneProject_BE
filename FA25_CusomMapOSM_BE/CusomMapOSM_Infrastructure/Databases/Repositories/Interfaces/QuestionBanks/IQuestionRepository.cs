@@ -25,4 +25,7 @@ public interface IQuestionRepository
     // Bulk Operations
     Task<bool> CreateQuestions(List<Question> questions);
     Task<bool> DeleteQuestionsByBankId(Guid questionBankId);
+
+    // Statistics
+    Task<int> GetActiveQuestionCountByQuestionBankId(Guid questionBankId);
 }

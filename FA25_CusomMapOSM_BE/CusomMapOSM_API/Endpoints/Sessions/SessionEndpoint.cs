@@ -354,5 +354,23 @@ public class SessionEndpoint : IEndpoint
             .RequireAuthorization()
             .Produces(200)
             .Produces(404);
+
+        // Get Session Summary (Teacher sees comprehensive analytics after session ends)
+        group.MapGet("/{sessionId:guid}/summary", async (
+                [FromRoute] Guid sessionId,
+                [FromServices] ISessionService sessionService) =>
+            {
+                var result = await sessionService.GetSessionSummary(sessionId);
+                return result.Match(
+                    success => Results.Ok(success),
+                    error => error.ToProblemDetailsResult()
+                );
+            }).WithName("GetSessionSummary")
+            .WithDescription("Get comprehensive session summary with statistics, question breakdown, and participant analysis (host only)")
+            .RequireAuthorization()
+            .Produces(200)
+            .Produces(401)
+            .Produces(403)
+            .Produces(404);
     }
 }

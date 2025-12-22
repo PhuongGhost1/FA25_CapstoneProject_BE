@@ -24,6 +24,7 @@ public class MapGalleryEndpoint : IEndpoint
                 [FromQuery] string? category,
                 [FromQuery] string? search,
                 [FromQuery] bool? featured,
+                [FromQuery] bool? isStoryMap,
                 CancellationToken ct) =>
             {
                 MapTemplateCategoryEnum? categoryEnum = null;
@@ -32,7 +33,7 @@ public class MapGalleryEndpoint : IEndpoint
                     categoryEnum = parsed;
                 }
 
-                var result = await service.GetPublishedMapsAsync(categoryEnum, search, featured, ct);
+                var result = await service.GetPublishedMapsAsync(categoryEnum, search, featured, isStoryMap, ct);
                 return Results.Ok(result);
             })
             .WithName("GetPublishedMaps")

@@ -22,7 +22,7 @@ public class Location
     public string? Description { get; set; }
     public LocationType LocationType { get; set; } = LocationType.PointOfInterest;
     public int DisplayOrder { get; set; } = 0;
-    public decimal Rotation { get; set; } = 0;
+    public string? Rotation { get; set; }
     public string MarkerGeometry { get; set; } = string.Empty;
     
     public string? IconType { get; set; }

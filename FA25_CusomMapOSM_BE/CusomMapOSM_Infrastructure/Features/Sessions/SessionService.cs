@@ -1390,4 +1390,301 @@ public class SessionService : ISessionService
     {
         return Guid.NewGuid().ToString("N");
     }
+
+    public async Task<Option<SessionSummaryResponse, Error>> GetSessionSummary(Guid sessionId)
+    {
+        // 1. Validate session exists and get full details
+        var session = await _sessionRepository.GetSessionWithFullDetails(sessionId);
+        if (session == null)
+        {
+            return Option.None<SessionSummaryResponse, Error>(
+                Error.NotFound("Session.NotFound", "Session not found"));
+        }
+
+        // Verify current user is the host (teacher)
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId == null || session.HostUserId != currentUserId)
+        {
+            return Option.None<SessionSummaryResponse, Error>(
+                Error.Forbidden("Session.NotHost", "Only the session host can view the summary"));
+        }
+
+        // 2. Get all participants
+        var participants = await _participantRepository.GetParticipantsBySessionId(sessionId);
+        
+        // 3. Get all session questions with their questions
+        var sessionQuestions = await _sessionQuestionRepository.GetQuestionsBySessionId(sessionId);
+        
+        // 4. Get all responses for this session (via session questions)
+        var allResponses = new List<StudentResponse>();
+        foreach (var sq in sessionQuestions)
+        {
+            var responses = await _responseRepository.GetResponsesBySessionQuestion(sq.SessionQuestionId);
+            allResponses.AddRange(responses);
+        }
+
+        // 5. Calculate statistics
+        var totalParticipants = participants.Count;
+        var totalQuestions = sessionQuestions.Count;
+        var totalResponses = allResponses.Count;
+        var totalCorrect = allResponses.Count(r => r.IsCorrect);
+        var totalIncorrect = totalResponses - totalCorrect;
+
+        // Score analysis
+        var scores = participants.Select(p => p.TotalScore).OrderBy(s => s).ToList();
+        var avgScore = scores.Count > 0 ? scores.Average() : 0;
+        var highestScore = scores.Count > 0 ? scores.Max() : 0;
+        var lowestScore = scores.Count > 0 ? scores.Min() : 0;
+        var medianScore = scores.Count > 0 ? scores[scores.Count / 2] : 0m;
+
+        // Accuracy and time
+        var avgAccuracy = totalResponses > 0 ? (decimal)totalCorrect / totalResponses * 100 : 0;
+        var avgResponseTime = allResponses.Count > 0 
+            ? allResponses.Average(r => r.ResponseTimeSeconds) 
+            : 0m;
+
+        // Participation stats
+        var expectedResponses = totalParticipants * totalQuestions;
+        var participationRate = expectedResponses > 0 
+            ? (decimal)totalResponses / expectedResponses * 100 
+            : 0;
+        var completionRate = participationRate;
+
+        var perfectScoreCount = 0;
+        var zeroScoreCount = 0;
+        foreach (var p in participants)
+        {
+            var maxPossibleScore = sessionQuestions.Sum(sq => sq.Question?.Points ?? 100);
+            if (p.TotalScore >= maxPossibleScore && maxPossibleScore > 0) perfectScoreCount++;
+            if (p.TotalScore == 0) zeroScoreCount++;
+        }
+
+        // 6. Build Question Breakdowns
+        var questionBreakdowns = new List<QuestionBreakdown>();
+        foreach (var sq in sessionQuestions.OrderBy(q => q.QueueOrder))
+        {
+            var question = sq.Question;
+            if (question == null) continue;
+
+            var responses = allResponses.Where(r => r.SessionQuestionId == sq.SessionQuestionId).ToList();
+            var correctCount = responses.Count(r => r.IsCorrect);
+            var incorrectCount = responses.Count - correctCount;
+            var correctPct = responses.Count > 0 ? (decimal)correctCount / responses.Count * 100 : 0;
+            var avgTime = responses.Count > 0 ? responses.Average(r => r.ResponseTimeSeconds) : 0m;
+            var avgPoints = responses.Count > 0 ? responses.Average(r => (decimal)r.PointsEarned) : 0m;
+
+            var breakdown = new QuestionBreakdown
+            {
+                SessionQuestionId = sq.SessionQuestionId,
+                QuestionId = question.QuestionId,
+                QueueOrder = sq.QueueOrder,
+                QuestionType = question.QuestionType,
+                QuestionText = question.QuestionText,
+                QuestionImageUrl = question.QuestionImageUrl,
+                Points = question.Points,
+                TimeLimit = question.TimeLimit,
+                TotalResponses = responses.Count,
+                CorrectResponses = correctCount,
+                IncorrectResponses = incorrectCount,
+                CorrectPercentage = Math.Round(correctPct, 1),
+                AverageResponseTimeSeconds = Math.Round(avgTime, 1),
+                AveragePointsEarned = Math.Round(avgPoints, 1),
+                DifficultyLevel = correctPct >= 80 ? "Dễ" : (correctPct >= 50 ? "Trung bình" : "Khó")
+            };
+
+            // Option analysis for MULTIPLE_CHOICE and TRUE_FALSE
+            if (question.QuestionType == QuestionTypeEnum.MULTIPLE_CHOICE || 
+                question.QuestionType == QuestionTypeEnum.TRUE_FALSE)
+            {
+                var options = await _questionOptionRepository.GetQuestionOptionsByQuestionId(question.QuestionId);
+                breakdown.OptionAnalysis = options.Select(opt =>
+                {
+                    var selectCount = responses.Count(r => r.QuestionOptionId == opt.QuestionOptionId);
+                    return new OptionAnalysis
+                    {
+                        OptionId = opt.QuestionOptionId,
+                        OptionText = opt.OptionText,
+                        IsCorrect = opt.IsCorrect,
+                        SelectCount = selectCount,
+                        SelectPercentage = responses.Count > 0 
+                            ? Math.Round((decimal)selectCount / responses.Count * 100, 1) 
+                            : 0
+                    };
+                }).ToList();
+            }
+
+            // Distance error for PIN_ON_MAP
+            if (question.QuestionType == QuestionTypeEnum.PIN_ON_MAP)
+            {
+                var distanceErrors = responses
+                    .Where(r => r.DistanceErrorMeters.HasValue)
+                    .Select(r => r.DistanceErrorMeters!.Value)
+                    .ToList();
+                breakdown.AverageDistanceErrorMeters = distanceErrors.Count > 0 
+                    ? Math.Round(distanceErrors.Average(), 1) 
+                    : null;
+            }
+
+            // Word frequency for SHORT_ANSWER
+            if (question.QuestionType == QuestionTypeEnum.SHORT_ANSWER)
+            {
+                var wordCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (var response in responses)
+                {
+                    if (!string.IsNullOrWhiteSpace(response.ResponseText))
+                    {
+                        var normalized = response.ResponseText.Trim().ToLowerInvariant();
+                        wordCount[normalized] = wordCount.GetValueOrDefault(normalized) + 1;
+                    }
+                }
+
+                breakdown.CommonAnswers = wordCount
+                    .OrderByDescending(x => x.Value)
+                    .Take(10)
+                    .Select(x => new WordFrequency
+                    {
+                        Word = x.Key,
+                        Count = x.Value,
+                        Percentage = responses.Count > 0 
+                            ? Math.Round((decimal)x.Value / responses.Count * 100, 1) 
+                            : 0
+                    }).ToList();
+            }
+
+            questionBreakdowns.Add(breakdown);
+        }
+
+        // 7. Top Performers
+        var topPerformers = participants
+            .OrderByDescending(p => p.TotalScore)
+            .ThenByDescending(p => p.TotalCorrect)
+            .ThenBy(p => p.AverageResponseTime)
+            .Take(10)
+            .Select((p, index) => new TopPerformer
+            {
+                Rank = index + 1,
+                SessionParticipantId = p.SessionParticipantId,
+                DisplayName = p.DisplayName,
+                TotalScore = p.TotalScore,
+                TotalCorrect = p.TotalCorrect,
+                TotalAnswered = p.TotalAnswered,
+                AccuracyPercent = p.TotalAnswered > 0 
+                    ? Math.Round((decimal)p.TotalCorrect / p.TotalAnswered * 100, 1) 
+                    : 0,
+                AverageResponseTimeSeconds = Math.Round(p.AverageResponseTime, 1)
+            }).ToList();
+
+        // 8. Score Distribution for histogram
+        var scoreDistribution = new List<ScoreDistributionBucket>();
+        if (scores.Count > 0)
+        {
+            var maxScore = highestScore;
+            var bucketSize = maxScore > 0 ? Math.Max(100, (int)Math.Ceiling(maxScore / 10.0)) : 100;
+            var bucketCount = maxScore > 0 ? (int)Math.Ceiling((double)maxScore / bucketSize) : 1;
+            bucketCount = Math.Max(1, Math.Min(bucketCount, 10));
+            bucketSize = maxScore > 0 ? (int)Math.Ceiling((double)maxScore / bucketCount) : 100;
+
+            for (int i = 0; i < bucketCount; i++)
+            {
+                var minScore = i * bucketSize;
+                var maxBucketScore = (i + 1) * bucketSize;
+                var count = scores.Count(s => s >= minScore && s < maxBucketScore);
+                
+                // Include max score in last bucket
+                if (i == bucketCount - 1)
+                {
+                    count = scores.Count(s => s >= minScore);
+                }
+
+                scoreDistribution.Add(new ScoreDistributionBucket
+                {
+                    Label = $"{minScore}-{maxBucketScore}",
+                    MinScore = minScore,
+                    MaxScore = maxBucketScore,
+                    Count = count,
+                    Percentage = totalParticipants > 0 
+                        ? Math.Round((decimal)count / totalParticipants * 100, 1) 
+                        : 0
+                });
+            }
+        }
+
+        // 9. Participant Analysis
+        var participantAnalysis = new ParticipantAnalysis
+        {
+            TotalJoined = totalParticipants,
+            ActiveThroughout = participants.Count(p => !p.LeftAt.HasValue || p.LeftAt >= session.EndTime),
+            LeftEarly = participants.Count(p => p.LeftAt.HasValue && (session.EndTime == null || p.LeftAt < session.EndTime)),
+            GuestParticipants = participants.Count(p => p.IsGuest),
+            RegisteredUsers = participants.Count(p => !p.IsGuest),
+            AverageQuestionsAnswered = totalParticipants > 0 
+                ? Math.Round((decimal)totalResponses / totalParticipants, 1) 
+                : 0
+        };
+
+        // 10. Question Banks Summary
+        var questionBankSummaries = new List<QuestionBankSummary>();
+        var sessionQuestionBanks = await _sessionQuestionBankRepository.GetQuestionBanks(sessionId);
+        foreach (var sqb in sessionQuestionBanks)
+        {
+            var qb = await _questionBankRepository.GetQuestionBankById(sqb.QuestionBankId);
+            if (qb != null)
+            {
+                var questionCount = await _questionRepository.GetActiveQuestionCountByQuestionBankId(sqb.QuestionBankId);
+                questionBankSummaries.Add(new QuestionBankSummary
+                {
+                    QuestionBankId = qb.QuestionBankId,
+                    QuestionBankName = qb.BankName,
+                    TotalQuestions = questionCount
+                });
+            }
+        }
+
+        // Calculate duration
+        var durationMinutes = 0;
+        if (session.ActualStartTime.HasValue && session.EndTime.HasValue)
+        {
+            durationMinutes = (int)(session.EndTime.Value - session.ActualStartTime.Value).TotalMinutes;
+        }
+
+        // 11. Build final response
+        var summary = new SessionSummaryResponse
+        {
+            SessionId = sessionId,
+            SessionCode = session.SessionCode,
+            SessionName = session.SessionName,
+            Description = session.Description,
+            Status = session.Status.ToString(),
+            ActualStartTime = session.ActualStartTime,
+            EndTime = session.EndTime,
+            DurationMinutes = durationMinutes,
+            MapId = session.MapId,
+            MapName = session.Map?.MapName ?? "",
+            QuestionBanks = questionBankSummaries,
+            Statistics = new OverallStatistics
+            {
+                TotalParticipants = totalParticipants,
+                TotalQuestions = totalQuestions,
+                TotalResponses = totalResponses,
+                AverageScore = Math.Round((decimal)avgScore, 1),
+                AverageAccuracyPercent = Math.Round(avgAccuracy, 1),
+                AverageResponseTimeSeconds = Math.Round(avgResponseTime, 1),
+                HighestScore = highestScore,
+                LowestScore = lowestScore,
+                MedianScore = medianScore,
+                ParticipationRatePercent = Math.Round(participationRate, 1),
+                CompletionRatePercent = Math.Round(completionRate, 1),
+                ParticipantsWithPerfectScore = perfectScoreCount,
+                ParticipantsWithZeroScore = zeroScoreCount,
+                TotalCorrectAnswers = totalCorrect,
+                TotalIncorrectAnswers = totalIncorrect
+            },
+            ParticipantAnalysis = participantAnalysis,
+            QuestionBreakdowns = questionBreakdowns,
+            TopPerformers = topPerformers,
+            ScoreDistribution = scoreDistribution
+        };
+
+        return Option.Some<SessionSummaryResponse, Error>(summary);
+    }
 }

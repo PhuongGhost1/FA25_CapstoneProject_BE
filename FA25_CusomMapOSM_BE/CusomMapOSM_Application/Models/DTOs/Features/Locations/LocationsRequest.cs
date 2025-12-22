@@ -16,7 +16,7 @@ public class CreateLocationRequest
     public string MarkerGeometry { get; set; } = string.Empty;
     public string? MediaResources { get; set; }
     public int DisplayOrder { get; set; }
-    public decimal Rotation  { get; set; }
+    public string? Rotation  { get; set; }
     public string? IconType { get; set; }
     public string? IconColor { get; set; }
     public int IconSize { get; set; } = 32;
@@ -52,7 +52,7 @@ public class UpdateLocationRequest
     public string MarkerGeometry { get; set; } = string.Empty;
     public string? MediaResources { get; set; }
     public int DisplayOrder { get; set; }
-    public decimal Rotation { get; set; }
+    public string? Rotation { get; set; }
     public string? IconUrl { get; set; }
     public string? IconType { get; set; }
     public string? IconColor { get; set; }

@@ -21,10 +21,16 @@ using System.Linq;
 using System.Text.Json;
 using CusomMapOSM_Application.Interfaces.Services.Cache;
 using CusomMapOSM_Application.Interfaces.Services.LayerData;
+using CusomMapOSM_Application.Interfaces.Services.MapFeatures;
 using CusomMapOSM_Domain.Entities.Workspaces;
 using CusomMapOSM_Domain.Entities.Workspaces.Enums;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Organization;
 using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.Workspaces;
+using CusomMapOSM_Infrastructure.Databases.Repositories.Interfaces.StoryMaps;
+using CusomMapOSM_Domain.Entities.Segments;
+using CusomMapOSM_Domain.Entities.Locations;
+using CusomMapOSM_Domain.Entities.Zones;
+using CusomMapOSM_Application.Models.Documents;
 using CusomMapOSM_Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
@@ -1924,6 +1930,59 @@ public class MapService : IMapService
         {
             Maps = dtos,
             TotalCount = dtos.Count
+        });
+    }
+
+    public async Task<Option<MoveMapToWorkspaceResponse, Error>> MoveMapToWorkspace(Guid mapId, Guid workspaceId)
+    {
+        var currentUserId = _currentUserService.GetUserId();
+        if (currentUserId is null)
+        {
+            return Option.None<MoveMapToWorkspaceResponse, Error>(
+                Error.Unauthorized("Map.Unauthorized", "User not authenticated"));
+        }
+
+        // Get map
+        var map = await _mapRepository.GetMapById(mapId);
+        if (map == null || !map.IsActive)
+        {
+            return Option.None<MoveMapToWorkspaceResponse, Error>(
+                Error.NotFound("Map.NotFound", "Map not found"));
+        }
+
+        // Verify ownership
+        if (map.UserId != currentUserId.Value)
+        {
+            return Option.None<MoveMapToWorkspaceResponse, Error>(
+                Error.Forbidden("Map.Unauthorized", "You don't have permission to move this map"));
+        }
+
+        // Verify target workspace exists and user has access
+        var targetWorkspace = await _workspaceRepository.GetByIdAsync(workspaceId);
+        if (targetWorkspace == null || !targetWorkspace.IsActive)
+        {
+            return Option.None<MoveMapToWorkspaceResponse, Error>(
+                Error.NotFound("Workspace.NotFound", "Target workspace not found"));
+        }
+
+        var oldWorkspaceId = map.WorkspaceId;
+
+        // Update map's workspace
+        map.WorkspaceId = workspaceId;
+        map.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _mapRepository.UpdateMap(map);
+        if (!updateResult)
+        {
+            return Option.None<MoveMapToWorkspaceResponse, Error>(
+                Error.Failure("Map.UpdateFailed", "Failed to move map to workspace"));
+        }
+
+        return Option.Some<MoveMapToWorkspaceResponse, Error>(new MoveMapToWorkspaceResponse
+        {
+            MapId = map.MapId,
+            OldWorkspaceId = oldWorkspaceId,
+            NewWorkspaceId = workspaceId
         });
     }
 }

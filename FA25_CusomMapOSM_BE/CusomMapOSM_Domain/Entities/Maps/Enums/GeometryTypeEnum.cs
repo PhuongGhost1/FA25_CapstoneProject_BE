@@ -8,5 +8,8 @@ public enum GeometryTypeEnum
     LineString = 1,
     Polygon = 2,
     Circle = 3,
-    Rectangle = 4
+    Rectangle = 4,
+    MultiPolygon = 5,
+    MultiLineString = 6,
+    MultiPoint = 7
 }

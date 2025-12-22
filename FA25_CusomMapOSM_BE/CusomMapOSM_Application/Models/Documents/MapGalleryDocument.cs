@@ -37,6 +37,7 @@ public class MapGalleryDocument
     
     // Display metadata
     public bool IsFeatured { get; set; } = false;
+    public bool IsStoryMap { get; set; } = false;
     public int ViewCount { get; set; } = 0;
     public int LikeCount { get; set; } = 0;
     

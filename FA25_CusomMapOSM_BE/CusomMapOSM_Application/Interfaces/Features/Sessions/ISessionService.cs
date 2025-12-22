@@ -43,4 +43,7 @@ public interface ISessionService
     
     // Get all responses for a question (Teacher can see who answered what)
     Task<Option<QuestionResponsesResponse, Error>> GetQuestionResponses(Guid sessionQuestionId);
+    
+    // Comprehensive Session Summary for Teachers
+    Task<Option<SessionSummaryResponse, Error>> GetSessionSummary(Guid sessionId);
 }

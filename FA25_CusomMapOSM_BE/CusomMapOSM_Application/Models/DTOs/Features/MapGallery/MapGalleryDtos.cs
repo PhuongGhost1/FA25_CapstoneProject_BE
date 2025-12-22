@@ -18,6 +18,7 @@ public record MapGallerySummaryResponse
     public string? AuthorName { get; init; }
     public MapGalleryStatusEnum Status { get; init; }
     public bool IsFeatured { get; init; }
+    public bool IsStoryMap { get; init; }
     public int ViewCount { get; init; }
     public int LikeCount { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -38,6 +39,7 @@ public record MapGalleryDetailResponse
     public string? AuthorEmail { get; init; }
     public MapGalleryStatusEnum Status { get; init; }
     public bool IsFeatured { get; init; }
+    public bool IsStoryMap { get; init; }
     public int ViewCount { get; init; }
     public int LikeCount { get; init; }
     public DateTime CreatedAt { get; init; }
@@ -90,7 +92,12 @@ public record MapGalleryDuplicateResponse
     public string MapName { get; init; } = string.Empty;
     public string SourceMapName { get; init; } = string.Empty;
     public int LayersCreated { get; init; }
+    public int FeaturesCreated { get; init; }
     public int ImagesCreated { get; init; }
+    public int SegmentsCreated { get; init; }
+    public int LocationsCreated { get; init; }
+    public int LegendItemsCreated { get; init; }
+    public bool IsStoryMap { get; init; }
     public DateTime CreatedAt { get; init; }
     public string Message { get; init; } = "Map duplicated successfully from gallery";
 }
